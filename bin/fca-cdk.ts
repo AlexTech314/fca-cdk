@@ -1,35 +1,52 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
 import { PipelineStack } from '../lib/pipeline-stack';
+import { EcrCacheStack } from '../lib/stacks/ecr-cache-stack';
 
 const app = new cdk.App();
 
-// Pipeline configuration - update these values for your environment
+// Environment configuration
+const env = {
+  account: process.env.CDK_DEFAULT_ACCOUNT,
+  region: process.env.CDK_DEFAULT_REGION,
+};
+
+// Pipeline configuration from context
 const pipelineConfig = {
-  // Your GitHub repository in the format 'owner/repo'
   repositoryName: app.node.tryGetContext('repositoryName') || 'OWNER/fca-cdk',
-  
-  // The branch to deploy from
   branchName: app.node.tryGetContext('branchName') || 'main',
-  
-  // The ARN of the CodeStar connection for GitHub
-  // Create this in the AWS Console: Developer Tools > Settings > Connections
   connectionArn: app.node.tryGetContext('connectionArn') || 'arn:aws:codestar-connections:REGION:ACCOUNT:connection/CONNECTION_ID',
 };
 
-// Pipeline stack - this is the only stack you deploy manually (once)
+// ============================================================
+// ECR Cache Stack - Deploy FIRST (before Pipeline)
+// ============================================================
+//
+// Sets up ECR pull-through cache for GitHub Container Registry and Docker Hub.
+// Must be deployed before Pipeline so Docker builds can use cached images.
+//
+// Prerequisites:
+// 1. Create secret: ecr-pullthroughcache/ghcr with GHCR credentials
+// 2. Create secret: ecr-pullthroughcache/docker-hub with Docker Hub credentials
+// 3. Deploy this stack: npx cdk deploy FcaEcrCache
+// 4. Seed the cache by pulling an image through ECR
+//
+new EcrCacheStack(app, 'FcaEcrCache', { env });
+
+// ============================================================
+// Pipeline Stack - Deploy SECOND after ECR Cache
+// ============================================================
+//
+// Prerequisites:
+// 1. Create GitHub connection in AWS Console
+// 2. Set repositoryName, connectionArn in cdk.context.json
+// 3. ECR Cache must be deployed
+//
 new PipelineStack(app, 'FcaPipelineStack', {
   repositoryName: pipelineConfig.repositoryName,
   branchName: pipelineConfig.branchName,
   connectionArn: pipelineConfig.connectionArn,
-  
-  // Specify the environment for the pipeline itself
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION,
-  },
-  
-  // Optional: Add tags
+  env,
   tags: {
     Project: 'fca',
     ManagedBy: 'cdk-pipelines',

@@ -7,16 +7,17 @@ AWS CDK TypeScript project with a self-mutating CI/CD pipeline.
 ```
 fca-cdk/
 ├── bin/
-│   └── fca-cdk.ts           # App entry point
+│   └── fca-cdk.ts            # App entry point
 ├── lib/
-│   ├── pipeline-stack.ts     # Self-mutating pipeline
+│   ├── pipeline-stack.ts      # Self-mutating pipeline
 │   ├── stages/
-│   │   └── fca-stage.ts      # Application deployment stage
+│   │   └── fca-stage.ts       # Application deployment stage
 │   └── stacks/
-│       └── fca-stack.ts      # Application infrastructure
+│       ├── ecr-cache-stack.ts # ECR pull-through cache (GHCR + DockerHub)
+│       └── fca-stack.ts       # Application infrastructure
 ├── test/
-│   └── fca-cdk.test.ts       # Unit tests
-└── cdk.json                  # CDK configuration
+│   └── fca-cdk.test.ts        # Unit tests
+└── cdk.json                   # CDK configuration
 ```
 
 ## Prerequisites
@@ -69,7 +70,31 @@ npx cdk deploy -c repositoryName=your-org/fca-cdk \
 npx cdk bootstrap aws://ACCOUNT_ID/REGION
 ```
 
-### 5. Deploy the Pipeline
+### 5. Create ECR Pull-Through Cache Secrets
+
+Create secrets for GitHub Container Registry and Docker Hub:
+
+```bash
+# GHCR secret (GitHub Personal Access Token with read:packages scope)
+aws secretsmanager create-secret \
+  --name ecr-pullthroughcache/ghcr \
+  --secret-string '{"username":"YOUR_GITHUB_USERNAME","accessToken":"ghp_YOUR_PAT"}'
+
+# Docker Hub secret (Docker Hub Access Token)
+aws secretsmanager create-secret \
+  --name ecr-pullthroughcache/docker-hub \
+  --secret-string '{"username":"YOUR_DOCKERHUB_USERNAME","accessToken":"YOUR_DOCKERHUB_PAT"}'
+```
+
+> **Note**: The secret names MUST have the `ecr-pullthroughcache/` prefix per AWS requirements.
+
+### 6. Deploy ECR Cache Stack (FIRST)
+
+```bash
+npx cdk deploy FcaEcrCache
+```
+
+### 7. Deploy the Pipeline (SECOND)
 
 ```bash
 # Commit your code first!
@@ -82,6 +107,37 @@ npx cdk deploy FcaPipelineStack
 ```
 
 After the initial deployment, the pipeline will self-mutate on each push.
+
+## ECR Pull-Through Cache
+
+The `FcaEcrCache` stack sets up ECR pull-through cache for both GitHub Container Registry and Docker Hub. This:
+
+- Avoids Docker Hub rate limits
+- Caches images in your AWS account for faster pulls
+- Works with the CDK pipeline's Docker builds
+
+### Image Mapping
+
+| Original Image | Cached Image |
+|---------------|--------------|
+| `ghcr.io/org/image:tag` | `{account}.dkr.ecr.{region}.amazonaws.com/ghcr/org/image:tag` |
+| `node:20-alpine` | `{account}.dkr.ecr.{region}.amazonaws.com/docker-hub/library/node:20-alpine` |
+| `nginx:latest` | `{account}.dkr.ecr.{region}.amazonaws.com/docker-hub/library/nginx:latest` |
+
+> **Note**: Official Docker Hub images use the `library/` prefix.
+
+### Seeding the Cache
+
+Pull an image through ECR to seed the cache:
+
+```bash
+# Login to ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin {account}.dkr.ecr.us-east-1.amazonaws.com
+
+# Pull through cache (this caches the image)
+docker pull {account}.dkr.ecr.us-east-1.amazonaws.com/ghcr/org/image:tag
+docker pull {account}.dkr.ecr.us-east-1.amazonaws.com/docker-hub/library/node:20-alpine
+```
 
 ## Development
 

@@ -55,9 +55,10 @@ export class PipelineStack extends cdk.Stack {
         primaryOutputDirectory: 'cdk.out',
       }),
 
-      // Enable Docker for asset publishing if needed
-      dockerEnabledForSynth: false,
-      dockerEnabledForSelfMutation: false,
+      // Enable Docker for building container images
+      // Required if your stacks use DockerImageAsset, ECS, Lambda containers, etc.
+      dockerEnabledForSynth: true,
+      dockerEnabledForSelfMutation: true,
     });
 
     // Add the application stage

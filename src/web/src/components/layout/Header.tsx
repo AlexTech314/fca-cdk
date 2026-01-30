@@ -1,0 +1,57 @@
+import Link from 'next/link';
+import Image from 'next/image';
+import { siteConfig, navItems } from '@/lib/utils';
+import { Navigation } from './Navigation';
+
+export function Header() {
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+      <div className="container-max">
+        <div className="flex h-16 items-center justify-between md:h-20">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3">
+            <Image
+              src="/logos/fca-mountain-on-white.png"
+              alt={siteConfig.name}
+              width={120}
+              height={42}
+              className="h-8 w-auto md:h-10"
+              priority
+            />
+            <div className="hidden sm:block">
+              <span className="text-lg font-semibold text-primary md:text-xl">
+                Flatirons Capital
+              </span>
+              <span className="hidden text-xs text-text-muted md:block">
+                {siteConfig.tagline}
+              </span>
+            </div>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex lg:items-center lg:gap-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-md px-3 py-2 text-sm font-medium text-text-muted transition-colors hover:bg-surface hover:text-primary"
+              >
+                {item.name}
+              </Link>
+            ))}
+            <Link
+              href="/contact"
+              className="ml-2 rounded-md px-4 py-2 text-sm font-medium transition-colors"
+              style={{ backgroundColor: '#1e3a5f', color: '#ffffff' }}
+            >
+              Get Started
+            </Link>
+          </nav>
+
+          {/* Mobile Navigation */}
+          <Navigation />
+        </div>
+      </div>
+    </header>
+  );
+}

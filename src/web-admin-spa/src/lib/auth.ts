@@ -1,180 +1,250 @@
-import type { User, SignInResult, SignInStep } from '@/types';
-import { USE_MOCK_AUTH, DEMO_CREDENTIALS } from './amplify-config';
+import type { User } from '@/types';
 import { mockUser } from './mock-data';
+import { USE_MOCK_AUTH, DEMO_CREDENTIALS } from './amplify-config';
 
-// In-memory state for mock auth
-let currentUser: User | null = null;
-let pendingNewPasswordUser: User | null = null;
+// ===========================================
+// Types
+// ===========================================
 
-export async function login(email: string, password: string): Promise<SignInResult> {
+export type SignInStep = 
+  | 'DONE'
+  | 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED'
+  | 'RESET_PASSWORD';
+
+export interface SignInResult {
+  isSignedIn: boolean;
+  user?: User;
+  nextStep?: SignInStep;
+  codeDeliveryDetails?: {
+    destination?: string;
+    deliveryMedium?: string;
+  };
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+}
+
+// ===========================================
+// Mock Auth State (in-memory)
+// ===========================================
+
+let mockAuthState: AuthState = {
+  user: null,
+  isAuthenticated: false,
+};
+
+let mockRequiresNewPassword = false;
+
+// ===========================================
+// Auth Functions
+// ===========================================
+
+/**
+ * Get the current authenticated user
+ */
+export async function getCurrentAuthUser(): Promise<User | null> {
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
   if (USE_MOCK_AUTH) {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    return mockAuthState.user;
+  }
+  
+  // Real Cognito implementation would go here:
+  // try {
+  //   const user = await getCurrentUser();
+  //   return { email: user.signInDetails?.loginId || user.username, ... };
+  // } catch { return null; }
+  
+  return null;
+}
 
+/**
+ * Check if there's a valid session
+ */
+export async function checkAuthSession(): Promise<AuthState> {
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  if (USE_MOCK_AUTH) {
+    return mockAuthState;
+  }
+  
+  // Real Cognito implementation would go here:
+  // try {
+  //   const session = await fetchAuthSession();
+  //   if (session.tokens?.idToken) { ... }
+  // } catch { ... }
+  
+  return { user: null, isAuthenticated: false };
+}
+
+/**
+ * Sign in with email and password
+ */
+export async function login(email: string, password: string): Promise<SignInResult> {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  if (USE_MOCK_AUTH) {
     // Check demo credentials
     if (email === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
-      currentUser = mockUser;
-      return {
-        isSignedIn: true,
+      mockAuthState = {
         user: mockUser,
+        isAuthenticated: true,
       };
+      return { isSignedIn: true, user: mockUser };
     }
-
-    // Simulate new password required flow for specific email
+    
+    // Simulate temp password flow (for testing)
     if (email === 'newuser@flatironscapital.com' && password === 'temppass123') {
-      pendingNewPasswordUser = {
-        ...mockUser,
-        id: 'user-new',
-        email: 'newuser@flatironscapital.com',
-        name: 'New User',
-      };
-      return {
-        isSignedIn: false,
-        nextStep: 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED',
+      mockRequiresNewPassword = true;
+      return { 
+        isSignedIn: false, 
+        nextStep: 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED' 
       };
     }
-
+    
     throw new Error('Invalid email or password');
   }
-
-  // Real Cognito implementation would go here
-  // import { signIn } from 'aws-amplify/auth';
-  // const result = await signIn({ username: email, password });
-  throw new Error('Real auth not implemented');
+  
+  // Real Cognito implementation would go here:
+  // const result = await amplifySignIn({ username: email, password });
+  // ...
+  
+  throw new Error('Real auth not configured');
 }
 
-export async function confirmNewPassword(newPassword: string): Promise<SignInResult> {
+/**
+ * Confirm sign-in with a new password (for first-time login with temp password)
+ */
+export async function confirmSignInWithNewPassword(_newPassword: string): Promise<SignInResult> {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
   if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    if (!pendingNewPasswordUser) {
-      throw new Error('No pending password change');
+    if (mockRequiresNewPassword) {
+      mockRequiresNewPassword = false;
+      mockAuthState = {
+        user: mockUser,
+        isAuthenticated: true,
+      };
+      return { isSignedIn: true, user: mockUser };
     }
-
-    if (newPassword.length < 8) {
-      throw new Error('Password must be at least 8 characters');
-    }
-
-    currentUser = pendingNewPasswordUser;
-    pendingNewPasswordUser = null;
-
-    return {
-      isSignedIn: true,
-      user: currentUser,
-    };
+    throw new Error('No pending password change');
   }
-
-  throw new Error('Real auth not implemented');
+  
+  // Real Cognito implementation would go here:
+  // const result = await amplifyConfirmSignIn({ challengeResponse: newPassword });
+  // ...
+  
+  throw new Error('Real auth not configured');
 }
 
-export async function forgotPassword(email: string): Promise<{ destination?: string }> {
+/**
+ * Initiate password reset flow
+ */
+export async function initiatePasswordReset(email: string): Promise<{ destination?: string }> {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
   if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-
     // Simulate sending reset code
-    return {
-      destination: email.replace(/(.{2}).*@/, '$1***@'),
-    };
+    const maskedEmail = email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+    return { destination: maskedEmail };
   }
-
-  throw new Error('Real auth not implemented');
+  
+  // Real Cognito implementation would go here:
+  // const result = await amplifyResetPassword({ username: email });
+  // ...
+  
+  throw new Error('Real auth not configured');
 }
 
-export async function confirmResetPassword(
-  _email: string,
-  code: string,
-  newPassword: string
+/**
+ * Confirm password reset with code and new password
+ */
+export async function confirmPasswordReset(
+  email: string, 
+  confirmationCode: string, 
+  _newPassword: string
 ): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
   if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    if (code !== '123456') {
-      throw new Error('Invalid verification code');
+    // Simulate code validation
+    if (confirmationCode === '123456') {
+      // Update demo credentials for this session
+      console.log(`Password reset for ${email} with new password`);
+      return;
     }
-
-    if (newPassword.length < 8) {
-      throw new Error('Password must be at least 8 characters');
-    }
-
-    // Password reset successful
-    return;
+    throw new Error('Invalid verification code');
   }
-
-  throw new Error('Real auth not implemented');
+  
+  // Real Cognito implementation would go here:
+  // await amplifyConfirmResetPassword({ username: email, confirmationCode, newPassword });
+  
+  throw new Error('Real auth not configured');
 }
 
+/**
+ * Sign out the current user
+ */
 export async function logout(): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, 200));
+  
   if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    currentUser = null;
+    mockAuthState = { user: null, isAuthenticated: false };
     return;
   }
-
-  throw new Error('Real auth not implemented');
+  
+  // Real Cognito implementation would go here:
+  // await amplifySignOut();
 }
 
-export async function checkAuthSession(): Promise<User | null> {
-  if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    return currentUser;
-  }
-
-  throw new Error('Real auth not implemented');
-}
-
+/**
+ * Get the ID token for API authorization
+ */
 export async function getIdToken(): Promise<string | null> {
   if (USE_MOCK_AUTH) {
-    if (currentUser) {
-      return 'mock-id-token-' + currentUser.id;
-    }
-    return null;
+    return mockAuthState.isAuthenticated ? 'mock-id-token' : null;
   }
-
-  throw new Error('Real auth not implemented');
-}
-
-// Permission helpers
-export function hasPermission(user: User | null, permission: 'read' | 'write' | 'admin'): boolean {
-  if (!user) return false;
   
-  switch (permission) {
-    case 'read':
-      return true; // All roles can read
-    case 'write':
-      return user.role === 'readwrite' || user.role === 'admin';
-    case 'admin':
-      return user.role === 'admin';
-    default:
-      return false;
-  }
+  // Real Cognito implementation would go here:
+  // const session = await fetchAuthSession();
+  // return session.tokens?.idToken?.toString() || null;
+  
+  return null;
 }
 
-export function canWrite(user: User | null): boolean {
-  return hasPermission(user, 'write');
+// ===========================================
+// Helper Functions
+// ===========================================
+
+export function hasPermission(user: User, requiredRole: 'readonly' | 'readwrite' | 'admin'): boolean {
+  const roleHierarchy = {
+    readonly: 0,
+    readwrite: 1,
+    admin: 2,
+  };
+  
+  return roleHierarchy[user.role] >= roleHierarchy[requiredRole];
 }
 
-export function isAdmin(user: User | null): boolean {
-  return hasPermission(user, 'admin');
+export function canWrite(user: User): boolean {
+  return hasPermission(user, 'readwrite');
+}
+
+export function isAdmin(user: User): boolean {
+  return user.role === 'admin';
 }
 
 export function getUserInitials(user: User | null): string {
-  if (!user || !user.name) return '??';
-  
-  const parts = user.name.split(' ');
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  if (!user) return '??';
+  if (user.name) {
+    return user.name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
   }
-  return user.name.substring(0, 2).toUpperCase();
-}
-
-// Map Cognito next step to our SignInStep type
-export function mapNextStep(cognitoStep: string): SignInStep {
-  switch (cognitoStep) {
-    case 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED':
-      return 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED';
-    case 'RESET_PASSWORD':
-      return 'RESET_PASSWORD';
-    default:
-      return 'DONE';
-  }
+  return user.email.substring(0, 2).toUpperCase();
 }

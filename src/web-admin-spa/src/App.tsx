@@ -20,6 +20,7 @@ import Subscribers from '@/pages/Subscribers';
 import SellerIntakes from '@/pages/SellerIntakes';
 import EmailCompose from '@/pages/EmailCompose';
 import Settings from '@/pages/Settings';
+import Admin from '@/pages/Admin';
 
 // Create query client
 const queryClient = new QueryClient({
@@ -108,6 +109,7 @@ function AppRoutes() {
           <Route path="/intakes" element={<SellerIntakes />} />
           <Route path="/email/compose" element={<EmailCompose />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/admin" element={<Admin />} />
         </Route>
       </Route>
 

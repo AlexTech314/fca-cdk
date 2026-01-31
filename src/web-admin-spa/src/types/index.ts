@@ -182,6 +182,12 @@ export interface SendEmailInput {
   testEmail?: string; // Send test to this email first
 }
 
+export interface InviteUserInput {
+  email: string;
+  name?: string;
+  role: UserRole;
+}
+
 // ===========================================
 // ANALYTICS TYPES
 // ===========================================

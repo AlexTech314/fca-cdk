@@ -5,6 +5,9 @@ import type {
   EmailSubscriber,
   SellerIntake,
   EmailNotification,
+  User,
+  UserRole,
+  InviteUserInput,
   DashboardStats,
   ActivityItem,
   AnalyticsParams,
@@ -68,4 +71,10 @@ export interface WebAdminApi {
   sendEmail(input: SendEmailInput): Promise<{ sent: number }>;
   previewEmail(input: SendEmailInput): Promise<{ html: string }>;
   getEmailHistory(): Promise<EmailNotification[]>;
+
+  // Users (Admin)
+  getUsers(): Promise<User[]>;
+  inviteUser(input: InviteUserInput): Promise<User>;
+  updateUserRole(id: string, role: UserRole): Promise<User>;
+  removeUser(id: string): Promise<void>;
 }

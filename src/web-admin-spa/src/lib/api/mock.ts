@@ -9,6 +9,9 @@ import type {
   UpdateIntakeStatusInput,
   SendEmailInput,
   AnalyticsParams,
+  User,
+  UserRole,
+  InviteUserInput,
 } from '@/types';
 import {
   mockTombstones,
@@ -32,6 +35,42 @@ let blogPosts = [...mockBlogPosts];
 let pages = [...mockPages];
 let subscribers = [...mockSubscribers];
 let intakes = [...mockIntakes];
+
+// Mock users
+let users: User[] = [
+  {
+    id: 'user-1',
+    email: 'admin@flatironscapital.com',
+    name: 'Admin User',
+    role: 'admin',
+    lastActiveAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'user-2',
+    email: 'john.smith@flatironscapital.com',
+    name: 'John Smith',
+    role: 'readwrite',
+    lastActiveAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'user-3',
+    email: 'jane.doe@flatironscapital.com',
+    name: 'Jane Doe',
+    role: 'readwrite',
+    lastActiveAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'user-4',
+    email: 'viewer@flatironscapital.com',
+    name: 'View Only',
+    role: 'readonly',
+    lastActiveAt: null,
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
 
 export const mockApi: WebAdminApi = {
   // Dashboard
@@ -347,5 +386,45 @@ export const mockApi: WebAdminApi = {
   async getEmailHistory() {
     await delay(200);
     return mockEmailNotifications;
+  },
+
+  // Users (Admin)
+  async getUsers() {
+    await delay(200);
+    return [...users].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  },
+
+  async inviteUser(input: InviteUserInput) {
+    await delay(300);
+    const now = new Date().toISOString();
+    const newUser: User = {
+      id: `user-${generateId()}`,
+      email: input.email,
+      name: input.name || null,
+      role: input.role,
+      lastActiveAt: null,
+      createdAt: now,
+    };
+    users.push(newUser);
+    return newUser;
+  },
+
+  async updateUserRole(id: string, role: UserRole) {
+    await delay(200);
+    const index = users.findIndex(u => u.id === id);
+    if (index === -1) throw new Error('User not found');
+    
+    users[index] = {
+      ...users[index],
+      role,
+    };
+    return users[index];
+  },
+
+  async removeUser(id: string) {
+    await delay(200);
+    users = users.filter(u => u.id !== id);
   },
 };

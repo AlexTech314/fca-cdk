@@ -9,6 +9,7 @@ import {
   Inbox,
   Settings,
   LogOut,
+  Shield,
 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -64,7 +65,7 @@ function NavLinkItem({ to, label, icon }: NavItem) {
 }
 
 export function Sidebar() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
 
   const handleSignOut = async () => {
     await signOut();
@@ -80,7 +81,7 @@ export function Sidebar() {
             alt="Flatirons Capital"
             className="h-6 w-auto brightness-0 invert"
           />
-          <span className="text-sm font-semibold">Admin</span>
+          <span className="text-sm font-semibold">Flatirons Capital</span>
         </div>
 
         {/* Navigation */}
@@ -105,6 +106,13 @@ export function Sidebar() {
             {settingsNavItems.map((item) => (
               <NavLinkItem key={item.to} {...item} />
             ))}
+            {isAdmin && (
+              <NavLinkItem
+                to="/admin"
+                label="Team"
+                icon={<Shield className="h-4 w-4" />}
+              />
+            )}
           </nav>
         </ScrollArea>
 

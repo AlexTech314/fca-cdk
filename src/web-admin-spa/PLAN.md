@@ -32,12 +32,521 @@ An admin dashboard for managing website content, email subscribers, and viewing 
 | Build Tool | Vite |
 | Routing | React Router v6 |
 | Data Fetching | TanStack Query (React Query) |
-| UI Components | shadcn/ui |
+| UI Components | shadcn/ui (New York style, dark mode) |
 | Styling | Tailwind CSS |
 | Forms | react-hook-form + zod |
 | Charts | Recharts |
 | **Rich Text Editor** | **BlockNote** (outputs Markdown) |
-| Auth | AWS Amplify (Cognito) |
+| Auth | AWS Amplify (Cognito) - with mock support |
+
+---
+
+## Shared Design System
+
+> **CRITICAL**: This SPA shares the exact same design system as `lead-gen-spa` to ensure brand consistency.
+
+### Aesthetic
+Luxury, high-tech, enterprise, sleek. **Dark mode only.**
+
+### Color Palette (CSS Variables)
+
+```css
+/* globals.css - MUST match lead-gen-spa exactly */
+
+/* Dark mode primary - sophisticated dark background */
+--background: 224 71% 4%;        /* Near black with blue undertone */
+--foreground: 213 31% 91%;       /* Soft white */
+
+/* Card/Surface - subtle elevation */
+--card: 224 71% 6%;              /* Slightly lighter than bg */
+--card-foreground: 213 31% 91%;
+
+/* Muted - for secondary text */
+--muted: 223 47% 11%;
+--muted-foreground: 215 20% 65%;
+
+/* Accent - electric blue */
+--primary: 217 91% 60%;          /* Electric blue */
+--primary-foreground: 210 40% 98%;
+
+/* Success */
+--success: 142 76% 36%;          /* Green */
+
+/* Warning */
+--warning: 38 92% 50%;           /* Amber */
+
+/* Destructive */
+--destructive: 0 84% 60%;        /* Red */
+
+/* Border - subtle dividers */
+--border: 216 34% 17%;
+--ring: 217 91% 60%;
+```
+
+### Typography
+
+```css
+/* Primary font - clean, modern sans-serif */
+font-family: 'Inter', system-ui, sans-serif;
+
+/* Monospace for data/metrics */
+font-family: 'JetBrains Mono', 'Fira Code', monospace;
+```
+
+| Element | Size | Weight | Tracking |
+|---------|------|--------|----------|
+| Page Title | 2rem (32px) | 600 | -0.02em |
+| Section Header | 1.25rem (20px) | 600 | -0.01em |
+| Card Title | 1rem (16px) | 500 | 0 |
+| Body | 0.875rem (14px) | 400 | 0 |
+| Small/Label | 0.75rem (12px) | 500 | 0.05em |
+| Metric Large | 2.5rem (40px) | 700 | -0.02em |
+
+### Visual Elements
+
+**Cards:**
+- Subtle border (1px, --border color)
+- Very slight background elevation
+- No heavy shadows
+- Border radius: 12px
+
+**Buttons:**
+- Primary: Solid accent color, slight glow on hover
+- Secondary: Ghost style with border
+- Rounded-lg (8px radius)
+- Smooth 150ms transitions
+
+**Tables:**
+- Alternating row colors (very subtle)
+- Hover state with accent color tint
+- Sticky header with blur background
+- Compact row height for data density
+
+**Charts (Recharts):**
+- Gradient fills (accent color fading to transparent)
+- Thin, crisp lines (2px stroke)
+- Subtle grid lines (--border color)
+- Animated on mount
+- Tooltip with glass morphism effect
+
+### Layout: Persistent Sidebar
+
+The sidebar is **always visible** and **pushes content** to the right. It does NOT overlay.
+
+```
+┌─────────────────────┬──────────────────────────────────────────────────────┐
+│  ◆ FCA Admin        │                                                      │
+│                     │              MAIN CONTENT AREA                       │
+│  Dashboard          │                                                      │
+│  Tombstones         │   Content is pushed right to make room for sidebar   │
+│  Blog Posts         │                                                      │
+│  Pages              │              (Never hidden behind sidebar)           │
+│  ─────────────────  │                                                      │
+│  Analytics          │                                                      │
+│  Subscribers        │                                                      │
+│  Intakes            │                                                      │
+│  ─────────────────  │                                                      │
+│  Settings           │                                                      │
+│                     │                                                      │
+│  ─────────────────  │                                                      │
+│  👤 John Smith      │                                                      │
+│     admin           │                                                      │
+└─────────────────────┴──────────────────────────────────────────────────────┘
+       240px fixed                    flex-1 (remaining width)
+```
+
+**Layout CSS (Same as lead-gen-spa):**
+```css
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;        /* Never shrink */
+  position: sticky;      /* Stays in place on scroll */
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.main-content {
+  flex: 1;               /* Takes remaining width */
+  min-width: 0;          /* Allows content to shrink properly */
+  overflow-x: hidden;
+}
+```
+
+### Tailwind Config
+
+```typescript
+// tailwind.config.ts - MUST match lead-gen-spa exactly
+export default {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        electric: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          500: '#3b82f6',
+          600: '#2563eb',
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+      },
+      animation: {
+        'glow': 'glow 2s ease-in-out infinite alternate',
+        'fade-in': 'fadeIn 0.5s ease-out',
+      },
+      keyframes: {
+        glow: {
+          '0%': { boxShadow: '0 0 5px rgba(59, 130, 246, 0.5)' },
+          '100%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.8)' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+    },
+  },
+};
+```
+
+---
+
+## Authentication Flow
+
+> **CRITICAL**: Authentication follows the exact same pattern as `lead-gen-spa` for consistency.
+
+### Auth Flow State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> LOGIN
+    LOGIN --> NEW_PASSWORD_REQUIRED: Temp password
+    LOGIN --> FORGOT_PASSWORD: Click forgot
+    LOGIN --> AUTHENTICATED: Success
+    
+    NEW_PASSWORD_REQUIRED --> AUTHENTICATED: Set password
+    
+    FORGOT_PASSWORD --> CONFIRM_RESET_CODE: Code sent
+    CONFIRM_RESET_CODE --> LOGIN: Reset complete
+    
+    AUTHENTICATED --> LOGIN: Logout
+```
+
+### Auth Flows Supported
+
+| Flow | Trigger | Outcome |
+|------|---------|---------|
+| **Normal Login** | Email + password | Authenticated |
+| **New Password Required** | First login with temp password | Must set new password |
+| **Forgot Password** | Click "Forgot password?" | Enter email, receive code |
+| **Confirm Reset Code** | Enter code + new password | Password reset, back to login |
+
+### Mock Auth Configuration
+
+```typescript
+// lib/amplify-config.ts
+export const USE_MOCK_AUTH = true;  // Toggle for development
+
+export const DEMO_CREDENTIALS = {
+  email: 'admin@flatironscapital.com',
+  password: 'admin123',
+};
+```
+
+When `USE_MOCK_AUTH` is true:
+- Demo credentials shown on login screen
+- All auth operations simulated in-memory
+- No Cognito calls made
+
+### Switching to Real Cognito
+
+1. Set environment variables:
+   - `VITE_COGNITO_USER_POOL_ID`
+   - `VITE_COGNITO_CLIENT_ID`
+   - `VITE_COGNITO_DOMAIN`
+2. Set `USE_MOCK_AUTH = false` in `amplify-config.ts`
+3. Install `aws-amplify` package
+4. Uncomment `Amplify.configure()` in `main.tsx`
+
+### Auth Types (Shared with lead-gen-spa)
+
+```typescript
+// types/auth.ts
+export type SignInStep = 
+  | 'DONE'
+  | 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED'
+  | 'RESET_PASSWORD';
+
+export type AuthFlow = 
+  | 'LOGIN'
+  | 'NEW_PASSWORD_REQUIRED'
+  | 'FORGOT_PASSWORD'
+  | 'CONFIRM_RESET_CODE';
+
+export interface SignInResult {
+  isSignedIn: boolean;
+  user?: User;
+  nextStep?: SignInStep;
+  codeDeliveryDetails?: {
+    destination?: string;
+    deliveryMedium?: string;
+  };
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+}
+```
+
+### Auth Context
+
+```typescript
+// contexts/AuthContext.tsx
+interface AuthContextValue extends AuthState {
+  authFlow: AuthFlow;
+  pendingEmail: string | null;
+  resetCodeDestination: string | null;
+  isLoading: boolean;
+  
+  // Actions
+  login: (email: string, password: string) => Promise<SignInResult>;
+  confirmNewPassword: (newPassword: string) => Promise<SignInResult>;
+  forgotPassword: (email: string) => Promise<void>;
+  confirmResetPassword: (code: string, newPassword: string) => Promise<void>;
+  startForgotPasswordFlow: () => void;
+  cancelAuthFlow: () => void;
+  signOut: () => Promise<void>;
+}
+```
+
+### Login Page
+
+The login page renders different forms based on `authFlow`:
+- `LOGIN`: Email + password form with demo credentials banner
+- `NEW_PASSWORD_REQUIRED`: New password form
+- `FORGOT_PASSWORD`: Email input to send reset code
+- `CONFIRM_RESET_CODE`: Code + new password form
+
+---
+
+## TypeScript Types
+
+> **CRITICAL**: Types MUST match the Prisma schema in `src/api/PLAN.md` exactly.
+
+```typescript
+// types/index.ts
+
+// ===========================================
+// CORE MODELS (from API schema)
+// ===========================================
+
+export interface Tombstone {
+  id: string;
+  name: string;
+  slug: string;
+  imagePath: string;
+  industry: string | null;
+  role: string | null;
+  dealDate: string | null;
+  description: string | null;
+  newsSlug: string | null;
+  sortOrder: number;
+  isPublished: boolean;
+  previewToken: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlogPost {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  content: string;           // Markdown content (from BlockNote)
+  author: string | null;
+  category: string | null;   // news, resource, article
+  publishedAt: string | null;
+  isPublished: boolean;
+  previewToken: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PageContent {
+  id: string;
+  pageKey: string;           // about, faq, contact, etc.
+  title: string;
+  content: string;           // Markdown or JSON
+  metadata: Record<string, unknown> | null;  // SEO metadata
+  previewToken: string;
+  updatedAt: string;
+}
+
+export interface PageView {
+  id: string;
+  path: string;
+  hour: string;              // ISO timestamp truncated to hour
+  count: number;
+  createdAt: string;
+}
+
+export interface EmailSubscriber {
+  id: string;
+  email: string;
+  name: string | null;
+  source: string | null;     // website, intake_form, manual
+  isSubscribed: boolean;
+  subscribedAt: string;
+  unsubscribedAt: string | null;
+}
+
+export interface SellerIntake {
+  id: string;
+  email: string;
+  name: string | null;
+  companyName: string | null;
+  phone: string | null;
+  message: string | null;
+  source: string | null;
+  status: 'new' | 'contacted' | 'qualified' | 'closed';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmailNotification {
+  id: string;
+  type: 'new_tombstone' | 'new_blog_post';
+  referenceId: string;
+  sentAt: string;
+  recipientCount: number;
+}
+
+// ===========================================
+// USER & AUTH (shared with lead-gen-spa)
+// ===========================================
+
+export type UserRole = 'readonly' | 'readwrite' | 'admin';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  cognitoSub: string | null;
+  organizationId: string | null;
+  role: UserRole;
+  invitedAt: string;
+  lastActiveAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ===========================================
+// INPUT TYPES (for forms)
+// ===========================================
+
+export interface CreateTombstoneInput {
+  name: string;
+  slug?: string;             // Auto-generated if not provided
+  imagePath: string;
+  industry?: string;
+  role?: string;
+  dealDate?: string;
+  description?: string;
+  newsSlug?: string;
+  sortOrder?: number;
+  isPublished?: boolean;
+}
+
+export interface UpdateTombstoneInput extends Partial<CreateTombstoneInput> {}
+
+export interface CreateBlogPostInput {
+  slug?: string;             // Auto-generated from title if not provided
+  title: string;
+  excerpt?: string;
+  content: string;           // Markdown
+  author?: string;
+  category?: string;
+  isPublished?: boolean;
+}
+
+export interface UpdateBlogPostInput extends Partial<CreateBlogPostInput> {}
+
+export interface UpdatePageContentInput {
+  title?: string;
+  content?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface CreateSubscriberInput {
+  email: string;
+  name?: string;
+  source?: string;
+}
+
+export interface UpdateIntakeStatusInput {
+  status: 'new' | 'contacted' | 'qualified' | 'closed';
+  notes?: string;
+}
+
+export interface SendEmailInput {
+  subject: string;
+  htmlContent: string;
+  recipientFilter?: {
+    subscribedOnly?: boolean;
+    sources?: string[];
+  };
+  testEmail?: string;        // Send test to this email first
+}
+
+// ===========================================
+// ANALYTICS TYPES
+// ===========================================
+
+export interface DashboardStats {
+  totalTombstones: number;
+  totalBlogPosts: number;
+  totalSubscribers: number;
+  intakesThisWeek: number;
+}
+
+export interface AnalyticsParams {
+  start: string;             // ISO date
+  end: string;               // ISO date
+  granularity?: 'hour' | 'day';
+}
+
+export interface PageViewData {
+  timestamp: string;
+  count: number;
+}
+
+export interface TopPage {
+  path: string;
+  views: number;
+  title?: string;
+}
+
+// ===========================================
+// PAGINATED RESPONSE
+// ===========================================
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+```
 
 ---
 
@@ -45,10 +554,12 @@ An admin dashboard for managing website content, email subscribers, and viewing 
 
 ```
 src/
-├── main.tsx                    # Entry point
-├── App.tsx                     # Root component with providers
-├── routes.tsx                  # Route definitions
+├── main.tsx                    # Entry point + Amplify config
+├── App.tsx                     # Root component with providers + routes
+├── assets/
+│   └── logo.png                # FCA mountain logo (use brightness-0 invert for white)
 ├── pages/
+│   ├── Login.tsx               # Login with all auth flows
 │   ├── Dashboard.tsx           # Overview stats
 │   ├── Tombstones.tsx          # Tombstone list
 │   ├── TombstoneForm.tsx       # Create/edit tombstone
@@ -62,7 +573,7 @@ src/
 │   └── Settings.tsx            # User settings
 ├── components/
 │   ├── layout/
-│   │   ├── Sidebar.tsx
+│   │   ├── Sidebar.tsx         # 240px persistent sidebar
 │   │   ├── Header.tsx
 │   │   └── PageContainer.tsx
 │   ├── tombstones/
@@ -83,22 +594,125 @@ src/
 │   │   ├── SubscriberTable.tsx
 │   │   ├── EmailPreview.tsx
 │   │   └── RecipientSelector.tsx
-│   └── ui/                     # shadcn/ui components
+│   └── ui/                     # shadcn/ui components (same as lead-gen-spa)
 ├── lib/
-│   ├── api.ts                  # API client
-│   ├── auth.ts                 # Cognito auth helpers
-│   └── utils.ts                # Utility functions
+│   ├── amplify-config.ts       # Cognito config + USE_MOCK_AUTH toggle
+│   ├── auth.ts                 # Auth functions (login, logout, reset, etc.)
+│   ├── api/
+│   │   ├── types.ts            # WebAdminApi interface
+│   │   ├── mock.ts             # Mock implementation
+│   │   ├── real.ts             # Real API implementation (future)
+│   │   └── index.ts            # Export current api
+│   └── utils.ts                # Utility functions (cn, formatDate, etc.)
 ├── hooks/
-│   ├── useAuth.ts
+│   ├── useAuth.ts              # Re-export from context
 │   ├── useTombstones.ts
 │   ├── useBlogPosts.ts
 │   ├── useAnalytics.ts
-│   └── useSubscribers.ts
+│   ├── useSubscribers.ts
+│   └── useIntakes.ts
 ├── contexts/
-│   ├── AuthContext.tsx
-│   └── ThemeContext.tsx
+│   └── AuthContext.tsx         # Auth state machine (same pattern as lead-gen-spa)
 └── types/
-    └── index.ts                # TypeScript types
+    └── index.ts                # TypeScript types (matching API schema)
+```
+
+---
+
+## API Client Architecture
+
+> **CRITICAL**: Same modular API pattern as `lead-gen-spa` for easy mock-to-real switching.
+
+### API Interface
+
+```typescript
+// lib/api/types.ts
+export interface WebAdminApi {
+  // Dashboard
+  getDashboardStats(): Promise<DashboardStats>;
+  getRecentActivity(): Promise<ActivityItem[]>;
+  
+  // Tombstones
+  getTombstones(): Promise<Tombstone[]>;
+  getTombstone(id: string): Promise<Tombstone>;
+  createTombstone(input: CreateTombstoneInput): Promise<Tombstone>;
+  updateTombstone(id: string, input: UpdateTombstoneInput): Promise<Tombstone>;
+  deleteTombstone(id: string): Promise<void>;
+  publishTombstone(id: string, isPublished: boolean): Promise<Tombstone>;
+  reorderTombstones(ids: string[]): Promise<void>;
+  
+  // Blog Posts
+  getBlogPosts(): Promise<BlogPost[]>;
+  getBlogPost(id: string): Promise<BlogPost>;
+  createBlogPost(input: CreateBlogPostInput): Promise<BlogPost>;
+  updateBlogPost(id: string, input: UpdateBlogPostInput): Promise<BlogPost>;
+  deleteBlogPost(id: string): Promise<void>;
+  publishBlogPost(id: string, isPublished: boolean): Promise<BlogPost>;
+  
+  // Page Content
+  getPages(): Promise<PageContent[]>;
+  getPage(pageKey: string): Promise<PageContent>;
+  updatePage(pageKey: string, input: UpdatePageContentInput): Promise<PageContent>;
+  
+  // Analytics
+  getPageViews(params: AnalyticsParams): Promise<PageViewData[]>;
+  getTopPages(params: AnalyticsParams & { limit?: number }): Promise<TopPage[]>;
+  
+  // Subscribers
+  getSubscribers(): Promise<EmailSubscriber[]>;
+  createSubscriber(input: CreateSubscriberInput): Promise<EmailSubscriber>;
+  deleteSubscriber(id: string): Promise<void>;
+  exportSubscribers(): Promise<Blob>;
+  importSubscribers(file: File): Promise<{ imported: number; skipped: number }>;
+  
+  // Seller Intakes
+  getIntakes(): Promise<SellerIntake[]>;
+  getIntake(id: string): Promise<SellerIntake>;
+  updateIntakeStatus(id: string, input: UpdateIntakeStatusInput): Promise<SellerIntake>;
+  exportIntakes(): Promise<Blob>;
+  
+  // Email
+  sendEmail(input: SendEmailInput): Promise<{ sent: number }>;
+  previewEmail(input: SendEmailInput): Promise<{ html: string }>;
+  getEmailHistory(): Promise<EmailNotification[]>;
+}
+```
+
+### Mock Implementation
+
+```typescript
+// lib/api/mock.ts
+import { WebAdminApi } from './types';
+import { mockData } from '../mock-data';
+
+export const mockApi: WebAdminApi = {
+  async getDashboardStats() {
+    await delay(200);
+    return {
+      totalTombstones: mockData.tombstones.length,
+      totalBlogPosts: mockData.blogPosts.length,
+      totalSubscribers: mockData.subscribers.filter(s => s.isSubscribed).length,
+      intakesThisWeek: mockData.intakes.filter(i => isThisWeek(i.createdAt)).length,
+    };
+  },
+  // ... other methods
+};
+
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+```
+
+### API Export
+
+```typescript
+// lib/api/index.ts
+import { mockApi } from './mock';
+// import { realApi } from './real';  // Uncomment when API is ready
+
+// Switch this when backend is ready
+export const api = mockApi;
+// export const api = realApi;
 ```
 
 ---
@@ -285,44 +899,6 @@ export function PreviewIframe({
 }
 ```
 
-### Usage in Editor Forms
-
-```typescript
-// pages/BlogPostForm.tsx
-function BlogPostForm({ post }: { post: BlogPost }) {
-  const [showPreview, setShowPreview] = useState(false);
-  
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Editor Panel */}
-      <div className="space-y-4">
-        <BlockNoteEditor 
-          initialMarkdown={post.content}
-          onChange={handleContentChange}
-        />
-        {/* Other fields */}
-      </div>
-      
-      {/* Preview Panel */}
-      <div>
-        <Button onClick={() => setShowPreview(!showPreview)}>
-          {showPreview ? 'Hide Preview' : 'Show Preview'}
-        </Button>
-        
-        {showPreview && (
-          <PreviewIframe
-            contentType="blog-post"
-            slug={post.slug}
-            previewToken={post.previewToken}
-            className="mt-4"
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-```
-
 ### Security Notes
 
 - Preview URLs only work when loaded in an iframe (Next.js checks `Sec-Fetch-Dest` header)
@@ -434,59 +1010,6 @@ User preferences and app configuration.
 
 ---
 
-## Authentication
-
-### AWS Cognito Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant SPA as Web Admin SPA
-    participant Cognito as AWS Cognito
-    participant API as FCA API
-    
-    User->>SPA: Navigate to app
-    SPA->>Cognito: Check session
-    Cognito-->>SPA: No session
-    SPA->>Cognito: Redirect to login
-    User->>Cognito: Enter credentials
-    Cognito-->>SPA: JWT tokens
-    SPA->>API: Request with JWT
-    API->>Cognito: Verify token
-    API-->>SPA: Response
-```
-
-### Required Cognito Setup
-- User Pool for admin users
-- App client for SPA
-- Admin group for authorization
-
----
-
-## UI/UX Guidelines
-
-### Layout
-- Collapsible sidebar navigation
-- Breadcrumb navigation
-- Responsive (works on tablet for quick edits)
-
-### Components (shadcn/ui)
-- Button, Input, Textarea
-- Table with sorting and pagination
-- Dialog for confirmations
-- Toast for notifications
-- Tabs for organizing related content
-- Card for dashboard stats
-- Form with validation feedback
-
-### Interactions
-- Optimistic updates where appropriate
-- Loading states on async operations
-- Confirmation dialogs for destructive actions
-- Auto-save drafts
-
----
-
 ## BlockNote Editor Integration
 
 ### Why BlockNote + Markdown?
@@ -552,57 +1075,8 @@ export function BlockNoteEditor({ initialMarkdown, onChange }: BlockNoteEditorPr
     <BlockNoteView 
       editor={editor} 
       onChange={handleChange}
-      theme="light"
+      theme="dark"  // Match our dark mode design system
     />
-  );
-}
-```
-
-### Usage in Blog Post Form
-
-```typescript
-// pages/BlogPostForm.tsx
-import { BlockNoteEditor } from "@/components/blog/BlockNoteEditor";
-
-function BlogPostForm({ post }: { post?: BlogPost }) {
-  const [content, setContent] = useState(post?.content || "");
-
-  const handleSubmit = async (data: FormData) => {
-    await api.saveBlogPost({
-      ...data,
-      content, // Markdown string from BlockNote
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit}>
-      {/* Title, category, etc. */}
-      
-      <div className="space-y-2">
-        <Label>Content</Label>
-        <BlockNoteEditor 
-          initialMarkdown={post?.content}
-          onChange={setContent}
-        />
-      </div>
-
-      {/* SEO fields, publish toggle, etc. */}
-    </form>
-  );
-}
-```
-
-### Markdown Preview (Optional Side Panel)
-
-```typescript
-// components/blog/MarkdownPreview.tsx
-import ReactMarkdown from "react-markdown";
-
-export function MarkdownPreview({ markdown }: { markdown: string }) {
-  return (
-    <div className="prose prose-sm max-w-none">
-      <ReactMarkdown>{markdown}</ReactMarkdown>
-    </div>
   );
 }
 ```
@@ -627,20 +1101,21 @@ BlockNote → Markdown supports:
 
 ### Phase 1: Project Setup
 - [ ] Initialize Vite + React + TypeScript project
-- [ ] Configure Tailwind CSS
-- [ ] Install and configure shadcn/ui
+- [ ] Configure Tailwind CSS (matching lead-gen-spa exactly)
+- [ ] Install and configure shadcn/ui (New York, dark mode)
 - [ ] Set up React Router
 - [ ] Configure TanStack Query
-- [ ] Set up AWS Amplify for auth
+- [ ] Copy shared design system files from lead-gen-spa
 
 ### Phase 2: Authentication
-- [ ] Implement login flow with Cognito
-- [ ] Create AuthContext and useAuth hook
+- [ ] Create `amplify-config.ts` with mock toggle
+- [ ] Create `auth.ts` with auth functions (matching lead-gen-spa pattern)
+- [ ] Create AuthContext with state machine
+- [ ] Create Login page with all flows
 - [ ] Add protected route wrapper
-- [ ] Handle token refresh
 
 ### Phase 3: Layout & Navigation
-- [ ] Create sidebar navigation
+- [ ] Create sidebar navigation (240px, persistent)
 - [ ] Create header with user menu
 - [ ] Create page container component
 - [ ] Add responsive breakpoints
@@ -682,45 +1157,49 @@ BlockNote → Markdown supports:
 
 ---
 
-## API Client
+## Cross-Platform Consistency Notes
 
-```typescript
-// lib/api.ts
-import { fetchAuthSession } from 'aws-amplify/auth';
+### Shared with lead-gen-spa
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+| Asset | Location | Notes |
+|-------|----------|-------|
+| Design system | CSS variables, Tailwind config | Copy exactly |
+| Auth pattern | AuthContext, auth.ts, Login.tsx | Same state machine |
+| Layout | Sidebar (240px), flex layout | Same structure |
+| shadcn/ui components | components/ui/ | Same config |
+| Logo | `src/assets/logo.png` | Use `brightness-0 invert` for white version |
 
-async function getAuthHeaders() {
-  const session = await fetchAuthSession();
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session.tokens?.idToken}`,
-  };
-}
+### Logo Usage
 
-export const api = {
-  // Tombstones
-  getTombstones: () => get('/api/admin/tombstones'),
-  createTombstone: (data: TombstoneInput) => post('/api/admin/tombstones', data),
-  updateTombstone: (id: string, data: TombstoneInput) => put(`/api/admin/tombstones/${id}`, data),
-  deleteTombstone: (id: string) => del(`/api/admin/tombstones/${id}`),
-  
-  // Blog Posts
-  getBlogPosts: () => get('/api/admin/blog-posts'),
-  createBlogPost: (data: BlogPostInput) => post('/api/admin/blog-posts', data),
-  // ... etc
-  
-  // Analytics
-  getPageViews: (params: AnalyticsParams) => get('/api/admin/analytics/pageviews', params),
-  getTopPages: (params: AnalyticsParams) => get('/api/admin/analytics/top-pages', params),
-  
-  // Email
-  getSubscribers: () => get('/api/admin/subscribers'),
-  sendEmail: (data: EmailInput) => post('/api/admin/email/send', data),
-  
-  // ... etc
-};
+The logo asset is pre-staged at `web-admin-spa/assets/logo.png`. During project scaffolding, copy it to `src/assets/logo.png`.
+
+```bash
+# During scaffolding
+mkdir -p src/assets
+cp assets/logo.png src/assets/
 ```
+
+In the Sidebar and Login page, apply CSS filters to make it white on dark background:
+
+```tsx
+// In Sidebar.tsx and Login.tsx
+import logo from '@/assets/logo.png';
+
+<img 
+  src={logo} 
+  alt="Flatirons Capital" 
+  className="h-6 w-auto brightness-0 invert" 
+/>
+```
+
+The logo is blue (#3b5998) on transparent - the `brightness-0 invert` filter converts it to white for the dark theme.
+
+### API Types Alignment
+
+Both SPAs use types derived from `src/api/PLAN.md`:
+- `User` with `role: 'readonly' | 'readwrite' | 'admin'`
+- Timestamps as ISO strings
+- IDs as UUID strings
 
 ---
 

@@ -145,6 +145,7 @@ model Organization {
   
   users         User[]
   leads         Lead[]
+  campaigns     Campaign[]
   usageRecords  UsageRecord[]
 
   @@map("organizations")
@@ -156,19 +157,29 @@ model User {
   name           String?
   cognitoSub     String?  @unique @map("cognito_sub")
   organizationId String?  @map("organization_id")
-  role           String   @default("user")    // admin, user
+  role           String   @default("readonly")  // readonly, readwrite, admin
+  invitedAt      DateTime @default(now()) @map("invited_at")
+  lastActiveAt   DateTime? @map("last_active_at")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   organization   Organization? @relation(fields: [organizationId], references: [id])
+  campaignRuns   CampaignRun[]
 
   @@map("users")
 }
+
+// User Roles:
+// - readonly: View everything, cannot run campaigns or manage users
+// - readwrite: Everything except manage users (can run campaigns, export, qualify)
+// - admin: Full access including user management
 
 model Lead {
   id              String   @id @default(uuid())
   placeId         String   @unique @map("place_id")  // Google Maps place_id
   organizationId  String   @map("organization_id")
+  campaignId      String?  @map("campaign_id")       // Which campaign created this lead
+  campaignRunId   String?  @map("campaign_run_id")   // Which specific run
   
   // Basic Info (from Google Maps)
   name            String
@@ -196,11 +207,61 @@ model Lead {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   organization    Organization @relation(fields: [organizationId], references: [id])
+  campaign        Campaign? @relation(fields: [campaignId], references: [id])
+  campaignRun     CampaignRun? @relation(fields: [campaignRunId], references: [id])
 
   @@index([organizationId, state])
   @@index([organizationId, businessType])
+  @@index([organizationId, campaignId])
   @@index([qualificationScore])
+  @@index([createdAt])
   @@map("leads")
+}
+
+model Campaign {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  description    String?
+  queries        String[] @default([])              // Array of Google search queries
+  createdById    String   @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  runs           CampaignRun[]
+  leads          Lead[]
+
+  @@index([organizationId])
+  @@map("campaigns")
+}
+
+model CampaignRun {
+  id             String   @id @default(uuid())
+  campaignId     String   @map("campaign_id")
+  organizationId String   @map("organization_id")
+  startedById    String   @map("started_by_id")
+  
+  // Status
+  status         String   @default("pending")       // pending, running, completed, failed
+  startedAt      DateTime @default(now()) @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  
+  // Metrics
+  queriesTotal   Int      @default(0) @map("queries_total")
+  queriesExecuted Int     @default(0) @map("queries_executed")
+  leadsFound     Int      @default(0) @map("leads_found")
+  duplicatesSkipped Int   @default(0) @map("duplicates_skipped")
+  errors         Int      @default(0)
+  errorMessages  String[] @default([]) @map("error_messages")
+
+  campaign       Campaign @relation(fields: [campaignId], references: [id])
+  startedBy      User @relation(fields: [startedById], references: [id])
+  leads          Lead[]
+
+  @@index([campaignId])
+  @@index([organizationId, startedAt])
+  @@map("campaign_runs")
 }
 
 model UsageRecord {
@@ -298,19 +359,79 @@ PUT    /api/admin/seller-intakes/:id        # Update status
 ### Lead Generation Endpoints (lead-gen-spa)
 
 ```
-# Leads
-GET    /api/leads                    # List leads with filters, pagination
-GET    /api/leads/:id                # Get single lead
-POST   /api/leads/search             # Search Google Maps for leads
-POST   /api/leads/:id/qualify        # Run AI qualification on lead
-POST   /api/leads/export             # Export leads to CSV
+# Dashboard Analytics
+GET    /api/leadgen/dashboard/stats                    # Total leads, campaigns, qualified, exports
+GET    /api/leadgen/dashboard/leads-over-time          # Line chart data (hourly granularity)
+GET    /api/leadgen/dashboard/campaigns-over-time      # Line chart data (hourly granularity)
+GET    /api/leadgen/dashboard/business-type-distribution  # Pie chart data
+GET    /api/leadgen/dashboard/location-distribution    # Pie chart data
+
+# Leads (server-side filtering & pagination)
+GET    /api/leadgen/leads                    # List leads with filters, pagination, sorting
+GET    /api/leadgen/leads/:id                # Get single lead (includes campaign info)
+GET    /api/leadgen/leads/count              # Count leads matching filters
+POST   /api/leadgen/leads/:id/qualify        # Run AI qualification on lead
+POST   /api/leadgen/leads/qualify-bulk       # AI qualify multiple leads
+POST   /api/leadgen/leads/export             # Export leads to CSV
+
+# Campaigns
+GET    /api/leadgen/campaigns                # List campaigns
+GET    /api/leadgen/campaigns/:id            # Get campaign with query list
+POST   /api/leadgen/campaigns                # Create campaign
+PUT    /api/leadgen/campaigns/:id            # Update campaign
+DELETE /api/leadgen/campaigns/:id            # Delete campaign
+
+# Campaign Runs
+GET    /api/leadgen/campaigns/:id/runs       # List runs for campaign (paginated)
+POST   /api/leadgen/campaigns/:id/run        # Start a new run (requires readwrite or admin)
+GET    /api/leadgen/runs/:id                 # Get run details with metrics
+
+# User Management (admin only)
+GET    /api/leadgen/users                    # List users in organization
+POST   /api/leadgen/users/invite             # Invite new user (sends Cognito invite)
+PUT    /api/leadgen/users/:id/role           # Change user role
+DELETE /api/leadgen/users/:id                # Remove user from organization
 
 # Usage & Limits
-GET    /api/usage                    # Get usage stats for current org
-GET    /api/usage/limits             # Get usage limits
+GET    /api/leadgen/usage                    # Get usage stats for current org
+GET    /api/leadgen/usage/limits             # Get usage limits
+```
 
-# Search History
-GET    /api/search-queries           # List past search queries
+### Lead Filtering (Server-Side)
+
+All lead filtering happens in the API, not the client:
+
+```typescript
+// GET /api/leadgen/leads?page=1&limit=25&sort=createdAt&order=desc&filters={...}
+
+interface LeadQueryParams {
+  page: number;
+  limit: number;
+  sort: string;           // Column to sort by
+  order: 'asc' | 'desc';
+  filters: {
+    name?: string;              // ILIKE '%name%'
+    city?: string;              // ILIKE '%city%'
+    states?: string[];          // WHERE state IN (...)
+    businessTypes?: string[];   // WHERE business_type IN (...)
+    campaignId?: string;        // WHERE campaign_id = ...
+    ratingMin?: number;         // WHERE rating >= ...
+    ratingMax?: number;         // WHERE rating <= ...
+    qualificationMin?: number;
+    qualificationMax?: number;
+    hasWebsite?: boolean;       // WHERE website IS NOT NULL
+    hasPhone?: boolean;         // WHERE phone IS NOT NULL
+  };
+}
+
+// Response
+interface PaginatedLeadsResponse {
+  data: Lead[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 ```
 
 ---
@@ -367,15 +488,23 @@ interface ResendService {
 
 - **Public endpoints**: No auth required (website content, analytics tracking)
 - **Admin endpoints**: Require valid Cognito JWT with admin role
-- **Lead gen endpoints**: Require valid Cognito JWT with organization membership
+- **Lead gen endpoints**: Require valid Cognito JWT with organization membership + role check
 
 ```typescript
 // Middleware: auth.ts
 interface AuthMiddleware {
   requireAuth(): RequestHandler;           // Any authenticated user
-  requireAdmin(): RequestHandler;          // Admin role required
-  requireOrganization(): RequestHandler;   // Org membership required
+  requireWebAdmin(): RequestHandler;       // Web admin role (for web-admin-spa)
+  requireLeadGenRole(minRole: 'readonly' | 'readwrite' | 'admin'): RequestHandler;
 }
+
+// Role hierarchy for lead-gen-spa:
+// readonly < readwrite < admin
+// 
+// Example usage:
+// router.get('/leads', requireLeadGenRole('readonly'), getLeads);      // All roles can view
+// router.post('/campaigns/:id/run', requireLeadGenRole('readwrite'), runCampaign);  // readwrite + admin
+// router.post('/users/invite', requireLeadGenRole('admin'), inviteUser);  // admin only
 ```
 
 ---

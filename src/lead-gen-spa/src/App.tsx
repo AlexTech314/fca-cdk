@@ -1,5 +1,7 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 import { Sidebar } from '@/components/layout/Sidebar'
+import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
 import Leads from '@/pages/Leads'
 import LeadDetail from '@/pages/LeadDetail'
@@ -10,7 +12,25 @@ import Admin from '@/pages/Admin'
 import Export from '@/pages/Export'
 import Settings from '@/pages/Settings'
 
-function App() {
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AuthenticatedLayout() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -29,6 +49,22 @@ function App() {
         </Routes>
       </main>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <AuthenticatedLayout />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   )
 }
 

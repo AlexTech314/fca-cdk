@@ -1,1 +1,1 @@
-export { useAuth } from '@/contexts/AuthContext';
+export { useAuth, type AuthFlow } from '@/contexts/AuthContext';

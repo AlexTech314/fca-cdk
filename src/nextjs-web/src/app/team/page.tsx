@@ -4,6 +4,7 @@ import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
+import { ExpandBioButton } from '@/components/ui/ExpandBioButton';
 import { siteConfig } from '@/lib/utils';
 import type { TeamMember } from '@/lib/types';
 
@@ -168,8 +169,17 @@ export default function TeamPage() {
             {leadership.map((member) => (
               <div
                 key={member.name}
-                className="overflow-hidden rounded-xl border border-border bg-white"
+                className="group relative overflow-hidden rounded-xl border border-border bg-white"
               >
+                {/* Expand button (client component) */}
+                <ExpandBioButton
+                  name={member.name}
+                  title={member.title}
+                  bio={member.bio}
+                  email={member.email}
+                  linkedIn={member.linkedIn}
+                />
+
                 <div className="flex flex-col sm:flex-row">
                   {/* Photo */}
                   {member.image && (
@@ -251,8 +261,17 @@ export default function TeamPage() {
             {analysts.map((member) => (
               <div
                 key={member.name}
-                className="overflow-hidden rounded-lg border border-border bg-white"
+                className="group relative overflow-hidden rounded-lg border border-border bg-white"
               >
+                {/* Expand button (client component) */}
+                <ExpandBioButton
+                  name={member.name}
+                  title={member.title}
+                  bio={member.bio}
+                  email={member.email}
+                  linkedIn={member.linkedIn}
+                />
+
                 {/* Photo */}
                 {member.image && (
                   <div className="relative aspect-square w-full">

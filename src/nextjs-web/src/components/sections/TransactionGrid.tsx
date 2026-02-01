@@ -1,21 +1,22 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Button } from '@/components/ui/Button';
-import { getTombstoneImage } from '@/lib/tombstones';
+import type { Tombstone } from '@/lib/types';
 
 interface TransactionGridProps {
-  transactions: string[];
+  tombstones: Tombstone[];
   showAll?: boolean;
   limit?: number;
 }
 
 export function TransactionGrid({
-  transactions,
+  tombstones,
   showAll = false,
   limit = 10,
 }: TransactionGridProps) {
-  const displayTransactions = showAll ? transactions : transactions.slice(0, limit);
+  const displayTombstones = showAll ? tombstones : tombstones.slice(0, limit);
 
   return (
     <section className="py-16 md:py-24">
@@ -27,40 +28,37 @@ export function TransactionGrid({
         />
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {displayTransactions.map((transaction, index) => {
-            const tombstoneImage = getTombstoneImage(transaction);
-            
-            return (
-              <div
-                key={`${transaction}-${index}`}
-                className="group overflow-hidden rounded-lg border border-border bg-surface transition-all hover:border-primary/30 hover:bg-white hover:shadow-card"
-              >
-                {tombstoneImage ? (
-                  <div className="relative aspect-[391/450] w-full">
-                    <Image
-                      src={tombstoneImage}
-                      alt={`${transaction} transaction`}
-                      fill
-                      className="object-cover transition-transform group-hover:scale-105"
-                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex aspect-[391/450] items-center justify-center p-4 text-center">
-                    <span className="text-sm font-medium text-text-muted">
-                      {transaction}
-                    </span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {displayTombstones.map((tombstone) => (
+            <Link
+              key={tombstone.slug}
+              href={`/transactions/${tombstone.slug}`}
+              className="group overflow-hidden border border-border bg-white transition-all duration-200 hover:-translate-y-1 hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10"
+            >
+              {tombstone.imagePath ? (
+                <div className="relative aspect-[391/450] w-full">
+                  <Image
+                    src={tombstone.imagePath}
+                    alt={`${tombstone.seller} transaction`}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                  />
+                </div>
+              ) : (
+                <div className="flex aspect-[391/450] items-center justify-center p-4 text-center">
+                  <span className="text-sm font-medium text-text-muted">
+                    {tombstone.seller}
+                  </span>
+                </div>
+              )}
+            </Link>
+          ))}
         </div>
 
-        {!showAll && transactions.length > limit && (
+        {!showAll && tombstones.length > limit && (
           <div className="mt-10 text-center">
             <Button href="/transactions" variant="outline">
-              View All {transactions.length}+ Transactions
+              View All {tombstones.length}+ Transactions
             </Button>
           </div>
         )}

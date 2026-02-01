@@ -138,7 +138,7 @@ export default function AboutPage() {
       <section className="py-16 md:py-24">
         <Container>
           <div className="mx-auto max-w-3xl">
-            <h2 className="mb-6 text-3xl font-bold text-text">
+            <h2 className="mb-6 text-3xl font-bold text-primary">
               Flatirons Capital Advisors
             </h2>
             <div className="space-y-4 text-lg text-text-muted">
@@ -173,7 +173,7 @@ export default function AboutPage() {
       </section>
 
       {/* M&A Services */}
-      <section id="sell-side" className="bg-surface py-16 md:py-24">
+      <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
         <Container>
           <SectionHeading
             subtitle="Our Services"
@@ -182,37 +182,9 @@ export default function AboutPage() {
           />
 
           <div className="grid gap-8 md:grid-cols-3">
-            {/* Sell-Side */}
-            <div className="rounded-xl border border-border bg-white p-8">
-              <h3 className="mb-4 text-xl font-semibold text-text">
-                Sell-side Advisory
-              </h3>
-              <ul className="space-y-3">
-                {sellSideServices.map((service) => (
-                  <li
-                    key={service}
-                    className="flex items-center gap-2 text-text-muted"
-                  >
-                    <svg
-                      className="h-4 w-4 flex-shrink-0 text-secondary"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    {service}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
             {/* Buy-Side */}
-            <div className="rounded-xl border border-border bg-white p-8">
-              <h3 className="mb-4 text-xl font-semibold text-text">
+            <div className="rounded-xl border border-border bg-white p-8 shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10">
+              <h3 className="mb-4 text-xl font-semibold text-primary">
                 Buy-side Advisory
               </h3>
               <ul className="space-y-3">
@@ -243,9 +215,42 @@ export default function AboutPage() {
               </div>
             </div>
 
+            {/* Sell-Side */}
+            <div className="rounded-xl border border-border bg-white p-8 shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10">
+              <h3 className="mb-4 text-xl font-semibold text-primary">
+                Sell-side Advisory
+              </h3>
+              <ul className="space-y-3">
+                {sellSideServices.map((service) => (
+                  <li
+                    key={service}
+                    className="flex items-center gap-2 text-text-muted"
+                  >
+                    <svg
+                      className="h-4 w-4 flex-shrink-0 text-secondary"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    {service}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6">
+                <Button href="/sell-side" variant="ghost" size="sm">
+                  Learn More →
+                </Button>
+              </div>
+            </div>
+
             {/* Strategic Consulting */}
-            <div id="consulting" className="rounded-xl border border-border bg-white p-8">
-              <h3 className="mb-4 text-xl font-semibold text-text">
+            <div className="rounded-xl border border-border bg-white p-8 shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10">
+              <h3 className="mb-4 text-xl font-semibold text-primary">
                 Strategic Consulting
               </h3>
               <ul className="space-y-3">
@@ -344,12 +349,12 @@ export default function AboutPage() {
       </section>
 
       {/* Core Values */}
-      <section className="bg-surface py-16 md:py-24">
+      <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
         <Container>
           {/* FCA Logo Header */}
           <div className="mb-8 flex justify-center">
             <Image
-              src="/logos/fca-logo-white-bg.png"
+              src="/logos/fca-mountain-on-white.png"
               alt="Flatirons Capital Advisors"
               width={200}
               height={80}
@@ -362,7 +367,7 @@ export default function AboutPage() {
             {coreValues.map((value) => (
               <div
                 key={value.title}
-                className="flex flex-col items-center rounded-xl border border-border bg-white p-6 text-center"
+                className="flex flex-col items-center rounded-xl border border-border bg-white p-6 text-center shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10"
               >
                 <div className="relative mb-4 h-12 w-12">
                   <Image
@@ -373,7 +378,7 @@ export default function AboutPage() {
                     sizes="48px"
                   />
                 </div>
-                <h3 className="mb-2 font-semibold text-text">{value.title}</h3>
+                <h3 className="mb-2 font-semibold text-primary">{value.title}</h3>
                 <p className="text-sm text-text-muted">{value.description}</p>
               </div>
             ))}

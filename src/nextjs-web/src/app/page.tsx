@@ -5,6 +5,7 @@ import { TransactionGrid } from '@/components/sections/TransactionGrid';
 import { AwardsBar } from '@/components/sections/AwardsBar';
 import { CTASection } from '@/components/sections/CTASection';
 import { siteConfig } from '@/lib/utils';
+import { getTombstones } from '@/lib/data';
 
 export const metadata: Metadata = {
   title: 'Middle Market M&A Investment Bank',
@@ -15,21 +16,9 @@ export const metadata: Metadata = {
   },
 };
 
-// Recent transactions for the homepage preview
-const recentTransactions = [
-  'World Resources Distribution',
-  'Precision Pool and Spa',
-  '5th Gear Auto',
-  'Cummings Electric',
-  'Pods Complete Car Care',
-  'Prime Home Services Group',
-  'ThriveMD',
-  'Reliable Auto Care',
-  'AEG Plexus',
-  'MEC',
-];
+export default async function HomePage() {
+  const tombstones = await getTombstones();
 
-export default function HomePage() {
   return (
     <>
       <Hero
@@ -46,7 +35,7 @@ export default function HomePage() {
       
       <ServicesGrid />
       
-      <TransactionGrid transactions={recentTransactions} limit={10} />
+      <TransactionGrid tombstones={tombstones} limit={10} />
       
       <CTASection
         title="Ready to discuss your options?"

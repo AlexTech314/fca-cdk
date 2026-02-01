@@ -4,34 +4,6 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 
 const services = [
   {
-    title: 'Sell-Side Advisory',
-    description:
-      "The focus of our sell-side advisory approach is on helping you make the right strategic moves to protect what you've built through years of hard work and sacrifice.",
-    items: [
-      'Private Company Exits',
-      'Recapitalizations',
-      'Divestitures',
-      'Product Line & IP Sales',
-      'Generational Transfers',
-    ],
-    href: '/about#sell-side',
-    icon: (
-      <svg
-        className="h-8 w-8"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth="1.5"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"
-        />
-      </svg>
-    ),
-  },
-  {
     title: 'Buy-Side Advisory',
     description:
       'If your organization is considering an acquisition, leveraged buyout, joint venture, or alliance, Flatirons can support your search with a complete range of buy-side advisory services.',
@@ -58,11 +30,39 @@ const services = [
     ),
   },
   {
+    title: 'Sell-Side Advisory',
+    description:
+      "The focus of our sell-side advisory approach is on helping you make the right strategic moves to protect what you've built through years of hard work and sacrifice.",
+    items: [
+      'Private Company Exits',
+      'Recapitalizations',
+      'Divestitures',
+      'Product Line & IP Sales',
+      'Generational Transfers',
+    ],
+    href: '/sell-side',
+    icon: (
+      <svg
+        className="h-8 w-8"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth="1.5"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"
+        />
+      </svg>
+    ),
+  },
+  {
     title: 'Strategic Consulting',
     description:
       'Strategy and business plan consulting from contract CFO and growth strategies to optimizations. We work with everyone from startups to Fortune 1000 public companies.',
     items: ['Contract CFO', 'Growth Strategies', 'Optimizations'],
-    href: '/about#consulting',
+    href: '/about',
     icon: (
       <svg
         className="h-8 w-8"
@@ -83,7 +83,7 @@ const services = [
 
 export function ServicesGrid() {
   return (
-    <section className="bg-surface py-16 md:py-24">
+    <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
       <Container>
         <SectionHeading
           subtitle="What We Do"
@@ -95,12 +95,12 @@ export function ServicesGrid() {
           {services.map((service) => (
             <div
               key={service.title}
-              className="group rounded-xl border border-border bg-white p-8 transition-all duration-200 hover:shadow-card-hover"
+              className="group flex h-full flex-col rounded-xl border border-border bg-white p-8 shadow-sm transition-all duration-200 hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10"
             >
-              <div className="mb-4 inline-flex rounded-lg bg-primary/10 p-3 text-primary">
+              <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 text-primary">
                 {service.icon}
               </div>
-              <h3 className="mb-3 text-xl font-semibold text-text">
+              <h3 className="mb-3 text-xl font-semibold text-primary">
                 {service.title}
               </h3>
               <p className="mb-4 text-text-muted">{service.description}</p>
@@ -125,25 +125,27 @@ export function ServicesGrid() {
                   </li>
                 ))}
               </ul>
-              <Link
-                href={service.href}
-                className="inline-flex items-center gap-1 text-sm font-medium text-secondary transition-colors hover:text-primary"
-              >
-                Learn More
-                <svg
-                  className="h-4 w-4 transition-transform group-hover:translate-x-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="2"
-                  stroke="currentColor"
+              <div className="mt-auto flex justify-end">
+                <Link
+                  href={service.href}
+                  className="inline-flex items-center gap-1 text-sm font-medium text-secondary transition-colors hover:text-primary"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
-                  />
-                </svg>
-              </Link>
+                  Learn More
+                  <svg
+                    className="h-4 w-4 transition-transform group-hover:translate-x-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth="2"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
+                    />
+                  </svg>
+                </Link>
+              </div>
             </div>
           ))}
         </div>

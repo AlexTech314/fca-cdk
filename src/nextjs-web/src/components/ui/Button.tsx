@@ -15,13 +15,13 @@ interface ButtonProps {
 
 const variants = {
   primary:
-    'bg-primary text-white hover:bg-primary-dark focus:ring-primary',
+    'bg-gradient-to-r from-primary to-primary-light text-white shadow-sm hover:shadow-md hover:brightness-110 focus:ring-primary',
   secondary:
-    'bg-secondary text-white hover:bg-blue-700 focus:ring-secondary',
+    'bg-gradient-to-r from-secondary to-accent text-white shadow-sm hover:shadow-md hover:brightness-110 focus:ring-secondary',
   outline:
-    'border-2 border-primary text-primary hover:bg-primary hover:text-white focus:ring-primary',
+    'border-2 border-primary text-primary hover:bg-primary hover:text-white hover:shadow-md focus:ring-primary',
   ghost:
-    'text-primary hover:bg-surface focus:ring-primary',
+    'text-primary hover:bg-primary/5 focus:ring-primary',
 };
 
 const sizes = {

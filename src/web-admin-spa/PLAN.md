@@ -358,12 +358,57 @@ export interface Tombstone {
   role: string | null;
   dealDate: string | null;
   description: string | null;
-  newsSlug: string | null;
+  
+  // Extended fields (from CSV data)
+  buyerPeFirm: string | null;      // PE firm (e.g., "O2 Capital")
+  buyerPlatform: string | null;    // Platform company (e.g., "Straightaway Tire & Auto")
+  transactionYear: number | null;  // Year of deal (e.g., 2025)
+  city: string | null;             // City location
+  state: string | null;            // State code (e.g., "CO", "TX")
+  
+  // Press release (1-to-1 relationship)
+  pressReleaseId: string | null;
+  pressRelease?: BlogPostSummary;  // Populated when fetched with includes
+  
   sortOrder: number;
   isPublished: boolean;
   previewToken: string;
   createdAt: string;
   updatedAt: string;
+  
+  // Content tags (for related content discovery)
+  tags?: ContentTag[];
+}
+
+// ===========================================
+// CONTENT TAGS
+// ===========================================
+
+export interface ContentTag {
+  id: string;
+  name: string;                    // Display name (e.g., "Fire & Life Safety")
+  slug: string;                    // URL-friendly (e.g., "fire-safety")
+  category: string | null;         // "industry", "service-type", or "deal-type"
+  description: string | null;      // Optional description
+  keywords: string[];              // Keywords for content matching
+  createdAt: string;
+}
+
+// Summary types for linked items (avoids circular reference)
+export interface BlogPostSummary {
+  id: string;
+  slug: string;
+  title: string;
+  category: string | null;
+  publishedAt: string | null;
+}
+
+export interface TombstoneSummary {
+  id: string;
+  slug: string;
+  name: string;
+  industry: string | null;
+  transactionYear: number | null;
 }
 
 export interface BlogPost {
@@ -379,6 +424,9 @@ export interface BlogPost {
   previewToken: string;
   createdAt: string;
   updatedAt: string;
+  
+  // Content tags (for related content discovery)
+  tags?: ContentTag[];
 }
 
 export interface PageContent {
@@ -461,7 +509,20 @@ export interface CreateTombstoneInput {
   role?: string;
   dealDate?: string;
   description?: string;
-  newsSlug?: string;
+  
+  // Extended fields
+  buyerPeFirm?: string;
+  buyerPlatform?: string;
+  transactionYear?: number;
+  city?: string;
+  state?: string;
+  
+  // Press release (1-to-1, BlogPost ID or null)
+  pressReleaseId?: string | null;
+  
+  // Content tags (array of tag IDs)
+  tagIds?: string[];
+  
   sortOrder?: number;
   isPublished?: boolean;
 }
@@ -476,9 +537,22 @@ export interface CreateBlogPostInput {
   author?: string;
   category?: string;
   isPublished?: boolean;
+  
+  // Content tags (array of tag IDs)
+  tagIds?: string[];
 }
 
 export interface UpdateBlogPostInput extends Partial<CreateBlogPostInput> {}
+
+export interface CreateContentTagInput {
+  name: string;
+  slug?: string;             // Auto-generated from name if not provided
+  category?: string;         // "industry", "service-type", or "deal-type"
+  description?: string;
+  keywords?: string[];       // Keywords for content matching
+}
+
+export interface UpdateContentTagInput extends Partial<CreateContentTagInput> {}
 
 export interface UpdatePageContentInput {
   title?: string;
@@ -579,11 +653,16 @@ src/
 │   ├── tombstones/
 │   │   ├── TombstoneTable.tsx
 │   │   ├── TombstoneCard.tsx
-│   │   └── ImageUploader.tsx
+│   │   ├── ImageUploader.tsx
+│   │   └── PressReleaseSelector.tsx  # Single-select for press release (1-to-1)
 │   ├── blog/
 │   │   ├── BlogPostTable.tsx
 │   │   ├── BlockNoteEditor.tsx    # BlockNote WYSIWYG editor
 │   │   └── MarkdownPreview.tsx    # Rendered markdown preview
+│   ├── tags/
+│   │   ├── TagSelector.tsx        # Multi-select for content tags
+│   │   ├── TagManager.tsx         # CRUD for managing tags
+│   │   └── TagBadge.tsx           # Display tag as badge/chip
 │   ├── preview/
 │   │   └── PreviewIframe.tsx      # Iframe to show live website preview
 │   ├── analytics/
@@ -634,20 +713,36 @@ export interface WebAdminApi {
   
   // Tombstones
   getTombstones(): Promise<Tombstone[]>;
-  getTombstone(id: string): Promise<Tombstone>;
+  getTombstone(id: string): Promise<Tombstone>;  // Includes pressRelease and tags
   createTombstone(input: CreateTombstoneInput): Promise<Tombstone>;
   updateTombstone(id: string, input: UpdateTombstoneInput): Promise<Tombstone>;
   deleteTombstone(id: string): Promise<void>;
   publishTombstone(id: string, isPublished: boolean): Promise<Tombstone>;
   reorderTombstones(ids: string[]): Promise<void>;
   
+  // Tombstone Press Release & Tags
+  setTombstonePressRelease(tombstoneId: string, blogPostId: string | null): Promise<void>;
+  getTombstoneTags(tombstoneId: string): Promise<ContentTag[]>;
+  updateTombstoneTags(tombstoneId: string, tagIds: string[]): Promise<void>;
+  
   // Blog Posts
   getBlogPosts(): Promise<BlogPost[]>;
-  getBlogPost(id: string): Promise<BlogPost>;
+  getBlogPost(id: string): Promise<BlogPost>;  // Includes tags
   createBlogPost(input: CreateBlogPostInput): Promise<BlogPost>;
   updateBlogPost(id: string, input: UpdateBlogPostInput): Promise<BlogPost>;
   deleteBlogPost(id: string): Promise<void>;
   publishBlogPost(id: string, isPublished: boolean): Promise<BlogPost>;
+  
+  // Blog Post Tags
+  getBlogPostTags(blogPostId: string): Promise<ContentTag[]>;
+  updateBlogPostTags(blogPostId: string, tagIds: string[]): Promise<void>;
+  
+  // Content Tags
+  getTags(): Promise<ContentTag[]>;
+  getTag(id: string): Promise<ContentTag>;
+  createTag(input: CreateContentTagInput): Promise<ContentTag>;
+  updateTag(id: string, input: UpdateContentTagInput): Promise<ContentTag>;
+  deleteTag(id: string): Promise<void>;
   
   // Page Content
   getPages(): Promise<PageContent[]>;
@@ -756,6 +851,53 @@ Manage transaction tombstones displayed on the website.
 - `DELETE /api/admin/tombstones/:id`
 - `POST /api/admin/tombstones/:id/publish`
 
+**Tombstone Form - Press Release & Tags:**
+
+The TombstoneForm includes components for selecting a press release and content tags:
+
+```typescript
+// In TombstoneForm.tsx
+import { PressReleaseSelector } from '@/components/tombstones/PressReleaseSelector';
+import { TagSelector } from '@/components/tags/TagSelector';
+
+// Within the form
+<PressReleaseSelector
+  selectedId={pressReleaseId}
+  onChange={(id) => setPressReleaseId(id)}
+/>
+
+<TagSelector
+  selectedIds={tagIds}
+  onChange={(ids) => setTagIds(ids)}
+/>
+```
+
+The `PressReleaseSelector` component:
+- Fetches all available blog posts (news category)
+- Displays a searchable single-select dropdown
+- Shows selected article title when chosen
+- Allows clearing (null) for no press release
+- Saves via `PUT /api/admin/tombstones/:id/press-release`
+
+The `TagSelector` component:
+- Fetches all available content tags
+- Displays a searchable multi-select with checkboxes, grouped by category
+- Shows selected tags as colored badges (color-coded by category)
+- Supports inline tag creation ("Add new tag...")
+- Saves via `PUT /api/admin/tombstones/:id/tags`
+
+### Tag Taxonomy
+
+Tags are organized into three categories:
+
+| Category | Purpose | Examples |
+|----------|---------|----------|
+| `industry` | Primary business vertical | Fire & Life Safety, Auto Repair, HVAC, IT & Technology |
+| `service-type` | Service delivery model | Home Services, Commercial Services |
+| `deal-type` | Transaction characteristics | Acquisition, Private Equity, Platform Add-On |
+
+The full taxonomy is seeded into the database on deployment. See `src/api/PLAN.md` for the complete list. Tags use keyword matching to automatically suggest relevant tags when creating or editing content.
+
 ---
 
 ### 3. Blog Posts (`/blog-posts`)
@@ -786,6 +928,30 @@ Manage news articles and resource articles.
 - `PUT /api/admin/blog-posts/:id`
 - `DELETE /api/admin/blog-posts/:id`
 - `POST /api/admin/blog-posts/:id/publish`
+
+**Blog Post Form - Content Tags:**
+
+The BlogPostForm includes a component for selecting content tags:
+
+```typescript
+// In BlogPostForm.tsx
+import { TagSelector } from '@/components/tags/TagSelector';
+
+// Within the form
+<TagSelector
+  selectedIds={tagIds}
+  onChange={(ids) => setTagIds(ids)}
+/>
+```
+
+The `TagSelector` component:
+- Fetches all available content tags
+- Displays a searchable multi-select with checkboxes
+- Shows selected tags as colored badges
+- Supports inline tag creation ("Add new tag...")
+- Saves via `PUT /api/admin/blog-posts/:id/tags`
+
+Related content (other tombstones and blog posts) is discovered automatically by matching tags.
 
 ---
 

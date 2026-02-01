@@ -5,7 +5,7 @@ import { Navigation } from './Navigation';
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="container-max">
         <div className="flex h-16 items-center justify-between md:h-20">
           {/* Logo */}
@@ -31,18 +31,17 @@ export function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex lg:items-center lg:gap-1">
             {navItems.map((item) => (
-              <Link
+                <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-md px-3 py-2 text-sm font-medium text-text-muted transition-colors hover:bg-surface hover:text-primary"
+                className="rounded-md px-3 py-2 text-sm font-medium text-text-muted transition-all hover:bg-primary/5 hover:text-primary"
               >
                 {item.name}
               </Link>
             ))}
             <Link
               href="/contact"
-              className="ml-2 rounded-md px-4 py-2 text-sm font-medium transition-colors"
-              style={{ backgroundColor: '#1e3a5f', color: '#ffffff' }}
+              className="ml-2 rounded-md bg-gradient-to-r from-primary to-primary-light px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:shadow-md hover:brightness-110"
             >
               Get Started
             </Link>

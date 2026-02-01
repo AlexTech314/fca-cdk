@@ -26,20 +26,34 @@ This Express.js + Prisma API serves as the shared backend for all three frontend
 // ===========================================
 
 model Tombstone {
-  id           String   @id @default(uuid())
-  name         String                         // Company name
-  slug         String   @unique               // URL-friendly identifier
-  imagePath    String   @map("image_path")    // Path to tombstone image
-  industry     String?                        // Industry category
-  role         String?                        // Buy-side or Sell-side
-  dealDate     DateTime? @map("deal_date")    // When the deal closed
-  description  String?                        // Short description
-  newsSlug     String?  @map("news_slug")     // Link to related news article
-  sortOrder    Int      @default(0) @map("sort_order")
-  isPublished  Boolean  @default(true) @map("is_published")
-  previewToken String   @unique @default(uuid()) @map("preview_token") // For preview URLs
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid())
+  name           String                         // Company/Seller name
+  slug           String   @unique               // URL-friendly identifier
+  imagePath      String   @map("image_path")    // Path to tombstone image
+  industry       String?                        // Industry category
+  role           String?                        // Buy-side or Sell-side
+  dealDate       DateTime? @map("deal_date")    // When the deal closed
+  description    String?                        // Short description
+  
+  // Extended fields (from CSV data)
+  buyerPeFirm    String?  @map("buyer_pe_firm")     // PE firm (e.g., "O2 Capital")
+  buyerPlatform  String?  @map("buyer_platform")    // Platform company (e.g., "Straightaway Tire & Auto")
+  transactionYear Int?    @map("transaction_year")  // Year of deal (e.g., 2025)
+  city           String?                            // City location
+  state          String?                            // State code (e.g., "CO", "TX")
+  
+  // Press release (1-to-1 relationship with BlogPost)
+  pressReleaseId String?  @unique @map("press_release_id")
+  pressRelease   BlogPost? @relation(fields: [pressReleaseId], references: [id], onDelete: SetNull)
+  
+  sortOrder      Int      @default(0) @map("sort_order")
+  isPublished    Boolean  @default(true) @map("is_published")
+  previewToken   String   @unique @default(uuid()) @map("preview_token") // For preview URLs
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  
+  // Many-to-many relationship with content tags
+  tags           TombstoneTag[]
 
   @@map("tombstones")
 }
@@ -57,9 +71,59 @@ model BlogPost {
   previewToken String   @unique @default(uuid()) @map("preview_token") // For preview URLs
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  // 1-to-1 reverse relation (this blog post is the press release for a tombstone)
+  tombstone    Tombstone?
+  
+  // Many-to-many relationship with content tags
+  tags         BlogPostTag[]
 
   @@index([category, isPublished])
   @@map("blog_posts")
+}
+
+// ===========================================
+// CONTENT TAGS (for related content discovery)
+// ===========================================
+
+model ContentTag {
+  id          String   @id @default(uuid())
+  name        String   @unique               // Display name (e.g., "Fire & Life Safety")
+  slug        String   @unique               // URL-friendly version (e.g., "fire-safety")
+  category    String?                        // "industry", "service-type", or "deal-type"
+  description String?                        // Optional description for admin UI
+  keywords    String[] @default([])          // Keywords for content matching
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  // Many-to-many relationships
+  tombstones  TombstoneTag[]
+  blogPosts   BlogPostTag[]
+
+  @@map("content_tags")
+}
+
+model TombstoneTag {
+  tombstoneId String @map("tombstone_id")
+  tagId       String @map("tag_id")
+  
+  tombstone   Tombstone  @relation(fields: [tombstoneId], references: [id], onDelete: Cascade)
+  tag         ContentTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@id([tombstoneId, tagId])
+  @@index([tagId])
+  @@map("tombstone_tags")
+}
+
+model BlogPostTag {
+  blogPostId String @map("blog_post_id")
+  tagId      String @map("tag_id")
+  
+  blogPost   BlogPost   @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+  tag        ContentTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@id([blogPostId, tagId])
+  @@index([tagId])
+  @@map("blog_post_tags")
 }
 
 model PageContent {
@@ -108,17 +172,43 @@ model EmailSubscriber {
 
 model SellerIntake {
   id            String   @id @default(uuid())
+  
+  // Contact Information
+  firstName     String   @map("first_name")
+  lastName      String   @map("last_name")
   email         String
-  name          String?
-  companyName   String?  @map("company_name")
   phone         String?
+  
+  // Company Information
+  companyName   String   @map("company_name")
+  title         String?                        // Their role (Owner, CEO, CFO, etc.)
+  industry      String?                        // Industry category
+  city          String?
+  state         String?
+  
+  // Business Details
+  revenueRange  String?  @map("revenue_range") // "<$5M", "$5M-$10M", "$10M-$25M", "$25M-$50M", "$50M+"
+  employeeCount String?  @map("employee_count") // "1-10", "11-25", "26-50", "51-100", "100+"
+  
+  // Transaction Interest
+  timeline      String?                        // "ASAP", "6-12 months", "1-2 years", "2+ years", "Just exploring"
+  serviceInterest String? @map("service_interest") // "sell-side", "buy-side", "strategic-consulting", "valuation"
+  
+  // Additional
   message       String?
-  source        String?                       // Which form/page
-  status        String   @default("new")      // new, contacted, qualified, closed
+  source        String?                        // Which form/page (contact, cta, etc.)
+  referralSource String? @map("referral_source") // How did they hear about us
+  
+  // Internal Tracking
+  status        String   @default("new")       // new, contacted, qualified, engaged, closed
+  notes         String?                        // Internal notes (admin only)
+  assignedTo    String?  @map("assigned_to")   // Team member handling
+  
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@index([status])
+  @@index([createdAt])
   @@map("seller_intakes")
 }
 
@@ -293,19 +383,151 @@ model SearchQuery {
 
 ---
 
+## Content Tag Taxonomy
+
+The `ContentTag` model uses a predefined taxonomy to ensure consistent tagging across tombstones and news articles. Tags are organized into three categories:
+
+### Industry Tags
+
+| Slug | Display Name | Description |
+|------|--------------|-------------|
+| `fire-safety` | Fire & Life Safety | Fire protection, sprinkler systems, alarms |
+| `auto-repair` | Auto Repair | Automotive repair, maintenance, tire services |
+| `collision-repair` | Collision & Auto Body | Auto body repair, collision, paint |
+| `hvac` | HVAC | Heating, ventilation, air conditioning |
+| `plumbing` | Plumbing | Plumbing installation and repair |
+| `electrical` | Electrical Services | Electrical contracting and supply |
+| `environmental` | Environmental Services | Environmental consulting, reclamation |
+| `it-technology` | IT & Technology | IT consulting, MSP, software |
+| `petroleum` | Petroleum & Lubricants | Petroleum distribution, lubricants |
+| `oil-gas` | Oil & Gas | Oil and gas equipment and services |
+| `refrigeration` | Refrigeration | Commercial refrigeration systems |
+| `pool-spa` | Pool & Spa | Pool and spa services |
+| `roofing` | Roofing | Residential and commercial roofing |
+| `healthcare` | Healthcare | Healthcare services, pharmacy |
+| `advertising` | Advertising & Marketing | Advertising agencies |
+| `transportation` | Transportation & Logistics | Trucking, logistics |
+| `manufacturing` | Manufacturing | Manufacturing and fabrication |
+| `distribution` | Distribution | Wholesale distribution |
+| `construction` | Construction & Building | Construction, building trades |
+| `retail` | Retail | Retail businesses |
+| `engineering` | Engineering | Engineering services |
+| `business-services` | Business Services | BPO, professional services |
+| `travel-hospitality` | Travel & Hospitality | Travel, hospitality |
+| `aerospace-defense` | Aerospace & Defense | Aerospace, defense contractors |
+
+### Service Type Tags
+
+| Slug | Display Name | Description |
+|------|--------------|-------------|
+| `home-services` | Home Services | Residential home services |
+| `commercial-services` | Commercial Services | Commercial and B2B services |
+
+### Deal Type Tags
+
+| Slug | Display Name | Description |
+|------|--------------|-------------|
+| `acquisition` | Acquisition | Company acquisitions and mergers |
+| `private-equity` | Private Equity | PE-backed transactions |
+| `platform-add-on` | Platform Add-On | Add-on acquisitions |
+| `recapitalization` | Recapitalization | Recaps and equity transactions |
+
+### Database Seeding
+
+On initial deployment, seed the `ContentTag` table with the full taxonomy:
+
+```typescript
+// prisma/seed.ts
+import { PrismaClient } from '@prisma/client';
+import { TAG_TAXONOMY } from '../src/lib/taxonomy';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  for (const tag of TAG_TAXONOMY) {
+    await prisma.contentTag.upsert({
+      where: { slug: tag.slug },
+      update: {
+        name: tag.name,
+        category: tag.category,
+        description: tag.description,
+        keywords: tag.keywords,
+      },
+      create: {
+        slug: tag.slug,
+        name: tag.name,
+        category: tag.category,
+        description: tag.description,
+        keywords: tag.keywords,
+      },
+    });
+  }
+}
+
+main();
+```
+
+---
+
 ## API Endpoints
 
 ### Public Website Endpoints (nextjs-web)
 
 ```
 GET  /api/tombstones                 # List published tombstones
-GET  /api/tombstones/:slug           # Get single published tombstone
+GET  /api/tombstones/:slug           # Get single tombstone (includes press release and tags)
+GET  /api/tombstones/:slug/related   # Get related news articles (by matching tags, excludes press release)
 GET  /api/blog-posts                 # List published blog posts
-GET  /api/blog-posts/:slug           # Get single published blog post
+GET  /api/blog-posts/:slug           # Get single blog post (includes tags)
+GET  /api/blog-posts/:slug/related   # Get related tombstones and articles (by matching tags)
+GET  /api/tags                       # List all content tags
+GET  /api/tags/:slug                 # Get tag with associated content
 GET  /api/pages/:pageKey             # Get page content (about, faq, etc.)
 POST /api/analytics/pageview         # Record page view
 POST /api/subscribe                  # Newsletter signup
 POST /api/seller-intake              # Seller intake form submission
+```
+
+### Seller Intake Form Payload
+
+```typescript
+// POST /api/seller-intake
+interface SellerIntakePayload {
+  // Required
+  firstName: string;
+  lastName: string;
+  email: string;
+  companyName: string;
+  
+  // Optional Contact
+  phone?: string;
+  
+  // Optional Company Info
+  title?: string;           // Their role (Owner, CEO, CFO, etc.)
+  industry?: string;        // Industry slug from taxonomy
+  city?: string;
+  state?: string;           // 2-letter state code
+  
+  // Optional Business Details
+  revenueRange?: string;    // "<$5M" | "$5M-$10M" | "$10M-$25M" | "$25M-$50M" | "$50M+"
+  employeeCount?: string;   // "1-10" | "11-25" | "26-50" | "51-100" | "100+"
+  
+  // Optional Transaction Interest
+  timeline?: string;        // "ASAP" | "6-12 months" | "1-2 years" | "2+ years" | "Just exploring"
+  serviceInterest?: string; // "sell-side" | "buy-side" | "strategic-consulting" | "valuation" | "not-sure"
+  
+  // Optional Additional
+  message?: string;
+  source?: string;          // Form source: "contact", "cta", "homepage", etc.
+  referralSource?: string;  // "google" | "linkedin" | "referral" | "pe-firm" | "attorney" | "conference" | "other"
+}
+
+// Response
+interface SellerIntakeResponse {
+  success: boolean;
+  message: string;
+  id: string;  // UUID of created record
+}
 ```
 
 ### Preview Endpoints (nextjs-web preview routes)
@@ -331,11 +553,26 @@ PUT    /api/admin/tombstones/:id     # Update tombstone
 DELETE /api/admin/tombstones/:id     # Delete tombstone
 POST   /api/admin/tombstones/:id/publish   # Publish/unpublish
 
+# Tombstone Press Release & Tags
+PUT    /api/admin/tombstones/:id/press-release   # Set press release (blogPostId or null)
+GET    /api/admin/tombstones/:id/tags            # Get tags for tombstone
+PUT    /api/admin/tombstones/:id/tags            # Update tags (array of tagIds)
+
 GET    /api/admin/blog-posts         # List all blog posts
 POST   /api/admin/blog-posts         # Create blog post
 PUT    /api/admin/blog-posts/:id     # Update blog post
 DELETE /api/admin/blog-posts/:id     # Delete blog post
 POST   /api/admin/blog-posts/:id/publish   # Publish/unpublish
+
+# Blog Post Tags
+GET    /api/admin/blog-posts/:id/tags      # Get tags for blog post
+PUT    /api/admin/blog-posts/:id/tags      # Update tags (array of tagIds)
+
+# Content Tags Management
+GET    /api/admin/tags               # List all content tags
+POST   /api/admin/tags               # Create tag
+PUT    /api/admin/tags/:id           # Update tag
+DELETE /api/admin/tags/:id           # Delete tag
 
 GET    /api/admin/pages              # List page content
 PUT    /api/admin/pages/:pageKey     # Update page content

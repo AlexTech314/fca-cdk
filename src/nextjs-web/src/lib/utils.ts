@@ -94,9 +94,9 @@ export const navItems = [
  */
 export const footerNav = {
   services: [
-    { name: 'Sell-Side Advisory', href: '/about#sell-side' },
+    { name: 'Sell-Side Advisory', href: '/sell-side' },
     { name: 'Buy-Side Advisory', href: '/buy-side' },
-    { name: 'Strategic Consulting', href: '/about#consulting' },
+    { name: 'Strategic Consulting', href: '/about' },
   ],
   company: [
     { name: 'About', href: '/about' },

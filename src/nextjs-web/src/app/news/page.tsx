@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
-import { getNewsArticles } from '@/lib/data';
+import { ContentExplorer } from '@/components/sections/ContentExplorer';
+import { getNewsArticles, getAllNewsTags } from '@/lib/data';
 import { siteConfig } from '@/lib/utils';
 
 export const metadata: Metadata = {
@@ -16,7 +17,10 @@ export const metadata: Metadata = {
 };
 
 export default async function NewsPage() {
-  const articles = await getNewsArticles();
+  const [articles, tags] = await Promise.all([
+    getNewsArticles(),
+    getAllNewsTags(),
+  ]);
 
   return (
     <>
@@ -32,6 +36,11 @@ export default async function NewsPage() {
           <SectionHeading
             subtitle="Latest Updates"
             title="Recent Announcements"
+          />
+
+          <ContentExplorer
+            type="news"
+            tags={tags}
           />
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

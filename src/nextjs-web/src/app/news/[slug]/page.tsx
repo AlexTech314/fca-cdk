@@ -13,6 +13,7 @@ import {
   parseMarkdownContent,
   getAllNewsTags
 } from '@/lib/data';
+import { MarkdownContent } from '@/components/common/MarkdownContent';
 import { siteConfig } from '@/lib/utils';
 
 interface PageProps {
@@ -117,29 +118,7 @@ export default async function NewsArticlePage({ params }: PageProps) {
             </header>
 
             {/* Content */}
-            <div className="prose prose-lg max-w-none">
-              {contentBlocks.map((block, index) => {
-                if (block.startsWith('## ')) {
-                  return (
-                    <h2 key={index} className="mt-8 mb-4 text-xl font-bold text-text">
-                      {block.replace('## ', '')}
-                    </h2>
-                  );
-                }
-                if (block.startsWith('### ')) {
-                  return (
-                    <h3 key={index} className="mt-6 mb-3 text-lg font-semibold text-text">
-                      {block.replace('### ', '')}
-                    </h3>
-                  );
-                }
-                return (
-                  <p key={index} className="mb-4 text-text-muted leading-relaxed">
-                    {block}
-                  </p>
-                );
-              })}
-            </div>
+            <MarkdownContent blocks={contentBlocks} />
 
             {/* Related Transactions */}
             {relatedTombstones.length > 0 && (

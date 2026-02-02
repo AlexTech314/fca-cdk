@@ -41,7 +41,8 @@ export function Header() {
             ))}
             <Link
               href="/contact"
-              className="ml-2 rounded-md bg-gradient-to-r from-primary to-primary-light px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:shadow-md hover:brightness-110"
+              className="ml-2 rounded-md px-4 py-2 text-sm font-medium shadow-sm transition-all hover:shadow-md hover:brightness-110"
+              style={{ background: 'linear-gradient(to right, #1e3a5f, #2d4a6f)', color: '#ffffff' }}
             >
               Get Started
             </Link>

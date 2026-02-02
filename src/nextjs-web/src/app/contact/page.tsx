@@ -28,9 +28,9 @@ export default async function ContactPage() {
   return (
     <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
       <Container>
-        <div className="grid gap-12 lg:grid-cols-5 lg:gap-16">
+        <div className="grid gap-12 lg:grid-cols-5 lg:gap-16 lg:items-stretch">
           {/* Left: Form */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 flex flex-col">
             <h1 className="mb-4 text-3xl font-bold text-primary md:text-4xl">
               We&apos;d love to hear from you!
             </h1>
@@ -38,15 +38,17 @@ export default async function ContactPage() {
               Let&apos;s explore how we can help you achieve your goals.
             </p>
 
-            <ContactForm />
+            <div className="flex-1 flex flex-col">
+              <ContactForm />
+            </div>
           </div>
 
           {/* Right: More Information */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 flex flex-col">
             <h2 className="mb-6 text-xl font-semibold text-primary">
               More Information
             </h2>
-            <div className="space-y-4">
+            <div className="flex-1 flex flex-col justify-between">
               {/* Resources Link */}
               {randomResource && (
                 <Link

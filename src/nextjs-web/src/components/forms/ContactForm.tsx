@@ -121,14 +121,15 @@ export function ContactForm() {
   const errorClassName = 'mt-1 text-xs text-red-500';
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-white p-6 shadow-sm md:p-8">
+    <form onSubmit={handleSubmit} className="flex flex-1 flex-col rounded-xl border border-border bg-white p-6 shadow-sm md:p-8">
       {submitStatus === 'error' && (
         <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-600">
           Something went wrong. Please try again.
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="firstName" className={labelClassName}>
             First Name <span className="text-red-500">*</span>
@@ -222,9 +223,10 @@ export function ContactForm() {
           className={inputClassName}
           placeholder="Tell us about your goals..."
         />
+        </div>
       </div>
 
-      <div className="pt-4">
+      <div className="mt-auto pt-4">
         <button
           type="submit"
           disabled={isSubmitting}

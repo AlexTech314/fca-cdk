@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { Container } from '@/components/ui/Container';
 import { CTASection } from '@/components/sections/CTASection';
 import { getResourceArticle, getResourceArticles, parseMarkdownContent } from '@/lib/data';
+import { MarkdownContent } from '@/components/common/MarkdownContent';
 import { siteConfig } from '@/lib/utils';
 
 interface PageProps {
@@ -96,42 +97,7 @@ export default async function ResourceArticlePage({ params }: PageProps) {
             </header>
 
             {/* Content */}
-            <div className="prose prose-lg max-w-none">
-              {contentBlocks.map((block, index) => {
-                // Check if it's a heading
-                if (block.startsWith('## ')) {
-                  return (
-                    <h2 key={index} className="mt-8 mb-4 text-xl font-bold text-text">
-                      {block.replace('## ', '')}
-                    </h2>
-                  );
-                }
-                if (block.startsWith('### ')) {
-                  return (
-                    <h3 key={index} className="mt-6 mb-3 text-lg font-semibold text-text">
-                      {block.replace('### ', '')}
-                    </h3>
-                  );
-                }
-                // Check if it's a list
-                if (block.startsWith('- ')) {
-                  const items = block.split('\n').filter((line) => line.startsWith('- '));
-                  return (
-                    <ul key={index} className="mb-4 list-disc space-y-2 pl-6 text-text-muted">
-                      {items.map((item, i) => (
-                        <li key={i}>{item.replace('- ', '')}</li>
-                      ))}
-                    </ul>
-                  );
-                }
-                // Regular paragraph
-                return (
-                  <p key={index} className="mb-4 text-text-muted leading-relaxed">
-                    {block}
-                  </p>
-                );
-              })}
-            </div>
+            <MarkdownContent blocks={contentBlocks} />
 
             {/* About section */}
             <div className="mt-12 rounded-lg border border-border bg-surface p-6">

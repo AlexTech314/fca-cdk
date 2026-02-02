@@ -274,6 +274,7 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
               states={states}
               cities={cities}
               years={years}
+              defaultExpanded
             />
           </div>
 

@@ -19,7 +19,7 @@ const variants = {
   secondary:
     'bg-gradient-to-r from-secondary to-accent text-white shadow-sm hover:shadow-md hover:brightness-110 focus:ring-secondary',
   outline:
-    'border-2 border-primary text-primary hover:bg-primary hover:text-white hover:shadow-md focus:ring-primary',
+    'border-2 border-primary text-primary bg-transparent hover:bg-primary hover:!text-white hover:shadow-md focus:ring-primary',
   ghost:
     'text-primary hover:bg-primary/5 focus:ring-primary',
 };

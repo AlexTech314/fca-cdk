@@ -3,20 +3,20 @@ import { Container } from '@/components/ui/Container';
 
 const awards = [
   {
-    name: 'Top 50 Software Axial 2023',
-    image: '/awards/top50_software_email@2x.png',
-  },
-  {
-    name: '2023 Axial Advisor 100',
-    image: '/awards/2023-Axial-Advisor-100.png',
-  },
-  {
     name: 'Axial Top 10 Investment Bank 2022',
     image: '/awards/Axial-Top-10-Investment-Bank-2022.png',
   },
   {
+    name: 'Top 50 Software Axial 2023',
+    image: '/awards/top50_software_email@2x.png',
+  },
+  {
     name: 'Axial Top IB 2020',
     image: '/awards/Axial-Top-IB-Badge-2020-359x450.png',
+  },
+  {
+    name: '2023 Axial Advisor 100',
+    image: '/awards/2023-Axial-Advisor-100.png',
   },
   {
     name: 'NFPA Member',

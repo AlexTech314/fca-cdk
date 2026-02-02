@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Container } from '@/components/ui/Container';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -9,7 +10,8 @@ import {
   getTombstonesByTag,
   getAllStates,
   getAllCities,
-  getAllTransactionYears 
+  getAllTransactionYears,
+  getNewsArticlesByTag
 } from '@/lib/data';
 import { 
   formatTagName, 
@@ -60,12 +62,13 @@ export default async function TransactionsByTagPage({ params }: PageProps) {
     breadcrumbs,
   });
 
-  // Fetch data for ContentExplorer
-  const [tags, states, cities, years] = await Promise.all([
+  // Fetch data for ContentExplorer and related news
+  const [tags, states, cities, years, relatedNews] = await Promise.all([
     getAllTombstoneTags(),
     getAllStates(),
     getAllCities(),
     getAllTransactionYears(),
+    getNewsArticlesByTag(tag),
   ]);
 
   return (
@@ -93,6 +96,44 @@ export default async function TransactionsByTagPage({ params }: PageProps) {
 
           <TombstoneGrid tombstones={tombstones} />
 
+          {/* Related News */}
+          {relatedNews.length > 0 && (
+            <div className="mt-16 border-t border-border pt-12">
+              <h2 className="mb-6 text-xl font-bold text-text">
+                Related News
+              </h2>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {relatedNews.slice(0, 3).map((article) => (
+                  <Link
+                    key={article.slug}
+                    href={`/news/${article.slug}`}
+                    className="group rounded-xl border border-border bg-white p-6 transition-all hover:shadow-card-hover"
+                  >
+                    <div className="mb-3">
+                      <span className="text-sm text-secondary">{article.date}</span>
+                    </div>
+                    <h3 className="mb-3 text-lg font-semibold text-text group-hover:text-primary">
+                      {article.title}
+                    </h3>
+                    <p className="text-sm text-text-muted line-clamp-3">
+                      {article.excerpt}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+              {relatedNews.length > 3 && (
+                <div className="mt-6 text-center">
+                  <Link
+                    href={`/news/tag/${tag}`}
+                    className="inline-flex items-center gap-1 text-sm font-medium text-secondary hover:text-primary"
+                  >
+                    View all {relatedNews.length} related articles →
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="mt-12">
             <ContentExplorer
               type="transactions"
@@ -100,6 +141,7 @@ export default async function TransactionsByTagPage({ params }: PageProps) {
               states={states}
               cities={cities}
               years={years}
+              defaultExpanded
             />
           </div>
         </Container>

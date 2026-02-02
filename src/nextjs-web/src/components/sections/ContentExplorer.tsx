@@ -21,6 +21,7 @@ interface ContentExplorerProps {
   states?: string[];
   cities?: string[];
   years?: number[];
+  defaultExpanded?: boolean;
 }
 
 type TabType = 'industry' | 'state' | 'city' | 'year';
@@ -67,8 +68,9 @@ export function ContentExplorer({
   states = [],
   cities = [],
   years = [],
+  defaultExpanded = false,
 }: ContentExplorerProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [activeTab, setActiveTab] = useState<TabType>('industry');
 
   // For news, we only show industry tags
@@ -132,7 +134,7 @@ export function ContentExplorer({
               <Link
                 key={year}
                 href={`${basePath}/year/${year}`}
-                className="rounded-lg border border-secondary/20 bg-white px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition-all hover:border-secondary hover:bg-secondary hover:text-white hover:shadow-md"
+                className="rounded-lg border border-secondary/20 bg-white px-5 py-5.5 text-sm font-semibold text-primary shadow-sm transition-all hover:border-secondary hover:bg-secondary hover:text-white hover:shadow-md"
               >
                 {year}
               </Link>

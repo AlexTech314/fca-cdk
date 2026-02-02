@@ -12,8 +12,10 @@ import {
   slugToCity,
   getAllTombstoneTags,
   getAllStates,
-  getAllTransactionYears 
+  getAllTransactionYears,
+  getNewsArticlesByTag
 } from '@/lib/data';
+import type { NewsArticle } from '@/lib/types';
 import { 
   getStateName, 
   generateGroupingMetadata, 
@@ -79,6 +81,27 @@ export default async function TransactionsByCityPage({ params }: PageProps) {
     getAllTransactionYears(),
   ]);
 
+  // Get unique tags from transactions on this page for related news
+  const uniqueTags = [...new Set(tombstones.flatMap((t) => t.tags || []))];
+  
+  // Fetch related news for these tags
+  const newsPromises = uniqueTags.map((tag) => getNewsArticlesByTag(tag));
+  const newsResults = await Promise.all(newsPromises);
+  
+  // Combine and deduplicate news articles
+  const seenSlugs = new Set<string>();
+  const relatedNews: NewsArticle[] = [];
+  for (const articles of newsResults) {
+    for (const article of articles) {
+      if (!seenSlugs.has(article.slug)) {
+        seenSlugs.add(article.slug);
+        relatedNews.push(article);
+      }
+    }
+  }
+  // Sort by date (newest first)
+  relatedNews.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   return (
     <>
       <script
@@ -128,6 +151,44 @@ export default async function TransactionsByCityPage({ params }: PageProps) {
 
           <TombstoneGrid tombstones={tombstones} />
 
+          {/* Related News */}
+          {relatedNews.length > 0 && (
+            <div className="mt-16 border-t border-border pt-12">
+              <h2 className="mb-6 text-xl font-bold text-text">
+                Related News
+              </h2>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {relatedNews.slice(0, 3).map((article) => (
+                  <Link
+                    key={article.slug}
+                    href={`/news/${article.slug}`}
+                    className="group rounded-xl border border-border bg-white p-6 transition-all hover:shadow-card-hover"
+                  >
+                    <div className="mb-3">
+                      <span className="text-sm text-secondary">{article.date}</span>
+                    </div>
+                    <h3 className="mb-3 text-lg font-semibold text-text group-hover:text-primary">
+                      {article.title}
+                    </h3>
+                    <p className="text-sm text-text-muted line-clamp-3">
+                      {article.excerpt}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+              {relatedNews.length > 3 && (
+                <div className="mt-6 text-center">
+                  <Link
+                    href="/news"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-secondary hover:text-primary"
+                  >
+                    View all news →
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="mt-12">
             <ContentExplorer
               type="transactions"
@@ -135,6 +196,7 @@ export default async function TransactionsByCityPage({ params }: PageProps) {
               states={states}
               cities={cities}
               years={years}
+              defaultExpanded
             />
           </div>
         </Container>

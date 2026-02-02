@@ -11,6 +11,8 @@ const services = [
       'Acquisition Search',
       'Sponsor Services',
       'Buy-side Representation',
+      'Due Diligence Support',
+      'Deal Structuring',
     ],
     href: '/buy-side',
     icon: (
@@ -61,7 +63,13 @@ const services = [
     title: 'Strategic Consulting',
     description:
       'Strategy and business plan consulting from contract CFO and growth strategies to optimizations. We work with everyone from startups to Fortune 1000 public companies.',
-    items: ['Contract CFO', 'Growth Strategies', 'Optimizations'],
+    items: [
+      'Contract CFO',
+      'Growth Strategies',
+      'Optimizations',
+      'Financial Modeling',
+      'Market Analysis',
+    ],
     href: '/about',
     icon: (
       <svg

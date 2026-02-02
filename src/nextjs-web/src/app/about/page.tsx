@@ -28,9 +28,17 @@ const buySideServices = [
   'Acquisition Search',
   'Sponsor Services',
   'Buy-side Representation',
+  'Due Diligence Support',
+  'Deal Structuring',
 ];
 
-const strategicServices = ['Contract CFO', 'Growth Strategies', 'Optimizations'];
+const strategicServices = [
+  'Contract CFO',
+  'Growth Strategies',
+  'Optimizations',
+  'Financial Modeling',
+  'Market Analysis',
+];
 
 const industrySectors = [
   {

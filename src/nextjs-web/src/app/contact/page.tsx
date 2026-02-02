@@ -15,15 +15,13 @@ export const metadata: Metadata = {
 };
 
 export default async function ContactPage() {
-  // Get a random news article
+  // Get the most recent news article
   const articles = await getNewsArticles();
-  const randomArticle = articles[Math.floor(Math.random() * articles.length)];
+  const featuredArticle = articles[0];
   
-  // Get a random resource
+  // Get the first resource
   const resources = await getResourceArticles();
-  const randomResource = resources.length > 0 
-    ? resources[Math.floor(Math.random() * resources.length)]
-    : null;
+  const featuredResource = resources.length > 0 ? resources[0] : null;
 
   return (
     <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
@@ -51,9 +49,9 @@ export default async function ContactPage() {
           {/* Right: Cards */}
           <div className="lg:col-span-2 flex flex-col justify-between gap-4">
               {/* Resources Link */}
-              {randomResource && (
+              {featuredResource && (
                 <Link
-                  href={`/resources/${randomResource.slug}`}
+                  href={`/resources/${featuredResource.slug}`}
                   className="group block overflow-hidden rounded-xl border border-border bg-white p-6 shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10"
                 >
                   <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-secondary/10">
@@ -65,7 +63,7 @@ export default async function ContactPage() {
                     Resources
                   </h3>
                   <p className="mb-3 text-sm text-text-muted line-clamp-2">
-                    {randomResource.title}
+                    {featuredResource.title}
                   </p>
                   <span className="inline-flex items-center gap-1 text-sm font-medium text-secondary group-hover:text-primary">
                     Read More
@@ -77,9 +75,9 @@ export default async function ContactPage() {
               )}
 
               {/* News Article Link */}
-              {randomArticle && (
+              {featuredArticle && (
                 <Link
-                  href={`/news/${randomArticle.slug}`}
+                  href={`/news/${featuredArticle.slug}`}
                   className="group block overflow-hidden rounded-xl border border-border bg-white p-6 shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10"
                 >
                   <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary/10 to-secondary/10">
@@ -91,7 +89,7 @@ export default async function ContactPage() {
                     Latest News
                   </h3>
                   <p className="mb-3 text-sm text-text-muted line-clamp-2">
-                    {randomArticle.title}
+                    {featuredArticle.title}
                   </p>
                   <span className="inline-flex items-center gap-1 text-sm font-medium text-secondary group-hover:text-primary">
                     Read More

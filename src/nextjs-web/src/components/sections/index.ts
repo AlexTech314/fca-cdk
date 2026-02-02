@@ -5,3 +5,6 @@ export { TeamGrid } from './TeamGrid';
 export { AwardsBar } from './AwardsBar';
 export { CTASection } from './CTASection';
 export { ContactInfo } from './ContactInfo';
+export { ContentExplorer } from './ContentExplorer';
+export { NewsGrid } from './NewsGrid';
+export { TombstoneGrid } from './TombstoneGrid';

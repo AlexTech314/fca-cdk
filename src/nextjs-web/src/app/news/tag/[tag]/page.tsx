@@ -111,7 +111,7 @@ export default async function NewsByTagPage({ params }: PageProps) {
           <NewsGrid articles={articles} />
 
           <div className="mt-12">
-            <ContentExplorer type="news" tags={newsTags} defaultExpanded />
+            <ContentExplorer type="news" tags={newsTags} />
           </div>
         </Container>
       </section>

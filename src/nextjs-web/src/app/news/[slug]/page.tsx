@@ -243,7 +243,7 @@ export default async function NewsArticlePage({ params }: PageProps) {
               <h2 className="mb-6 text-xl font-bold text-text">
                 Explore More News
               </h2>
-              <ContentExplorer type="news" tags={newsTags} defaultExpanded />
+              <ContentExplorer type="news" tags={newsTags} />
             </div>
 
             {/* Back link */}

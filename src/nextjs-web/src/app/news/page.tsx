@@ -38,11 +38,6 @@ export default async function NewsPage() {
             title="Recent Announcements"
           />
 
-          <ContentExplorer
-            type="news"
-            tags={tags}
-          />
-
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {articles.map((article) => (
               <Link
@@ -86,6 +81,13 @@ export default async function NewsPage() {
               <p className="text-text-muted">No news articles found.</p>
             </div>
           )}
+
+          <div className="mt-12">
+            <ContentExplorer
+              type="news"
+              tags={tags}
+            />
+          </div>
         </Container>
       </section>
     </>

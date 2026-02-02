@@ -21,7 +21,6 @@ interface ContentExplorerProps {
   states?: string[];
   cities?: string[];
   years?: number[];
-  defaultExpanded?: boolean;
 }
 
 type TabType = 'industry' | 'state' | 'city' | 'year';
@@ -68,9 +67,7 @@ export function ContentExplorer({
   states = [],
   cities = [],
   years = [],
-  defaultExpanded = false,
 }: ContentExplorerProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [activeTab, setActiveTab] = useState<TabType>('industry');
 
   // For news, we only show industry tags
@@ -80,17 +77,15 @@ export function ContentExplorer({
 
   const basePath = type === 'transactions' ? '/transactions' : '/news';
 
+  const linkClass = "shrink-0 rounded-lg border border-secondary/20 bg-white px-4 py-2 text-sm font-medium text-primary shadow-sm transition-all hover:border-secondary hover:bg-secondary hover:text-white hover:shadow-md";
+
   const renderContent = () => {
     switch (activeTab) {
       case 'industry':
         return (
           <>
             {tags.map((tag) => (
-              <Link
-                key={tag}
-                href={`${basePath}/tag/${tag}`}
-                className="rounded-lg border border-secondary/20 bg-white px-4 py-2 text-sm font-medium text-primary shadow-sm transition-all hover:border-secondary hover:bg-secondary hover:text-white hover:shadow-md"
-              >
+              <Link key={tag} href={`${basePath}/tag/${tag}`} className={linkClass}>
                 {getTagDisplayName(tag)}
               </Link>
             ))}
@@ -101,11 +96,7 @@ export function ContentExplorer({
         return (
           <>
             {states.map((state) => (
-              <Link
-                key={state}
-                href={`${basePath}/state/${state.toLowerCase()}`}
-                className="rounded-lg border border-secondary/20 bg-white px-4 py-2 text-sm font-medium text-primary shadow-sm transition-all hover:border-secondary hover:bg-secondary hover:text-white hover:shadow-md"
-              >
+              <Link key={state} href={`${basePath}/state/${state.toLowerCase()}`} className={linkClass}>
                 {stateNames[state.toUpperCase()] || state}
               </Link>
             ))}
@@ -116,11 +107,7 @@ export function ContentExplorer({
         return (
           <>
             {cities.map((city) => (
-              <Link
-                key={city}
-                href={`${basePath}/city/${cityToSlug(city)}`}
-                className="rounded-lg border border-secondary/20 bg-white px-4 py-2 text-sm font-medium text-primary shadow-sm transition-all hover:border-secondary hover:bg-secondary hover:text-white hover:shadow-md"
-              >
+              <Link key={city} href={`${basePath}/city/${cityToSlug(city)}`} className={linkClass}>
                 {city}
               </Link>
             ))}
@@ -131,11 +118,7 @@ export function ContentExplorer({
         return (
           <>
             {years.map((year) => (
-              <Link
-                key={year}
-                href={`${basePath}/year/${year}`}
-                className="rounded-lg border border-secondary/20 bg-white px-5 py-5.5 text-sm font-semibold text-primary shadow-sm transition-all hover:border-secondary hover:bg-secondary hover:text-white hover:shadow-md"
-              >
+              <Link key={year} href={`${basePath}/year/${year}`} className={linkClass}>
                 {year}
               </Link>
             ))}
@@ -147,41 +130,10 @@ export function ContentExplorer({
     }
   };
 
-  // Collapsed state - just a button
-  if (!isExpanded) {
-    return (
-      <div className="mb-12 flex justify-center">
-        <button
-          onClick={() => setIsExpanded(true)}
-          className="group inline-flex items-center gap-2 rounded-full border border-secondary/30 bg-gradient-to-r from-primary/5 to-secondary/5 px-6 py-3 shadow-sm transition-all hover:border-secondary hover:shadow-md hover:shadow-primary/10"
-        >
-          <svg className="h-5 w-5 text-secondary" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
-          </svg>
-          <span className="text-sm font-semibold text-primary">
-            Explore {type === 'transactions' ? 'Transactions' : 'News'}
-          </span>
-          <svg className="h-4 w-4 text-secondary transition-transform group-hover:translate-y-0.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-          </svg>
-        </button>
-      </div>
-    );
-  }
-
-  // Expanded state - full filter panel
   return (
-    <div className="relative mb-12 rounded-2xl border border-secondary/20 bg-gradient-to-br from-surface-blue/50 to-white p-6 shadow-sm">
-      {/* Header with close button */}
+    <div className="rounded-2xl border border-secondary/20 bg-gradient-to-br from-surface-blue/50 to-white p-6 shadow-sm">
+      {/* Header */}
       <div className="mb-6 flex flex-col items-center text-center">
-        <button
-          onClick={() => setIsExpanded(false)}
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-text-muted transition-colors hover:bg-gray-200 hover:text-text sm:right-6 sm:top-6"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
         <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 text-secondary">
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
@@ -215,9 +167,11 @@ export function ContentExplorer({
         </div>
       )}
 
-      {/* Content */}
-      <div className="flex min-h-[60px] flex-wrap justify-center gap-2">
-        {renderContent()}
+      {/* Content - horizontal scroll on mobile, wrap on desktop */}
+      <div className="overflow-x-auto pb-2 md:overflow-x-visible">
+        <div className="flex gap-2 md:flex-wrap md:justify-center">
+          {renderContent()}
+        </div>
       </div>
     </div>
   );

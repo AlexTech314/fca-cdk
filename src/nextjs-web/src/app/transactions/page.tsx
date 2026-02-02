@@ -50,14 +50,6 @@ export default async function TransactionsPage() {
             description="Our commitment to excellence has allowed us to deliver world-class results to the middle and lower middle markets."
           />
 
-          <ContentExplorer
-            type="transactions"
-            tags={tags}
-            states={states}
-            cities={cities}
-            years={years}
-          />
-
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {tombstones.map((tombstone) => (
               <Link
@@ -84,6 +76,16 @@ export default async function TransactionsPage() {
                 )}
               </Link>
             ))}
+          </div>
+
+          <div className="mt-12">
+            <ContentExplorer
+              type="transactions"
+              tags={tags}
+              states={states}
+              cities={cities}
+              years={years}
+            />
           </div>
         </Container>
       </section>

@@ -185,7 +185,6 @@ export default async function TransactionsByStatePage({ params }: PageProps) {
               states={states}
               cities={cities}
               years={years}
-              defaultExpanded
             />
           </div>
         </Container>

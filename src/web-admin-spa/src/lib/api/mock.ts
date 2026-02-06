@@ -1,4 +1,12 @@
-import type { WebAdminApi } from './types';
+import type {
+  WebAdminApi,
+  TeamMember,
+  FAQ,
+  ServiceOffering,
+  IndustrySector,
+  CommunityService,
+  CoreValue,
+} from './types';
 import type {
   CreateTombstoneInput,
   UpdateTombstoneInput,
@@ -35,6 +43,128 @@ let blogPosts = [...mockBlogPosts];
 let pages = [...mockPages];
 let subscribers = [...mockSubscribers];
 let intakes = [...mockIntakes];
+
+// Static content mock data
+let teamMembers: TeamMember[] = [
+  {
+    id: 'team-1',
+    name: 'John Smith',
+    title: 'Managing Partner',
+    bio: 'John has over 20 years of experience in M&A advisory.',
+    imageUrl: '/images/team/john-smith.jpg',
+    linkedinUrl: 'https://linkedin.com/in/johnsmith',
+    email: 'john@flatironscapital.com',
+    displayOrder: 1,
+    isActive: true,
+  },
+  {
+    id: 'team-2',
+    name: 'Jane Doe',
+    title: 'Partner',
+    bio: 'Jane specializes in healthcare and technology transactions.',
+    imageUrl: '/images/team/jane-doe.jpg',
+    linkedinUrl: 'https://linkedin.com/in/janedoe',
+    email: 'jane@flatironscapital.com',
+    displayOrder: 2,
+    isActive: true,
+  },
+];
+
+let faqs: FAQ[] = [
+  {
+    id: 'faq-1',
+    question: 'What is the typical M&A process timeline?',
+    answer: 'A typical M&A transaction takes 6-12 months from initial engagement to closing.',
+    category: 'Process',
+    displayOrder: 1,
+    isActive: true,
+  },
+  {
+    id: 'faq-2',
+    question: 'How do you determine business valuation?',
+    answer: 'We use multiple valuation methodologies including comparable transactions, discounted cash flow, and market multiples.',
+    category: 'Valuation',
+    displayOrder: 2,
+    isActive: true,
+  },
+];
+
+let services: ServiceOffering[] = [
+  {
+    id: 'service-1',
+    name: 'Sell-Side Advisory',
+    slug: 'sell-side-advisory',
+    description: 'Comprehensive support for business owners looking to sell their company.',
+    shortDescription: 'Full-service M&A representation for sellers',
+    iconName: 'TrendingUp',
+    displayOrder: 1,
+    isActive: true,
+  },
+  {
+    id: 'service-2',
+    name: 'Buy-Side Advisory',
+    slug: 'buy-side-advisory',
+    description: 'Strategic acquisition support for buyers seeking growth opportunities.',
+    shortDescription: 'Acquisition search and execution support',
+    iconName: 'Search',
+    displayOrder: 2,
+    isActive: true,
+  },
+];
+
+let industries: IndustrySector[] = [
+  {
+    id: 'industry-1',
+    name: 'Healthcare Services',
+    slug: 'healthcare-services',
+    description: 'M&A advisory for healthcare providers and service companies.',
+    shortDescription: 'Healthcare sector expertise',
+    iconName: 'Stethoscope',
+    displayOrder: 1,
+    isActive: true,
+  },
+  {
+    id: 'industry-2',
+    name: 'Technology',
+    slug: 'technology',
+    description: 'Technology-focused M&A transactions and valuations.',
+    shortDescription: 'Tech sector transactions',
+    iconName: 'Cpu',
+    displayOrder: 2,
+    isActive: true,
+  },
+];
+
+let communityServices: CommunityService[] = [
+  {
+    id: 'community-1',
+    name: 'Local Food Bank',
+    description: 'Supporting hunger relief in the Boulder community.',
+    imageUrl: '/images/community/food-bank.png',
+    websiteUrl: 'https://boulderfoodbank.org',
+    displayOrder: 1,
+    isActive: true,
+  },
+];
+
+let coreValues: CoreValue[] = [
+  {
+    id: 'value-1',
+    title: 'Integrity',
+    description: 'We act with honesty and transparency in all our dealings.',
+    iconName: 'Shield',
+    displayOrder: 1,
+    isActive: true,
+  },
+  {
+    id: 'value-2',
+    title: 'Excellence',
+    description: 'We strive for the highest standards in everything we do.',
+    iconName: 'Star',
+    displayOrder: 2,
+    isActive: true,
+  },
+];
 
 // Mock users
 let users: User[] = [
@@ -171,9 +301,13 @@ export const mockApi: WebAdminApi = {
   },
 
   // Blog Posts
-  async getBlogPosts() {
+  async getBlogPosts(category?: string) {
     await delay(200);
-    return [...blogPosts].sort((a, b) => 
+    let filtered = [...blogPosts];
+    if (category) {
+      filtered = filtered.filter((p) => p.category === category);
+    }
+    return filtered.sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   },
@@ -426,5 +560,229 @@ export const mockApi: WebAdminApi = {
   async removeUser(id: string) {
     await delay(200);
     users = users.filter(u => u.id !== id);
+  },
+
+  // ============================================
+  // STATIC CONTENT - TEAM MEMBERS
+  // ============================================
+
+  async getTeamMembers() {
+    await delay(200);
+    return [...teamMembers].sort((a, b) => a.displayOrder - b.displayOrder);
+  },
+
+  async createTeamMember(data: Partial<TeamMember>) {
+    await delay(300);
+    const newMember: TeamMember = {
+      id: `team-${generateId()}`,
+      name: data.name || '',
+      title: data.title || '',
+      bio: data.bio || '',
+      imageUrl: data.imageUrl || '',
+      linkedinUrl: data.linkedinUrl,
+      email: data.email,
+      displayOrder: data.displayOrder ?? teamMembers.length + 1,
+      isActive: data.isActive ?? true,
+    };
+    teamMembers.push(newMember);
+    return newMember;
+  },
+
+  async updateTeamMember(id: string, data: Partial<TeamMember>) {
+    await delay(200);
+    const index = teamMembers.findIndex(m => m.id === id);
+    if (index === -1) throw new Error('Team member not found');
+    teamMembers[index] = { ...teamMembers[index], ...data };
+    return teamMembers[index];
+  },
+
+  async deleteTeamMember(id: string) {
+    await delay(200);
+    teamMembers = teamMembers.filter(m => m.id !== id);
+  },
+
+  // ============================================
+  // STATIC CONTENT - FAQs
+  // ============================================
+
+  async getFAQs() {
+    await delay(200);
+    return [...faqs].sort((a, b) => a.displayOrder - b.displayOrder);
+  },
+
+  async createFAQ(data: Partial<FAQ>) {
+    await delay(300);
+    const newFaq: FAQ = {
+      id: `faq-${generateId()}`,
+      question: data.question || '',
+      answer: data.answer || '',
+      category: data.category,
+      displayOrder: data.displayOrder ?? faqs.length + 1,
+      isActive: data.isActive ?? true,
+    };
+    faqs.push(newFaq);
+    return newFaq;
+  },
+
+  async updateFAQ(id: string, data: Partial<FAQ>) {
+    await delay(200);
+    const index = faqs.findIndex(f => f.id === id);
+    if (index === -1) throw new Error('FAQ not found');
+    faqs[index] = { ...faqs[index], ...data };
+    return faqs[index];
+  },
+
+  async deleteFAQ(id: string) {
+    await delay(200);
+    faqs = faqs.filter(f => f.id !== id);
+  },
+
+  // ============================================
+  // STATIC CONTENT - SERVICES
+  // ============================================
+
+  async getServices() {
+    await delay(200);
+    return [...services].sort((a, b) => a.displayOrder - b.displayOrder);
+  },
+
+  async createService(data: Partial<ServiceOffering>) {
+    await delay(300);
+    const newService: ServiceOffering = {
+      id: `service-${generateId()}`,
+      name: data.name || '',
+      slug: data.slug || slugify(data.name || ''),
+      description: data.description || '',
+      shortDescription: data.shortDescription,
+      iconName: data.iconName,
+      displayOrder: data.displayOrder ?? services.length + 1,
+      isActive: data.isActive ?? true,
+    };
+    services.push(newService);
+    return newService;
+  },
+
+  async updateService(id: string, data: Partial<ServiceOffering>) {
+    await delay(200);
+    const index = services.findIndex(s => s.id === id);
+    if (index === -1) throw new Error('Service not found');
+    services[index] = { ...services[index], ...data };
+    return services[index];
+  },
+
+  async deleteService(id: string) {
+    await delay(200);
+    services = services.filter(s => s.id !== id);
+  },
+
+  // ============================================
+  // STATIC CONTENT - INDUSTRIES
+  // ============================================
+
+  async getIndustries() {
+    await delay(200);
+    return [...industries].sort((a, b) => a.displayOrder - b.displayOrder);
+  },
+
+  async createIndustry(data: Partial<IndustrySector>) {
+    await delay(300);
+    const newIndustry: IndustrySector = {
+      id: `industry-${generateId()}`,
+      name: data.name || '',
+      slug: data.slug || slugify(data.name || ''),
+      description: data.description || '',
+      shortDescription: data.shortDescription,
+      iconName: data.iconName,
+      displayOrder: data.displayOrder ?? industries.length + 1,
+      isActive: data.isActive ?? true,
+    };
+    industries.push(newIndustry);
+    return newIndustry;
+  },
+
+  async updateIndustry(id: string, data: Partial<IndustrySector>) {
+    await delay(200);
+    const index = industries.findIndex(i => i.id === id);
+    if (index === -1) throw new Error('Industry not found');
+    industries[index] = { ...industries[index], ...data };
+    return industries[index];
+  },
+
+  async deleteIndustry(id: string) {
+    await delay(200);
+    industries = industries.filter(i => i.id !== id);
+  },
+
+  // ============================================
+  // STATIC CONTENT - COMMUNITY SERVICES
+  // ============================================
+
+  async getCommunityServices() {
+    await delay(200);
+    return [...communityServices].sort((a, b) => a.displayOrder - b.displayOrder);
+  },
+
+  async createCommunityService(data: Partial<CommunityService>) {
+    await delay(300);
+    const newService: CommunityService = {
+      id: `community-${generateId()}`,
+      name: data.name || '',
+      description: data.description || '',
+      imageUrl: data.imageUrl,
+      websiteUrl: data.websiteUrl,
+      displayOrder: data.displayOrder ?? communityServices.length + 1,
+      isActive: data.isActive ?? true,
+    };
+    communityServices.push(newService);
+    return newService;
+  },
+
+  async updateCommunityService(id: string, data: Partial<CommunityService>) {
+    await delay(200);
+    const index = communityServices.findIndex(c => c.id === id);
+    if (index === -1) throw new Error('Community service not found');
+    communityServices[index] = { ...communityServices[index], ...data };
+    return communityServices[index];
+  },
+
+  async deleteCommunityService(id: string) {
+    await delay(200);
+    communityServices = communityServices.filter(c => c.id !== id);
+  },
+
+  // ============================================
+  // STATIC CONTENT - CORE VALUES
+  // ============================================
+
+  async getCoreValues() {
+    await delay(200);
+    return [...coreValues].sort((a, b) => a.displayOrder - b.displayOrder);
+  },
+
+  async createCoreValue(data: Partial<CoreValue>) {
+    await delay(300);
+    const newValue: CoreValue = {
+      id: `value-${generateId()}`,
+      title: data.title || '',
+      description: data.description || '',
+      iconName: data.iconName,
+      displayOrder: data.displayOrder ?? coreValues.length + 1,
+      isActive: data.isActive ?? true,
+    };
+    coreValues.push(newValue);
+    return newValue;
+  },
+
+  async updateCoreValue(id: string, data: Partial<CoreValue>) {
+    await delay(200);
+    const index = coreValues.findIndex(v => v.id === id);
+    if (index === -1) throw new Error('Core value not found');
+    coreValues[index] = { ...coreValues[index], ...data };
+    return coreValues[index];
+  },
+
+  async deleteCoreValue(id: string) {
+    await delay(200);
+    coreValues = coreValues.filter(v => v.id !== id);
   },
 };

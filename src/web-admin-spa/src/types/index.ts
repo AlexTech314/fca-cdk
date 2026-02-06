@@ -6,17 +6,21 @@ export interface Tombstone {
   id: string;
   name: string;
   slug: string;
-  imagePath: string;
+  imagePath: string | null;
   industry: string | null;
   role: string | null;
-  dealDate: string | null;
-  description: string | null;
-  newsSlug: string | null;
+  buyerPeFirm: string | null;
+  buyerPlatform: string | null;
+  transactionYear: number | null;
+  city: string | null;
+  state: string | null;
+  pressReleaseId: string | null;
   sortOrder: number;
   isPublished: boolean;
   previewToken: string;
   createdAt: string;
   updatedAt: string;
+  tags?: Array<{ id: string; name: string; slug: string }>;
 }
 
 export interface BlogPost {

@@ -1,19 +1,29 @@
+# FCA API Docker Compose - Development
+#
+# Usage:
+#   docker compose up        - Start API and PostgreSQL (seeds on first run)
+#   docker compose down      - Stop services
+#   docker compose down -v   - Stop services and delete database (forces reseed on next up)
+#   docker compose build     - Rebuild API image after Dockerfile changes
+#
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile.dev
     ports:
-      - "3000:3000"
+      - "4000:3000"
     volumes:
       - ./src:/app/src
       - ./prisma:/app/prisma
+      - ./scripts:/app/scripts
       - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - PORT=3000
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/fca_db
-      - LOG_LEVEL=debug
+      # Mount nextjs-web data for seeding (read-only)
+      - ../nextjs-web/tombstones.csv:/app/nextjs-web/tombstones.csv:ro
+      - ../nextjs-web/data:/app/nextjs-web/data:ro
+      - ../nextjs-web/src/app:/app/nextjs-web/src/app:ro
+    env_file:
+      - .env.local
     depends_on:
       db:
         condition: service_healthy

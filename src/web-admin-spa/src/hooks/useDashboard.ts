@@ -4,13 +4,13 @@ import { api } from '@/lib/api';
 export function useDashboardStats() {
   return useQuery({
     queryKey: ['dashboard', 'stats'],
-    queryFn: () => api.getDashboardStats(),
+    queryFn: () => api.dashboard.getStats(),
   });
 }
 
 export function useRecentActivity() {
   return useQuery({
     queryKey: ['dashboard', 'activity'],
-    queryFn: () => api.getRecentActivity(),
+    queryFn: () => api.dashboard.getActivity(),
   });
 }

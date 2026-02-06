@@ -3,12 +3,15 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Install OpenSSL (required for Prisma on Debian slim)
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Install OpenSSL and bash (required for Prisma on Debian slim)
+RUN apt-get update && apt-get install -y openssl bash && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY package*.json ./
 RUN npm ci
+
+# Install ts-node globally for seed script
+RUN npm install -g ts-node typescript
 
 # Copy Prisma schema for generation
 COPY prisma ./prisma/
@@ -19,8 +22,12 @@ RUN npx prisma generate
 # Copy source files (will be overwritten by volume mount)
 COPY . .
 
+# Copy entrypoint script
+COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Expose port
 EXPOSE 3000
 
-# Start with hot reload using ts-node-dev
-CMD ["npm", "run", "dev"]
+# Use entrypoint script to run migrations, seed, then start dev server
+ENTRYPOINT ["/docker-entrypoint.sh"]

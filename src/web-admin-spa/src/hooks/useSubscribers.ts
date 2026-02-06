@@ -5,7 +5,7 @@ import type { CreateSubscriberInput } from '@/types';
 export function useSubscribers() {
   return useQuery({
     queryKey: ['subscribers'],
-    queryFn: () => api.getSubscribers(),
+    queryFn: () => api.subscribers.getAll(),
   });
 }
 
@@ -13,7 +13,7 @@ export function useCreateSubscriber() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: CreateSubscriberInput) => api.createSubscriber(input),
+    mutationFn: (input: CreateSubscriberInput) => api.subscribers.create(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscribers'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -25,7 +25,7 @@ export function useDeleteSubscriber() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => api.deleteSubscriber(id),
+    mutationFn: (id: string) => api.subscribers.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscribers'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -35,7 +35,7 @@ export function useDeleteSubscriber() {
 
 export function useExportSubscribers() {
   return useMutation({
-    mutationFn: () => api.exportSubscribers(),
+    mutationFn: () => api.subscribers.export(),
     onSuccess: (blob) => {
       // Download the file
       const url = URL.createObjectURL(blob);
@@ -54,7 +54,7 @@ export function useImportSubscribers() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (file: File) => api.importSubscribers(file),
+    mutationFn: (file: File) => api.subscribers.import(file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscribers'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });

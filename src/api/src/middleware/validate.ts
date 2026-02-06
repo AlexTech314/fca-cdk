@@ -1,29 +1,28 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
 
-interface ValidationSchemas {
-  body?: ZodSchema;
-  query?: ZodSchema;
-  params?: ZodSchema;
-}
+type ValidationTarget = 'body' | 'query' | 'params';
 
 /**
  * Validation middleware using Zod schemas.
- * Validates request body, query params, and/or URL params.
+ * 
+ * Usage:
+ *   validate(schema, 'query')  - validate req.query
+ *   validate(schema, 'body')   - validate req.body
+ *   validate(schema, 'params') - validate req.params
  */
-export const validate = (schemas: ValidationSchemas) => {
+export const validate = (schema: ZodSchema, target: ValidationTarget = 'body') => {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (schemas.body) {
-        req.body = await schemas.body.parseAsync(req.body);
-      }
-
-      if (schemas.query) {
-        req.query = await schemas.query.parseAsync(req.query);
-      }
-
-      if (schemas.params) {
-        req.params = await schemas.params.parseAsync(req.params);
+      const parsed = await schema.parseAsync(req[target]);
+      
+      // Replace the original with parsed (coerced) values
+      if (target === 'body') {
+        req.body = parsed;
+      } else if (target === 'query') {
+        (req as any).query = parsed;
+      } else if (target === 'params') {
+        (req as any).params = parsed;
       }
 
       next();

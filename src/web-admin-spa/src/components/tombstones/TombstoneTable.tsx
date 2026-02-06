@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { MoreHorizontal, Pencil, Trash2, Eye, EyeOff } from 'lucide-react';
 
 import type { Tombstone } from '@/types';
-import { formatDate } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -63,7 +62,7 @@ export function TombstoneTable({
             <TableHead>Name</TableHead>
             <TableHead>Industry</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead>Date</TableHead>
+            <TableHead>Year</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[60px]"></TableHead>
           </TableRow>
@@ -103,8 +102,8 @@ export function TombstoneTable({
                 )}
               </TableCell>
               <TableCell>
-                {tombstone.dealDate ? (
-                  formatDate(tombstone.dealDate)
+                {tombstone.transactionYear ? (
+                  <span>{tombstone.transactionYear}</span>
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}
@@ -124,7 +123,7 @@ export function TombstoneTable({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem asChild>
-                      <Link to={`/tombstones/${tombstone.id}/edit`}>
+                      <Link to={`/transactions/${tombstone.id}/edit`}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit
                       </Link>
@@ -165,9 +164,9 @@ export function TombstoneTable({
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Tombstone</DialogTitle>
+            <DialogTitle>Delete Transaction</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this tombstone? This action cannot be
+              Are you sure you want to delete this transaction? This action cannot be
               undone.
             </DialogDescription>
           </DialogHeader>

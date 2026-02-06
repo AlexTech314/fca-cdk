@@ -13,6 +13,7 @@ import Dashboard from '@/pages/Dashboard';
 import Tombstones from '@/pages/Tombstones';
 import TombstoneForm from '@/pages/TombstoneForm';
 import BlogPosts from '@/pages/BlogPosts';
+import Resources from '@/pages/Resources';
 import PageContent from '@/pages/PageContent';
 import ContentEditor from '@/pages/ContentEditor';
 import Analytics from '@/pages/Analytics';
@@ -21,6 +22,16 @@ import SellerIntakes from '@/pages/SellerIntakes';
 import EmailCompose from '@/pages/EmailCompose';
 import Settings from '@/pages/Settings';
 import Admin from '@/pages/Admin';
+
+// Static page editors
+import HomePage from '@/pages/static/HomePage';
+import AboutPage from '@/pages/static/AboutPage';
+import TeamPage from '@/pages/static/TeamPage';
+import FAQPage from '@/pages/static/FAQPage';
+import ServicesPage from '@/pages/static/ServicesPage';
+import IndustriesPage from '@/pages/static/IndustriesPage';
+import CommunityPage from '@/pages/static/CommunityPage';
+import CoreValuesPage from '@/pages/static/CoreValuesPage';
 
 // Create query client
 const queryClient = new QueryClient({
@@ -99,15 +110,34 @@ function AppRoutes() {
         {/* Standard layout with sidebar */}
         <Route element={<AuthenticatedLayout />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/tombstones" element={<Tombstones />} />
-          <Route path="/tombstones/new" element={<TombstoneForm />} />
-          <Route path="/tombstones/:id/edit" element={<TombstoneForm />} />
-          <Route path="/blog-posts" element={<BlogPosts />} />
+          
+          {/* Content */}
+          <Route path="/transactions" element={<Tombstones />} />
+          <Route path="/transactions/new" element={<TombstoneForm />} />
+          <Route path="/transactions/:id/edit" element={<TombstoneForm />} />
+          <Route path="/news" element={<BlogPosts />} />
+          <Route path="/resources" element={<Resources />} />
+          
+          {/* Static Pages */}
+          <Route path="/pages/home" element={<HomePage />} />
+          <Route path="/pages/about" element={<AboutPage />} />
+          <Route path="/pages/team" element={<TeamPage />} />
+          <Route path="/pages/faq" element={<FAQPage />} />
+          <Route path="/pages/services" element={<ServicesPage />} />
+          <Route path="/pages/industries" element={<IndustriesPage />} />
+          <Route path="/pages/community" element={<CommunityPage />} />
+          <Route path="/pages/core-values" element={<CoreValuesPage />} />
+          
+          {/* Legacy route for generic page content */}
           <Route path="/pages" element={<PageContent />} />
+          
+          {/* Data */}
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/subscribers" element={<Subscribers />} />
           <Route path="/intakes" element={<SellerIntakes />} />
           <Route path="/email/compose" element={<EmailCompose />} />
+          
+          {/* System */}
           <Route path="/settings" element={<Settings />} />
           <Route path="/admin" element={<Admin />} />
         </Route>

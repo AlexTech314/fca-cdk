@@ -9,6 +9,7 @@ interface HeroProps {
   ctaHref?: string;
   secondaryCtaText?: string;
   secondaryCtaHref?: string;
+  heroImage?: string;
   showImage?: boolean;
   compact?: boolean;
 }
@@ -21,6 +22,7 @@ export function Hero({
   ctaHref = '/contact',
   secondaryCtaText,
   secondaryCtaHref,
+  heroImage = '/flatironshero.jpg',
   showImage = true,
   compact = false,
 }: HeroProps) {
@@ -64,7 +66,7 @@ export function Hero({
       {showImage && (
         <div className="absolute inset-0">
           <Image
-            src="/flatironshero.jpg"
+            src={heroImage}
             alt="Flatirons mountain range - symbolizing stability and strength in M&A advisory"
             fill
             priority

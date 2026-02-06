@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Eye } from 'lucide-react';
 
 import {
-  useBlogPosts,
+  useNewsArticles,
   usePublishBlogPost,
   useDeleteBlogPost,
 } from '@/hooks/useBlogPosts';
@@ -21,24 +21,17 @@ import {
 } from '@/components/ui/select';
 
 export default function BlogPosts() {
-  const { data: posts, isLoading } = useBlogPosts();
+  const { data: posts, isLoading } = useNewsArticles();
   const publishMutation = usePublishBlogPost();
   const deleteMutation = useDeleteBlogPost();
   const { toast } = useToast();
 
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-
-  // Get unique categories for filter
-  const categories = posts
-    ? [...new Set(posts.map((p) => p.category).filter(Boolean))]
-    : [];
 
   // Apply filters
   const filteredPosts = posts?.filter((p) => {
     if (statusFilter === 'published' && !p.isPublished) return false;
     if (statusFilter === 'draft' && p.isPublished) return false;
-    if (categoryFilter !== 'all' && p.category !== categoryFilter) return false;
     return true;
   });
 
@@ -76,15 +69,23 @@ export default function BlogPosts() {
 
   return (
     <PageContainer
-      title="Blog Posts"
-      description="Manage news articles and resources"
+      title="News"
+      description="Manage news articles and press releases"
       actions={
-        <Link to="/content/blog/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Blog Post
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <a href="http://localhost:3000/news" target="_blank" rel="noopener noreferrer">
+              <Eye className="h-4 w-4 mr-2" />
+              Preview
+            </a>
           </Button>
-        </Link>
+          <Link to="/news/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add News Article
+            </Button>
+          </Link>
+        </div>
       }
     >
       {/* Filters */}
@@ -97,20 +98,6 @@ export default function BlogPosts() {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="published">Published</SelectItem>
             <SelectItem value="draft">Draft</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category} value={category!} className="capitalize">
-                {category}
-              </SelectItem>
-            ))}
           </SelectContent>
         </Select>
       </div>
@@ -132,11 +119,11 @@ export default function BlogPosts() {
         />
       ) : (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No blog posts found.</p>
-          <Link to="/content/blog/new">
+          <p className="text-muted-foreground">No news articles found.</p>
+          <Link to="/news/new">
             <Button variant="outline" className="mt-4">
               <Plus className="mr-2 h-4 w-4" />
-              Add your first blog post
+              Add your first news article
             </Button>
           </Link>
         </div>

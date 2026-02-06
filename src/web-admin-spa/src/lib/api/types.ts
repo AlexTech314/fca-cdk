@@ -23,6 +23,69 @@ import type {
   SendEmailInput,
 } from '@/types';
 
+// Static content types
+export interface TeamMember {
+  id: string;
+  name: string;
+  title: string;
+  bio: string;
+  imageUrl: string;
+  linkedinUrl?: string;
+  email?: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+  category?: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface ServiceOffering {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  shortDescription?: string;
+  iconName?: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface IndustrySector {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  shortDescription?: string;
+  iconName?: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface CommunityService {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl?: string;
+  websiteUrl?: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface CoreValue {
+  id: string;
+  title: string;
+  description: string;
+  iconName?: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
 export interface WebAdminApi {
   // Dashboard
   getDashboardStats(): Promise<DashboardStats>;
@@ -38,7 +101,7 @@ export interface WebAdminApi {
   reorderTombstones(ids: string[]): Promise<void>;
 
   // Blog Posts
-  getBlogPosts(): Promise<BlogPost[]>;
+  getBlogPosts(category?: string): Promise<BlogPost[]>;
   getBlogPost(id: string): Promise<BlogPost>;
   createBlogPost(input: CreateBlogPostInput): Promise<BlogPost>;
   updateBlogPost(id: string, input: UpdateBlogPostInput): Promise<BlogPost>;
@@ -77,4 +140,40 @@ export interface WebAdminApi {
   inviteUser(input: InviteUserInput): Promise<User>;
   updateUserRole(id: string, role: UserRole): Promise<User>;
   removeUser(id: string): Promise<void>;
+
+  // Static Content - Team
+  getTeamMembers(): Promise<TeamMember[]>;
+  createTeamMember(data: Partial<TeamMember>): Promise<TeamMember>;
+  updateTeamMember(id: string, data: Partial<TeamMember>): Promise<TeamMember>;
+  deleteTeamMember(id: string): Promise<void>;
+
+  // Static Content - FAQ
+  getFAQs(): Promise<FAQ[]>;
+  createFAQ(data: Partial<FAQ>): Promise<FAQ>;
+  updateFAQ(id: string, data: Partial<FAQ>): Promise<FAQ>;
+  deleteFAQ(id: string): Promise<void>;
+
+  // Static Content - Services
+  getServices(): Promise<ServiceOffering[]>;
+  createService(data: Partial<ServiceOffering>): Promise<ServiceOffering>;
+  updateService(id: string, data: Partial<ServiceOffering>): Promise<ServiceOffering>;
+  deleteService(id: string): Promise<void>;
+
+  // Static Content - Industries
+  getIndustries(): Promise<IndustrySector[]>;
+  createIndustry(data: Partial<IndustrySector>): Promise<IndustrySector>;
+  updateIndustry(id: string, data: Partial<IndustrySector>): Promise<IndustrySector>;
+  deleteIndustry(id: string): Promise<void>;
+
+  // Static Content - Community
+  getCommunityServices(): Promise<CommunityService[]>;
+  createCommunityService(data: Partial<CommunityService>): Promise<CommunityService>;
+  updateCommunityService(id: string, data: Partial<CommunityService>): Promise<CommunityService>;
+  deleteCommunityService(id: string): Promise<void>;
+
+  // Static Content - Core Values
+  getCoreValues(): Promise<CoreValue[]>;
+  createCoreValue(data: Partial<CoreValue>): Promise<CoreValue>;
+  updateCoreValue(id: string, data: Partial<CoreValue>): Promise<CoreValue>;
+  deleteCoreValue(id: string): Promise<void>;
 }

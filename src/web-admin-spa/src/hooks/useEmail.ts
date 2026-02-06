@@ -5,18 +5,18 @@ import type { SendEmailInput } from '@/types';
 export function useEmailHistory() {
   return useQuery({
     queryKey: ['email', 'history'],
-    queryFn: () => api.getEmailHistory(),
+    queryFn: () => api.email.getHistory(),
   });
 }
 
 export function useSendEmail() {
   return useMutation({
-    mutationFn: (input: SendEmailInput) => api.sendEmail(input),
+    mutationFn: (input: SendEmailInput) => api.email.send(input),
   });
 }
 
 export function usePreviewEmail() {
   return useMutation({
-    mutationFn: (input: SendEmailInput) => api.previewEmail(input),
+    mutationFn: (input: SendEmailInput) => api.email.preview(input),
   });
 }

@@ -1,7 +1,8 @@
 import React from 'react';
+import Image from 'next/image';
 
 /**
- * Parse inline markdown formatting (bold, italic, links, emails, phone numbers)
+ * Parse inline markdown formatting (bold, italic, links, images, emails, phone numbers)
  */
 export function parseInlineMarkdown(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -13,6 +14,8 @@ export function parseInlineMarkdown(text: string): React.ReactNode[] {
     const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
     // Check for italic (*text* or _text_)
     const italicMatch = remaining.match(/(?<!\*)\*([^*]+)\*(?!\*)|_([^_]+)_/);
+    // Check for images ![alt](url) - must come before links
+    const imageMatch = remaining.match(/!\[([^\]]*)\]\(([^)]+)\)/);
     // Check for links [text](url)
     const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
     // Check for email addresses
@@ -24,6 +27,7 @@ export function parseInlineMarkdown(text: string): React.ReactNode[] {
     const matches = [
       boldMatch ? { type: 'bold', match: boldMatch, index: boldMatch.index! } : null,
       italicMatch ? { type: 'italic', match: italicMatch, index: italicMatch.index! } : null,
+      imageMatch ? { type: 'image', match: imageMatch, index: imageMatch.index! } : null,
       linkMatch ? { type: 'link', match: linkMatch, index: linkMatch.index! } : null,
       emailMatch ? { type: 'email', match: emailMatch, index: emailMatch.index! } : null,
       phoneMatch ? { type: 'phone', match: phoneMatch, index: phoneMatch.index! } : null,
@@ -49,6 +53,33 @@ export function parseInlineMarkdown(text: string): React.ReactNode[] {
     } else if (earliest.type === 'italic') {
       const content = earliest.match[1] || earliest.match[2];
       parts.push(<em key={key++}>{content}</em>);
+      remaining = remaining.slice(earliest.index + earliest.match[0].length);
+    } else if (earliest.type === 'image') {
+      const alt = earliest.match[1] || 'Image';
+      const src = earliest.match[2];
+      // Check if it's an external URL or local path
+      const isExternal = src.startsWith('http://') || src.startsWith('https://');
+      parts.push(
+        <span key={key++} className="block my-6">
+          {isExternal ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={src}
+              alt={alt}
+              className="max-w-full h-auto rounded-lg shadow-md mx-auto"
+              loading="lazy"
+            />
+          ) : (
+            <Image
+              src={src}
+              alt={alt}
+              width={800}
+              height={450}
+              className="max-w-full h-auto rounded-lg shadow-md mx-auto"
+            />
+          )}
+        </span>
+      );
       remaining = remaining.slice(earliest.index + earliest.match[0].length);
     } else if (earliest.type === 'link') {
       parts.push(
@@ -81,12 +112,50 @@ export function parseInlineMarkdown(text: string): React.ReactNode[] {
 }
 
 /**
- * Render a single markdown block (paragraph, heading, list, hr, etc.)
+ * Render a single markdown block (paragraph, heading, list, hr, image, etc.)
  */
 export function renderMarkdownBlock(block: string, index: number): React.ReactNode {
+  const trimmed = block.trim();
+  
   // Check if it's a horizontal rule
-  if (block.trim() === '---' || block.trim() === '***' || block.trim() === '___') {
+  if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
     return <hr key={index} className="my-8 border-t border-border" />;
+  }
+  
+  // Check if it's a standalone image block ![alt](url)
+  const imageBlockMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+  if (imageBlockMatch) {
+    const alt = imageBlockMatch[1] || 'Image';
+    const src = imageBlockMatch[2];
+    const isExternal = src.startsWith('http://') || src.startsWith('https://');
+    // Don't show figcaption if alt looks like a filename
+    const isFilenameAlt = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(alt);
+    return (
+      <figure key={index} className="my-8">
+        {isExternal ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt={alt}
+            className="max-w-full h-auto rounded-lg shadow-md mx-auto"
+            loading="lazy"
+          />
+        ) : (
+          <Image
+            src={src}
+            alt={alt}
+            width={800}
+            height={450}
+            className="max-w-full h-auto rounded-lg shadow-md mx-auto"
+          />
+        )}
+        {alt && alt !== 'Image' && !isFilenameAlt && (
+          <figcaption className="text-center text-sm text-text-muted mt-2">
+            {alt}
+          </figcaption>
+        )}
+      </figure>
+    );
   }
   
   // Check if it's a heading

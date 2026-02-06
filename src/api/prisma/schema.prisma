@@ -11,12 +11,308 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ===========================================
+// USER & AUTH
+// ===========================================
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id             String    @id @default(uuid())
+  email          String    @unique
+  name           String?
+  cognitoSub     String?   @unique @map("cognito_sub")
+  role           String    @default("readonly") // readonly, readwrite, admin
+  lastActiveAt   DateTime? @map("last_active_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@map("users")
+}
+
+// ===========================================
+// WEBSITE CONTENT
+// ===========================================
+
+model Tombstone {
+  id              String    @id @default(uuid())
+  name            String                          // Company/Seller name
+  slug            String    @unique               // URL-friendly identifier
+  imagePath       String?   @map("image_path")    // Path to tombstone image
+  industry        String?                         // Industry category
+  role            String?                         // Buy-side or Sell-side
+
+  // Extended fields (from CSV data)
+  buyerPeFirm     String?   @map("buyer_pe_firm")     // PE firm
+  buyerPlatform   String?   @map("buyer_platform")    // Platform company
+  transactionYear Int?      @map("transaction_year")  // Year of deal
+  city            String?
+  state           String?
+
+  // Press release (1-to-1 relationship with BlogPost)
+  pressReleaseId  String?   @unique @map("press_release_id")
+  pressRelease    BlogPost? @relation(fields: [pressReleaseId], references: [id], onDelete: SetNull)
+
+  sortOrder       Int       @default(0) @map("sort_order")
+  isPublished     Boolean   @default(true) @map("is_published")
+  previewToken    String    @unique @default(uuid()) @map("preview_token")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Many-to-many relationship with content tags
+  tags            TombstoneTag[]
+
+  @@index([transactionYear])
+  @@index([industry])
+  @@index([state])
+  @@map("tombstones")
+}
+
+model BlogPost {
+  id           String    @id @default(uuid())
+  slug         String    @unique
+  title        String
+  excerpt      String?
+  content      String                          // Markdown content
+  author       String?
+  category     String?                         // news, resource, article
+  publishedAt  DateTime? @map("published_at")
+  isPublished  Boolean   @default(false) @map("is_published")
+  previewToken String    @unique @default(uuid()) @map("preview_token")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // 1-to-1 reverse relation (this blog post is the press release for a tombstone)
+  tombstone    Tombstone?
+
+  // Many-to-many relationship with content tags
+  tags         BlogPostTag[]
+
+  @@index([category, isPublished])
+  @@map("blog_posts")
+}
+
+// ===========================================
+// CONTENT TAGS (for related content discovery)
+// ===========================================
+
+model ContentTag {
+  id          String   @id @default(uuid())
+  name        String   @unique               // Display name
+  slug        String   @unique               // URL-friendly version
+  category    String?                        // industry, service-type, deal-type
+  description String?
+  keywords    String[] @default([])          // Keywords for content matching
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tombstones  TombstoneTag[]
+  blogPosts   BlogPostTag[]
+
+  @@map("content_tags")
+}
+
+model TombstoneTag {
+  tombstoneId String @map("tombstone_id")
+  tagId       String @map("tag_id")
+
+  tombstone   Tombstone  @relation(fields: [tombstoneId], references: [id], onDelete: Cascade)
+  tag         ContentTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([tombstoneId, tagId])
+  @@index([tagId])
+  @@map("tombstone_tags")
+}
+
+model BlogPostTag {
+  blogPostId String @map("blog_post_id")
+  tagId      String @map("tag_id")
+
+  blogPost   BlogPost   @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+  tag        ContentTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([blogPostId, tagId])
+  @@index([tagId])
+  @@map("blog_post_tags")
+}
+
+model PageContent {
+  id           String   @id @default(uuid())
+  pageKey      String   @unique @map("page_key") // home, about, faq, contact, etc.
+  title        String
+  content      String   @default("")             // Markdown or prose content
+  metadata     Json?                             // SEO metadata, hero settings, structured data
+  previewToken String   @unique @default(uuid()) @map("preview_token")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("page_content")
+}
+
+// ===========================================
+// ANALYTICS
+// ===========================================
+
+model PageView {
+  id        String   @id @default(uuid())
+  path      String
+  hour      DateTime                          // Truncated to hour for aggregation
+  count     Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([path, hour])
+  @@index([hour])
+  @@map("page_views")
+}
+
+// ===========================================
+// EMAIL & NEWSLETTER
+// ===========================================
+
+model EmailSubscriber {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  name           String?
+  source         String?                        // website, intake_form, manual
+  isSubscribed   Boolean   @default(true) @map("is_subscribed")
+  subscribedAt   DateTime  @default(now()) @map("subscribed_at")
+  unsubscribedAt DateTime? @map("unsubscribed_at")
+
+  @@map("email_subscribers")
+}
+
+model SellerIntake {
+  id             String   @id @default(uuid())
+
+  // Contact Information
+  firstName      String   @map("first_name")
+  lastName       String   @map("last_name")
+  email          String
+  phone          String?
+
+  // Company Information
+  companyName    String   @map("company_name")
+  title          String?                        // Their role (Owner, CEO, CFO, etc.)
+  industry       String?
+  city           String?
+  state          String?
+
+  // Business Details
+  revenueRange   String?  @map("revenue_range")
+  employeeCount  String?  @map("employee_count")
+
+  // Transaction Interest
+  timeline       String?
+  serviceInterest String? @map("service_interest")
+
+  // Additional
+  message        String?
+  source         String?                        // Which form/page
+  referralSource String?  @map("referral_source")
+
+  // Internal Tracking
+  status         String   @default("new")       // new, contacted, qualified, engaged, closed
+  notes          String?
+  assignedTo     String?  @map("assigned_to")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("seller_intakes")
+}
+
+model EmailNotification {
+  id             String   @id @default(uuid())
+  type           String                          // new_tombstone, new_blog_post
+  referenceId    String   @map("reference_id")
+  sentAt         DateTime @default(now()) @map("sent_at")
+  recipientCount Int      @map("recipient_count")
+
+  @@map("email_notifications")
+}
+
+// ===========================================
+// STATIC PAGE CONTENT
+// ===========================================
+
+model TeamMember {
+  id          String   @id @default(uuid())
+  name        String
+  title       String
+  image       String?                           // Path to team member photo
+  bio         String                            // Full biography text
+  email       String?
+  linkedIn    String?  @map("linkedin")
+  category    String   @default("leadership")   // leadership, analyst
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([category, sortOrder])
+  @@map("team_members")
+}
+
+model CommunityService {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  url         String
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("community_services")
+}
+
+model FAQ {
+  id          String   @id @default(uuid())
+  question    String
+  answer      String
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("faqs")
+}
+
+model CoreValue {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  icon        String                            // Path to icon image
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("core_values")
+}
+
+model IndustrySector {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("industry_sectors")
+}
+
+model ServiceOffering {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  category    String                            // sell-side, buy-side, strategic
+  type        String   @default("service")      // service, process-step, benefit, disadvantage
+  step        Int?                              // For process steps (1, 2, 3, 4)
+  sortOrder   Int      @default(0) @map("sort_order")
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([category, type, sortOrder])
+  @@map("service_offerings")
 }

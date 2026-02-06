@@ -116,20 +116,20 @@ export default function TombstoneForm() {
         await updateMutation.mutateAsync({ id, input: data });
         toast({
           title: 'Updated',
-          description: 'Tombstone has been updated.',
+          description: 'Transaction has been updated.',
         });
       } else {
         await createMutation.mutateAsync(data);
         toast({
           title: 'Created',
-          description: 'Tombstone has been created.',
+          description: 'Transaction has been created.',
         });
       }
-      navigate('/tombstones');
+      navigate('/transactions');
     } catch (error) {
       toast({
         title: 'Error',
-        description: `Failed to ${isEditing ? 'update' : 'create'} tombstone.`,
+        description: `Failed to ${isEditing ? 'update' : 'create'} transaction.`,
         variant: 'destructive',
       });
     }
@@ -142,7 +142,7 @@ export default function TombstoneForm() {
       <>
         <Header
           breadcrumbs={[
-            { label: 'Tombstones', href: '/tombstones' },
+            { label: 'Transactions', href: '/transactions' },
             { label: 'Loading...' },
           ]}
         />
@@ -160,7 +160,7 @@ export default function TombstoneForm() {
     <>
       <Header
         breadcrumbs={[
-          { label: 'Tombstones', href: '/tombstones' },
+          { label: 'Transactions', href: '/transactions' },
           { label: isEditing ? 'Edit' : 'New' },
         ]}
       />
@@ -170,7 +170,7 @@ export default function TombstoneForm() {
             {/* Form */}
             <Card>
               <CardHeader>
-                <CardTitle>{isEditing ? 'Edit Tombstone' : 'New Tombstone'}</CardTitle>
+                <CardTitle>{isEditing ? 'Edit Transaction' : 'New Transaction'}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Name */}
@@ -299,14 +299,14 @@ export default function TombstoneForm() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => navigate('/tombstones')}
+                    onClick={() => navigate('/transactions')}
                   >
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Cancel
                   </Button>
                   <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isEditing ? 'Update' : 'Create'} Tombstone
+                    {isEditing ? 'Update' : 'Create'} Transaction
                   </Button>
                 </div>
               </CardContent>

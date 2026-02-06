@@ -76,13 +76,13 @@ export default function Tombstones() {
 
   return (
     <PageContainer
-      title="Tombstones"
-      description="Manage transaction tombstones displayed on the website"
+      title="Transactions"
+      description="Manage closed deal tombstones displayed on the website"
       actions={
-        <Link to="/tombstones/new">
+        <Link to="/transactions/new">
           <Button>
             <Plus className="mr-2 h-4 w-4" />
-            Add Tombstone
+            Add Transaction
           </Button>
         </Link>
       }
@@ -132,11 +132,11 @@ export default function Tombstones() {
         />
       ) : (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No tombstones found.</p>
-          <Link to="/tombstones/new">
+          <p className="text-muted-foreground">No transactions found.</p>
+          <Link to="/transactions/new">
             <Button variant="outline" className="mt-4">
               <Plus className="mr-2 h-4 w-4" />
-              Add your first tombstone
+              Add your first transaction
             </Button>
           </Link>
         </div>

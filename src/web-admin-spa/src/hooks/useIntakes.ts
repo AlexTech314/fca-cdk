@@ -5,14 +5,14 @@ import type { UpdateIntakeStatusInput } from '@/types';
 export function useIntakes() {
   return useQuery({
     queryKey: ['intakes'],
-    queryFn: () => api.getIntakes(),
+    queryFn: () => api.intakes.getAll(),
   });
 }
 
 export function useIntake(id: string | undefined) {
   return useQuery({
     queryKey: ['intakes', id],
-    queryFn: () => api.getIntake(id!),
+    queryFn: () => api.intakes.getById(id!),
     enabled: !!id,
   });
 }
@@ -22,7 +22,7 @@ export function useUpdateIntakeStatus() {
 
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateIntakeStatusInput }) =>
-      api.updateIntakeStatus(id, input),
+      api.intakes.updateStatus(id, input),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['intakes'] });
       queryClient.invalidateQueries({ queryKey: ['intakes', id] });
@@ -32,7 +32,7 @@ export function useUpdateIntakeStatus() {
 
 export function useExportIntakes() {
   return useMutation({
-    mutationFn: () => api.exportIntakes(),
+    mutationFn: () => api.intakes.export(),
     onSuccess: (blob) => {
       // Download the file
       const url = URL.createObjectURL(blob);

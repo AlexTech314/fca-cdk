@@ -1,0 +1,862 @@
+/**
+ * Database Seed Script
+ *
+ * Seeds the database with:
+ * - ContentTag taxonomy
+ * - Tombstones from CSV
+ * - BlogPosts from markdown files (news + articles)
+ * - Static page content (team, FAQ, core values, etc.)
+ * - PageContent for homepage and other pages
+ */
+
+import { PrismaClient } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
+import { TAG_TAXONOMY, matchContentToTags } from '../src/lib/taxonomy';
+
+const prisma = new PrismaClient();
+
+// Path to nextjs-web data
+// In Docker, nextjs-web is mounted at /app/nextjs-web
+// Locally, it's relative to the api directory
+const isDocker = fs.existsSync('/app/nextjs-web');
+const NEXTJS_WEB_PATH = isDocker
+  ? '/app/nextjs-web'
+  : path.resolve(__dirname, '../../../nextjs-web');
+const TOMBSTONES_CSV = path.join(NEXTJS_WEB_PATH, 'tombstones.csv');
+const NEWS_DIR = path.join(NEXTJS_WEB_PATH, 'data/news');
+const ARTICLES_DIR = path.join(NEXTJS_WEB_PATH, 'data/articles');
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function parseCSV(content: string): Record<string, string>[] {
+  const lines = content.trim().split('\n');
+  const headers = lines[0].split(',').map((h) => h.trim());
+
+  const rows: Record<string, string>[] = [];
+  let currentRow: string[] = [];
+  let inQuotes = false;
+  let currentField = '';
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j];
+
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        currentRow.push(currentField.trim());
+        currentField = '';
+      } else {
+        currentField += char;
+      }
+    }
+
+    if (!inQuotes) {
+      currentRow.push(currentField.trim());
+      currentField = '';
+
+      const row: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        row[header] = currentRow[idx] || '';
+      });
+      rows.push(row);
+      currentRow = [];
+    } else {
+      currentField += '\n';
+    }
+  }
+
+  return rows;
+}
+
+interface MarkdownMetadata {
+  title: string;
+  url?: string;
+  author?: string;
+  date?: string;
+  category?: string;
+  body: string;
+}
+
+function parseMarkdown(content: string): MarkdownMetadata {
+  const lines = content.split('\n');
+
+  let title = '';
+  let url = '';
+  let author = '';
+  let date = '';
+  let category = '';
+  let bodyStartIndex = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Title from H1
+    if (line.startsWith('# ')) {
+      title = line.substring(2).trim();
+      continue;
+    }
+
+    // Metadata fields
+    if (line.startsWith('**URL:**')) {
+      url = line.replace('**URL:**', '').trim();
+      continue;
+    }
+    if (line.startsWith('**Author:**')) {
+      author = line.replace('**Author:**', '').trim();
+      continue;
+    }
+    if (line.startsWith('**Date:**')) {
+      date = line.replace('**Date:**', '').trim();
+      continue;
+    }
+    if (line.startsWith('**Category:**')) {
+      category = line.replace('**Category:**', '').trim();
+      continue;
+    }
+
+    // First --- after metadata marks start of body
+    if (line === '---' && title) {
+      bodyStartIndex = i + 1;
+      break;
+    }
+  }
+
+  const body = lines.slice(bodyStartIndex).join('\n').trim();
+
+  return { title, url, author, date, category, body };
+}
+
+function parseDate(dateStr: string | undefined): Date | null {
+  if (!dateStr) return null;
+
+  // Handle formats like "January 2024", "March 2023", etc.
+  const monthYearMatch = dateStr.match(/(\w+)\s+(\d{4})/);
+  if (monthYearMatch) {
+    const months: Record<string, number> = {
+      january: 0, february: 1, march: 2, april: 3,
+      may: 4, june: 5, july: 6, august: 7,
+      september: 8, october: 9, november: 10, december: 11,
+    };
+    const month = months[monthYearMatch[1].toLowerCase()];
+    const year = parseInt(monthYearMatch[2], 10);
+    if (month !== undefined && !isNaN(year)) {
+      return new Date(year, month, 1);
+    }
+  }
+
+  // Try standard date parsing
+  const parsed = new Date(dateStr);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+// ============================================
+// SEED FUNCTIONS
+// ============================================
+
+async function seedContentTags() {
+  console.log('Seeding content tags...');
+
+  for (const tag of TAG_TAXONOMY) {
+    await prisma.contentTag.upsert({
+      where: { slug: tag.slug },
+      update: {
+        name: tag.name,
+        category: tag.category,
+        description: tag.description,
+        keywords: tag.keywords,
+      },
+      create: {
+        slug: tag.slug,
+        name: tag.name,
+        category: tag.category,
+        description: tag.description,
+        keywords: tag.keywords,
+      },
+    });
+  }
+
+  console.log(`  Seeded ${TAG_TAXONOMY.length} content tags`);
+}
+
+async function seedTombstones() {
+  console.log('Seeding tombstones from CSV...');
+
+  const content = fs.readFileSync(TOMBSTONES_CSV, 'utf-8');
+  const rows = parseCSV(content);
+
+  let count = 0;
+  for (const row of rows) {
+    const name = row.seller?.trim();
+    if (!name) continue;
+
+    const slug = generateSlug(name);
+    const transactionYear = row.transaction_year
+      ? parseInt(row.transaction_year, 10)
+      : null;
+
+    // Match industry based on keywords
+    const industryText = `${row.industry || ''} ${row.keywords || ''}`;
+    const matchedTags = matchContentToTags(industryText);
+
+    const tombstone = await prisma.tombstone.upsert({
+      where: { slug },
+      update: {
+        name,
+        industry: row.industry || null,
+        buyerPeFirm: row.buyer_pe_firm || null,
+        buyerPlatform: row.buyer_platform || null,
+        transactionYear,
+        city: row.city || null,
+        state: row.state || null,
+        isPublished: true,
+      },
+      create: {
+        name,
+        slug,
+        industry: row.industry || null,
+        buyerPeFirm: row.buyer_pe_firm || null,
+        buyerPlatform: row.buyer_platform || null,
+        transactionYear,
+        city: row.city || null,
+        state: row.state || null,
+        isPublished: true,
+      },
+    });
+
+    // Link tags
+    for (const tagSlug of matchedTags.slice(0, 5)) {
+      const tag = await prisma.contentTag.findUnique({ where: { slug: tagSlug } });
+      if (tag) {
+        await prisma.tombstoneTag.upsert({
+          where: {
+            tombstoneId_tagId: { tombstoneId: tombstone.id, tagId: tag.id },
+          },
+          update: {},
+          create: { tombstoneId: tombstone.id, tagId: tag.id },
+        });
+      }
+    }
+
+    count++;
+  }
+
+  console.log(`  Seeded ${count} tombstones`);
+}
+
+async function seedBlogPosts() {
+  console.log('Seeding blog posts from markdown...');
+
+  let newsCount = 0;
+  let articlesCount = 0;
+
+  // Seed news articles
+  if (fs.existsSync(NEWS_DIR)) {
+    const newsFiles = fs.readdirSync(NEWS_DIR).filter((f) => f.endsWith('.md'));
+
+    for (const file of newsFiles) {
+      const content = fs.readFileSync(path.join(NEWS_DIR, file), 'utf-8');
+      const { title, author, date, body } = parseMarkdown(content);
+
+      if (!title) continue;
+
+      const slug = file.replace('.md', '');
+      const publishedAt = parseDate(date);
+
+      const blogPost = await prisma.blogPost.upsert({
+        where: { slug },
+        update: {
+          title,
+          content: body,
+          author: author || null,
+          category: 'news',
+          publishedAt,
+          isPublished: true,
+        },
+        create: {
+          slug,
+          title,
+          content: body,
+          author: author || null,
+          category: 'news',
+          publishedAt,
+          isPublished: true,
+        },
+      });
+
+      // Match tags based on content
+      const matchedTags = matchContentToTags(`${title} ${body}`);
+      for (const tagSlug of matchedTags.slice(0, 5)) {
+        const tag = await prisma.contentTag.findUnique({ where: { slug: tagSlug } });
+        if (tag) {
+          await prisma.blogPostTag.upsert({
+            where: {
+              blogPostId_tagId: { blogPostId: blogPost.id, tagId: tag.id },
+            },
+            update: {},
+            create: { blogPostId: blogPost.id, tagId: tag.id },
+          });
+        }
+      }
+
+      newsCount++;
+    }
+  }
+
+  // Seed resource articles
+  if (fs.existsSync(ARTICLES_DIR)) {
+    const articleFiles = fs.readdirSync(ARTICLES_DIR).filter((f) => f.endsWith('.md'));
+
+    for (const file of articleFiles) {
+      const content = fs.readFileSync(path.join(ARTICLES_DIR, file), 'utf-8');
+      const { title, author, body } = parseMarkdown(content);
+
+      if (!title) continue;
+
+      const slug = file.replace('.md', '');
+
+      const blogPost = await prisma.blogPost.upsert({
+        where: { slug },
+        update: {
+          title,
+          content: body,
+          author: author || null,
+          category: 'resource',
+          isPublished: true,
+        },
+        create: {
+          slug,
+          title,
+          content: body,
+          author: author || null,
+          category: 'resource',
+          isPublished: true,
+        },
+      });
+
+      // Match tags
+      const matchedTags = matchContentToTags(`${title} ${body}`);
+      for (const tagSlug of matchedTags.slice(0, 5)) {
+        const tag = await prisma.contentTag.findUnique({ where: { slug: tagSlug } });
+        if (tag) {
+          await prisma.blogPostTag.upsert({
+            where: {
+              blogPostId_tagId: { blogPostId: blogPost.id, tagId: tag.id },
+            },
+            update: {},
+            create: { blogPostId: blogPost.id, tagId: tag.id },
+          });
+        }
+      }
+
+      articlesCount++;
+    }
+  }
+
+  console.log(`  Seeded ${newsCount} news articles`);
+  console.log(`  Seeded ${articlesCount} resource articles`);
+}
+
+async function linkPressReleases() {
+  console.log('Linking press releases to tombstones...');
+
+  // Get all tombstones and blog posts
+  const tombstones = await prisma.tombstone.findMany();
+  const blogPosts = await prisma.blogPost.findMany({
+    where: { category: 'news' },
+  });
+
+  let linkedCount = 0;
+  // Track which blog posts have already been linked (unique constraint)
+  const linkedBlogPostIds = new Set<string>();
+
+  for (const tombstone of tombstones) {
+    // Try to find a matching press release by company name
+    const normalizedName = tombstone.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    for (const blogPost of blogPosts) {
+      // Skip if this blog post is already linked to another tombstone
+      if (linkedBlogPostIds.has(blogPost.id)) {
+        continue;
+      }
+
+      const normalizedTitle = blogPost.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const normalizedContent = blogPost.content.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      // Check if company name appears in title or content
+      if (normalizedTitle.includes(normalizedName) || normalizedContent.includes(normalizedName)) {
+        await prisma.tombstone.update({
+          where: { id: tombstone.id },
+          data: { pressReleaseId: blogPost.id },
+        });
+        linkedBlogPostIds.add(blogPost.id);
+        linkedCount++;
+        break;
+      }
+    }
+  }
+
+  console.log(`  Linked ${linkedCount} press releases to tombstones`);
+}
+
+async function seedTeamMembers() {
+  console.log('Seeding team members...');
+
+  const leadership = [
+    {
+      name: 'R. Michael Allen',
+      title: 'CEO and Founder',
+      image: '/team/mike-allen.jpg',
+      bio: `As CEO and Founder, Mr. Allen leads our Business Development Group and assesses potential buyer interest in our firm's prospective sell-side opportunities. With more than 25 years of M&A experience, Mr. Allen has been directly involved in the execution of more than 400 client transactions.`,
+      linkedIn: 'https://www.linkedin.com/in/rmichaelallen',
+      email: 'mallen@flatironscap.com',
+      category: 'leadership',
+      sortOrder: 0,
+    },
+    {
+      name: 'Keith Wegen',
+      title: 'President and Founder',
+      image: '/team/keith-wegen.jpg',
+      bio: `As President and Founder, Mr. Wegen's principal activity is to direct the firm's M&A activities. He oversees the team that guides the firm's clients from engagement through the closing of a transaction.`,
+      linkedIn: 'https://www.linkedin.com/in/keithwegen',
+      email: 'kwegen@flatironscap.com',
+      category: 'leadership',
+      sortOrder: 1,
+    },
+    {
+      name: 'L.A. "Skip" Plauche',
+      title: 'Managing Director',
+      image: '/team/skip-plauche.jpg',
+      bio: `As Managing Director, Mr. Plauche is responsible for industry analysis, target identification, and all information, data, and research efforts to support our engagements.`,
+      linkedIn: 'https://www.linkedin.com/in/skipplauche/',
+      email: 'splauche@flatironscap.com',
+      category: 'leadership',
+      sortOrder: 2,
+    },
+    {
+      name: 'Michael R. Moritz',
+      title: 'Managing Director - Technology & Professional Services',
+      image: '/team/mike-moritz.jpg',
+      bio: `As the leader of our Technology and Professional Services efforts, Mr. Moritz joined FCA at our 2015 inception. During his investment banking career, he has led many successful deals.`,
+      email: 'mmoritz@flatironscap.com',
+      category: 'leadership',
+      sortOrder: 3,
+    },
+    {
+      name: 'Connor Slivocka',
+      title: 'Managing Director',
+      image: '/team/connor-slivocka.jpg',
+      bio: `Connor has spent his career working with business owners and investors on growth strategy and M&A execution. At Flatirons, he leads deal sourcing across home services, industrials, energy, technology, and healthcare.`,
+      linkedIn: 'https://www.linkedin.com/in/connorslivocka/',
+      email: 'cslivocka@flatironscap.com',
+      category: 'leadership',
+      sortOrder: 4,
+    },
+  ];
+
+  const analysts = [
+    {
+      name: 'Umair Ishaq',
+      title: 'Analyst',
+      image: '/team/umair-ishaq.jpg',
+      bio: 'Umair is an analyst for Flatirons Capital Advisors. His primary functions at the firm include research and analytical work, as well as business development.',
+      email: 'umair@flatironscap.com',
+      category: 'analyst',
+      sortOrder: 0,
+    },
+    {
+      name: 'Rachelle Ramos',
+      title: 'Analyst',
+      image: '/team/rachelle-ramos.jpg',
+      bio: "Rachelle provides virtual assistance for Flatirons Capital Advisors. Her administrative functions include research, calendar management, email correspondence, and the development of marketing materials.",
+      email: 'rramos@flatironscap.com',
+      category: 'analyst',
+      sortOrder: 1,
+    },
+    {
+      name: 'Devanshi Nagpal',
+      title: 'Analyst',
+      image: '/team/devanshi-nagpal.jpg',
+      bio: 'Devanshi excels in drafting CIMs, teasers, and pitch decks, conducting financial modeling, performing market research, and developing buyer lists.',
+      linkedIn: 'https://www.linkedin.com/in/devanshi-nagpal-68505118a/',
+      category: 'analyst',
+      sortOrder: 2,
+    },
+    {
+      name: 'Rossel Dacio',
+      title: 'Analyst',
+      image: '/team/rossel-dacio.jpg',
+      bio: 'Rossel provides virtual assistance including web administration, SEO, social media management, and research.',
+      linkedIn: 'https://www.linkedin.com/in/rosseldacio/',
+      category: 'analyst',
+      sortOrder: 3,
+    },
+    {
+      name: 'Rhonnell Dacio',
+      title: 'Analyst',
+      image: '/team/rhonnell-dacio.jpg',
+      bio: 'Rhonnell provides virtual assistance handling administrative functions such as calendar management, email correspondence, and research.',
+      category: 'analyst',
+      sortOrder: 4,
+    },
+  ];
+
+  const allMembers = [...leadership, ...analysts];
+
+  for (const member of allMembers) {
+    await prisma.teamMember.upsert({
+      where: { id: generateSlug(member.name) },
+      update: member,
+      create: {
+        id: generateSlug(member.name),
+        ...member,
+      },
+    });
+  }
+
+  console.log(`  Seeded ${allMembers.length} team members`);
+}
+
+async function seedCommunityServices() {
+  console.log('Seeding community services...');
+
+  const services = [
+    {
+      name: 'Rippling Waters Kego',
+      description: 'Providing sustainable education, food, and water for the orphaned children of the Lake Victoria area impacted by the AIDS epidemic.',
+      url: 'https://ripplingwaterskego.org/',
+      sortOrder: 0,
+    },
+    {
+      name: 'Community Food Share',
+      description: "Working to end hunger in Boulder and Broomfield Counties. The team works on the floor of the distribution center on a weekly basis.",
+      url: 'https://communityfoodshare.org/',
+      sortOrder: 1,
+    },
+    {
+      name: 'Project Healing Waters',
+      description: 'Dedicated to the physical and emotional rehabilitation of disabled veterans through fly fishing.',
+      url: 'http://projecthealingwaters.org',
+      sortOrder: 2,
+    },
+    {
+      name: 'Skate for Prostate',
+      description: 'Created by Keith Wegen, raising tens of thousands of dollars for prostate cancer awareness.',
+      url: 'https://www.facebook.com/skateforprostate/',
+      sortOrder: 3,
+    },
+    {
+      name: 'Wounded Warrior Project',
+      description: 'Participated in more than 14 Tough Mudders and led teams in fundraising efforts for the Wounded Warrior Project.',
+      url: 'http://www.woundedwarriorproject.org/',
+      sortOrder: 4,
+    },
+  ];
+
+  for (const service of services) {
+    await prisma.communityService.upsert({
+      where: { id: generateSlug(service.name) },
+      update: service,
+      create: {
+        id: generateSlug(service.name),
+        ...service,
+      },
+    });
+  }
+
+  console.log(`  Seeded ${services.length} community services`);
+}
+
+async function seedFAQs() {
+  console.log('Seeding FAQs...');
+
+  const faqs = [
+    {
+      question: 'Who is Flatirons Capital Advisors and what do you do?',
+      answer: `We are, first and foremost, an investment banking firm—one that provides private businesses with growth strategy and exit planning advisory services. Our unique business model enables us to improve our sell-side advisory clients' positioning in market through leveraged growth and lean operations practices.`,
+      sortOrder: 0,
+    },
+    {
+      question: 'What steps will Flatirons take to ensure the sale of my company is handled in a confidential manner?',
+      answer: `Engaging a qualified transaction advisor like Flatirons is the first step to maintaining confidentiality. Our team of professional advisors can enhance and increase the universe of prospective buyers through our proprietary research methods, existing buyer relationships, and experience managing an effective and efficient buyer search process.`,
+      sortOrder: 1,
+    },
+    {
+      question: 'Can Flatirons advise me with valuing my company?',
+      answer: `Yes, we can provide a general range of value based on our experience. Determining an enterprise value is part of our exit planning process, and occurs early on in the relationship. We use the very same valuation methods that buyers use.`,
+      sortOrder: 2,
+    },
+    {
+      question: 'Will Flatirons be with me throughout the entire M&A process?',
+      answer: `Yes, whether you decide to engage Flatirons for stand-alone Business Advisory or M&A Advisory services, we will serve as your trusted advisor throughout the entire process.`,
+      sortOrder: 3,
+    },
+    {
+      question: 'Does Flatirons perform stand-alone consulting services?',
+      answer: `Yes, we do. Whether or not you are a "client" of Flatirons for full exit planning services, we can provide stand-alone consulting services to your company.`,
+      sortOrder: 4,
+    },
+    {
+      question: 'I have received an unsolicited offer for my company. Do I need to engage a professional investment banking firm?',
+      answer: `Most business owners will only sell their companies once, and with so much of your personal net worth and future livelihood on the line, it makes sense to engage with an experienced professional who can manage the process.`,
+      sortOrder: 5,
+    },
+    {
+      question: 'I used an online "valuation calculator" and it said my company is worth a "multiple" of x. How accurate are these types of calculators?',
+      answer: `Not very accurate. "Multiples" are used in the industry, AFTER detailed valuations have taken place and a deal is consummated, as a method of communicating the END result of a deal.`,
+      sortOrder: 6,
+    },
+    {
+      question: 'Are businesses valued based on a multiple of earnings or a multiple of revenues?',
+      answer: `Without sounding repetitive, valuation multiples are not reliable in determining an accurate value for a business in a majority of cases. Buyers will calculate value based on several criteria that impact two primary value drivers: Risk and Return on Investment.`,
+      sortOrder: 7,
+    },
+  ];
+
+  for (let i = 0; i < faqs.length; i++) {
+    await prisma.fAQ.upsert({
+      where: { id: `faq-${i}` },
+      update: faqs[i],
+      create: {
+        id: `faq-${i}`,
+        ...faqs[i],
+      },
+    });
+  }
+
+  console.log(`  Seeded ${faqs.length} FAQs`);
+}
+
+async function seedCoreValues() {
+  console.log('Seeding core values...');
+
+  const values = [
+    { title: 'Open and Honest Communication', description: 'We speak our minds to our clients and demand the same from all others we work with.', icon: '/icons/comm.png', sortOrder: 0 },
+    { title: 'Listen Well, Act Quickly', description: 'Every day we strive to listen well, seek counsel, then act decisively.', icon: '/icons/listen.png', sortOrder: 1 },
+    { title: 'Focus', description: 'We tirelessly seek to understand your priorities and systematically refresh our objectives.', icon: '/icons/focus.png', sortOrder: 2 },
+    { title: 'Accountability', description: 'We deliver on our commitments and are transparent about progress and outcomes.', icon: '/icons/accountability.png', sortOrder: 3 },
+    { title: 'Customer Satisfaction', description: 'We only agree to what we can deliver, and always deliver what we agree to.', icon: '/icons/customer-satisfaction.png', sortOrder: 4 },
+    { title: 'Relentlessness', description: 'We inspire ourselves and our teams to a higher state of performance and quality.', icon: '/icons/relentlessness.png', sortOrder: 5 },
+    { title: 'Respect', description: 'We demand ourselves to be professional with every interaction, treating you with the utmost respect and honesty.', icon: '/icons/respect.png', sortOrder: 6 },
+    { title: 'Extraordinary Teamwork', description: 'Every person has a role on our team. We communicate and count on everyone to play their part flawlessly.', icon: '/icons/teamwork.png', sortOrder: 7 },
+    { title: 'Intelligence', description: 'We constantly drive creative ideas and bring the best practices to our Company and to you, our client.', icon: '/icons/intelligence.png', sortOrder: 8 },
+    { title: 'Bold Consistent Vision', description: 'We deliver a compelling, shared vision that passes the elevator test of simplicity.', icon: '/icons/vision.png', sortOrder: 9 },
+  ];
+
+  for (const value of values) {
+    await prisma.coreValue.upsert({
+      where: { id: generateSlug(value.title) },
+      update: value,
+      create: {
+        id: generateSlug(value.title),
+        ...value,
+      },
+    });
+  }
+
+  console.log(`  Seeded ${values.length} core values`);
+}
+
+async function seedIndustrySectors() {
+  console.log('Seeding industry sectors...');
+
+  const sectors = [
+    { name: 'Information Technology', description: 'Hardware, Software (Big Data Business Analytics, ERP, etc.), Professional Services, Telecommunications, Biotech and Biomed Manufacturing Technologies', sortOrder: 0 },
+    { name: 'Distribution', description: 'Food & Beverage Services, Consumer Products', sortOrder: 1 },
+    { name: 'Energy', description: 'Oil & Gas Support Services and Manufacturing', sortOrder: 2 },
+    { name: 'Manufacturing', description: 'Specialty Machinery, Aerospace, Fabricated Metal Products, Semiconductor, Surgical/Medical Equipment, Pharmaceutical', sortOrder: 3 },
+    { name: 'Healthcare', description: 'Medical and Diagnostic Laboratories, Home Health Care Services, Specialized Urgent Care, Pharmacies', sortOrder: 4 },
+    { name: 'Business Services', description: 'Fire and Life Safety, HVAC, Specialty Construction, Supply Chain', sortOrder: 5 },
+  ];
+
+  for (const sector of sectors) {
+    await prisma.industrySector.upsert({
+      where: { id: generateSlug(sector.name) },
+      update: sector,
+      create: {
+        id: generateSlug(sector.name),
+        ...sector,
+      },
+    });
+  }
+
+  console.log(`  Seeded ${sectors.length} industry sectors`);
+}
+
+async function seedServiceOfferings() {
+  console.log('Seeding service offerings...');
+
+  const offerings = [
+    // Sell-side services
+    { title: 'Private Company Exits', description: 'Full-service representation for owners looking to sell their business, maximizing value through a competitive auction process.', category: 'sell-side', type: 'service', sortOrder: 0 },
+    { title: 'Recapitalizations', description: 'Helping owners take chips off the table while retaining ownership and continuing to grow with a financial or strategic partner.', category: 'sell-side', type: 'service', sortOrder: 1 },
+    { title: 'Divestitures', description: 'Strategic sale of business units, subsidiaries, or divisions to optimize your portfolio and focus on core operations.', category: 'sell-side', type: 'service', sortOrder: 2 },
+    { title: 'Product Line & IP Sales', description: 'Monetizing intellectual property, product lines, or technology assets through targeted sales to strategic acquirers.', category: 'sell-side', type: 'service', sortOrder: 3 },
+    { title: 'Generational Transfers', description: 'Facilitating smooth transitions of family businesses to the next generation or management teams.', category: 'sell-side', type: 'service', sortOrder: 4 },
+
+    // Sell-side process steps
+    { title: 'Discovery & Preparation', description: 'We conduct a thorough assessment of your business, identify value drivers, and prepare comprehensive marketing materials.', category: 'sell-side', type: 'process-step', step: 1, sortOrder: 0 },
+    { title: 'Market Outreach', description: 'Leveraging our extensive buyer network, we confidentially approach qualified strategic and financial buyers.', category: 'sell-side', type: 'process-step', step: 2, sortOrder: 1 },
+    { title: 'Manage the Process', description: 'We facilitate management presentations, coordinate due diligence, and create competitive tension among buyers.', category: 'sell-side', type: 'process-step', step: 3, sortOrder: 2 },
+    { title: 'Negotiate & Close', description: 'We negotiate deal terms, manage the definitive agreement process, and guide you through to a successful closing.', category: 'sell-side', type: 'process-step', step: 4, sortOrder: 3 },
+
+    // Sell-side why choose us
+    { title: 'Senior-level attention throughout the entire process', category: 'sell-side', type: 'benefit', sortOrder: 0 },
+    { title: 'Extensive relationships with strategic and financial buyers', category: 'sell-side', type: 'benefit', sortOrder: 1 },
+    { title: 'Track record of 200+ completed transactions', category: 'sell-side', type: 'benefit', sortOrder: 2 },
+    { title: 'Deep industry expertise across multiple sectors', category: 'sell-side', type: 'benefit', sortOrder: 3 },
+    { title: 'Confidential and professional approach', category: 'sell-side', type: 'benefit', sortOrder: 4 },
+    { title: 'Proven ability to maximize value and deal terms', category: 'sell-side', type: 'benefit', sortOrder: 5 },
+
+    // Buy-side benefits
+    { title: 'A "Free Look" with a strategic buyer in the identical/similar industry', category: 'buy-side', type: 'benefit', sortOrder: 0 },
+    { title: 'Gain insights and perspectives from a larger operator', category: 'buy-side', type: 'benefit', sortOrder: 1 },
+    { title: 'Determine if improvements are needed before an ultimate exit', category: 'buy-side', type: 'benefit', sortOrder: 2 },
+    { title: 'The timeline to closing is typically shorter', category: 'buy-side', type: 'benefit', sortOrder: 3 },
+    { title: "Confidentiality is typically maintained because there's less activity", category: 'buy-side', type: 'benefit', sortOrder: 4 },
+
+    // Buy-side disadvantages
+    { title: 'Only one buyer is involved', category: 'buy-side', type: 'disadvantage', sortOrder: 0 },
+    { title: 'Passing up the opportunity for multiple competing offers', category: 'buy-side', type: 'disadvantage', sortOrder: 1 },
+    { title: 'Potentially missing the ultimate, highest offer', category: 'buy-side', type: 'disadvantage', sortOrder: 2 },
+    { title: 'Not having an experienced M&A advisor by your side during every step', category: 'buy-side', type: 'disadvantage', sortOrder: 3 },
+
+    // Strategic services (from about page)
+    { title: 'Contract CFO', category: 'strategic', type: 'service', sortOrder: 0 },
+    { title: 'Growth Strategies', category: 'strategic', type: 'service', sortOrder: 1 },
+    { title: 'Optimizations', category: 'strategic', type: 'service', sortOrder: 2 },
+    { title: 'Financial Modeling', category: 'strategic', type: 'service', sortOrder: 3 },
+    { title: 'Market Analysis', category: 'strategic', type: 'service', sortOrder: 4 },
+  ];
+
+  for (const offering of offerings) {
+    const id = generateSlug(`${offering.category}-${offering.type}-${offering.title}`);
+    await prisma.serviceOffering.upsert({
+      where: { id },
+      update: offering,
+      create: { id, ...offering },
+    });
+  }
+
+  console.log(`  Seeded ${offerings.length} service offerings`);
+}
+
+async function seedPageContent() {
+  console.log('Seeding page content...');
+
+  const pages = [
+    {
+      pageKey: 'home',
+      title: 'Let us help you overshoot your goals.',
+      content: '',
+      metadata: {
+        subtitle: 'Middle Market M&A Advisory',
+        description: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm focused on privately-held, lower middle-market companies.',
+        heroImage: '/flatironshero.jpg',
+        ctaText: 'Start a Conversation',
+        ctaHref: '/contact',
+        secondaryCtaText: 'View Transactions',
+        secondaryCtaHref: '/transactions',
+        bottomCtaTitle: 'Ready to discuss your options?',
+        bottomCtaDescription: 'With an exclusive focus on private businesses, we understand the challenges private business owners face. Our hands-on approach ensures personalized attention throughout the entire process.',
+        bottomCtaText: 'Contact Us Today',
+        bottomCtaHref: '/contact',
+      },
+    },
+    {
+      pageKey: 'about',
+      title: 'About Flatirons Capital Advisors',
+      content: `Flatirons Capital Advisors is a leading mergers and acquisitions advisor to lower middle-market companies.
+
+Our buyer relationships are crucial to our ongoing success in making markets for our clients and completing transactions in record time. We are constantly updating our key industry and investment criteria based on real-time feedback from our vast network of public and private buyers.
+
+The deal process is 100% managed by a senior team member and not pushed down to a junior analyst. This hands-on approach ensures a strategic and robust process for our clients.`,
+      metadata: {},
+    },
+    {
+      pageKey: 'privacy-policy',
+      title: 'Privacy Policy',
+      content: `# Privacy Policy
+
+This Privacy Policy describes how Flatirons Capital Advisors collects, uses, and protects your personal information when you visit our website or use our services.
+
+## Information We Collect
+
+We may collect personal information that you voluntarily provide to us when you:
+- Fill out contact forms
+- Subscribe to our newsletter
+- Request information about our services
+- Submit seller intake forms
+
+## How We Use Your Information
+
+We use the information we collect to:
+- Respond to your inquiries
+- Provide our M&A advisory services
+- Send you relevant industry updates and insights
+- Improve our website and services
+
+## Contact Us
+
+If you have questions about this Privacy Policy, please contact us at info@flatironscap.com.`,
+      metadata: {},
+    },
+  ];
+
+  for (const page of pages) {
+    await prisma.pageContent.upsert({
+      where: { pageKey: page.pageKey },
+      update: {
+        title: page.title,
+        content: page.content,
+        metadata: page.metadata,
+      },
+      create: page,
+    });
+  }
+
+  console.log(`  Seeded ${pages.length} page content records`);
+}
+
+// ============================================
+// MAIN
+// ============================================
+
+async function main() {
+  console.log('Starting database seed...\n');
+
+  try {
+    await seedContentTags();
+    await seedTombstones();
+    await seedBlogPosts();
+    await linkPressReleases();
+    await seedTeamMembers();
+    await seedCommunityServices();
+    await seedFAQs();
+    await seedCoreValues();
+    await seedIndustrySectors();
+    await seedServiceOfferings();
+    await seedPageContent();
+
+    console.log('\nDatabase seed completed successfully!');
+  } catch (error) {
+    console.error('Seed failed:', error);
+    throw error;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+main();

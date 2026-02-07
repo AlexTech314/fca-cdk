@@ -13,11 +13,23 @@ interface ErrorResponse {
 
 export const errorHandler = (
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ): void => {
-  logger.error({ err }, 'Error occurred');
+  const requestId = (req as any).requestId;
+  logger.error(
+    {
+      err,
+      requestId,
+      method: req.method,
+      url: req.originalUrl || req.url,
+      params: req.params,
+      query: req.query,
+      body: req.body,
+    },
+    `Error in ${req.method} ${req.originalUrl || req.url}`
+  );
 
   // Handle Zod validation errors
   if (err instanceof ZodError) {

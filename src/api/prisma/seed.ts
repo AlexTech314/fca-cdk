@@ -234,16 +234,16 @@ function resolveImagePath(
   name: string,
   tombstoneImages: Record<string, string>
 ): string | null {
-  if (tombstoneImages[name]) return tombstoneImages[name];
+  if (tombstoneImages[name]) {return tombstoneImages[name];}
   const normalized = normalizeNameForMatch(name);
   for (const [key, imagePath] of Object.entries(tombstoneImages)) {
-    if (normalizeNameForMatch(key) === normalized) return imagePath;
+    if (normalizeNameForMatch(key) === normalized) {return imagePath;}
   }
   return null;
 }
 
 function parseDate(dateStr: string | undefined): Date | null {
-  if (!dateStr) return null;
+  if (!dateStr) {return null;}
 
   // Handle formats like "January 2024", "March 2023", etc.
   const monthYearMatch = dateStr.match(/(\w+)\s+(\d{4})/);
@@ -371,7 +371,7 @@ async function seedTombstones() {
   let count = 0;
   for (const row of rows) {
     const name = row.seller?.trim();
-    if (!name) continue;
+    if (!name) {continue;}
 
     const slug = generateSlug(name);
     const transactionYear = row.transaction_year
@@ -444,7 +444,7 @@ async function seedBlogPosts() {
       const content = fs.readFileSync(path.join(NEWS_DIR, file), 'utf-8');
       const { title, author, date, body } = parseMarkdown(content);
 
-      if (!title) continue;
+      if (!title) {continue;}
 
       const slug = file.replace('.md', '');
       const publishedAt = parseDate(date);
@@ -497,7 +497,7 @@ async function seedBlogPosts() {
       const content = fs.readFileSync(path.join(ARTICLES_DIR, file), 'utf-8');
       const { title, author, body } = parseMarkdown(content);
 
-      if (!title) continue;
+      if (!title) {continue;}
 
       const slug = file.replace('.md', '');
 

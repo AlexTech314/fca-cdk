@@ -15,6 +15,7 @@ interface ResourcesMetadata {
   sectionTitle?: string;
   ctaTitle?: string;
   ctaDescription?: string;
+  ctaText?: string;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -106,6 +107,7 @@ export default async function ResourcesPage() {
       <CTASection
         title={meta.ctaTitle || 'Have questions about selling your business?'}
         description={meta.ctaDescription || 'Our team is here to help guide you through the process.'}
+        ctaText={meta.ctaText}
       />
     </>
   );

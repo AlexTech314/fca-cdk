@@ -6,6 +6,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { NewsGrid } from '@/components/sections/NewsGrid';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
 import { getAllNewsTags, getNewsArticlesByTag, getTombstonesByTag, getTagNamesMap } from '@/lib/data';
+import { fetchSiteConfig } from '@/lib/utils';
 import { 
   formatTagName, 
   generateGroupingMetadata, 
@@ -58,8 +59,8 @@ export default async function NewsByTagPage({ params }: PageProps) {
   // Check if there are related transactions with this tag
   const relatedTombstones = await getTombstonesByTag(tag);
 
-  // Fetch all news tags for ContentExplorer
-  const [newsTags, tagNames] = await Promise.all([getAllNewsTags(), getTagNamesMap()]);
+  // Fetch all news tags for ContentExplorer + site config for company name
+  const [newsTags, tagNames, config] = await Promise.all([getAllNewsTags(), getTagNamesMap(), fetchSiteConfig()]);
 
   return (
     <>
@@ -80,7 +81,7 @@ export default async function NewsByTagPage({ params }: PageProps) {
               {displayName} News & Insights
             </h1>
             <p className="mt-4 text-lg text-text-muted">
-              Read {articles.length} article{articles.length !== 1 ? 's' : ''} about {displayName.toLowerCase()} from Flatirons Capital Advisors.
+              Read {articles.length} article{articles.length !== 1 ? 's' : ''} about {displayName.toLowerCase()} from {config.name}.
             </p>
           </header>
 

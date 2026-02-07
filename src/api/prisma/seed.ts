@@ -1007,6 +1007,9 @@ async function seedPageContent() {
         servicesSubtitle: 'What We Do',
         servicesTitle: 'M&A Services',
         servicesDescription: 'Comprehensive mergers and acquisitions advisory services for lower middle-market companies.',
+        transactionsSubtitle: 'Track Record',
+        transactionsTitle: 'Recent Transactions',
+        transactionsDescription: 'When it comes to closing a transaction, our clients value our advice, expertise and execution.',
       },
     },
     {
@@ -1044,6 +1047,9 @@ The deal process is 100% managed by a senior team member and not pushed down to 
         industrySectorsHeading: 'Industry Sectors',
         valuesSubtitle: 'Our Principles',
         valuesTitle: 'Core Values',
+        ctaTitle: 'Let us help you overshoot your goals.',
+        ctaDescription: "Whether you're looking to sell your business, acquire a company, or need strategic advice, our experienced team is here to guide you through every step.",
+        ctaText: 'Contact Us Today',
       },
     },
     {
@@ -1116,6 +1122,7 @@ Our buyer relationships are crucial to our ongoing success in making markets for
         advantageSubtitle: 'Why Choose Flatirons?',
         ctaTitle: 'Ready to explore your options?',
         ctaDescription: "Contact us for a confidential conversation about your business and goals. We'll help you understand what's possible.",
+        ctaText: 'Contact Us Today',
         whyChooseUs: [
           'Senior-level attention throughout the entire process',
           'Extensive relationships with strategic and financial buyers',
@@ -1156,6 +1163,7 @@ Finally, the business owner can feel confident with the ultimate sale price beca
         ],
         ctaTitle: 'Interested in a buy-side approach?',
         ctaDescription: 'Contact us to discuss whether a buy-side engagement might be the right fit for your situation.',
+        ctaText: 'Contact Us',
       },
     },
     {
@@ -1173,6 +1181,9 @@ Finally, the business owner can feel confident with the ultimate sale price beca
         communitySubtitle: 'Giving Back',
         communityTitle: 'Community Service',
         communityDescription: 'The entire team at Flatirons Capital Advisors loves giving back to the community.',
+        ctaTitle: 'Want to work with our team?',
+        ctaDescription: 'Contact us to discuss how our experienced professionals can help you achieve your transaction goals.',
+        ctaText: 'Contact Us',
       },
     },
     {
@@ -1184,6 +1195,7 @@ Finally, the business owner can feel confident with the ultimate sale price beca
         description: 'Common questions about M&A transactions, business valuation, and working with our team.',
         ctaTitle: 'Have more questions?',
         ctaDescription: 'Our team is here to help. Reach out to discuss your specific situation and how we can assist.',
+        ctaText: 'Contact Us',
       },
     },
     {
@@ -1207,6 +1219,7 @@ Finally, the business owner can feel confident with the ultimate sale price beca
         sectionDescription: 'Our commitment to excellence has allowed us to deliver world-class results to the middle and lower middle markets.',
         ctaTitle: 'Ready to add your company to this list?',
         ctaDescription: 'Let us help you achieve your transaction goals with the same expertise and dedication we bring to every engagement.',
+        ctaText: 'Contact Us Today',
       },
     },
     {
@@ -1219,6 +1232,9 @@ Finally, the business owner can feel confident with the ultimate sale price beca
         description: 'Stay updated on our latest M&A transactions and industry insights.',
         sectionSubtitle: 'Latest Updates',
         sectionTitle: 'Recent Announcements',
+        ctaTitle: 'Have a transaction to announce?',
+        ctaDescription: 'Let us help you share your success story with the business community.',
+        ctaText: 'Contact Us Today',
       },
     },
     {
@@ -1233,6 +1249,7 @@ Finally, the business owner can feel confident with the ultimate sale price beca
         sectionTitle: 'Articles for Business Owners',
         ctaTitle: 'Have questions about selling your business?',
         ctaDescription: 'Our team is here to help guide you through the process.',
+        ctaText: 'Contact Us',
       },
     },
   ];

@@ -21,6 +21,7 @@ interface SellSideMetadata {
   advantageSubtitle?: string;
   ctaTitle?: string;
   ctaDescription?: string;
+  ctaText?: string;
   whyChooseUs?: string[];
 }
 
@@ -194,6 +195,7 @@ export default async function SellSidePage() {
       <CTASection
         title={meta.ctaTitle || 'Ready to explore your options?'}
         description={meta.ctaDescription || "Contact us for a confidential conversation about your business and goals. We'll help you understand what's possible."}
+        ctaText={meta.ctaText}
       />
     </>
   );

@@ -10,12 +10,14 @@ interface CTASectionProps {
 }
 
 export function CTASection({
-  title = 'Let us help you overshoot your goals.',
-  description = "Whether you're looking to sell your business, acquire a company, or need strategic advice, our experienced team is here to guide you through every step.",
-  ctaText = 'Contact Us Today',
+  title,
+  description,
+  ctaText,
   ctaHref = '/contact',
   variant = 'primary',
 }: CTASectionProps) {
+  // If no title/description provided, don't render the section
+  if (!title && !description) return null;
   const isPrimary = variant === 'primary';
 
   if (isPrimary) {
@@ -38,19 +40,21 @@ export function CTASection({
             >
               {description}
             </p>
-            <div className="mt-8">
-              <Link
-                href={ctaHref}
-                className="inline-flex items-center justify-center rounded-md border-2 px-6 py-3 text-base font-semibold transition-all duration-200"
-                style={{
-                  borderColor: '#ffffff',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  color: '#ffffff',
-                }}
-              >
-                {ctaText}
-              </Link>
-            </div>
+            {ctaText && (
+              <div className="mt-8">
+                <Link
+                  href={ctaHref}
+                  className="inline-flex items-center justify-center rounded-md border-2 px-6 py-3 text-base font-semibold transition-all duration-200"
+                  style={{
+                    borderColor: '#ffffff',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    color: '#ffffff',
+                  }}
+                >
+                  {ctaText}
+                </Link>
+              </div>
+            )}
           </div>
         </Container>
       </section>
@@ -73,18 +77,20 @@ export function CTASection({
           >
             {description}
           </p>
-          <div className="mt-8">
-            <Link
-              href={ctaHref}
-              className="inline-flex items-center justify-center rounded-md px-6 py-3 text-base font-semibold transition-all duration-200"
-              style={{
-                backgroundColor: '#1e3a5f',
-                color: '#ffffff',
-              }}
-            >
-              {ctaText}
-            </Link>
-          </div>
+          {ctaText && (
+            <div className="mt-8">
+              <Link
+                href={ctaHref}
+                className="inline-flex items-center justify-center rounded-md px-6 py-3 text-base font-semibold transition-all duration-200"
+                style={{
+                  backgroundColor: '#1e3a5f',
+                  color: '#ffffff',
+                }}
+              >
+                {ctaText}
+              </Link>
+            </div>
+          )}
         </div>
       </Container>
     </section>

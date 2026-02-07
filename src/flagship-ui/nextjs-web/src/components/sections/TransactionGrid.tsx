@@ -9,12 +9,18 @@ interface TransactionGridProps {
   tombstones: Tombstone[];
   showAll?: boolean;
   limit?: number;
+  subtitle?: string;
+  title?: string;
+  description?: string;
 }
 
 export function TransactionGrid({
   tombstones,
   showAll = false,
   limit = 10,
+  subtitle,
+  title,
+  description,
 }: TransactionGridProps) {
   const displayTombstones = showAll ? tombstones : tombstones.slice(0, limit);
 
@@ -22,9 +28,9 @@ export function TransactionGrid({
     <section className="py-16 md:py-24">
       <Container>
         <SectionHeading
-          subtitle="Track Record"
-          title={showAll ? 'Completed Transactions' : 'Recent Transactions'}
-          description="When it comes to closing a transaction, our clients value our advice, expertise and execution."
+          subtitle={subtitle}
+          title={title || (showAll ? 'Completed Transactions' : 'Recent Transactions')}
+          description={description}
         />
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">

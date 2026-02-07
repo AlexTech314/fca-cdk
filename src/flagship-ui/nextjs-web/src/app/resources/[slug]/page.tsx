@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Container } from '@/components/ui/Container';
 import { CTASection } from '@/components/sections/CTASection';
-import { getResourceArticle, getResourceArticles, parseMarkdownContent } from '@/lib/data';
+import { getResourceArticle, getResourceArticles, getPageData, parseMarkdownContent } from '@/lib/data';
 import { MarkdownContent } from '@/components/common/MarkdownContent';
 import { fetchSiteConfig } from '@/lib/utils';
 
@@ -47,10 +47,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ResourceArticlePage({ params }: PageProps) {
   const { slug } = await params;
-  const [article, config] = await Promise.all([
+  const [article, config, resourcesPage] = await Promise.all([
     getResourceArticle(slug),
     fetchSiteConfig(),
+    getPageData('resources'),
   ]);
+  const resourcesMeta = (resourcesPage?.metadata || {}) as { ctaTitle?: string; ctaDescription?: string; ctaText?: string };
 
   if (!article) {
     notFound();
@@ -94,7 +96,7 @@ export default async function ResourceArticlePage({ params }: PageProps) {
                   {article.category}
                 </span>
                 <span className="text-sm text-text-muted">
-                  By {article.author}
+                  By {article.author || config.name}
                 </span>
               </div>
               <h1 className="text-3xl font-bold text-text md:text-4xl">
@@ -141,7 +143,12 @@ export default async function ResourceArticlePage({ params }: PageProps) {
         </Container>
       </article>
 
-      <CTASection variant="light" />
+      <CTASection
+        variant="light"
+        title={resourcesMeta.ctaTitle}
+        description={resourcesMeta.ctaDescription}
+        ctaText={resourcesMeta.ctaText}
+      />
     </>
   );
 }

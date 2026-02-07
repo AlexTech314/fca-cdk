@@ -23,6 +23,9 @@ interface TeamMetadata {
   communitySubtitle?: string;
   communityTitle?: string;
   communityDescription?: string;
+  ctaTitle?: string;
+  ctaDescription?: string;
+  ctaText?: string;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -225,7 +228,11 @@ export default async function TeamPage() {
         </section>
       )}
 
-      <CTASection />
+      <CTASection
+        title={meta.ctaTitle}
+        description={meta.ctaDescription}
+        ctaText={meta.ctaText}
+      />
     </>
   );
 }

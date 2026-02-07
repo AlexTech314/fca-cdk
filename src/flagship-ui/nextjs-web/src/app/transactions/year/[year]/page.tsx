@@ -9,6 +9,7 @@ import {
   getNewsArticlesByTag,
 } from '@/lib/data';
 import type { NewsArticle } from '@/lib/types';
+import { fetchSiteConfig } from '@/lib/utils';
 import { generateGroupingMetadata, generateGroupingPageSchema } from '@/lib/seo';
 import { TransactionsGroupingPage } from '@/components/transactions/TransactionsGroupingPage';
 
@@ -77,12 +78,13 @@ export default async function TransactionsByYearPage({ params }: PageProps) {
     breadcrumbs,
   });
 
-  const [tags, states, cities, allYears, relatedNews] = await Promise.all([
+  const [tags, states, cities, allYears, relatedNews, config] = await Promise.all([
     getAllTombstoneTags(),
     getAllStates(),
     getAllCities(),
     getAllTransactionYears(),
     getRelatedNewsFromTombstones(tombstones),
+    fetchSiteConfig(),
   ]);
 
   const currentIndex = allYears.indexOf(yearNum);
@@ -96,6 +98,7 @@ export default async function TransactionsByYearPage({ params }: PageProps) {
       breadcrumbs={breadcrumbs}
       filter={{ type: 'year', value: year }}
       displayName={`${year} Transactions`}
+      companyName={config.name}
       tombstones={tombstones}
       tags={tags}
       states={states}

@@ -72,7 +72,7 @@ function fromApiBlogPostToResourceArticle(p: ApiBlogPost): ResourceArticle {
     slug: p.slug,
     title: p.title,
     category: p.category || 'Advice',
-    author: p.author || 'Flatirons Capital Advisors',
+    author: p.author || undefined,
     excerpt: p.excerpt || extractExcerpt(p.content),
     content: p.content,
   };

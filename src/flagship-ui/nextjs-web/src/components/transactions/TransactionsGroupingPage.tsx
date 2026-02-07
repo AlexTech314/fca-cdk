@@ -15,6 +15,7 @@ export interface TransactionsGroupingPageProps {
   breadcrumbs: BreadcrumbItem[];
   filter: { type: TransactionFilterType; value: string };
   displayName: string;
+  companyName?: string;
   tombstones: Tombstone[];
   tags: string[];
   states: string[];
@@ -40,7 +41,8 @@ function getHeaderContent(
   type: TransactionFilterType,
   displayName: string,
   value: string,
-  count: number
+  count: number,
+  companyName: string
 ): { subtitle: string; title: string; description: string } {
   const plural = count !== 1 ? 's' : '';
   switch (type) {
@@ -54,7 +56,7 @@ function getHeaderContent(
       return {
         subtitle: 'Transactions by Industry',
         title: `${displayName} M&A Transactions`,
-        description: `Browse ${count} completed ${displayName.toLowerCase()} transaction${plural} from Flatirons Capital Advisors.`,
+        description: `Browse ${count} completed ${displayName.toLowerCase()} transaction${plural} from ${companyName}.`,
       };
     case 'state':
       return {
@@ -82,6 +84,7 @@ export function TransactionsGroupingPage({
   breadcrumbs,
   filter,
   displayName,
+  companyName = 'Flatirons Capital Advisors',
   tombstones,
   tags,
   states,
@@ -98,7 +101,8 @@ export function TransactionsGroupingPage({
     filter.type,
     displayName,
     filter.value,
-    tombstones.length
+    tombstones.length,
+    companyName
   );
 
   return (

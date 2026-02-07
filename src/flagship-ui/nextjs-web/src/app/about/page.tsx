@@ -32,6 +32,9 @@ interface AboutMetadata {
   industrySectorsHeading?: string;
   valuesSubtitle?: string;
   valuesTitle?: string;
+  ctaTitle?: string;
+  ctaDescription?: string;
+  ctaText?: string;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -298,7 +301,11 @@ export default async function AboutPage() {
         </Container>
       </section>
 
-      <CTASection />
+      <CTASection
+        title={meta.ctaTitle}
+        description={meta.ctaDescription}
+        ctaText={meta.ctaText}
+      />
     </>
   );
 }

@@ -16,6 +16,7 @@ import {
   getAllCities,
   getAllTransactionYears,
   getTagNamesMap,
+  getPageData,
 } from '@/lib/data';
 import { fetchSiteConfig } from '@/lib/utils';
 
@@ -76,14 +77,16 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
     pressRelease?.slug || null
   );
 
-  // Fetch data for ContentExplorer
-  const [tags, states, cities, years, tagNames] = await Promise.all([
+  // Fetch data for ContentExplorer + transactions page CTA metadata
+  const [tags, states, cities, years, tagNames, transactionsPage] = await Promise.all([
     getAllTombstoneTags(),
     getAllStates(),
     getAllCities(),
     getAllTransactionYears(),
     getTagNamesMap(),
+    getPageData('transactions'),
   ]);
+  const txMeta = (transactionsPage?.metadata || {}) as { ctaTitle?: string; ctaDescription?: string; ctaText?: string };
 
   return (
     <>
@@ -298,8 +301,9 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
       </article>
 
       <CTASection
-        title="Interested in a similar transaction?"
-        description="Let us help you achieve your transaction goals with the same expertise and dedication we bring to every engagement."
+        title={txMeta.ctaTitle}
+        description={txMeta.ctaDescription}
+        ctaText={txMeta.ctaText}
       />
     </>
   );

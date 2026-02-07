@@ -25,6 +25,7 @@ interface TransactionsMetadata {
   sectionDescription?: string;
   ctaTitle?: string;
   ctaDescription?: string;
+  ctaText?: string;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -114,6 +115,7 @@ export default async function TransactionsPage() {
       <CTASection
         title={meta.ctaTitle || 'Ready to add your company to this list?'}
         description={meta.ctaDescription || 'Let us help you achieve your transaction goals with the same expertise and dedication we bring to every engagement.'}
+        ctaText={meta.ctaText}
       />
     </>
   );

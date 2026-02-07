@@ -5,9 +5,20 @@ import type { TeamMember } from '@/lib/types';
 interface TeamGridProps {
   members: TeamMember[];
   showHeading?: boolean;
+  subtitle?: string;
+  title?: string;
+  description?: string;
+  analystHeading?: string;
 }
 
-export function TeamGrid({ members, showHeading = true }: TeamGridProps) {
+export function TeamGrid({
+  members,
+  showHeading = true,
+  subtitle,
+  title,
+  description,
+  analystHeading,
+}: TeamGridProps) {
   // Split into leadership and analysts
   const leadership = members.filter(
     (m) =>
@@ -22,9 +33,9 @@ export function TeamGrid({ members, showHeading = true }: TeamGridProps) {
       <Container>
         {showHeading && (
           <SectionHeading
-            subtitle="Our People"
-            title="Leadership Team"
-            description="The deal process is 100% managed by a senior team member. This hands-on approach ensures a strategic and robust process for our clients."
+            subtitle={subtitle}
+            title={title}
+            description={description}
           />
         )}
 
@@ -73,7 +84,7 @@ export function TeamGrid({ members, showHeading = true }: TeamGridProps) {
         {analysts.length > 0 && (
           <>
             <h3 className="mb-6 mt-12 text-center text-xl font-semibold text-text">
-              Analysts
+              {analystHeading || 'Analysts'}
             </h3>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {analysts.map((member) => (

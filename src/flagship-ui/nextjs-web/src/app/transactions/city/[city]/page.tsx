@@ -11,6 +11,7 @@ import {
   getNewsArticlesByTag,
 } from '@/lib/data';
 import type { NewsArticle } from '@/lib/types';
+import { fetchSiteConfig } from '@/lib/utils';
 import {
   getStateName,
   generateGroupingMetadata,
@@ -92,12 +93,13 @@ export default async function TransactionsByCityPage({ params }: PageProps) {
     breadcrumbs,
   });
 
-  const [tags, states, cities, years, relatedNews] = await Promise.all([
+  const [tags, states, cities, years, relatedNews, config] = await Promise.all([
     getAllTombstoneTags(),
     getAllStates(),
     getAllCities(),
     getAllTransactionYears(),
     getRelatedNewsFromTombstones(tombstones),
+    fetchSiteConfig(),
   ]);
 
   return (
@@ -106,6 +108,7 @@ export default async function TransactionsByCityPage({ params }: PageProps) {
       breadcrumbs={breadcrumbs}
       filter={{ type: 'city', value: city }}
       displayName={displayName}
+      companyName={config.name}
       tombstones={tombstones}
       tags={tags}
       states={states}

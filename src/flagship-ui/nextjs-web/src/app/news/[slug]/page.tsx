@@ -13,6 +13,7 @@ import {
   parseMarkdownContent,
   getAllNewsTags,
   getTagNamesMap,
+  getPageData,
 } from '@/lib/data';
 import { MarkdownContent } from '@/components/common/MarkdownContent';
 import { TombstoneGrid } from '@/components/sections/TombstoneGrid';
@@ -73,8 +74,9 @@ export default async function NewsArticlePage({ params }: PageProps) {
   const relatedNews = await getRelatedNewsForNews(article);
   const adjacentArticles = await getAdjacentArticles(slug);
 
-  // Fetch all news tags for ContentExplorer
-  const [newsTags, tagNames] = await Promise.all([getAllNewsTags(), getTagNamesMap()]);
+  // Fetch all news tags for ContentExplorer + news page CTA metadata
+  const [newsTags, tagNames, newsPage] = await Promise.all([getAllNewsTags(), getTagNamesMap(), getPageData('news')]);
+  const newsMeta = (newsPage?.metadata || {}) as { ctaTitle?: string; ctaDescription?: string; ctaText?: string };
 
   return (
     <>
@@ -249,7 +251,12 @@ export default async function NewsArticlePage({ params }: PageProps) {
         </Container>
       </article>
 
-      <CTASection variant="light" />
+      <CTASection
+        variant="light"
+        title={newsMeta.ctaTitle}
+        description={newsMeta.ctaDescription}
+        ctaText={newsMeta.ctaText}
+      />
     </>
   );
 }

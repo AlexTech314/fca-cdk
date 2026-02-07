@@ -19,6 +19,7 @@ interface BuySideMetadata {
   processBullets?: string[];
   ctaTitle?: string;
   ctaDescription?: string;
+  ctaText?: string;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -180,6 +181,7 @@ export default async function BuySidePage() {
       <CTASection
         title={meta.ctaTitle || 'Interested in a buy-side approach?'}
         description={meta.ctaDescription || 'Contact us to discuss whether a buy-side engagement might be the right fit for your situation.'}
+        ctaText={meta.ctaText}
       />
     </>
   );

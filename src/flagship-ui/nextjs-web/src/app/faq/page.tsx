@@ -10,6 +10,7 @@ interface FAQMetadata {
   description?: string;
   ctaTitle?: string;
   ctaDescription?: string;
+  ctaText?: string;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -64,7 +65,7 @@ export default async function FAQPage() {
       <CTASection
         title={meta.ctaTitle || 'Have more questions?'}
         description={meta.ctaDescription || 'Our team is here to help. Reach out to discuss your specific situation and how we can assist.'}
-        ctaText="Contact Us"
+        ctaText={meta.ctaText}
         ctaHref="/contact"
       />
     </>

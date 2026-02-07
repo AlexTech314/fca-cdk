@@ -8,6 +8,7 @@ import {
   getAllTransactionYears,
   getNewsArticlesByTag,
 } from '@/lib/data';
+import { fetchSiteConfig } from '@/lib/utils';
 import { formatTagName, generateGroupingMetadata, generateGroupingPageSchema } from '@/lib/seo';
 import { TransactionsGroupingPage } from '@/components/transactions/TransactionsGroupingPage';
 
@@ -54,12 +55,13 @@ export default async function TransactionsByTagPage({ params }: PageProps) {
     breadcrumbs,
   });
 
-  const [tags, states, cities, years, relatedNews] = await Promise.all([
+  const [tags, states, cities, years, relatedNews, config] = await Promise.all([
     getAllTombstoneTags(),
     getAllStates(),
     getAllCities(),
     getAllTransactionYears(),
     getNewsArticlesByTag(tag),
+    fetchSiteConfig(),
   ]);
 
   return (
@@ -68,6 +70,7 @@ export default async function TransactionsByTagPage({ params }: PageProps) {
       breadcrumbs={breadcrumbs}
       filter={{ type: 'tag', value: tag }}
       displayName={displayName}
+      companyName={config.name}
       tombstones={tombstones}
       tags={tags}
       states={states}

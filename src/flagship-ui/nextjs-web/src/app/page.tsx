@@ -41,6 +41,9 @@ interface HomePageMetadata {
   servicesSubtitle?: string;
   servicesTitle?: string;
   servicesDescription?: string;
+  transactionsSubtitle?: string;
+  transactionsTitle?: string;
+  transactionsDescription?: string;
 }
 
 export default async function HomePage() {
@@ -81,7 +84,13 @@ export default async function HomePage() {
         sectionDescription={meta.servicesDescription}
       />
       
-      <TransactionGrid tombstones={tombstones} limit={10} />
+      <TransactionGrid
+        tombstones={tombstones}
+        limit={10}
+        subtitle={meta.transactionsSubtitle}
+        title={meta.transactionsTitle}
+        description={meta.transactionsDescription}
+      />
       
       <CTASection
         title={meta.bottomCtaTitle}

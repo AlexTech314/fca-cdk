@@ -8,8 +8,8 @@ interface BreadcrumbProps {
 /**
  * Breadcrumb navigation component with JSON-LD schema
  */
-export function Breadcrumb({ items }: BreadcrumbProps) {
-  const schema = generateBreadcrumbSchema(items);
+export async function Breadcrumb({ items }: BreadcrumbProps) {
+  const schema = await generateBreadcrumbSchema(items);
 
   return (
     <>

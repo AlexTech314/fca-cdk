@@ -14,8 +14,34 @@ import type {
   CreateServiceOfferingInput,
   UpdateServiceOfferingInput,
   ServiceOfferingQuery,
+  CreateAwardInput,
+  UpdateAwardInput,
+  UpdateSiteConfigInput,
   ReorderInput,
 } from '../models/static-content.model';
+
+// ============================================
+// SITE CONFIG
+// ============================================
+
+export const siteConfigRepository = {
+  async get() {
+    return prisma.siteConfig.findUnique({ where: { id: 'default' } });
+  },
+
+  async upsert(data: UpdateSiteConfigInput) {
+    return prisma.siteConfig.upsert({
+      where: { id: 'default' },
+      update: data,
+      create: {
+        id: 'default',
+        name: data.name || '',
+        url: data.url || '',
+        ...data,
+      },
+    });
+  },
+};
 
 // ============================================
 // TEAM MEMBER
@@ -230,5 +256,45 @@ export const serviceOfferingRepository = {
 
   async delete(id: string) {
     await prisma.serviceOffering.delete({ where: { id } });
+  },
+};
+
+// ============================================
+// AWARD
+// ============================================
+
+export const awardRepository = {
+  async findMany(published?: boolean) {
+    return prisma.award.findMany({
+      where: published !== undefined ? { isPublished: published } : undefined,
+      orderBy: { sortOrder: 'asc' },
+    });
+  },
+
+  async findById(id: string) {
+    return prisma.award.findUnique({ where: { id } });
+  },
+
+  async create(data: CreateAwardInput) {
+    return prisma.award.create({ data });
+  },
+
+  async update(id: string, data: UpdateAwardInput) {
+    return prisma.award.update({ where: { id }, data });
+  },
+
+  async delete(id: string) {
+    await prisma.award.delete({ where: { id } });
+  },
+
+  async reorder(items: ReorderInput['items']) {
+    await Promise.all(
+      items.map((item) =>
+        prisma.award.update({
+          where: { id: item.id },
+          data: { sortOrder: item.sortOrder },
+        })
+      )
+    );
   },
 };

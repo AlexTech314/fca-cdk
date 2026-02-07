@@ -7,12 +7,14 @@ import { subscriberService } from '../services/subscriber.service';
 import { sellerIntakeService } from '../services/seller-intake.service';
 import { analyticsService } from '../services/analytics.service';
 import {
+  siteConfigService,
   teamMemberService,
   communityServiceService,
   faqService,
   coreValueService,
   industrySectorService,
   serviceOfferingService,
+  awardService,
 } from '../services/static-content.service';
 import { validate } from '../middleware/validate';
 import {
@@ -26,6 +28,22 @@ import {
 } from '../models';
 
 const router = Router();
+
+// ============================================
+// SITE CONFIG
+// ============================================
+
+router.get('/site-config', async (_req, res, next) => {
+  try {
+    const config = await siteConfigService.get();
+    if (!config) {
+      return res.status(404).json({ error: 'Site config not found' });
+    }
+    res.json(config);
+  } catch (error) {
+    next(error);
+  }
+});
 
 // ============================================
 // TOMBSTONES
@@ -217,6 +235,19 @@ router.get('/service-offerings/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Service offering not found' });
     }
     res.json(offering);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================
+// AWARDS
+// ============================================
+
+router.get('/awards', async (_req, res, next) => {
+  try {
+    const awards = await awardService.list(true);
+    res.json(awards);
   } catch (error) {
     next(error);
   }

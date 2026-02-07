@@ -16,17 +16,11 @@ import { TAG_TAXONOMY, matchContentToTags } from '../src/lib/taxonomy';
 
 const prisma = new PrismaClient();
 
-// Path to nextjs-web data
-// In Docker, nextjs-web is mounted at /app/nextjs-web
-// Locally, it's relative to the api directory
-const isDocker = fs.existsSync('/app/nextjs-web');
-const NEXTJS_WEB_PATH = isDocker
-  ? '/app/nextjs-web'
-  : path.resolve(__dirname, '../../../nextjs-web');
-const TOMBSTONES_CSV = path.join(NEXTJS_WEB_PATH, 'tombstones.csv');
-const TOMBSTONE_IMAGES_TS = path.join(NEXTJS_WEB_PATH, 'src/lib/tombstones.ts');
-const NEWS_DIR = path.join(NEXTJS_WEB_PATH, 'data/news');
-const ARTICLES_DIR = path.join(NEXTJS_WEB_PATH, 'data/articles');
+// Seed data lives alongside this file in prisma/data/
+const SEED_DATA_DIR = path.resolve(__dirname, 'data');
+const TOMBSTONES_CSV = path.join(SEED_DATA_DIR, 'tombstones.csv');
+const NEWS_DIR = path.join(SEED_DATA_DIR, 'news');
+const ARTICLES_DIR = path.join(SEED_DATA_DIR, 'articles');
 
 // ============================================
 // UTILITY FUNCTIONS
@@ -146,24 +140,11 @@ function parseMarkdown(content: string): MarkdownMetadata {
  */
 function loadTombstoneImages(): Record<string, string> {
   const out: Record<string, string> = {};
-  if (fs.existsSync(TOMBSTONE_IMAGES_TS)) {
-    const content = fs.readFileSync(TOMBSTONE_IMAGES_TS, 'utf-8');
-    const lineRe = /^\s*'([^']*(?:\\'[^']*)*)'\s*:\s*'([^']*)',?\s*$/gm;
-    const dqRe = /^\s*"([^"]*)"\s*:\s*'([^']*)',?\s*$/gm;
-    let m: RegExpExecArray | null;
-    while ((m = lineRe.exec(content)) !== null) {
-      out[m[1].replace(/\\'/g, "'")] = m[2];
-    }
-    while ((m = dqRe.exec(content)) !== null) {
-      out[m[1]] = m[2];
-    }
-  }
-  if (Object.keys(out).length === 0) {
-    const jsonPath = path.join(__dirname, 'tombstone-images.json');
-    if (fs.existsSync(jsonPath)) {
-      const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8')) as Record<string, string>;
-      Object.assign(out, data);
-    }
+  // Load from bundled tombstone-images.json (canonical source)
+  const jsonPath = path.join(__dirname, 'tombstone-images.json');
+  if (fs.existsSync(jsonPath)) {
+    const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8')) as Record<string, string>;
+    Object.assign(out, data);
   }
   // Aliases: CSV seller name -> canonical key in mapping (so all CSV rows resolve to an image when we have one)
   const aliases: [string, string][] = [
@@ -287,6 +268,105 @@ function parseDate(dateStr: string | undefined): Date | null {
 // ============================================
 // SEED FUNCTIONS
 // ============================================
+
+async function seedSiteConfig() {
+  console.log('Seeding site config...');
+
+  await prisma.siteConfig.upsert({
+    where: { id: 'default' },
+    update: {
+      name: 'Flatirons Capital Advisors',
+      tagline: 'Strategic Advice | Process Driven™',
+      url: 'https://flatironscap.com',
+      description: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm specializing in lower middle-market transactions.',
+      phone: '303.319.4540',
+      email: 'info@flatironscap.com',
+      linkedIn: 'https://www.linkedin.com/company/flatirons-capital-advisors-llc',
+      ogImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/og-image.jpg',
+      locations: [
+        { city: 'Denver', state: 'Colorado' },
+        { city: 'Dallas', state: 'Texas' },
+        { city: 'Miami', state: 'Florida' },
+        { city: 'Chicago', state: 'Illinois' },
+      ],
+      navItems: [
+        { name: 'About', href: '/about' },
+        { name: 'Team', href: '/team' },
+        { name: 'Transactions', href: '/transactions' },
+        { name: 'News', href: '/news' },
+        { name: 'Resources', href: '/resources' },
+        { name: 'FAQ', href: '/faq' },
+        { name: 'Contact', href: '/contact' },
+      ],
+      footerNav: {
+        services: [
+          { name: 'Sell-Side Advisory', href: '/sell-side' },
+          { name: 'Buy-Side Advisory', href: '/buy-side' },
+          { name: 'Strategic Consulting', href: '/about' },
+        ],
+        company: [
+          { name: 'About', href: '/about' },
+          { name: 'Team', href: '/team' },
+          { name: 'Transactions', href: '/transactions' },
+          { name: 'Contact', href: '/contact' },
+        ],
+        resources: [
+          { name: 'News & Insights', href: '/news' },
+          { name: 'Resources', href: '/resources' },
+          { name: 'FAQ', href: '/faq' },
+          { name: 'Privacy Policy', href: '/privacy-policy' },
+        ],
+      },
+    },
+    create: {
+      id: 'default',
+      name: 'Flatirons Capital Advisors',
+      tagline: 'Strategic Advice | Process Driven™',
+      url: 'https://flatironscap.com',
+      description: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm specializing in lower middle-market transactions.',
+      phone: '303.319.4540',
+      email: 'info@flatironscap.com',
+      linkedIn: 'https://www.linkedin.com/company/flatirons-capital-advisors-llc',
+      ogImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/og-image.jpg',
+      locations: [
+        { city: 'Denver', state: 'Colorado' },
+        { city: 'Dallas', state: 'Texas' },
+        { city: 'Miami', state: 'Florida' },
+        { city: 'Chicago', state: 'Illinois' },
+      ],
+      navItems: [
+        { name: 'About', href: '/about' },
+        { name: 'Team', href: '/team' },
+        { name: 'Transactions', href: '/transactions' },
+        { name: 'News', href: '/news' },
+        { name: 'Resources', href: '/resources' },
+        { name: 'FAQ', href: '/faq' },
+        { name: 'Contact', href: '/contact' },
+      ],
+      footerNav: {
+        services: [
+          { name: 'Sell-Side Advisory', href: '/sell-side' },
+          { name: 'Buy-Side Advisory', href: '/buy-side' },
+          { name: 'Strategic Consulting', href: '/about' },
+        ],
+        company: [
+          { name: 'About', href: '/about' },
+          { name: 'Team', href: '/team' },
+          { name: 'Transactions', href: '/transactions' },
+          { name: 'Contact', href: '/contact' },
+        ],
+        resources: [
+          { name: 'News & Insights', href: '/news' },
+          { name: 'Resources', href: '/resources' },
+          { name: 'FAQ', href: '/faq' },
+          { name: 'Privacy Policy', href: '/privacy-policy' },
+        ],
+      },
+    },
+  });
+
+  console.log('  Seeded site config');
+}
 
 async function seedContentTags() {
   console.log('Seeding content tags...');
@@ -888,6 +968,51 @@ async function seedServiceOfferings() {
   console.log(`  Seeded ${offerings.length} service offerings`);
 }
 
+async function seedAwards() {
+  console.log('Seeding awards...');
+
+  const awards = [
+    {
+      name: 'Axial Top 10 Investment Bank 2022',
+      image: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/awards/axial-top-10-investment-bank-2022.png',
+      sortOrder: 0,
+    },
+    {
+      name: 'Top 50 Software Axial 2023',
+      image: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/awards/top50-software-email-2x.png',
+      sortOrder: 1,
+    },
+    {
+      name: 'Axial Top IB 2020',
+      image: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/awards/axial-top-ib-badge-2020-359x450.png',
+      sortOrder: 2,
+    },
+    {
+      name: '2023 Axial Advisor 100',
+      image: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/awards/2023-axial-advisor-100.png',
+      sortOrder: 3,
+    },
+    {
+      name: 'NFPA Member',
+      image: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/awards/nfpa-member.png',
+      sortOrder: 4,
+    },
+  ];
+
+  for (const award of awards) {
+    await prisma.award.upsert({
+      where: { id: generateSlug(award.name) },
+      update: award,
+      create: {
+        id: generateSlug(award.name),
+        ...award,
+      },
+    });
+  }
+
+  console.log(`  Seeded ${awards.length} awards`);
+}
+
 async function seedPageContent() {
   console.log('Seeding page content...');
 
@@ -899,7 +1024,7 @@ async function seedPageContent() {
       metadata: {
         subtitle: 'Middle Market M&A Advisory',
         description: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm focused on privately-held, lower middle-market companies.',
-        heroImage: '/flatironshero.jpg',
+        heroImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/hero/flatironsherowinter.jpg',
         ctaText: 'Start a Conversation',
         ctaHref: '/contact',
         secondaryCtaText: 'View Transactions',
@@ -1099,6 +1224,7 @@ async function main() {
   console.log('Starting database seed...\n');
 
   try {
+    await seedSiteConfig();
     await seedContentTags();
     await seedTombstones();
     await seedBlogPosts();
@@ -1109,6 +1235,7 @@ async function main() {
     await seedCoreValues();
     await seedIndustrySectors();
     await seedServiceOfferings();
+    await seedAwards();
     await seedPageContent();
 
     console.log('\nDatabase seed completed successfully!');

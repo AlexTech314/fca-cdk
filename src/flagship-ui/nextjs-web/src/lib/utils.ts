@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { getSiteConfig, type ApiSiteConfig } from './api';
 
 /**
  * Merge Tailwind CSS classes with clsx
@@ -18,6 +19,15 @@ export function slugify(text: string): string {
     .replace(/\s+/g, '-')
     .replace(/--+/g, '-')
     .trim();
+}
+
+export const assetBaseUrl = 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com';
+
+export function toAssetUrl(path?: string | null): string | undefined {
+  if (!path) return undefined;
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  if (path.startsWith('/')) return `${assetBaseUrl}${path}`;
+  return `${assetBaseUrl}/${path}`;
 }
 
 /**
@@ -57,9 +67,31 @@ export function getCurrentYear(): number {
 }
 
 /**
- * Site constants
+ * Site config type used across the app
  */
-export const siteConfig = {
+export interface SiteConfigData {
+  name: string;
+  tagline: string;
+  url: string;
+  description: string;
+  phone: string;
+  email: string;
+  linkedIn: string;
+  locations: { city: string; state: string }[];
+  ogImage: string;
+  navItems: { name: string; href: string }[];
+  footerNav: {
+    services: { name: string; href: string }[];
+    company: { name: string; href: string }[];
+    resources: { name: string; href: string }[];
+  };
+}
+
+/**
+ * Default site config (fallback when API is unavailable).
+ * Used by static metadata exports and as a safety net.
+ */
+export const siteConfigDefaults: SiteConfigData = {
   name: 'Flatirons Capital Advisors',
   tagline: 'Strategic Advice | Process Driven™',
   url: 'https://flatironscap.com',
@@ -73,41 +105,69 @@ export const siteConfig = {
     { city: 'Miami', state: 'Florida' },
     { city: 'Chicago', state: 'Illinois' },
   ],
-  ogImage: '/og-image.jpg',
-} as const;
-
-/**
- * Navigation items
- */
-export const navItems = [
-  { name: 'About', href: '/about' },
-  { name: 'Team', href: '/team' },
-  { name: 'Transactions', href: '/transactions' },
-  { name: 'News', href: '/news' },
-  { name: 'Resources', href: '/resources' },
-  { name: 'FAQ', href: '/faq' },
-  { name: 'Contact', href: '/contact' },
-] as const;
-
-/**
- * Footer navigation groups
- */
-export const footerNav = {
-  services: [
-    { name: 'Sell-Side Advisory', href: '/sell-side' },
-    { name: 'Buy-Side Advisory', href: '/buy-side' },
-    { name: 'Strategic Consulting', href: '/about' },
-  ],
-  company: [
+  ogImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/og-image.jpg',
+  navItems: [
     { name: 'About', href: '/about' },
     { name: 'Team', href: '/team' },
     { name: 'Transactions', href: '/transactions' },
-    { name: 'Contact', href: '/contact' },
-  ],
-  resources: [
-    { name: 'News & Insights', href: '/news' },
+    { name: 'News', href: '/news' },
     { name: 'Resources', href: '/resources' },
     { name: 'FAQ', href: '/faq' },
-    { name: 'Privacy Policy', href: '/privacy-policy' },
+    { name: 'Contact', href: '/contact' },
   ],
-} as const;
+  footerNav: {
+    services: [
+      { name: 'Sell-Side Advisory', href: '/sell-side' },
+      { name: 'Buy-Side Advisory', href: '/buy-side' },
+      { name: 'Strategic Consulting', href: '/about' },
+    ],
+    company: [
+      { name: 'About', href: '/about' },
+      { name: 'Team', href: '/team' },
+      { name: 'Transactions', href: '/transactions' },
+      { name: 'Contact', href: '/contact' },
+    ],
+    resources: [
+      { name: 'News & Insights', href: '/news' },
+      { name: 'Resources', href: '/resources' },
+      { name: 'FAQ', href: '/faq' },
+      { name: 'Privacy Policy', href: '/privacy-policy' },
+    ],
+  },
+};
+
+/**
+ * Synchronous alias — use for static metadata exports that can't be async.
+ * For server components, prefer fetchSiteConfig() to get live data.
+ */
+export const siteConfig = siteConfigDefaults;
+
+/** Convenience aliases so existing imports keep working */
+export const navItems = siteConfigDefaults.navItems;
+export const footerNav = siteConfigDefaults.footerNav;
+
+/**
+ * Fetch site config from the API with fallback to defaults.
+ * Call from async server components / layouts.
+ */
+function mapApiToSiteConfig(api: ApiSiteConfig): SiteConfigData {
+  return {
+    name: api.name,
+    tagline: api.tagline || siteConfigDefaults.tagline,
+    url: api.url,
+    description: api.description || siteConfigDefaults.description,
+    phone: api.phone || siteConfigDefaults.phone,
+    email: api.email || siteConfigDefaults.email,
+    linkedIn: api.linkedIn || siteConfigDefaults.linkedIn,
+    locations: (api.locations as SiteConfigData['locations']) || siteConfigDefaults.locations,
+    ogImage: api.ogImage || siteConfigDefaults.ogImage,
+    navItems: (api.navItems as SiteConfigData['navItems']) || siteConfigDefaults.navItems,
+    footerNav: (api.footerNav as SiteConfigData['footerNav']) || siteConfigDefaults.footerNav,
+  };
+}
+
+export async function fetchSiteConfig(): Promise<SiteConfigData> {
+  const api = await getSiteConfig();
+  if (!api) return siteConfigDefaults;
+  return mapApiToSiteConfig(api);
+}

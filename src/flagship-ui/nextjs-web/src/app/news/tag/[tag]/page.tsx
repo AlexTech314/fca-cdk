@@ -47,7 +47,7 @@ export default async function NewsByTagPage({ params }: PageProps) {
     { name: displayName },
   ];
 
-  const schema = generateGroupingPageSchema({
+  const schema = await generateGroupingPageSchema({
     type: 'news-tag',
     value: tag,
     displayName,

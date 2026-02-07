@@ -1,12 +1,15 @@
 import {
+  siteConfigRepository,
   teamMemberRepository,
   communityServiceRepository,
   faqRepository,
   coreValueRepository,
   industrySectorRepository,
   serviceOfferingRepository,
+  awardRepository,
 } from '../repositories/static-content.repository';
 import type {
+  UpdateSiteConfigInput,
   CreateTeamMemberInput,
   UpdateTeamMemberInput,
   TeamMemberQuery,
@@ -21,8 +24,19 @@ import type {
   CreateServiceOfferingInput,
   UpdateServiceOfferingInput,
   ServiceOfferingQuery,
+  CreateAwardInput,
+  UpdateAwardInput,
   ReorderInput,
 } from '../models/static-content.model';
+
+// ============================================
+// SITE CONFIG SERVICE
+// ============================================
+
+export const siteConfigService = {
+  get: () => siteConfigRepository.get(),
+  update: (data: UpdateSiteConfigInput) => siteConfigRepository.upsert(data),
+};
 
 // ============================================
 // TEAM MEMBER SERVICE
@@ -97,4 +111,17 @@ export const serviceOfferingService = {
   create: (data: CreateServiceOfferingInput) => serviceOfferingRepository.create(data),
   update: (id: string, data: UpdateServiceOfferingInput) => serviceOfferingRepository.update(id, data),
   delete: (id: string) => serviceOfferingRepository.delete(id),
+};
+
+// ============================================
+// AWARD SERVICE
+// ============================================
+
+export const awardService = {
+  list: (published?: boolean) => awardRepository.findMany(published),
+  getById: (id: string) => awardRepository.findById(id),
+  create: (data: CreateAwardInput) => awardRepository.create(data),
+  update: (id: string, data: UpdateAwardInput) => awardRepository.update(id, data),
+  delete: (id: string) => awardRepository.delete(id),
+  reorder: (items: ReorderInput['items']) => awardRepository.reorder(items),
 };

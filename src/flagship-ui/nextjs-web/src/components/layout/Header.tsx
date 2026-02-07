@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { siteConfig, navItems } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 import { Navigation } from './Navigation';
 
-export function Header() {
+export async function Header() {
+  const config = await fetchSiteConfig();
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="container-max">
@@ -11,8 +13,8 @@ export function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3">
             <Image
-              src="/logos/fca-mountain-on-white.png"
-              alt={siteConfig.name}
+              src="https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/logos/fca-mountain-on-white.png"
+              alt={config.name}
               width={120}
               height={42}
               className="h-8 w-auto md:h-10"
@@ -20,17 +22,17 @@ export function Header() {
             />
             <div className="hidden sm:block">
               <span className="text-lg font-semibold text-primary md:text-xl">
-                Flatirons Capital
+                {config.name.split(' ').slice(0, 2).join(' ')}
               </span>
               <span className="hidden text-xs text-text-muted md:block">
-                {siteConfig.tagline}
+                {config.tagline}
               </span>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex lg:items-center lg:gap-1">
-            {navItems.map((item) => (
+            {config.navItems.map((item) => (
                 <Link
                 key={item.href}
                 href={item.href}
@@ -49,7 +51,7 @@ export function Header() {
           </nav>
 
           {/* Mobile Navigation */}
-          <Navigation />
+          <Navigation navItems={config.navItems} />
         </div>
       </div>
     </header>

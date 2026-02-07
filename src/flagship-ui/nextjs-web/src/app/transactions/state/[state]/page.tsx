@@ -77,7 +77,7 @@ export default async function TransactionsByStatePage({ params }: PageProps) {
     { name: stateName },
   ];
 
-  const schema = generateGroupingPageSchema({
+  const schema = await generateGroupingPageSchema({
     type: 'state',
     value: state.toUpperCase(),
     displayName: stateName,

@@ -84,7 +84,7 @@ export default async function TransactionsByCityPage({ params }: PageProps) {
     { name: cityName },
   ];
 
-  const schema = generateGroupingPageSchema({
+  const schema = await generateGroupingPageSchema({
     type: 'city',
     value: city,
     displayName,

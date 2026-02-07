@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
         hostname: 'flatironscap.com',
         pathname: '/wp-content/uploads/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'fca-assets-113862367661.s3.us-east-2.amazonaws.com',
+        pathname: '/**',
+      },
     ],
   },
 };

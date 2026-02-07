@@ -18,12 +18,6 @@ services:
       - ./prisma:/app/prisma
       - ./scripts:/app/scripts
       - /app/node_modules
-      # Mount nextjs-web data for seeding (read-only)
-      - ../nextjs-web/tombstones.csv:/app/nextjs-web/tombstones.csv:ro
-      - ../nextjs-web/data:/app/nextjs-web/data:ro
-      - ../nextjs-web/src/app:/app/nextjs-web/src/app:ro
-      - ../nextjs-web/src/lib:/app/nextjs-web/src/lib:ro
-      - ../nextjs-web/public/tombstones:/app/nextjs-web/public/tombstones:ro
     env_file:
       - .env.local
     depends_on:

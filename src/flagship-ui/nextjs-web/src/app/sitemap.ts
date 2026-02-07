@@ -10,7 +10,7 @@ import {
   getResourceArticles,
   cityToSlug,
 } from '@/lib/data';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 
 /**
  * Parse a date string or year into a Date object
@@ -40,7 +40,8 @@ function getMostRecentDate(dates: Date[]): Date {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = siteConfig.url;
+  const config = await fetchSiteConfig();
+  const baseUrl = config.url;
   const now = new Date();
 
   // Static pages - use a reasonable static date for content that rarely changes

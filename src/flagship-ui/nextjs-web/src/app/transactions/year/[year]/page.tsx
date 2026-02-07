@@ -69,7 +69,7 @@ export default async function TransactionsByYearPage({ params }: PageProps) {
     { name: year },
   ];
 
-  const schema = generateGroupingPageSchema({
+  const schema = await generateGroupingPageSchema({
     type: 'year',
     value: year,
     displayName: `${year} Transactions`,

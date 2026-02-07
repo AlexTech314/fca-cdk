@@ -5,6 +5,7 @@
  */
 
 import type { NewsArticle, ResourceArticle, Tombstone, NewsArticleSummary, TombstoneSummary } from './types';
+import { toAssetUrl } from './utils';
 import {
   getTombstones as apiGetTombstones,
   getTombstoneBySlug as apiGetTombstoneBySlug,
@@ -48,7 +49,7 @@ function fromApiTombstone(t: ApiTombstone): Tombstone {
     state: t.state || '',
     hasPressRelease: !!t.pressRelease,
     pressReleaseSlug: t.pressRelease?.slug || null,
-    imagePath: t.imagePath || undefined,
+    imagePath: toAssetUrl(t.imagePath) || undefined,
     tags: (t.tags ?? []).map((tag) => tag.slug),
   };
 }
@@ -314,7 +315,10 @@ export async function getRelatedNewsForTombstone(
   const related = await apiGetRelatedNews(tombstone.slug);
 
   return related
-    .filter((article) => article.slug !== pressReleaseSlug)
+    .filter(
+      (article) =>
+        article.slug !== pressReleaseSlug && (article.category || '').toLowerCase() === 'news'
+    )
     .slice(0, 5)
     .map((article) => ({
       slug: article.slug,
@@ -339,7 +343,9 @@ export async function getRelatedNewsForNews(article: NewsArticle): Promise<NewsA
   const { articles } = await getRelatedContentForBlogPost(article.slug);
 
   return articles
-    .filter((a) => a.slug !== article.slug)
+    .filter(
+      (a) => a.slug !== article.slug && (a.category || '').toLowerCase() === 'news'
+    )
     .slice(0, 4)
     .map((a) => ({
       slug: a.slug,
@@ -438,7 +444,12 @@ export async function getTeamMembersByCategory(): Promise<{
       getTeamMembers('leadership'),
       getTeamMembers('analyst'),
     ]);
-    return { leadership, analysts };
+    const mapTeam = (members: ApiTeamMember[]) =>
+      members.map((member) => ({
+        ...member,
+        image: toAssetUrl(member.image) || member.image,
+      }));
+    return { leadership: mapTeam(leadership), analysts: mapTeam(analysts) };
   } catch {
     return { leadership: [], analysts: [] };
   }
@@ -460,7 +471,11 @@ export async function getAllFAQs(): Promise<ApiFAQ[]> {
  */
 export async function getAllCoreValues(): Promise<ApiCoreValue[]> {
   try {
-    return await getCoreValues();
+    const values = await getCoreValues();
+    return values.map((value) => ({
+      ...value,
+      icon: toAssetUrl(value.icon) || value.icon,
+    }));
   } catch {
     return [];
   }

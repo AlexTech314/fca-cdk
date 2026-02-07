@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { siteConfig } from './utils';
+import { fetchSiteConfig, toAssetUrl } from './utils';
 import { getTagDisplayName as getTaxonomyTagName, TAG_MAP } from './taxonomy';
 
 /**
@@ -81,61 +81,63 @@ export type GroupingType = 'tag' | 'state' | 'city' | 'year' | 'news-tag';
 /**
  * Generate SEO-optimized metadata for grouping pages
  */
-export function generateGroupingMetadata(
+export async function generateGroupingMetadata(
   type: GroupingType,
   value: string,
   count: number,
   additionalContext?: { state?: string }
-): Metadata {
+): Promise<Metadata> {
+  const config = await fetchSiteConfig();
+  const ogImageUrl = toAssetUrl(config.ogImage) || config.ogImage;
   let title: string;
   let description: string;
   let canonicalPath: string;
 
   switch (type) {
     case 'tag':
-      title = `${formatTagName(value)} M&A Transactions (${count} Deals) | Flatirons Capital`;
+      title = `${formatTagName(value)} M&A Transactions (${count} Deals) | ${config.name}`;
       // Use taxonomy description if available, otherwise generate generic one
       const tagDef = TAG_MAP[value];
       description = tagDef?.description 
         ? tagDef.description.slice(0, 155) + '...'
-        : `Browse ${count} completed ${formatTagName(value).toLowerCase()} M&A transactions. Flatirons Capital Advisors specializes in lower middle-market mergers and acquisitions.`;
+        : `Browse ${count} completed ${formatTagName(value).toLowerCase()} M&A transactions. ${config.name} specializes in lower middle-market mergers and acquisitions.`;
       canonicalPath = `/transactions/tag/${value}`;
       break;
 
     case 'state':
       const stateName = getStateName(value);
-      title = `${stateName} M&A Transactions | Flatirons Capital`;
-      description = `Explore ${count} completed M&A transactions in ${stateName}. Flatirons Capital Advisors is a trusted M&A advisor in the lower middle-market.`;
+      title = `${stateName} M&A Transactions | ${config.name}`;
+      description = `Explore ${count} completed M&A transactions in ${stateName}. ${config.name} is a trusted M&A advisor in the lower middle-market.`;
       canonicalPath = `/transactions/state/${value.toLowerCase()}`;
       break;
 
     case 'city':
       const cityDisplay = formatTagName(value);
       const stateDisplay = additionalContext?.state ? `, ${getStateName(additionalContext.state)}` : '';
-      title = `${cityDisplay}${stateDisplay} M&A Deals | Flatirons Capital`;
-      description = `View ${count} completed M&A transactions in ${cityDisplay}${stateDisplay}. Expert sell-side and buy-side advisory from Flatirons Capital Advisors.`;
+      title = `${cityDisplay}${stateDisplay} M&A Deals | ${config.name}`;
+      description = `View ${count} completed M&A transactions in ${cityDisplay}${stateDisplay}. Expert sell-side and buy-side advisory from ${config.name}.`;
       canonicalPath = `/transactions/city/${value}`;
       break;
 
     case 'year':
-      title = `${value} Completed Transactions | Flatirons Capital`;
-      description = `Review ${count} M&A transactions completed in ${value}. See our track record of successful deals at Flatirons Capital Advisors.`;
+      title = `${value} Completed Transactions | ${config.name}`;
+      description = `Review ${count} M&A transactions completed in ${value}. See our track record of successful deals at ${config.name}.`;
       canonicalPath = `/transactions/year/${value}`;
       break;
 
     case 'news-tag':
-      title = `${formatTagName(value)} News & Insights (${count} Articles) | Flatirons Capital`;
+      title = `${formatTagName(value)} News & Insights (${count} Articles) | ${config.name}`;
       // Use taxonomy description if available for news tags too
       const newsTagDef = TAG_MAP[value];
       description = newsTagDef?.description 
         ? newsTagDef.description.slice(0, 155) + '...'
-        : `Read ${count} news articles and insights about ${formatTagName(value).toLowerCase()} from Flatirons Capital Advisors, a leading M&A advisory firm.`;
+        : `Read ${count} news articles and insights about ${formatTagName(value).toLowerCase()} from ${config.name}, a leading M&A advisory firm.`;
       canonicalPath = `/news/tag/${value}`;
       break;
 
     default:
-      title = `M&A Transactions | Flatirons Capital Advisors`;
-      description = siteConfig.description;
+      title = `M&A Transactions | ${config.name}`;
+      description = config.description;
       canonicalPath = '/transactions';
   }
 
@@ -143,20 +145,20 @@ export function generateGroupingMetadata(
     title,
     description,
     alternates: {
-      canonical: `${siteConfig.url}${canonicalPath}`,
+      canonical: `${config.url}${canonicalPath}`,
     },
     openGraph: {
       title,
       description,
-      url: `${siteConfig.url}${canonicalPath}`,
+      url: `${config.url}${canonicalPath}`,
       type: 'website',
-      siteName: siteConfig.name,
+      siteName: config.name,
       images: [
         {
-          url: `${siteConfig.url}${siteConfig.ogImage}`,
+          url: ogImageUrl,
           width: 1200,
           height: 630,
-          alt: siteConfig.name,
+          alt: config.name,
         },
       ],
     },
@@ -179,7 +181,8 @@ export interface BreadcrumbItem {
 /**
  * Generate JSON-LD BreadcrumbList schema
  */
-export function generateBreadcrumbSchema(items: BreadcrumbItem[]): object {
+export async function generateBreadcrumbSchema(items: BreadcrumbItem[]): Promise<object> {
+  const config = await fetchSiteConfig();
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -187,7 +190,7 @@ export function generateBreadcrumbSchema(items: BreadcrumbItem[]): object {
       '@type': 'ListItem',
       position: index + 1,
       name: item.name,
-      ...(item.url && { item: `${siteConfig.url}${item.url}` }),
+      ...(item.url && { item: `${config.url}${item.url}` }),
     })),
   };
 }
@@ -195,23 +198,24 @@ export function generateBreadcrumbSchema(items: BreadcrumbItem[]): object {
 /**
  * Generate JSON-LD CollectionPage schema for grouping pages
  */
-export function generateCollectionPageSchema(params: {
+export async function generateCollectionPageSchema(params: {
   name: string;
   description: string;
   url: string;
   numberOfItems: number;
-}): object {
+}): Promise<object> {
+  const config = await fetchSiteConfig();
   return {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
     name: params.name,
     description: params.description,
-    url: `${siteConfig.url}${params.url}`,
+    url: `${config.url}${params.url}`,
     numberOfItems: params.numberOfItems,
     provider: {
       '@type': 'Organization',
-      name: siteConfig.name,
-      url: siteConfig.url,
+      name: config.name,
+      url: config.url,
     },
   };
 }
@@ -219,13 +223,13 @@ export function generateCollectionPageSchema(params: {
 /**
  * Generate combined JSON-LD schema for a grouping page
  */
-export function generateGroupingPageSchema(params: {
+export async function generateGroupingPageSchema(params: {
   type: GroupingType;
   value: string;
   displayName: string;
   count: number;
   breadcrumbs: BreadcrumbItem[];
-}): string {
+}): Promise<string> {
   const { type, value, displayName, count, breadcrumbs } = params;
   
   let url: string;
@@ -234,7 +238,7 @@ export function generateGroupingPageSchema(params: {
   switch (type) {
     case 'tag':
       url = `/transactions/tag/${value}`;
-      description = `${displayName} M&A transactions from Flatirons Capital Advisors`;
+      description = `${displayName} M&A transactions from ${(await fetchSiteConfig()).name}`;
       break;
     case 'state':
       url = `/transactions/state/${value.toLowerCase()}`;
@@ -258,8 +262,8 @@ export function generateGroupingPageSchema(params: {
   }
 
   const schemas = [
-    generateBreadcrumbSchema(breadcrumbs),
-    generateCollectionPageSchema({
+    await generateBreadcrumbSchema(breadcrumbs),
+    await generateCollectionPageSchema({
       name: displayName,
       description,
       url,

@@ -9,12 +9,14 @@ import { subscriberService } from '../services/subscriber.service';
 import { sellerIntakeService } from '../services/seller-intake.service';
 import { analyticsService } from '../services/analytics.service';
 import {
+  siteConfigService,
   teamMemberService,
   communityServiceService,
   faqService,
   coreValueService,
   industrySectorService,
   serviceOfferingService,
+  awardService,
 } from '../services/static-content.service';
 import {
   createTombstoneSchema,
@@ -44,6 +46,9 @@ import {
   createServiceOfferingSchema,
   updateServiceOfferingSchema,
   serviceOfferingQuerySchema,
+  updateSiteConfigSchema,
+  createAwardSchema,
+  updateAwardSchema,
   reorderSchema,
 } from '../models';
 
@@ -51,6 +56,31 @@ const router = Router();
 
 // Apply authentication to all admin routes
 router.use(authenticate);
+
+// ============================================
+// SITE CONFIG
+// ============================================
+
+router.get('/site-config', async (_req, res, next) => {
+  try {
+    const config = await siteConfigService.get();
+    if (!config) {
+      return res.status(404).json({ error: 'Site config not found' });
+    }
+    res.json(config);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/site-config', authorize('admin'), validate(updateSiteConfigSchema), async (req, res, next) => {
+  try {
+    const config = await siteConfigService.update(req.body);
+    res.json(config);
+  } catch (error) {
+    next(error);
+  }
+});
 
 // ============================================
 // TOMBSTONES
@@ -683,6 +713,67 @@ router.delete('/service-offerings/:id', authorize('admin'), async (req, res, nex
   try {
     await serviceOfferingService.delete(req.params.id);
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================
+// AWARDS
+// ============================================
+
+router.get('/awards', async (_req, res, next) => {
+  try {
+    const awards = await awardService.list();
+    res.json(awards);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/awards/:id', async (req, res, next) => {
+  try {
+    const award = await awardService.getById(req.params.id);
+    if (!award) {
+      return res.status(404).json({ error: 'Award not found' });
+    }
+    res.json(award);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/awards', authorize('readwrite', 'admin'), validate(createAwardSchema), async (req, res, next) => {
+  try {
+    const award = await awardService.create(req.body);
+    res.status(201).json(award);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/awards/:id', authorize('readwrite', 'admin'), validate(updateAwardSchema), async (req, res, next) => {
+  try {
+    const award = await awardService.update(req.params.id, req.body);
+    res.json(award);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/awards/:id', authorize('admin'), async (req, res, next) => {
+  try {
+    await awardService.delete(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/awards/reorder', authorize('readwrite', 'admin'), validate(reorderSchema), async (req, res, next) => {
+  try {
+    await awardService.reorder(req.body.items);
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

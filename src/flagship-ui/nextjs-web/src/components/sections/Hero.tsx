@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { siteConfig } from '@/lib/utils';
+import { siteConfig, toAssetUrl } from '@/lib/utils';
 
 interface HeroProps {
   title: string;
@@ -22,10 +22,11 @@ export function Hero({
   ctaHref = '/contact',
   secondaryCtaText,
   secondaryCtaHref,
-  heroImage = '/flatironshero.jpg',
+  heroImage,
   showImage = true,
   compact = false,
 }: HeroProps) {
+  const resolvedHeroImage = heroImage ? (toAssetUrl(heroImage) || heroImage) : undefined;
   if (compact) {
     return (
       <section
@@ -63,10 +64,10 @@ export function Hero({
   return (
     <section className="relative min-h-[600px] overflow-hidden md:min-h-[700px]">
       {/* Background Image */}
-      {showImage && (
+      {showImage && resolvedHeroImage && (
         <div className="absolute inset-0">
           <Image
-            src={heroImage}
+            src={resolvedHeroImage}
             alt="Flatirons mountain range - symbolizing stability and strength in M&A advisory"
             fill
             priority

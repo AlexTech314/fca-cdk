@@ -120,6 +120,58 @@ export type UpdateServiceOfferingInput = z.infer<typeof updateServiceOfferingSch
 export type ServiceOfferingQuery = z.infer<typeof serviceOfferingQuerySchema>;
 
 // ============================================
+// SITE CONFIG
+// ============================================
+
+const navItemSchema = z.object({
+  name: z.string().min(1),
+  href: z.string().min(1),
+});
+
+const locationSchema = z.object({
+  city: z.string().min(1),
+  state: z.string().min(1),
+});
+
+const footerNavSchema = z.object({
+  services: z.array(navItemSchema).default([]),
+  company: z.array(navItemSchema).default([]),
+  resources: z.array(navItemSchema).default([]),
+});
+
+export const updateSiteConfigSchema = z.object({
+  name: z.string().min(1).optional(),
+  tagline: z.string().optional().nullable(),
+  url: z.string().url().optional(),
+  description: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  email: z.string().email().optional().nullable(),
+  linkedIn: z.string().url().optional().nullable(),
+  ogImage: z.string().optional().nullable(),
+  locations: z.array(locationSchema).optional(),
+  navItems: z.array(navItemSchema).optional(),
+  footerNav: footerNavSchema.optional(),
+});
+
+export type UpdateSiteConfigInput = z.infer<typeof updateSiteConfigSchema>;
+
+// ============================================
+// AWARD
+// ============================================
+
+export const createAwardSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  image: z.string().min(1, 'Image is required'),
+  sortOrder: z.number().int().default(0),
+  isPublished: z.boolean().default(true),
+});
+
+export const updateAwardSchema = createAwardSchema.partial();
+
+export type CreateAwardInput = z.infer<typeof createAwardSchema>;
+export type UpdateAwardInput = z.infer<typeof updateAwardSchema>;
+
+// ============================================
 // REORDER
 // ============================================
 

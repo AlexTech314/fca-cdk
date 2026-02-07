@@ -75,15 +75,6 @@ export default async function AboutPage() {
                 </>
               )}
             </div>
-            <div className="mt-8">
-              <Button
-                href="https://www.dropbox.com/scl/fi/c0u3a41rqnylsysj5tbpj/Flatirons-Brochure-2025.pdf?rlkey=gva0sl9j7uxumaji5e05zpn7n&st=hhocbgb9&dl=0"
-                external
-                variant="outline"
-              >
-                Download Corporate Overview (PDF)
-              </Button>
-            </div>
           </div>
         </Container>
       </section>
@@ -269,7 +260,7 @@ export default async function AboutPage() {
         <Container>
           <div className="mb-8 flex justify-center">
             <Image
-              src="/logos/fca-mountain-on-white.png"
+              src="https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/logos/fca-mountain-on-white.png"
               alt="Flatirons Capital Advisors"
               width={200}
               height={80}

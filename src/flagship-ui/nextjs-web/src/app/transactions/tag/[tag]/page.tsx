@@ -46,7 +46,7 @@ export default async function TransactionsByTagPage({ params }: PageProps) {
     { name: displayName },
   ];
 
-  const schema = generateGroupingPageSchema({
+  const schema = await generateGroupingPageSchema({
     type: 'tag',
     value: tag,
     displayName,

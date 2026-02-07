@@ -2,9 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { navItems } from '@/lib/utils';
 
-export function Navigation() {
+interface NavigationProps {
+  navItems: { name: string; href: string }[];
+}
+
+export function Navigation({ navItems }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (

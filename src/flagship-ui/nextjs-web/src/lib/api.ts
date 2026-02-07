@@ -50,6 +50,26 @@ async function apiPost<T>(endpoint: string, body: unknown): Promise<T> {
 // TYPES
 // ============================================
 
+export interface ApiSiteConfig {
+  id: string;
+  name: string;
+  tagline: string | null;
+  url: string;
+  description: string | null;
+  phone: string | null;
+  email: string | null;
+  linkedIn: string | null;
+  ogImage: string | null;
+  locations: { city: string; state: string }[];
+  navItems: { name: string; href: string }[];
+  footerNav: {
+    services: { name: string; href: string }[];
+    company: { name: string; href: string }[];
+    resources: { name: string; href: string }[];
+  };
+  updatedAt: string;
+}
+
 export interface ApiTombstone {
   id: string;
   name: string;
@@ -162,6 +182,14 @@ export interface ApiServiceOffering {
   isPublished: boolean;
 }
 
+export interface ApiAward {
+  id: string;
+  name: string;
+  image: string;
+  sortOrder: number;
+  isPublished: boolean;
+}
+
 export interface ApiCommunityService {
   id: string;
   name: string;
@@ -177,6 +205,18 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+// ============================================
+// SITE CONFIG
+// ============================================
+
+export async function getSiteConfig(): Promise<ApiSiteConfig | null> {
+  try {
+    return await apiFetch<ApiSiteConfig>('/site-config');
+  } catch {
+    return null;
+  }
 }
 
 // ============================================
@@ -318,6 +358,10 @@ export async function getCoreValues(): Promise<ApiCoreValue[]> {
 
 export async function getIndustrySectors(): Promise<ApiIndustrySector[]> {
   return apiFetch<ApiIndustrySector[]>('/industry-sectors');
+}
+
+export async function getAwards(): Promise<ApiAward[]> {
+  return apiFetch<ApiAward[]>('/awards');
 }
 
 export async function getServiceOfferings(params?: {

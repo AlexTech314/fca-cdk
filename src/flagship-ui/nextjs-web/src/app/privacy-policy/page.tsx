@@ -1,25 +1,33 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { Container } from '@/components/ui/Container';
 import { Hero } from '@/components/sections/Hero';
 import { MarkdownContent } from '@/components/common/MarkdownContent';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 import { getPageData, parseMarkdownContent } from '@/lib/data';
 
-export const metadata: Metadata = {
-  title: 'Privacy Policy',
-  description:
-    'Privacy Policy for Flatirons Capital Advisors. Learn how we collect, use, and protect your personal information.',
-  alternates: {
-    canonical: `${siteConfig.url}/privacy-policy`,
-  },
-  robots: {
-    index: false,
-    follow: true,
-  },
-};
+interface PrivacyMetadata {
+  metaDescription?: string;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const [config, pageContent] = await Promise.all([
+    fetchSiteConfig(),
+    getPageData('privacy-policy'),
+  ]);
+  const meta = (pageContent?.metadata || {}) as PrivacyMetadata;
+  return {
+    title: 'Privacy Policy',
+    description: meta.metaDescription || config.description,
+    alternates: { canonical: `${config.url}/privacy-policy` },
+    robots: { index: false, follow: true },
+  };
+}
 
 export default async function PrivacyPolicyPage() {
-  const pageContent = await getPageData('privacy-policy');
+  const [pageContent, config] = await Promise.all([
+    getPageData('privacy-policy'),
+    fetchSiteConfig(),
+  ]);
 
   const contentBlocks = pageContent?.content
     ? parseMarkdownContent(pageContent.content)
@@ -37,7 +45,7 @@ export default async function PrivacyPolicyPage() {
             ) : (
               <p className="text-text-muted">
                 Privacy policy content is being updated. Please contact us at{' '}
-                {siteConfig.email} with any questions.
+                {config.email} with any questions.
               </p>
             )}
           </div>

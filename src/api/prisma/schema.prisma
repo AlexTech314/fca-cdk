@@ -318,19 +318,21 @@ model ServiceOffering {
 }
 
 model SiteConfig {
-  id          String   @id @default("default")  // Single-row config
-  name        String                            // Company name
-  tagline     String?
-  url         String                            // Website URL
-  description String?
-  phone       String?
-  email       String?
-  linkedIn    String?  @map("linkedin")
-  ogImage     String?  @map("og_image")
-  locations   Json     @default("[]")           // [{city, state}]
-  navItems    Json     @default("[]")           // [{name, href}]
-  footerNav   Json     @default("{}")           // {services: [], company: [], resources: []}
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id            String   @id @default("default")  // Single-row config
+  name          String                            // Company name
+  tagline       String?
+  url           String                            // Website URL
+  description   String?
+  phone         String?
+  email         String?
+  linkedIn      String?  @map("linkedin")
+  ogImage       String?  @map("og_image")
+  locations     Json     @default("[]")           // [{city, state}]
+  navItems      Json     @default("[]")           // [{name, href}]
+  footerNav     Json     @default("{}")           // {services: [], company: [], resources: []}
+  serviceTypes  Json     @default("[]") @map("service_types")   // ["Mergers and Acquisitions Advisory", ...]
+  companyBlurb  String?  @map("company_blurb")                  // Short company description for sidebars
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("site_config")
 }

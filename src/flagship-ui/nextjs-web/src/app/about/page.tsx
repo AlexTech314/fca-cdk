@@ -1,11 +1,11 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { Button } from '@/components/ui/Button';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 import {
   getPageData,
   getServicesByCategory,
@@ -13,14 +13,39 @@ import {
   getAllCoreValues,
 } from '@/lib/data';
 
-export const metadata: Metadata = {
-  title: 'About',
-  description:
-    'Flatirons Capital Advisors is a leading mergers and acquisitions advisor to lower middle-market companies with decades of transaction advisory experience.',
-  alternates: {
-    canonical: `${siteConfig.url}/about`,
-  },
-};
+interface AboutMetadata {
+  metaDescription?: string;
+  heroDescription?: string;
+  companyHeading?: string;
+  servicesSubtitle?: string;
+  servicesTitle?: string;
+  servicesDescription?: string;
+  buySideHeading?: string;
+  sellSideHeading?: string;
+  strategicHeading?: string;
+  targetSubtitle?: string;
+  targetTitle?: string;
+  financialCriteriaHeading?: string;
+  financialCriteria?: string[];
+  otherCriteriaHeading?: string;
+  otherCriteria?: string[];
+  industrySectorsHeading?: string;
+  valuesSubtitle?: string;
+  valuesTitle?: string;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const [config, pageContent] = await Promise.all([
+    fetchSiteConfig(),
+    getPageData('about'),
+  ]);
+  const meta = (pageContent?.metadata || {}) as AboutMetadata;
+  return {
+    title: 'About',
+    description: meta.metaDescription || config.description,
+    alternates: { canonical: `${config.url}/about` },
+  };
+}
 
 export default async function AboutPage() {
   const [
@@ -39,6 +64,7 @@ export default async function AboutPage() {
     getAllCoreValues(),
   ]);
 
+  const meta = (pageContent?.metadata || {}) as AboutMetadata;
   const contentParagraphs = pageContent?.content
     ? pageContent.content.split('\n\n').filter((p) => p.trim())
     : [];
@@ -46,8 +72,8 @@ export default async function AboutPage() {
   return (
     <>
       <Hero
-        title={pageContent?.title || 'Mergers & Acquisitions for Middle Markets'}
-        description="With decades of transaction advisory experience, our founders identified a growing need to bring together a more comprehensive suite of professional resources."
+        title={pageContent?.title || ''}
+        description={meta.heroDescription}
         compact
       />
 
@@ -56,24 +82,10 @@ export default async function AboutPage() {
         <Container>
           <div className="mx-auto max-w-3xl">
             <h2 className="mb-6 text-3xl font-bold text-primary">
-              Flatirons Capital Advisors
+              {meta.companyHeading || pageContent?.title || ''}
             </h2>
             <div className="space-y-4 text-lg text-text-muted">
-              {contentParagraphs.length > 0 ? (
-                contentParagraphs.map((p, i) => <p key={i}>{p}</p>)
-              ) : (
-                <>
-                  <p>
-                    Flatirons Capital Advisors is a leading mergers and acquisitions
-                    advisor to lower middle-market companies.
-                  </p>
-                  <p>
-                    Our buyer relationships are crucial to our ongoing success in
-                    making markets for our clients and completing transactions in
-                    record time.
-                  </p>
-                </>
-              )}
+              {contentParagraphs.map((p, i) => <p key={i}>{p}</p>)}
             </div>
           </div>
         </Container>
@@ -83,16 +95,16 @@ export default async function AboutPage() {
       <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
         <Container>
           <SectionHeading
-            subtitle="Our Services"
-            title="Mergers & Acquisitions"
-            description="The focus of our advisory services is to help you make the right strategic moves to protect what you've built."
+            subtitle={meta.servicesSubtitle}
+            title={meta.servicesTitle}
+            description={meta.servicesDescription}
           />
 
           <div className="grid gap-8 md:grid-cols-3">
             {/* Buy-Side */}
             <div className="rounded-xl border border-border bg-white p-8 shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10">
               <h3 className="mb-4 text-xl font-semibold text-primary">
-                Buy-side Advisory
+                {meta.buySideHeading || 'Buy-side Advisory'}
               </h3>
               <ul className="space-y-3">
                 {buySideServices.map((service) => (
@@ -125,7 +137,7 @@ export default async function AboutPage() {
             {/* Sell-Side */}
             <div className="rounded-xl border border-border bg-white p-8 shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10">
               <h3 className="mb-4 text-xl font-semibold text-primary">
-                Sell-side Advisory
+                {meta.sellSideHeading || 'Sell-side Advisory'}
               </h3>
               <ul className="space-y-3">
                 {sellSideServices.map((service) => (
@@ -158,7 +170,7 @@ export default async function AboutPage() {
             {/* Strategic Consulting */}
             <div className="rounded-xl border border-border bg-white p-8 shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10">
               <h3 className="mb-4 text-xl font-semibold text-primary">
-                Strategic Consulting
+                {meta.strategicHeading || 'Strategic Consulting'}
               </h3>
               <ul className="space-y-3">
                 {strategicServices.map((service) => (
@@ -190,54 +202,48 @@ export default async function AboutPage() {
       <section className="py-16 md:py-24">
         <Container>
           <SectionHeading
-            subtitle="Target Profile"
-            title="Industry Focus & Investment Criteria"
+            subtitle={meta.targetSubtitle}
+            title={meta.targetTitle}
           />
 
+          {((meta.financialCriteria && meta.financialCriteria.length > 0) || (meta.otherCriteria && meta.otherCriteria.length > 0)) && (
           <div className="mb-12 grid gap-8 md:grid-cols-2">
+            {meta.financialCriteria && meta.financialCriteria.length > 0 && (
             <div className="rounded-xl border border-border bg-white p-8">
               <h3 className="mb-4 text-lg font-semibold text-text">
-                Financial Criteria
+                {meta.financialCriteriaHeading || 'Financial Criteria'}
               </h3>
               <ul className="space-y-3 text-text-muted">
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
-                  EBITDA greater than $2.0M
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
-                  No minimal EBITDA requirement for add-on acquisitions
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
-                  Increasing revenue
-                </li>
+                {meta.financialCriteria.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
+                    {item}
+                  </li>
+                ))}
               </ul>
             </div>
+            )}
 
+            {meta.otherCriteria && meta.otherCriteria.length > 0 && (
             <div className="rounded-xl border border-border bg-white p-8">
               <h3 className="mb-4 text-lg font-semibold text-text">
-                Other Criteria
+                {meta.otherCriteriaHeading || 'Other Criteria'}
               </h3>
               <ul className="space-y-3 text-text-muted">
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
-                  Strong 2nd tier management
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
-                  Customer & revenue diversification
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
-                  Competitive differentiation & healthy growth potential
-                </li>
+                {meta.otherCriteria.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
+                    {item}
+                  </li>
+                ))}
               </ul>
             </div>
+            )}
           </div>
+          )}
 
           <h3 className="mb-6 text-center text-xl font-semibold text-text">
-            Industry Sectors
+            {meta.industrySectorsHeading || 'Industry Sectors'}
           </h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {industrySectors.map((sector) => (
@@ -267,7 +273,7 @@ export default async function AboutPage() {
               className="h-16 w-auto"
             />
           </div>
-          <SectionHeading subtitle="Our Principles" title="Core Values" />
+          <SectionHeading subtitle={meta.valuesSubtitle} title={meta.valuesTitle} />
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {coreValues.map((value) => (

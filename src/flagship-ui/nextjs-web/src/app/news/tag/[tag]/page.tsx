@@ -5,7 +5,7 @@ import { Container } from '@/components/ui/Container';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { NewsGrid } from '@/components/sections/NewsGrid';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
-import { getAllNewsTags, getNewsArticlesByTag, getTombstonesByTag } from '@/lib/data';
+import { getAllNewsTags, getNewsArticlesByTag, getTombstonesByTag, getTagNamesMap } from '@/lib/data';
 import { 
   formatTagName, 
   generateGroupingMetadata, 
@@ -59,7 +59,7 @@ export default async function NewsByTagPage({ params }: PageProps) {
   const relatedTombstones = await getTombstonesByTag(tag);
 
   // Fetch all news tags for ContentExplorer
-  const newsTags = await getAllNewsTags();
+  const [newsTags, tagNames] = await Promise.all([getAllNewsTags(), getTagNamesMap()]);
 
   return (
     <>
@@ -111,7 +111,7 @@ export default async function NewsByTagPage({ params }: PageProps) {
           <NewsGrid articles={articles} />
 
           <div className="mt-12">
-            <ContentExplorer type="news" tags={newsTags} />
+            <ContentExplorer type="news" tags={newsTags} tagNames={tagNames} />
           </div>
         </Container>
       </section>

@@ -1,29 +1,41 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { ExpandBioButton } from '@/components/ui/ExpandBioButton';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 import {
   getPageData,
   getTeamMembersByCategory,
   getAllCommunityServices,
 } from '@/lib/data';
 
-export const metadata: Metadata = {
-  title: 'Team',
-  description:
-    'Meet the leadership team at Flatirons Capital Advisors. Our experienced M&A professionals bring decades of transaction advisory expertise.',
-  alternates: {
-    canonical: `${siteConfig.url}/team`,
-  },
-};
-
 interface TeamMetadata {
+  metaDescription?: string;
   description?: string;
+  leadershipSubtitle?: string;
+  leadershipTitle?: string;
+  leadershipDescription?: string;
+  analystSubtitle?: string;
+  analystTitle?: string;
+  communitySubtitle?: string;
+  communityTitle?: string;
   communityDescription?: string;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const [config, pageContent] = await Promise.all([
+    fetchSiteConfig(),
+    getPageData('team'),
+  ]);
+  const meta = (pageContent?.metadata || {}) as TeamMetadata;
+  return {
+    title: 'Team',
+    description: meta.metaDescription || config.description,
+    alternates: { canonical: `${config.url}/team` },
+  };
 }
 
 export default async function TeamPage() {
@@ -48,9 +60,9 @@ export default async function TeamPage() {
       <section className="py-16 md:py-24">
         <Container>
           <SectionHeading
-            subtitle="Our People"
-            title="Leadership Team"
-            description="With decades of transaction advisory experience, our leadership team brings unparalleled expertise to every engagement."
+            subtitle={meta.leadershipSubtitle}
+            title={meta.leadershipTitle}
+            description={meta.leadershipDescription}
           />
 
           <div className="grid gap-8 lg:grid-cols-2">
@@ -127,7 +139,7 @@ export default async function TeamPage() {
       {analysts.length > 0 && (
         <section className="bg-surface py-16 md:py-24">
           <Container>
-            <SectionHeading subtitle="Supporting Team" title="Analysts" />
+            <SectionHeading subtitle={meta.analystSubtitle} title={meta.analystTitle} />
 
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {analysts.map((member) => (
@@ -188,9 +200,9 @@ export default async function TeamPage() {
         <section className="py-16 md:py-24">
           <Container>
             <SectionHeading
-              subtitle="Giving Back"
-              title="Community Service"
-              description={meta.communityDescription || 'The entire team at Flatirons Capital Advisors loves giving back to the community.'}
+              subtitle={meta.communitySubtitle}
+              title={meta.communityTitle}
+              description={meta.communityDescription}
             />
 
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

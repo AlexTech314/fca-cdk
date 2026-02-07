@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { getTagDisplayName } from '@/lib/taxonomy';
 import { stateNames } from '@/lib/seo';
 
 /**
@@ -21,6 +20,8 @@ interface ContentExplorerProps {
   states?: string[];
   cities?: string[];
   years?: number[];
+  /** Map of tag slug -> display name, provided by server component */
+  tagNames?: Record<string, string>;
 }
 
 type TabType = 'industry' | 'state' | 'city' | 'year';
@@ -61,12 +62,20 @@ const TAB_CONFIG = {
   },
 };
 
+/**
+ * Format tag slug for display (capitalize words) - client-safe fallback
+ */
+function formatTagSlug(slug: string): string {
+  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
 export function ContentExplorer({
   type,
   tags,
   states = [],
   cities = [],
   years = [],
+  tagNames = {},
 }: ContentExplorerProps) {
   const [activeTab, setActiveTab] = useState<TabType>('industry');
 
@@ -86,7 +95,7 @@ export function ContentExplorer({
           <>
             {tags.map((tag) => (
               <Link key={tag} href={`${basePath}/tag/${tag}`} className={linkClass}>
-                {getTagDisplayName(tag)}
+                {tagNames[tag] || formatTagSlug(tag)}
               </Link>
             ))}
           </>

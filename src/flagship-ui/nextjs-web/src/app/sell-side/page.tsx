@@ -1,27 +1,40 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { Button } from '@/components/ui/Button';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 import { getPageData, getServicesByCategory } from '@/lib/data';
 
-export const metadata: Metadata = {
-  title: 'Sell-Side Advisory',
-  description:
-    'Sell-side M&A advisory services from Flatirons Capital Advisors. Private company exits, recapitalizations, divestitures, and generational transfers for business owners.',
-  alternates: {
-    canonical: `${siteConfig.url}/sell-side`,
-  },
-};
-
 interface SellSideMetadata {
+  metaDescription?: string;
   subtitle?: string;
   description?: string;
+  servicesSubtitle?: string;
+  servicesTitle?: string;
+  servicesDescription?: string;
+  processSubtitle?: string;
+  processTitle?: string;
+  processDescription?: string;
+  advantageTitle?: string;
+  advantageSubtitle?: string;
   ctaTitle?: string;
   ctaDescription?: string;
   whyChooseUs?: string[];
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const [config, pageContent] = await Promise.all([
+    fetchSiteConfig(),
+    getPageData('sell-side'),
+  ]);
+  const meta = (pageContent?.metadata || {}) as SellSideMetadata;
+  return {
+    title: 'Sell-Side Advisory',
+    description: meta.metaDescription || config.description,
+    alternates: { canonical: `${config.url}/sell-side` },
+  };
 }
 
 export default async function SellSidePage() {
@@ -68,9 +81,9 @@ export default async function SellSidePage() {
         <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
           <Container>
             <SectionHeading
-              subtitle="What We Offer"
-              title="Sell-Side Services"
-              description="Comprehensive advisory services tailored to your specific situation and goals."
+              subtitle={meta.servicesSubtitle}
+              title={meta.servicesTitle}
+              description={meta.servicesDescription}
             />
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -97,9 +110,9 @@ export default async function SellSidePage() {
         <section className="py-16 md:py-24">
           <Container>
             <SectionHeading
-              subtitle="How We Work"
-              title="Our Proven Process"
-              description="A structured approach that has delivered results for over 200 transactions."
+              subtitle={meta.processSubtitle}
+              title={meta.processTitle}
+              description={meta.processDescription}
             />
 
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
@@ -130,10 +143,10 @@ export default async function SellSidePage() {
             <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
               <div>
                 <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-secondary">
-                  The Flatirons Advantage
+                  {meta.advantageTitle || 'The Flatirons Advantage'}
                 </p>
                 <h2 className="mb-6 text-3xl font-bold text-primary md:text-4xl">
-                  Why Choose Flatirons?
+                  {meta.advantageSubtitle || 'Why Choose Flatirons?'}
                 </h2>
                 {approachText.map((p, i) => (
                   <p key={i} className={`text-lg text-text-muted${i > 0 ? ' mt-4' : ''}`}>

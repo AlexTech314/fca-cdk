@@ -1,23 +1,28 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { Container } from '@/components/ui/Container';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 import { getPageData, getAllFAQs } from '@/lib/data';
 
-export const metadata: Metadata = {
-  title: 'FAQ',
-  description:
-    'Frequently asked questions about M&A transactions, business valuation, and working with Flatirons Capital Advisors.',
-  alternates: {
-    canonical: `${siteConfig.url}/faq`,
-  },
-};
-
 interface FAQMetadata {
+  metaDescription?: string;
   description?: string;
   ctaTitle?: string;
   ctaDescription?: string;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const [config, pageContent] = await Promise.all([
+    fetchSiteConfig(),
+    getPageData('faq'),
+  ]);
+  const meta = (pageContent?.metadata || {}) as FAQMetadata;
+  return {
+    title: 'FAQ',
+    description: meta.metaDescription || config.description,
+    alternates: { canonical: `${config.url}/faq` },
+  };
 }
 
 export default async function FAQPage() {

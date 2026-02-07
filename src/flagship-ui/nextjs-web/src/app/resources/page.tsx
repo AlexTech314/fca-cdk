@@ -1,26 +1,33 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { getResourceArticles, getPageData } from '@/lib/data';
-import { siteConfig } from '@/lib/utils';
-
-export const metadata: Metadata = {
-  title: 'Resources',
-  description:
-    'M&A resources and guides for business owners. Learn about selling your business, recapitalizations, exit planning, and more.',
-  alternates: {
-    canonical: `${siteConfig.url}/resources`,
-  },
-};
+import { fetchSiteConfig } from '@/lib/utils';
 
 interface ResourcesMetadata {
+  metaDescription?: string;
   subtitle?: string;
   description?: string;
+  sectionSubtitle?: string;
+  sectionTitle?: string;
   ctaTitle?: string;
   ctaDescription?: string;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const [config, pageContent] = await Promise.all([
+    fetchSiteConfig(),
+    getPageData('resources'),
+  ]);
+  const meta = (pageContent?.metadata || {}) as ResourcesMetadata;
+  return {
+    title: 'Resources',
+    description: meta.metaDescription || config.description,
+    alternates: { canonical: `${config.url}/resources` },
+  };
 }
 
 export default async function ResourcesPage() {
@@ -43,8 +50,8 @@ export default async function ResourcesPage() {
       <section className="py-16 md:py-24">
         <Container>
           <SectionHeading
-            subtitle="Expert Insights"
-            title="Articles for Business Owners"
+            subtitle={meta.sectionSubtitle}
+            title={meta.sectionTitle}
           />
 
           <div className="grid gap-6 md:grid-cols-2">

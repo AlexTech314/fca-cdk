@@ -14,9 +14,10 @@ import {
   getAllTombstoneTags,
   getAllStates,
   getAllCities,
-  getAllTransactionYears
+  getAllTransactionYears,
+  getTagNamesMap,
 } from '@/lib/data';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -31,7 +32,10 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const tombstone = await getTombstone(slug);
+  const [tombstone, config] = await Promise.all([
+    getTombstone(slug),
+    fetchSiteConfig(),
+  ]);
 
   if (!tombstone) {
     return {
@@ -45,10 +49,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: `${tombstone.seller} | Transaction`,
     description,
     alternates: {
-      canonical: `${siteConfig.url}/transactions/${slug}`,
+      canonical: `${config.url}/transactions/${slug}`,
     },
     openGraph: {
-      title: `${tombstone.seller} | Flatirons Capital Advisors`,
+      title: `${tombstone.seller} | ${config.name}`,
       description,
       type: 'article',
     },
@@ -73,11 +77,12 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
   );
 
   // Fetch data for ContentExplorer
-  const [tags, states, cities, years] = await Promise.all([
+  const [tags, states, cities, years, tagNames] = await Promise.all([
     getAllTombstoneTags(),
     getAllStates(),
     getAllCities(),
     getAllTransactionYears(),
+    getTagNamesMap(),
   ]);
 
   return (
@@ -263,6 +268,7 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
               states={states}
               cities={cities}
               years={years}
+              tagNames={tagNames}
             />
           </div>
 

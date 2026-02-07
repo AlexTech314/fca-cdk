@@ -67,6 +67,8 @@ export interface ApiSiteConfig {
     company: { name: string; href: string }[];
     resources: { name: string; href: string }[];
   };
+  serviceTypes: string[];
+  companyBlurb: string | null;
   updatedAt: string;
 }
 
@@ -121,6 +123,7 @@ export interface ApiContentTag {
   name: string;
   slug: string;
   category: string | null;
+  description: string | null;
 }
 
 export interface ApiPageContent {

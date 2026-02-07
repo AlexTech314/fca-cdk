@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { siteConfig, toAssetUrl } from '@/lib/utils';
+import { fetchSiteConfig, toAssetUrl } from '@/lib/utils';
 
 interface HeroProps {
   title: string;
@@ -14,7 +14,7 @@ interface HeroProps {
   compact?: boolean;
 }
 
-export function Hero({
+export async function Hero({
   title,
   subtitle,
   description,
@@ -26,6 +26,7 @@ export function Hero({
   showImage = true,
   compact = false,
 }: HeroProps) {
+  const config = await fetchSiteConfig();
   const resolvedHeroImage = heroImage ? (toAssetUrl(heroImage) || heroImage) : undefined;
   if (compact) {
     return (
@@ -130,7 +131,7 @@ export function Hero({
               className="mt-8 text-sm font-medium"
               style={{ color: 'rgba(255, 255, 255, 0.8)' }}
             >
-              {siteConfig.tagline}
+              {config.tagline}
             </p>
           </div>
         </div>

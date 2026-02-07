@@ -12,11 +12,12 @@ import {
   getAdjacentArticles,
   parseMarkdownContent,
   getAllNewsTags,
+  getTagNamesMap,
 } from '@/lib/data';
 import { MarkdownContent } from '@/components/common/MarkdownContent';
 import { TombstoneGrid } from '@/components/sections/TombstoneGrid';
 import { RelatedNewsSection } from '@/components/sections/RelatedNewsSection';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -31,7 +32,10 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const article = await getNewsArticle(slug);
+  const [article, config] = await Promise.all([
+    getNewsArticle(slug),
+    fetchSiteConfig(),
+  ]);
 
   if (!article) {
     return {
@@ -43,7 +47,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: article.title,
     description: article.excerpt,
     alternates: {
-      canonical: `${siteConfig.url}/news/${slug}`,
+      canonical: `${config.url}/news/${slug}`,
     },
     openGraph: {
       title: article.title,
@@ -70,7 +74,7 @@ export default async function NewsArticlePage({ params }: PageProps) {
   const adjacentArticles = await getAdjacentArticles(slug);
 
   // Fetch all news tags for ContentExplorer
-  const newsTags = await getAllNewsTags();
+  const [newsTags, tagNames] = await Promise.all([getAllNewsTags(), getTagNamesMap()]);
 
   return (
     <>
@@ -216,7 +220,7 @@ export default async function NewsArticlePage({ params }: PageProps) {
               <h2 className="mb-6 text-xl font-bold text-text">
                 Explore More News
               </h2>
-              <ContentExplorer type="news" tags={newsTags} />
+              <ContentExplorer type="news" tags={newsTags} tagNames={tagNames} />
             </div>
 
             {/* Back link */}

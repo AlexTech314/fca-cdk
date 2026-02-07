@@ -272,6 +272,14 @@ export async function getAllNewsTags(): Promise<string[]> {
   return tags.map((t) => t.slug);
 }
 
+/**
+ * Get a map of tag slug -> display name for use in client components
+ */
+export async function getTagNamesMap(): Promise<Record<string, string>> {
+  const tags = await getAllTags();
+  return Object.fromEntries(tags.map((t) => [t.slug, t.name]));
+}
+
 // ============================================
 // RESOURCE ARTICLES
 // ============================================

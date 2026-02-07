@@ -85,6 +85,8 @@ export interface SiteConfigData {
     company: { name: string; href: string }[];
     resources: { name: string; href: string }[];
   };
+  serviceTypes: string[];
+  companyBlurb: string;
 }
 
 /**
@@ -106,6 +108,14 @@ export const siteConfigDefaults: SiteConfigData = {
     { city: 'Chicago', state: 'Illinois' },
   ],
   ogImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/og-image.jpg',
+  serviceTypes: [
+    'Mergers and Acquisitions Advisory',
+    'Sell-Side Advisory',
+    'Buy-Side Advisory',
+    'Strategic Consulting',
+    'Investment Banking',
+  ],
+  companyBlurb: 'Flatirons Capital Advisors, LLC is an investment banking firm that helps privately held companies sell their businesses, acquire other businesses, and raise capital.',
   navItems: [
     { name: 'About', href: '/about' },
     { name: 'Team', href: '/team' },
@@ -161,6 +171,8 @@ function mapApiToSiteConfig(api: ApiSiteConfig): SiteConfigData {
     linkedIn: api.linkedIn || siteConfigDefaults.linkedIn,
     locations: (api.locations as SiteConfigData['locations']) || siteConfigDefaults.locations,
     ogImage: api.ogImage || siteConfigDefaults.ogImage,
+    serviceTypes: (api.serviceTypes as string[]) || siteConfigDefaults.serviceTypes,
+    companyBlurb: api.companyBlurb || siteConfigDefaults.companyBlurb,
     navItems: (api.navItems as SiteConfigData['navItems']) || siteConfigDefaults.navItems,
     footerNav: (api.footerNav as SiteConfigData['footerNav']) || siteConfigDefaults.footerNav,
   };

@@ -16,6 +16,12 @@ interface ServicesGridProps {
   buySideServices?: ApiServiceOffering[];
   sellSideServices?: ApiServiceOffering[];
   strategicServices?: ApiServiceOffering[];
+  buySideDescription?: string;
+  sellSideDescription?: string;
+  strategicDescription?: string;
+  sectionSubtitle?: string;
+  sectionTitle?: string;
+  sectionDescription?: string;
 }
 
 const searchIcon = (
@@ -36,38 +42,36 @@ const analyticsIcon = (
   </svg>
 );
 
-// Default items when no API data is provided
-const defaultBuySide = ['Acquisition Search', 'Sponsor Services', 'Buy-side Representation', 'Due Diligence Support', 'Deal Structuring'];
-const defaultSellSide = ['Private Company Exits', 'Recapitalizations', 'Divestitures', 'Product Line & IP Sales', 'Generational Transfers'];
-const defaultStrategic = ['Contract CFO', 'Growth Strategies', 'Optimizations', 'Financial Modeling', 'Market Analysis'];
-
 export function ServicesGrid({
   buySideServices,
   sellSideServices,
   strategicServices,
+  buySideDescription,
+  sellSideDescription,
+  strategicDescription,
+  sectionSubtitle,
+  sectionTitle,
+  sectionDescription,
 }: ServicesGridProps) {
   const categories: ServiceCategory[] = [
     {
       title: 'Buy-Side Advisory',
-      description:
-        'If your organization is considering an acquisition, leveraged buyout, joint venture, or alliance, Flatirons can support your search with a complete range of buy-side advisory services.',
-      items: buySideServices || defaultBuySide.map((t, i) => ({ id: `default-bs-${i}`, title: t, description: null, category: 'buy-side', type: 'service', step: null, sortOrder: i, isPublished: true })),
+      description: buySideDescription || '',
+      items: buySideServices || [],
       href: '/buy-side',
       icon: searchIcon,
     },
     {
       title: 'Sell-Side Advisory',
-      description:
-        "The focus of our sell-side advisory approach is on helping you make the right strategic moves to protect what you've built through years of hard work and sacrifice.",
-      items: sellSideServices || defaultSellSide.map((t, i) => ({ id: `default-ss-${i}`, title: t, description: null, category: 'sell-side', type: 'service', step: null, sortOrder: i, isPublished: true })),
+      description: sellSideDescription || '',
+      items: sellSideServices || [],
       href: '/sell-side',
       icon: chartIcon,
     },
     {
       title: 'Strategic Consulting',
-      description:
-        'Strategy and business plan consulting from contract CFO and growth strategies to optimizations. We work with everyone from startups to Fortune 1000 public companies.',
-      items: strategicServices || defaultStrategic.map((t, i) => ({ id: `default-sc-${i}`, title: t, description: null, category: 'strategic', type: 'service', step: null, sortOrder: i, isPublished: true })),
+      description: strategicDescription || '',
+      items: strategicServices || [],
       href: '/about',
       icon: analyticsIcon,
     },
@@ -77,9 +81,9 @@ export function ServicesGrid({
     <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
       <Container>
         <SectionHeading
-          subtitle="What We Do"
-          title="M&A Services"
-          description="Comprehensive mergers and acquisitions advisory services for lower middle-market companies."
+          subtitle={sectionSubtitle}
+          title={sectionTitle}
+          description={sectionDescription}
         />
 
         <div className="grid gap-8 md:grid-cols-3">

@@ -5,7 +5,7 @@ import { Container } from '@/components/ui/Container';
 import { CTASection } from '@/components/sections/CTASection';
 import { getResourceArticle, getResourceArticles, parseMarkdownContent } from '@/lib/data';
 import { MarkdownContent } from '@/components/common/MarkdownContent';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -20,7 +20,10 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const article = await getResourceArticle(slug);
+  const [article, config] = await Promise.all([
+    getResourceArticle(slug),
+    fetchSiteConfig(),
+  ]);
 
   if (!article) {
     return {
@@ -32,7 +35,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: article.title,
     description: article.excerpt,
     alternates: {
-      canonical: `${siteConfig.url}/resources/${slug}`,
+      canonical: `${config.url}/resources/${slug}`,
     },
     openGraph: {
       title: article.title,
@@ -44,7 +47,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ResourceArticlePage({ params }: PageProps) {
   const { slug } = await params;
-  const article = await getResourceArticle(slug);
+  const [article, config] = await Promise.all([
+    getResourceArticle(slug),
+    fetchSiteConfig(),
+  ]);
 
   if (!article) {
     notFound();
@@ -102,15 +108,10 @@ export default async function ResourceArticlePage({ params }: PageProps) {
             {/* About section */}
             <div className="mt-12 rounded-lg border border-border bg-surface p-6">
               <h3 className="mb-2 font-semibold text-text">
-                About Flatirons Capital Advisors
+                About {config.name}
               </h3>
               <p className="text-sm text-text-muted">
-                Flatirons Capital Advisors, LLC is an investment banking firm that
-                helps privately held companies sell their businesses, acquire other
-                businesses, and raise capital. Our unique business model affords
-                sell-side advisory clients the ability to improve their company&apos;s
-                performance while simultaneously increasing their market value for
-                a future sale.
+                {config.companyBlurb}
               </p>
             </div>
 

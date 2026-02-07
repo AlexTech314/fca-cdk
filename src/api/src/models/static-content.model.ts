@@ -151,6 +151,8 @@ export const updateSiteConfigSchema = z.object({
   locations: z.array(locationSchema).optional(),
   navItems: z.array(navItemSchema).optional(),
   footerNav: footerNavSchema.optional(),
+  serviceTypes: z.array(z.string()).optional(),
+  companyBlurb: z.string().optional().nullable(),
 });
 
 export type UpdateSiteConfigInput = z.infer<typeof updateSiteConfigSchema>;

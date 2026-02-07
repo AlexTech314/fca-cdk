@@ -1,20 +1,25 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Container } from '@/components/ui/Container';
 import { ContactForm } from '@/components/forms/ContactForm';
 import { getNewsArticles, getResourceArticles, getPageData } from '@/lib/data';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 
-export const metadata: Metadata = {
-  title: 'Contact',
-  description:
-    'Contact Flatirons Capital Advisors for M&A advisory services. Offices in Denver, Dallas, Miami, and Chicago. Call 303.319.4540.',
-  alternates: {
-    canonical: `${siteConfig.url}/contact`,
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const [config, pageContent] = await Promise.all([
+    fetchSiteConfig(),
+    getPageData('contact'),
+  ]);
+  const meta = (pageContent?.metadata || {}) as ContactMetadata;
+  return {
+    title: 'Contact',
+    description: meta.metaDescription || config.description,
+    alternates: { canonical: `${config.url}/contact` },
+  };
+}
 
 interface ContactMetadata {
+  metaDescription?: string;
   description?: string;
 }
 

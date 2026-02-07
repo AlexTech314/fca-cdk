@@ -1,27 +1,37 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { Button } from '@/components/ui/Button';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 import { getPageData, getServicesByCategory } from '@/lib/data';
 
-export const metadata: Metadata = {
-  title: 'Buy-Side Advisory',
-  description:
-    'Buy-side M&A advisory services from Flatirons Capital Advisors. Acquisition search, sponsor services, and buy-side representation for strategic buyers.',
-  alternates: {
-    canonical: `${siteConfig.url}/buy-side`,
-  },
-};
-
 interface BuySideMetadata {
+  metaDescription?: string;
   subtitle?: string;
   description?: string;
+  processHeading?: string;
+  benefitsHeading?: string;
+  disadvantagesHeading?: string;
+  approachSubtitle?: string;
+  approachTitle?: string;
   processBullets?: string[];
   ctaTitle?: string;
   ctaDescription?: string;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const [config, pageContent] = await Promise.all([
+    fetchSiteConfig(),
+    getPageData('buy-side'),
+  ]);
+  const meta = (pageContent?.metadata || {}) as BuySideMetadata;
+  return {
+    title: 'Buy-Side Advisory',
+    description: meta.metaDescription || config.description,
+    alternates: { canonical: `${config.url}/buy-side` },
+  };
 }
 
 export default async function BuySidePage() {
@@ -61,7 +71,7 @@ export default async function BuySidePage() {
             {processBullets.length > 0 && (
               <div className="mt-8 rounded-lg bg-surface p-6">
                 <h3 className="mb-4 font-semibold text-text">
-                  Understanding the Process
+                  {meta.processHeading || 'Understanding the Process'}
                 </h3>
                 <ul className="space-y-3 text-text-muted">
                   {processBullets.map((bullet, i) => (
@@ -86,7 +96,7 @@ export default async function BuySidePage() {
               {benefits.length > 0 && (
                 <div className="rounded-xl border border-border bg-white p-8">
                   <h2 className="mb-6 text-xl font-bold text-text">
-                    Potential Benefits to the Business Owner
+                    {meta.benefitsHeading || 'Potential Benefits to the Business Owner'}
                   </h2>
                   <ul className="space-y-4">
                     {benefits.map((benefit) => (
@@ -116,7 +126,7 @@ export default async function BuySidePage() {
               {disadvantages.length > 0 && (
                 <div className="rounded-xl border border-border bg-white p-8">
                   <h2 className="mb-6 text-xl font-bold text-text">
-                    Key Disadvantages to the Business Owner
+                    {meta.disadvantagesHeading || 'Key Disadvantages to the Business Owner'}
                   </h2>
                   <ul className="space-y-4">
                     {disadvantages.map((disadvantage) => (
@@ -150,7 +160,7 @@ export default async function BuySidePage() {
       {approachParagraphs.length > 0 && (
         <section className="py-16 md:py-24">
           <Container>
-            <SectionHeading subtitle="How We Work" title="Our Approach" />
+            <SectionHeading subtitle={meta.approachSubtitle} title={meta.approachTitle} />
 
             <div className="mx-auto max-w-3xl space-y-6 text-text-muted leading-relaxed">
               {approachParagraphs.map((p, i) => (

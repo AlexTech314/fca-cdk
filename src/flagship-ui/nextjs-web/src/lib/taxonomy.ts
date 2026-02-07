@@ -1,8 +1,11 @@
 /**
- * Unified Tag Taxonomy
+ * Unified Tag Taxonomy — SEEDING UTILITY ONLY
  * 
- * This module defines the canonical set of content tags used across
- * tombstones and news articles for consistent related content discovery.
+ * This module defines the canonical set of content tags used during
+ * database seeding. Frontend components should NOT import from this file;
+ * they should fetch tag data from the API via lib/api.ts or lib/data.ts instead.
+ * 
+ * The tag data lives in the ContentTag table and is served via the /tags API endpoint.
  */
 
 /**

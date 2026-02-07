@@ -1,31 +1,39 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { NewsGrid } from '@/components/sections/NewsGrid';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
-import { getNewsArticles, getAllNewsTags, getPageData } from '@/lib/data';
-import { siteConfig } from '@/lib/utils';
-
-export const metadata: Metadata = {
-  title: 'News & Insights',
-  description:
-    'Latest news, transaction announcements, and insights from Flatirons Capital Advisors. Stay updated on M&A activity in the lower middle market.',
-  alternates: {
-    canonical: `${siteConfig.url}/news`,
-  },
-};
+import { getNewsArticles, getAllNewsTags, getPageData, getTagNamesMap } from '@/lib/data';
+import { fetchSiteConfig } from '@/lib/utils';
 
 interface NewsMetadata {
+  metaDescription?: string;
   subtitle?: string;
   description?: string;
+  sectionSubtitle?: string;
+  sectionTitle?: string;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const [config, pageContent] = await Promise.all([
+    fetchSiteConfig(),
+    getPageData('news'),
+  ]);
+  const meta = (pageContent?.metadata || {}) as NewsMetadata;
+  return {
+    title: 'News & Insights',
+    description: meta.metaDescription || config.description,
+    alternates: { canonical: `${config.url}/news` },
+  };
 }
 
 export default async function NewsPage() {
-  const [pageContent, articles, tags] = await Promise.all([
+  const [pageContent, articles, tags, tagNames] = await Promise.all([
     getPageData('news'),
     getNewsArticles(),
     getAllNewsTags(),
+    getTagNamesMap(),
   ]);
 
   const meta = (pageContent?.metadata || {}) as NewsMetadata;
@@ -42,8 +50,8 @@ export default async function NewsPage() {
       <section className="py-16 md:py-24">
         <Container>
           <SectionHeading
-            subtitle="Latest Updates"
-            title="Recent Announcements"
+            subtitle={meta.sectionSubtitle}
+            title={meta.sectionTitle}
           />
 
           <NewsGrid articles={articles} emptyMessage="No news articles found." />
@@ -52,6 +60,7 @@ export default async function NewsPage() {
             <ContentExplorer
               type="news"
               tags={tags}
+              tagNames={tagNames}
             />
           </div>
         </Container>

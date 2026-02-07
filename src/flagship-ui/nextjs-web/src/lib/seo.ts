@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { fetchSiteConfig, toAssetUrl } from './utils';
-import { getTagDisplayName as getTaxonomyTagName, TAG_MAP } from './taxonomy';
+import { getTagBySlug } from './api';
 
 /**
  * State code to full name mapping
@@ -67,10 +67,26 @@ export function getStateName(stateCode: string): string {
 }
 
 /**
- * Format tag name for display using taxonomy
+ * Format tag slug for display (capitalize words)
  */
 export function formatTagName(tag: string): string {
-  return getTaxonomyTagName(tag);
+  return tag.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/**
+ * Get tag display name from API, with slug-based fallback
+ */
+export async function getTagDisplayName(slug: string): Promise<string> {
+  const tag = await getTagBySlug(slug);
+  return tag?.name || formatTagName(slug);
+}
+
+/**
+ * Get tag description from API
+ */
+export async function getTagDescription(slug: string): Promise<string | null> {
+  const tag = await getTagBySlug(slug);
+  return tag?.description || null;
 }
 
 /**
@@ -93,14 +109,16 @@ export async function generateGroupingMetadata(
   let description: string;
   let canonicalPath: string;
 
+  // Fetch tag data from API if needed
+  const tagData = (type === 'tag' || type === 'news-tag') ? await getTagBySlug(value) : null;
+  const tagName = tagData?.name || formatTagName(value);
+
   switch (type) {
     case 'tag':
-      title = `${formatTagName(value)} M&A Transactions (${count} Deals) | ${config.name}`;
-      // Use taxonomy description if available, otherwise generate generic one
-      const tagDef = TAG_MAP[value];
-      description = tagDef?.description 
-        ? tagDef.description.slice(0, 155) + '...'
-        : `Browse ${count} completed ${formatTagName(value).toLowerCase()} M&A transactions. ${config.name} specializes in lower middle-market mergers and acquisitions.`;
+      title = `${tagName} M&A Transactions (${count} Deals) | ${config.name}`;
+      description = tagData?.description 
+        ? tagData.description.slice(0, 155) + '...'
+        : `Browse ${count} completed ${tagName.toLowerCase()} M&A transactions. ${config.name} specializes in lower middle-market mergers and acquisitions.`;
       canonicalPath = `/transactions/tag/${value}`;
       break;
 
@@ -126,12 +144,10 @@ export async function generateGroupingMetadata(
       break;
 
     case 'news-tag':
-      title = `${formatTagName(value)} News & Insights (${count} Articles) | ${config.name}`;
-      // Use taxonomy description if available for news tags too
-      const newsTagDef = TAG_MAP[value];
-      description = newsTagDef?.description 
-        ? newsTagDef.description.slice(0, 155) + '...'
-        : `Read ${count} news articles and insights about ${formatTagName(value).toLowerCase()} from ${config.name}, a leading M&A advisory firm.`;
+      title = `${tagName} News & Insights (${count} Articles) | ${config.name}`;
+      description = tagData?.description 
+        ? tagData.description.slice(0, 155) + '...'
+        : `Read ${count} news articles and insights about ${tagName.toLowerCase()} from ${config.name}, a leading M&A advisory firm.`;
       canonicalPath = `/news/tag/${value}`;
       break;
 

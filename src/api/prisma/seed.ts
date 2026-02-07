@@ -272,97 +272,63 @@ function parseDate(dateStr: string | undefined): Date | null {
 async function seedSiteConfig() {
   console.log('Seeding site config...');
 
+  const siteConfigData = {
+    name: 'Flatirons Capital Advisors',
+    tagline: 'Strategic Advice | Process Driven™',
+    url: 'https://flatironscap.com',
+    description: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm specializing in lower middle-market transactions.',
+    phone: '303.319.4540',
+    email: 'info@flatironscap.com',
+    linkedIn: 'https://www.linkedin.com/company/flatirons-capital-advisors-llc',
+    ogImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/og-image.jpg',
+    locations: [
+      { city: 'Denver', state: 'Colorado' },
+      { city: 'Dallas', state: 'Texas' },
+      { city: 'Miami', state: 'Florida' },
+      { city: 'Chicago', state: 'Illinois' },
+    ],
+    navItems: [
+      { name: 'About', href: '/about' },
+      { name: 'Team', href: '/team' },
+      { name: 'Transactions', href: '/transactions' },
+      { name: 'News', href: '/news' },
+      { name: 'Resources', href: '/resources' },
+      { name: 'FAQ', href: '/faq' },
+      { name: 'Contact', href: '/contact' },
+    ],
+    footerNav: {
+      services: [
+        { name: 'Sell-Side Advisory', href: '/sell-side' },
+        { name: 'Buy-Side Advisory', href: '/buy-side' },
+        { name: 'Strategic Consulting', href: '/about' },
+      ],
+      company: [
+        { name: 'About', href: '/about' },
+        { name: 'Team', href: '/team' },
+        { name: 'Transactions', href: '/transactions' },
+        { name: 'Contact', href: '/contact' },
+      ],
+      resources: [
+        { name: 'News & Insights', href: '/news' },
+        { name: 'Resources', href: '/resources' },
+        { name: 'FAQ', href: '/faq' },
+        { name: 'Privacy Policy', href: '/privacy-policy' },
+      ],
+    },
+    serviceTypes: [
+      'Mergers and Acquisitions Advisory',
+      'Sell-Side Advisory',
+      'Buy-Side Advisory',
+      'Strategic Consulting',
+      'Investment Banking',
+    ],
+    companyBlurb: 'Flatirons Capital Advisors, LLC is an investment banking firm that helps privately held companies sell their businesses, acquire other businesses, and raise capital. Our unique business model affords sell-side advisory clients the ability to improve their company\'s performance while simultaneously increasing their market value for a future sale.',
+  };
+
   await prisma.siteConfig.upsert({
     where: { id: 'default' },
-    update: {
-      name: 'Flatirons Capital Advisors',
-      tagline: 'Strategic Advice | Process Driven™',
-      url: 'https://flatironscap.com',
-      description: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm specializing in lower middle-market transactions.',
-      phone: '303.319.4540',
-      email: 'info@flatironscap.com',
-      linkedIn: 'https://www.linkedin.com/company/flatirons-capital-advisors-llc',
-      ogImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/og-image.jpg',
-      locations: [
-        { city: 'Denver', state: 'Colorado' },
-        { city: 'Dallas', state: 'Texas' },
-        { city: 'Miami', state: 'Florida' },
-        { city: 'Chicago', state: 'Illinois' },
-      ],
-      navItems: [
-        { name: 'About', href: '/about' },
-        { name: 'Team', href: '/team' },
-        { name: 'Transactions', href: '/transactions' },
-        { name: 'News', href: '/news' },
-        { name: 'Resources', href: '/resources' },
-        { name: 'FAQ', href: '/faq' },
-        { name: 'Contact', href: '/contact' },
-      ],
-      footerNav: {
-        services: [
-          { name: 'Sell-Side Advisory', href: '/sell-side' },
-          { name: 'Buy-Side Advisory', href: '/buy-side' },
-          { name: 'Strategic Consulting', href: '/about' },
-        ],
-        company: [
-          { name: 'About', href: '/about' },
-          { name: 'Team', href: '/team' },
-          { name: 'Transactions', href: '/transactions' },
-          { name: 'Contact', href: '/contact' },
-        ],
-        resources: [
-          { name: 'News & Insights', href: '/news' },
-          { name: 'Resources', href: '/resources' },
-          { name: 'FAQ', href: '/faq' },
-          { name: 'Privacy Policy', href: '/privacy-policy' },
-        ],
-      },
-    },
-    create: {
-      id: 'default',
-      name: 'Flatirons Capital Advisors',
-      tagline: 'Strategic Advice | Process Driven™',
-      url: 'https://flatironscap.com',
-      description: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm specializing in lower middle-market transactions.',
-      phone: '303.319.4540',
-      email: 'info@flatironscap.com',
-      linkedIn: 'https://www.linkedin.com/company/flatirons-capital-advisors-llc',
-      ogImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/og-image.jpg',
-      locations: [
-        { city: 'Denver', state: 'Colorado' },
-        { city: 'Dallas', state: 'Texas' },
-        { city: 'Miami', state: 'Florida' },
-        { city: 'Chicago', state: 'Illinois' },
-      ],
-      navItems: [
-        { name: 'About', href: '/about' },
-        { name: 'Team', href: '/team' },
-        { name: 'Transactions', href: '/transactions' },
-        { name: 'News', href: '/news' },
-        { name: 'Resources', href: '/resources' },
-        { name: 'FAQ', href: '/faq' },
-        { name: 'Contact', href: '/contact' },
-      ],
-      footerNav: {
-        services: [
-          { name: 'Sell-Side Advisory', href: '/sell-side' },
-          { name: 'Buy-Side Advisory', href: '/buy-side' },
-          { name: 'Strategic Consulting', href: '/about' },
-        ],
-        company: [
-          { name: 'About', href: '/about' },
-          { name: 'Team', href: '/team' },
-          { name: 'Transactions', href: '/transactions' },
-          { name: 'Contact', href: '/contact' },
-        ],
-        resources: [
-          { name: 'News & Insights', href: '/news' },
-          { name: 'Resources', href: '/resources' },
-          { name: 'FAQ', href: '/faq' },
-          { name: 'Privacy Policy', href: '/privacy-policy' },
-        ],
-      },
-    },
+    update: siteConfigData,
+    create: { id: 'default', ...siteConfigData },
   });
 
   console.log('  Seeded site config');
@@ -1022,6 +988,8 @@ async function seedPageContent() {
       title: 'Let us help you overshoot your goals.',
       content: '',
       metadata: {
+        metaTitle: 'Middle Market M&A Investment Bank',
+        metaDescription: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm specializing in lower middle-market transactions. Over 200 completed transactions.',
         subtitle: 'Middle Market M&A Advisory',
         description: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm focused on privately-held, lower middle-market companies.',
         heroImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/hero/flatironsherowinter.jpg',
@@ -1033,6 +1001,12 @@ async function seedPageContent() {
         bottomCtaDescription: 'With an exclusive focus on private businesses, we understand the challenges private business owners face. Our hands-on approach ensures personalized attention throughout the entire process.',
         bottomCtaText: 'Contact Us Today',
         bottomCtaHref: '/contact',
+        buySideDescription: 'If your organization is considering an acquisition, leveraged buyout, joint venture, or alliance, Flatirons can support your search with a complete range of buy-side advisory services.',
+        sellSideDescription: "The focus of our sell-side advisory approach is on helping you make the right strategic moves to protect what you've built through years of hard work and sacrifice.",
+        strategicDescription: 'Strategy and business plan consulting from contract CFO and growth strategies to optimizations. We work with everyone from startups to Fortune 1000 public companies.',
+        servicesSubtitle: 'What We Do',
+        servicesTitle: 'M&A Services',
+        servicesDescription: 'Comprehensive mergers and acquisitions advisory services for lower middle-market companies.',
       },
     },
     {
@@ -1043,11 +1017,41 @@ async function seedPageContent() {
 Our buyer relationships are crucial to our ongoing success in making markets for our clients and completing transactions in record time. We are constantly updating our key industry and investment criteria based on real-time feedback from our vast network of public and private buyers.
 
 The deal process is 100% managed by a senior team member and not pushed down to a junior analyst. This hands-on approach ensures a strategic and robust process for our clients.`,
-      metadata: {},
+      metadata: {
+        metaDescription: 'Flatirons Capital Advisors is a leading mergers and acquisitions advisor to lower middle-market companies with decades of transaction advisory experience.',
+        heroDescription: 'With decades of transaction advisory experience, our founders identified a growing need to bring together a more comprehensive suite of professional resources.',
+        companyHeading: 'Flatirons Capital Advisors',
+        servicesSubtitle: 'Our Services',
+        servicesTitle: 'Mergers & Acquisitions',
+        servicesDescription: "The focus of our advisory services is to help you make the right strategic moves to protect what you've built.",
+        buySideHeading: 'Buy-side Advisory',
+        sellSideHeading: 'Sell-side Advisory',
+        strategicHeading: 'Strategic Consulting',
+        targetSubtitle: 'Target Profile',
+        targetTitle: 'Industry Focus & Investment Criteria',
+        financialCriteriaHeading: 'Financial Criteria',
+        financialCriteria: [
+          'EBITDA greater than $2.0M',
+          'No minimal EBITDA requirement for add-on acquisitions',
+          'Increasing revenue',
+        ],
+        otherCriteriaHeading: 'Other Criteria',
+        otherCriteria: [
+          'Strong 2nd tier management',
+          'Customer & revenue diversification',
+          'Competitive differentiation & healthy growth potential',
+        ],
+        industrySectorsHeading: 'Industry Sectors',
+        valuesSubtitle: 'Our Principles',
+        valuesTitle: 'Core Values',
+      },
     },
     {
       pageKey: 'privacy-policy',
       title: 'Privacy Policy',
+      metadata: {
+        metaDescription: 'Privacy Policy for Flatirons Capital Advisors. Learn how we collect, use, and protect your personal information.',
+      },
       content: `Last updated: January 2026
 
 ## Introduction
@@ -1087,7 +1091,6 @@ We use administrative, technical, and physical security measures to help protect
 ## Contact Us
 
 If you have questions or comments about this Privacy Policy, please contact us at info@flatironscap.com or call 303.319.4540.`,
-      metadata: {},
     },
     {
       pageKey: 'sell-side',
@@ -1100,8 +1103,17 @@ With decades of experience and a hands-on approach from senior team members, we 
 
 Our buyer relationships are crucial to our ongoing success in making markets for our clients and completing transactions in record time. The deal process is 100% managed by a senior team member and not pushed down to a junior analyst.`,
       metadata: {
+        metaDescription: 'Sell-side M&A advisory services from Flatirons Capital Advisors. Private company exits, recapitalizations, divestitures, and generational transfers for business owners.',
         subtitle: 'Maximize Your Exit',
         description: "The focus of our sell-side advisory approach is on helping you make the right strategic moves to protect what you've built through years of hard work and sacrifice.",
+        servicesSubtitle: 'What We Offer',
+        servicesTitle: 'Sell-Side Services',
+        servicesDescription: 'Comprehensive advisory services tailored to your specific situation and goals.',
+        processSubtitle: 'How We Work',
+        processTitle: 'Our Proven Process',
+        processDescription: 'A structured approach that has delivered results for over 200 transactions.',
+        advantageTitle: 'The Flatirons Advantage',
+        advantageSubtitle: 'Why Choose Flatirons?',
         ctaTitle: 'Ready to explore your options?',
         ctaDescription: "Contact us for a confidential conversation about your business and goals. We'll help you understand what's possible.",
         whyChooseUs: [
@@ -1129,8 +1141,14 @@ The due diligence process/timeline is usually more efficient because the buyer u
 
 Finally, the business owner can feel confident with the ultimate sale price because in this highly competitive market these buyers understand they must present strong, fair-market-values up front in order to consistently complete acquisitions.`,
       metadata: {
+        metaDescription: 'Buy-side M&A advisory services from Flatirons Capital Advisors. Acquisition search, sponsor services, and buy-side representation for strategic buyers.',
         subtitle: 'A Free Look',
         description: "Finding the simplest, shortest and most efficient solutions for our clients' desired outcomes.",
+        processHeading: 'Understanding the Process',
+        benefitsHeading: 'Potential Benefits to the Business Owner',
+        disadvantagesHeading: 'Key Disadvantages to the Business Owner',
+        approachSubtitle: 'How We Work',
+        approachTitle: 'Our Approach',
         processBullets: [
           'The buyer is our client and pays our fees',
           "A high-level description of the business owner's operations is required",
@@ -1145,7 +1163,15 @@ Finally, the business owner can feel confident with the ultimate sale price beca
       title: 'Excellence is our foundation.',
       content: '',
       metadata: {
+        metaDescription: 'Meet the leadership team at Flatirons Capital Advisors. Our experienced M&A professionals bring decades of transaction advisory expertise.',
         description: 'Our senior team members ensure a strategic and robust process for every client. The deal process is 100% managed by experienced professionals.',
+        leadershipSubtitle: 'Our People',
+        leadershipTitle: 'Leadership Team',
+        leadershipDescription: 'With decades of transaction advisory experience, our leadership team brings unparalleled expertise to every engagement.',
+        analystSubtitle: 'Supporting Team',
+        analystTitle: 'Analysts',
+        communitySubtitle: 'Giving Back',
+        communityTitle: 'Community Service',
         communityDescription: 'The entire team at Flatirons Capital Advisors loves giving back to the community.',
       },
     },
@@ -1154,6 +1180,7 @@ Finally, the business owner can feel confident with the ultimate sale price beca
       title: 'Frequently Asked Questions',
       content: '',
       metadata: {
+        metaDescription: 'Frequently asked questions about M&A transactions, business valuation, and working with Flatirons Capital Advisors.',
         description: 'Common questions about M&A transactions, business valuation, and working with our team.',
         ctaTitle: 'Have more questions?',
         ctaDescription: 'Our team is here to help. Reach out to discuss your specific situation and how we can assist.',
@@ -1164,6 +1191,7 @@ Finally, the business owner can feel confident with the ultimate sale price beca
       title: "We'd love to hear from you!",
       content: '',
       metadata: {
+        metaDescription: 'Contact Flatirons Capital Advisors for M&A advisory services. Offices in Denver, Dallas, Miami, and Chicago. Call 303.319.4540.',
         description: "Let's explore how we can help you achieve your goals.",
       },
     },
@@ -1172,8 +1200,10 @@ Finally, the business owner can feel confident with the ultimate sale price beca
       title: 'Completed Transactions',
       content: '',
       metadata: {
+        metaDescription: 'View our completed M&A transactions. Flatirons Capital Advisors has successfully completed over 200 transactions across multiple industries.',
         subtitle: 'Strategic Advice | Process Driven™',
         description: 'When it comes to closing a transaction, our clients value our advice, expertise and execution. Our commitment to excellence has allowed us to deliver world-class results.',
+        sectionSubtitle: 'Track Record',
         sectionDescription: 'Our commitment to excellence has allowed us to deliver world-class results to the middle and lower middle markets.',
         ctaTitle: 'Ready to add your company to this list?',
         ctaDescription: 'Let us help you achieve your transaction goals with the same expertise and dedication we bring to every engagement.',
@@ -1184,8 +1214,11 @@ Finally, the business owner can feel confident with the ultimate sale price beca
       title: 'News & Insights',
       content: '',
       metadata: {
+        metaDescription: 'Latest news, transaction announcements, and insights from Flatirons Capital Advisors. Stay updated on M&A activity in the lower middle market.',
         subtitle: 'Recent Transaction Announcements',
         description: 'Stay updated on our latest M&A transactions and industry insights.',
+        sectionSubtitle: 'Latest Updates',
+        sectionTitle: 'Recent Announcements',
       },
     },
     {
@@ -1193,8 +1226,11 @@ Finally, the business owner can feel confident with the ultimate sale price beca
       title: 'Resources',
       content: '',
       metadata: {
+        metaDescription: 'M&A resources and guides for business owners. Learn about selling your business, recapitalizations, exit planning, and more.',
         subtitle: 'M&A Guides & Articles',
         description: 'Featured articles and guides for business owners considering M&A transactions.',
+        sectionSubtitle: 'Expert Insights',
+        sectionTitle: 'Articles for Business Owners',
         ctaTitle: 'Have questions about selling your business?',
         ctaDescription: 'Our team is here to help guide you through the process.',
       },

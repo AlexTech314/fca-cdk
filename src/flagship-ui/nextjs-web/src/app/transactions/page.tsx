@@ -1,4 +1,4 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Container } from '@/components/ui/Container';
@@ -6,7 +6,7 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
-import { siteConfig } from '@/lib/utils';
+import { fetchSiteConfig } from '@/lib/utils';
 import { 
   getTombstones, 
   getAllTombstoneTags, 
@@ -14,33 +14,41 @@ import {
   getAllCities, 
   getAllTransactionYears,
   getPageData,
+  getTagNamesMap,
 } from '@/lib/data';
 
-export const metadata: Metadata = {
-  title: 'Transactions',
-  description:
-    'View our completed M&A transactions. Flatirons Capital Advisors has successfully completed over 200 transactions across multiple industries.',
-  alternates: {
-    canonical: `${siteConfig.url}/transactions`,
-  },
-};
-
 interface TransactionsMetadata {
+  metaDescription?: string;
   subtitle?: string;
   description?: string;
+  sectionSubtitle?: string;
   sectionDescription?: string;
   ctaTitle?: string;
   ctaDescription?: string;
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  const [config, pageContent] = await Promise.all([
+    fetchSiteConfig(),
+    getPageData('transactions'),
+  ]);
+  const meta = (pageContent?.metadata || {}) as TransactionsMetadata;
+  return {
+    title: 'Transactions',
+    description: meta.metaDescription || config.description,
+    alternates: { canonical: `${config.url}/transactions` },
+  };
+}
+
 export default async function TransactionsPage() {
-  const [pageContent, tombstones, tags, states, cities, years] = await Promise.all([
+  const [pageContent, tombstones, tags, states, cities, years, tagNames] = await Promise.all([
     getPageData('transactions'),
     getTombstones(),
     getAllTombstoneTags(),
     getAllStates(),
     getAllCities(),
     getAllTransactionYears(),
+    getTagNamesMap(),
   ]);
 
   const meta = (pageContent?.metadata || {}) as TransactionsMetadata;
@@ -57,9 +65,9 @@ export default async function TransactionsPage() {
       <section className="py-16 md:py-24">
         <Container>
           <SectionHeading
-            subtitle="Track Record"
+            subtitle={meta.sectionSubtitle}
             title={`${tombstones.length}+ Transactions Completed`}
-            description={meta.sectionDescription || 'Our commitment to excellence has allowed us to deliver world-class results to the middle and lower middle markets.'}
+            description={meta.sectionDescription}
           />
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -97,6 +105,7 @@ export default async function TransactionsPage() {
               states={states}
               cities={cities}
               years={years}
+              tagNames={tagNames}
             />
           </div>
         </Container>

@@ -117,13 +117,7 @@ export default async function RootLayout({
       '@type': 'Country',
       name: 'United States',
     },
-    serviceType: [
-      'Mergers and Acquisitions Advisory',
-      'Sell-Side Advisory',
-      'Buy-Side Advisory',
-      'Strategic Consulting',
-      'Investment Banking',
-    ],
+    serviceType: config.serviceTypes,
   };
 
   return (

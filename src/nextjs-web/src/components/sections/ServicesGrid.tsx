@@ -1,95 +1,78 @@
 import Link from 'next/link';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
+import type { ApiServiceOffering } from '@/lib/api';
 
-const services = [
-  {
-    title: 'Buy-Side Advisory',
-    description:
-      'If your organization is considering an acquisition, leveraged buyout, joint venture, or alliance, Flatirons can support your search with a complete range of buy-side advisory services.',
-    items: [
-      'Acquisition Search',
-      'Sponsor Services',
-      'Buy-side Representation',
-      'Due Diligence Support',
-      'Deal Structuring',
-    ],
-    href: '/buy-side',
-    icon: (
-      <svg
-        className="h-8 w-8"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth="1.5"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-        />
-      </svg>
-    ),
-  },
-  {
-    title: 'Sell-Side Advisory',
-    description:
-      "The focus of our sell-side advisory approach is on helping you make the right strategic moves to protect what you've built through years of hard work and sacrifice.",
-    items: [
-      'Private Company Exits',
-      'Recapitalizations',
-      'Divestitures',
-      'Product Line & IP Sales',
-      'Generational Transfers',
-    ],
-    href: '/sell-side',
-    icon: (
-      <svg
-        className="h-8 w-8"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth="1.5"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"
-        />
-      </svg>
-    ),
-  },
-  {
-    title: 'Strategic Consulting',
-    description:
-      'Strategy and business plan consulting from contract CFO and growth strategies to optimizations. We work with everyone from startups to Fortune 1000 public companies.',
-    items: [
-      'Contract CFO',
-      'Growth Strategies',
-      'Optimizations',
-      'Financial Modeling',
-      'Market Analysis',
-    ],
-    href: '/about',
-    icon: (
-      <svg
-        className="h-8 w-8"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth="1.5"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6"
-        />
-      </svg>
-    ),
-  },
-];
+interface ServiceCategory {
+  title: string;
+  description: string;
+  items: ApiServiceOffering[];
+  href: string;
+  icon: React.ReactNode;
+}
 
-export function ServicesGrid() {
+interface ServicesGridProps {
+  /** Override the default service categories. If not provided, uses hardcoded defaults. */
+  buySideServices?: ApiServiceOffering[];
+  sellSideServices?: ApiServiceOffering[];
+  strategicServices?: ApiServiceOffering[];
+}
+
+const searchIcon = (
+  <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+  </svg>
+);
+
+const chartIcon = (
+  <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
+  </svg>
+);
+
+const analyticsIcon = (
+  <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
+  </svg>
+);
+
+// Default items when no API data is provided
+const defaultBuySide = ['Acquisition Search', 'Sponsor Services', 'Buy-side Representation', 'Due Diligence Support', 'Deal Structuring'];
+const defaultSellSide = ['Private Company Exits', 'Recapitalizations', 'Divestitures', 'Product Line & IP Sales', 'Generational Transfers'];
+const defaultStrategic = ['Contract CFO', 'Growth Strategies', 'Optimizations', 'Financial Modeling', 'Market Analysis'];
+
+export function ServicesGrid({
+  buySideServices,
+  sellSideServices,
+  strategicServices,
+}: ServicesGridProps) {
+  const categories: ServiceCategory[] = [
+    {
+      title: 'Buy-Side Advisory',
+      description:
+        'If your organization is considering an acquisition, leveraged buyout, joint venture, or alliance, Flatirons can support your search with a complete range of buy-side advisory services.',
+      items: buySideServices || defaultBuySide.map((t, i) => ({ id: `default-bs-${i}`, title: t, description: null, category: 'buy-side', type: 'service', step: null, sortOrder: i, isPublished: true })),
+      href: '/buy-side',
+      icon: searchIcon,
+    },
+    {
+      title: 'Sell-Side Advisory',
+      description:
+        "The focus of our sell-side advisory approach is on helping you make the right strategic moves to protect what you've built through years of hard work and sacrifice.",
+      items: sellSideServices || defaultSellSide.map((t, i) => ({ id: `default-ss-${i}`, title: t, description: null, category: 'sell-side', type: 'service', step: null, sortOrder: i, isPublished: true })),
+      href: '/sell-side',
+      icon: chartIcon,
+    },
+    {
+      title: 'Strategic Consulting',
+      description:
+        'Strategy and business plan consulting from contract CFO and growth strategies to optimizations. We work with everyone from startups to Fortune 1000 public companies.',
+      items: strategicServices || defaultStrategic.map((t, i) => ({ id: `default-sc-${i}`, title: t, description: null, category: 'strategic', type: 'service', step: null, sortOrder: i, isPublished: true })),
+      href: '/about',
+      icon: analyticsIcon,
+    },
+  ];
+
   return (
     <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
       <Container>
@@ -100,22 +83,22 @@ export function ServicesGrid() {
         />
 
         <div className="grid gap-8 md:grid-cols-3">
-          {services.map((service) => (
+          {categories.map((category) => (
             <div
-              key={service.title}
+              key={category.title}
               className="group flex h-full flex-col rounded-xl border border-border bg-white p-8 shadow-sm transition-all duration-200 hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10"
             >
               <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 text-primary">
-                {service.icon}
+                {category.icon}
               </div>
               <h3 className="mb-3 text-xl font-semibold text-primary">
-                {service.title}
+                {category.title}
               </h3>
-              <p className="mb-4 text-text-muted">{service.description}</p>
+              <p className="mb-4 text-text-muted">{category.description}</p>
               <ul className="mb-6 space-y-2">
-                {service.items.map((item) => (
+                {category.items.map((item) => (
                   <li
-                    key={item}
+                    key={item.id}
                     className="flex items-center gap-2 text-sm text-text-muted"
                   >
                     <svg
@@ -129,13 +112,13 @@ export function ServicesGrid() {
                         clipRule="evenodd"
                       />
                     </svg>
-                    {item}
+                    {item.title}
                   </li>
                 ))}
               </ul>
               <div className="mt-auto flex justify-end">
                 <Link
-                  href={service.href}
+                  href={category.href}
                   className="inline-flex items-center gap-1 text-sm font-medium text-secondary transition-colors hover:text-primary"
                 >
                   Learn More

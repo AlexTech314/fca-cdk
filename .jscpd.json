@@ -1,0 +1,22 @@
+{
+  "threshold": 100,
+  "reporters": ["html", "json"],
+  "output": "report/jscpd",
+  "format": ["typescript", "tsx", "javascript"],
+  "minLines": 5,
+  "minTokens": 50,
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.next/**",
+    "**/cdk.out/**",
+    "**/.cdk.staging/**",
+    "**/coverage/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "**/report/**"
+  ]
+}

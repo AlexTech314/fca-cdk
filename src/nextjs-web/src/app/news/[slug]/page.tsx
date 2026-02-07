@@ -4,16 +4,18 @@ import { notFound } from 'next/navigation';
 import { Container } from '@/components/ui/Container';
 import { CTASection } from '@/components/sections/CTASection';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
-import { 
-  getNewsArticle, 
-  getNewsArticles, 
+import {
+  getNewsArticle,
+  getNewsArticles,
   getRelatedTombstonesForNews,
   getRelatedNewsForNews,
   getAdjacentArticles,
   parseMarkdownContent,
-  getAllNewsTags
+  getAllNewsTags,
 } from '@/lib/data';
 import { MarkdownContent } from '@/components/common/MarkdownContent';
+import { TombstoneGrid } from '@/components/sections/TombstoneGrid';
+import { RelatedNewsSection } from '@/components/sections/RelatedNewsSection';
 import { siteConfig } from '@/lib/utils';
 
 interface PageProps {
@@ -120,56 +122,27 @@ export default async function NewsArticlePage({ params }: PageProps) {
             {/* Content */}
             <MarkdownContent blocks={contentBlocks} />
 
-            {/* Related Transactions */}
+            {/* Related Transactions (same tombstone cards as elsewhere, with images) */}
             {relatedTombstones.length > 0 && (
               <div className="mt-12 border-t border-border pt-8">
                 <h2 className="mb-6 text-xl font-bold text-text">
                   Related Transactions
                 </h2>
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {relatedTombstones.map((tombstone) => (
-                    <Link
-                      key={tombstone.slug}
-                      href={`/transactions/${tombstone.slug}`}
-                      className="group rounded-lg border border-border bg-surface p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/10"
-                    >
-                      <p className="font-semibold text-text group-hover:text-primary">
-                        {tombstone.seller}
-                      </p>
-                      <p className="mt-1 text-sm text-text-muted">
-                        {tombstone.industry}
-                      </p>
-                      <p className="mt-1 text-xs text-text-light">
-                        {tombstone.transactionYear}
-                      </p>
-                    </Link>
-                  ))}
-                </div>
+                <TombstoneGrid tombstones={relatedTombstones} />
               </div>
             )}
 
-            {/* Related News Articles OR Prev/Next Navigation */}
-            <div className="mt-12 border-t border-border pt-8">
+            {/* Related News (preview + Read More like other pages) or Prev/Next */}
+            <div className="mt-12">
               {relatedNews.length > 0 ? (
-                <>
-                  <h2 className="mb-6 text-xl font-bold text-text">
-                    Related News
-                  </h2>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {relatedNews.map((news) => (
-                      <Link
-                        key={news.slug}
-                        href={`/news/${news.slug}`}
-                        className="group rounded-lg border border-border bg-surface p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/10"
-                      >
-                        <p className="text-sm text-secondary">{news.date}</p>
-                        <p className="mt-1 font-semibold text-text group-hover:text-primary line-clamp-2">
-                          {news.title}
-                        </p>
-                      </Link>
-                    ))}
-                  </div>
-                </>
+                <RelatedNewsSection
+                  title="Related News"
+                  articles={relatedNews}
+                  viewAllHref="/news"
+                  viewAllText="View all news →"
+                  maxItems={6}
+                  columns={3}
+                />
               ) : (
                 <>
                   <h2 className="mb-6 text-xl font-bold text-text">

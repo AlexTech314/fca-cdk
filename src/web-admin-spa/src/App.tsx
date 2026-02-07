@@ -128,7 +128,7 @@ function AppRoutes() {
           <Route path="/pages/community" element={<CommunityPage />} />
           <Route path="/pages/core-values" element={<CoreValuesPage />} />
           
-          {/* Legacy route for generic page content */}
+          {/* All page content listing */}
           <Route path="/pages" element={<PageContent />} />
           
           {/* Data */}

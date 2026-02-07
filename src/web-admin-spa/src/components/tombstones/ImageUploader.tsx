@@ -47,13 +47,13 @@ export function ImageUploader({ value, onChange, className }: ImageUploaderProps
   );
 
   const handleFile = (file: File) => {
-    // In mock mode, we'll use a data URL for preview
-    // In production, this would upload to S3 and return the path
+    // Show a local preview while the image path is set
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string;
       setPreview(dataUrl);
-      // In production, this would be the S3 path
+      // TODO: When S3 upload is wired, upload here and set the returned URL.
+      // For now, set the path based on the file name (matches static tombstone images).
       onChange(`/tombstones/${file.name}`);
     };
     reader.readAsDataURL(file);

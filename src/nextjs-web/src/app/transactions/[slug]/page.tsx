@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { Container } from '@/components/ui/Container';
 import { CTASection } from '@/components/sections/CTASection';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
+import { RelatedNewsSection } from '@/components/sections/RelatedNewsSection';
 import { 
   getTombstone, 
   getTombstones, 
@@ -237,29 +238,17 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Related News Articles (by matching tags) */}
+          {/* Related News (preview + Read More, same as news article page) */}
           {relatedNews.length > 0 && (
-            <div className="mt-12 border-t border-border pt-12">
-              <h2 className="mb-8 text-2xl font-bold text-text">
-                Related News
-              </h2>
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {relatedNews.map((article) => (
-                  <Link
-                    key={article.slug}
-                    href={`/news/${article.slug}`}
-                    className="group rounded-lg border border-border bg-surface p-6 transition-all hover:border-primary/30 hover:shadow-card"
-                  >
-                    <p className="mb-2 text-sm text-secondary">{article.date}</p>
-                    <h3 className="mb-2 font-semibold text-text group-hover:text-primary">
-                      {article.title}
-                    </h3>
-                    <p className="text-sm text-text-muted line-clamp-3">
-                      {article.excerpt}
-                    </p>
-                  </Link>
-                ))}
-              </div>
+            <div className="mt-12">
+              <RelatedNewsSection
+                title="Related News"
+                articles={relatedNews}
+                viewAllHref="/news"
+                viewAllText="View all news →"
+                maxItems={6}
+                columns={3}
+              />
             </div>
           )}
 

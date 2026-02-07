@@ -422,26 +422,26 @@ export const realApi: WebAdminApi = {
   // ============================================
 
   async getServices(): Promise<ServiceOffering[]> {
-    const data = await apiFetch<{ items: ServiceOffering[] }>('/admin/services');
+    const data = await apiFetch<{ items: ServiceOffering[] }>('/admin/service-offerings');
     return data.items || [];
   },
 
   async createService(data: Partial<ServiceOffering>): Promise<ServiceOffering> {
-    return apiFetch<ServiceOffering>('/admin/services', {
+    return apiFetch<ServiceOffering>('/admin/service-offerings', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   async updateService(id: string, data: Partial<ServiceOffering>): Promise<ServiceOffering> {
-    return apiFetch<ServiceOffering>(`/admin/services/${id}`, {
+    return apiFetch<ServiceOffering>(`/admin/service-offerings/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   },
 
   async deleteService(id: string): Promise<void> {
-    await apiFetch<void>(`/admin/services/${id}`, {
+    await apiFetch<void>(`/admin/service-offerings/${id}`, {
       method: 'DELETE',
     });
   },
@@ -463,14 +463,14 @@ export const realApi: WebAdminApi = {
   },
 
   async updateIndustry(id: string, data: Partial<IndustrySector>): Promise<IndustrySector> {
-    return apiFetch<IndustrySector>(`/admin/industries/${id}`, {
+    return apiFetch<IndustrySector>(`/admin/industry-sectors/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   },
 
   async deleteIndustry(id: string): Promise<void> {
-    await apiFetch<void>(`/admin/industries/${id}`, {
+    await apiFetch<void>(`/admin/industry-sectors/${id}`, {
       method: 'DELETE',
     });
   },

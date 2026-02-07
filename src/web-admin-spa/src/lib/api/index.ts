@@ -1,12 +1,7 @@
-import { mockApi } from './mock';
 import { realApi } from './real';
 import type { WebAdminApi } from './types';
 
-// Toggle between mock and real API
-// Set VITE_USE_REAL_API=true in .env.local to use real API
-export const USE_REAL_API = import.meta.env.VITE_USE_REAL_API === 'true';
-
-const baseApi: WebAdminApi = USE_REAL_API ? realApi : mockApi;
+const baseApi: WebAdminApi = realApi;
 
 /**
  * Structured API with namespaced methods for easier usage.

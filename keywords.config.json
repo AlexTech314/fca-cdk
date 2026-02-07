@@ -1,0 +1,7 @@
+{
+  "keywords": ["todo", "fixme", "mock", "backwards compatibility", "hack", "xxx", "legacy", "deprecated"],
+  "ignoreCase": true,
+  "extensions": [".ts", ".tsx", ".js", ".jsx"],
+  "dirs": ["src", "lib", "bin"],
+  "ignore": ["node_modules", "dist", "build", ".next", "cdk.out", ".cdk.staging", "coverage", "report"]
+}

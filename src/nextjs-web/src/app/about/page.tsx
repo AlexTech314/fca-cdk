@@ -6,6 +6,12 @@ import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { Button } from '@/components/ui/Button';
 import { siteConfig } from '@/lib/utils';
+import {
+  getPageData,
+  getServicesByCategory,
+  getAllIndustrySectors,
+  getAllCoreValues,
+} from '@/lib/data';
 
 export const metadata: Metadata = {
   title: 'About',
@@ -16,128 +22,31 @@ export const metadata: Metadata = {
   },
 };
 
-const sellSideServices = [
-  'Private Company Exits',
-  'Recapitalizations',
-  'Divestitures',
-  'Product Line & IP Sales',
-  'Generational Transfers',
-];
+export default async function AboutPage() {
+  const [
+    pageContent,
+    sellSideServices,
+    buySideServices,
+    strategicServices,
+    industrySectors,
+    coreValues,
+  ] = await Promise.all([
+    getPageData('about'),
+    getServicesByCategory('sell-side', 'service'),
+    getServicesByCategory('buy-side', 'service'),
+    getServicesByCategory('strategic', 'service'),
+    getAllIndustrySectors(),
+    getAllCoreValues(),
+  ]);
 
-const buySideServices = [
-  'Acquisition Search',
-  'Sponsor Services',
-  'Buy-side Representation',
-  'Due Diligence Support',
-  'Deal Structuring',
-];
+  const contentParagraphs = pageContent?.content
+    ? pageContent.content.split('\n\n').filter((p) => p.trim())
+    : [];
 
-const strategicServices = [
-  'Contract CFO',
-  'Growth Strategies',
-  'Optimizations',
-  'Financial Modeling',
-  'Market Analysis',
-];
-
-const industrySectors = [
-  {
-    name: 'Information Technology',
-    description:
-      'Hardware, Software (Big Data Business Analytics, ERP, etc.), Professional Services, Telecommunications, Biotech and Biomed Manufacturing Technologies',
-  },
-  {
-    name: 'Distribution',
-    description: 'Food & Beverage Services, Consumer Products',
-  },
-  {
-    name: 'Energy',
-    description: 'Oil & Gas Support Services and Manufacturing',
-  },
-  {
-    name: 'Manufacturing',
-    description:
-      'Specialty Machinery, Aerospace, Fabricated Metal Products, Semiconductor, Surgical/Medical Equipment, Pharmaceutical',
-  },
-  {
-    name: 'Healthcare',
-    description:
-      'Medical and Diagnostic Laboratories, Home Health Care Services, Specialized Urgent Care, Pharmacies',
-  },
-  {
-    name: 'Business Services',
-    description: 'Fire and Life Safety, HVAC, Specialty Construction, Supply Chain',
-  },
-];
-
-const coreValues = [
-  {
-    title: 'Open and Honest Communication',
-    description:
-      'We speak our minds to our clients and demand the same from all others we work with.',
-    icon: '/icons/comm.png',
-  },
-  {
-    title: 'Listen Well, Act Quickly',
-    description:
-      'Every day we strive to listen well, seek counsel, then act decisively.',
-    icon: '/icons/listen.png',
-  },
-  {
-    title: 'Focus',
-    description:
-      'We tirelessly seek to understand your priorities and systematically refresh our objectives.',
-    icon: '/icons/focus.png',
-  },
-  {
-    title: 'Accountability',
-    description:
-      'We deliver on our commitments and are transparent about progress and outcomes.',
-    icon: '/icons/accountability.png',
-  },
-  {
-    title: 'Customer Satisfaction',
-    description:
-      'We only agree to what we can deliver, and always deliver what we agree to.',
-    icon: '/icons/customer-satisfaction.png',
-  },
-  {
-    title: 'Relentlessness',
-    description:
-      'We inspire ourselves and our teams to a higher state of performance and quality.',
-    icon: '/icons/relentlessness.png',
-  },
-  {
-    title: 'Respect',
-    description:
-      'We demand ourselves to be professional with every interaction, treating you with the utmost respect and honesty.',
-    icon: '/icons/respect.png',
-  },
-  {
-    title: 'Extraordinary Teamwork',
-    description:
-      'Every person has a role on our team. We communicate and count on everyone to play their part flawlessly.',
-    icon: '/icons/teamwork.png',
-  },
-  {
-    title: 'Intelligence',
-    description:
-      'We constantly drive creative ideas and bring the best practices to our Company and to you, our client.',
-    icon: '/icons/intelligence.png',
-  },
-  {
-    title: 'Bold Consistent Vision',
-    description:
-      'We deliver a compelling, shared vision that passes the elevator test of simplicity.',
-    icon: '/icons/vision.png',
-  },
-];
-
-export default function AboutPage() {
   return (
     <>
       <Hero
-        title="Mergers & Acquisitions for Middle Markets"
+        title={pageContent?.title || 'Mergers & Acquisitions for Middle Markets'}
         description="With decades of transaction advisory experience, our founders identified a growing need to bring together a more comprehensive suite of professional resources."
         compact
       />
@@ -150,22 +59,21 @@ export default function AboutPage() {
               Flatirons Capital Advisors
             </h2>
             <div className="space-y-4 text-lg text-text-muted">
-              <p>
-                Flatirons Capital Advisors is a leading mergers and acquisitions
-                advisor to lower middle-market companies.
-              </p>
-              <p>
-                Our buyer relationships are crucial to our ongoing success in
-                making markets for our clients and completing transactions in
-                record time. We are constantly updating our key industry and
-                investment criteria based on real-time feedback from our vast
-                network of public and private buyers.
-              </p>
-              <p>
-                The deal process is 100% managed by a senior team member and not
-                pushed down to a junior analyst. This hands-on approach ensures
-                a strategic and robust process for our clients.
-              </p>
+              {contentParagraphs.length > 0 ? (
+                contentParagraphs.map((p, i) => <p key={i}>{p}</p>)
+              ) : (
+                <>
+                  <p>
+                    Flatirons Capital Advisors is a leading mergers and acquisitions
+                    advisor to lower middle-market companies.
+                  </p>
+                  <p>
+                    Our buyer relationships are crucial to our ongoing success in
+                    making markets for our clients and completing transactions in
+                    record time.
+                  </p>
+                </>
+              )}
             </div>
             <div className="mt-8">
               <Button
@@ -198,7 +106,7 @@ export default function AboutPage() {
               <ul className="space-y-3">
                 {buySideServices.map((service) => (
                   <li
-                    key={service}
+                    key={service.id}
                     className="flex items-center gap-2 text-text-muted"
                   >
                     <svg
@@ -212,7 +120,7 @@ export default function AboutPage() {
                         clipRule="evenodd"
                       />
                     </svg>
-                    {service}
+                    {service.title}
                   </li>
                 ))}
               </ul>
@@ -231,7 +139,7 @@ export default function AboutPage() {
               <ul className="space-y-3">
                 {sellSideServices.map((service) => (
                   <li
-                    key={service}
+                    key={service.id}
                     className="flex items-center gap-2 text-text-muted"
                   >
                     <svg
@@ -245,7 +153,7 @@ export default function AboutPage() {
                         clipRule="evenodd"
                       />
                     </svg>
-                    {service}
+                    {service.title}
                   </li>
                 ))}
               </ul>
@@ -264,7 +172,7 @@ export default function AboutPage() {
               <ul className="space-y-3">
                 {strategicServices.map((service) => (
                   <li
-                    key={service}
+                    key={service.id}
                     className="flex items-center gap-2 text-text-muted"
                   >
                     <svg
@@ -278,7 +186,7 @@ export default function AboutPage() {
                         clipRule="evenodd"
                       />
                     </svg>
-                    {service}
+                    {service.title}
                   </li>
                 ))}
               </ul>
@@ -343,7 +251,7 @@ export default function AboutPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {industrySectors.map((sector) => (
               <div
-                key={sector.name}
+                key={sector.id}
                 className="rounded-lg border border-border bg-surface p-5"
               >
                 <h4 className="mb-2 font-semibold text-primary">
@@ -359,7 +267,6 @@ export default function AboutPage() {
       {/* Core Values */}
       <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
         <Container>
-          {/* FCA Logo Header */}
           <div className="mb-8 flex justify-center">
             <Image
               src="/logos/fca-mountain-on-white.png"
@@ -374,7 +281,7 @@ export default function AboutPage() {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {coreValues.map((value) => (
               <div
-                key={value.title}
+                key={value.id}
                 className="flex flex-col items-center rounded-xl border border-border bg-white p-6 text-center shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10"
               >
                 <div className="relative mb-4 h-12 w-12">

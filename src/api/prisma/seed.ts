@@ -24,6 +24,7 @@ const NEXTJS_WEB_PATH = isDocker
   ? '/app/nextjs-web'
   : path.resolve(__dirname, '../../../nextjs-web');
 const TOMBSTONES_CSV = path.join(NEXTJS_WEB_PATH, 'tombstones.csv');
+const TOMBSTONE_IMAGES_TS = path.join(NEXTJS_WEB_PATH, 'src/lib/tombstones.ts');
 const NEWS_DIR = path.join(NEXTJS_WEB_PATH, 'data/news');
 const ARTICLES_DIR = path.join(NEXTJS_WEB_PATH, 'data/articles');
 
@@ -139,6 +140,127 @@ function parseMarkdown(content: string): MarkdownMetadata {
   return { title, url, author, date, category, body };
 }
 
+/**
+ * Load tombstone image path mapping: first from nextjs-web's tombstones.ts (when mounted),
+ * then from bundled prisma/tombstone-images.json (always available in Docker image).
+ */
+function loadTombstoneImages(): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (fs.existsSync(TOMBSTONE_IMAGES_TS)) {
+    const content = fs.readFileSync(TOMBSTONE_IMAGES_TS, 'utf-8');
+    const lineRe = /^\s*'([^']*(?:\\'[^']*)*)'\s*:\s*'([^']*)',?\s*$/gm;
+    const dqRe = /^\s*"([^"]*)"\s*:\s*'([^']*)',?\s*$/gm;
+    let m: RegExpExecArray | null;
+    while ((m = lineRe.exec(content)) !== null) {
+      out[m[1].replace(/\\'/g, "'")] = m[2];
+    }
+    while ((m = dqRe.exec(content)) !== null) {
+      out[m[1]] = m[2];
+    }
+  }
+  if (Object.keys(out).length === 0) {
+    const jsonPath = path.join(__dirname, 'tombstone-images.json');
+    if (fs.existsSync(jsonPath)) {
+      const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8')) as Record<string, string>;
+      Object.assign(out, data);
+    }
+  }
+  // Aliases: CSV seller name -> canonical key in mapping (so all CSV rows resolve to an image when we have one)
+  const aliases: [string, string][] = [
+    ['World Resoures Distribution', 'World Resources Distribution'],
+    ['Precision Pool & Spa', 'Precision Pool and Spa'],
+    ["Pod's Complete Car Care", 'PODs Complete Car Care and Accessories'],
+    ['thriveMD', 'ThriveMD-Platt Park & Formula Wellness'],
+    ['AEG Petroleum', 'AEG Petroleum LLC'],
+    ['MEC', 'MEC Builds'],
+    ["Henrichsen's Fire & Safety Equipment Co", 'Henrichsens Fire and Safety Equipment Co'],
+    ['Maple Grove Auto Service', 'Maple Grove Auto'],
+    ['Go Green Lawn & Pest Control', 'GoGreen Lawn Services'],
+    ['Top Gun Collision Experts', 'Top Gun'],
+    ['Ecological Resource Consulting Inc', 'Ecological Resource Consultants, Inc'],
+    ['Stratified Environmental & Archaeological Services', 'Stratified Environmental'],
+    ['General Fire Sprinkler Co', 'General Fire Sprinkler Company LLC'],
+    ['IVA Environmental Consulting Services', 'Ian Vincent & Associates Environmental Consulting Services'],
+    ['AWE', 'AWE Air Water Energy'],
+    ['The Specialists Automotive & Truck', 'The Specialists Automotive and Truck'],
+    ['Murraysmith Inc', 'Murray Smith, Inc'],
+    ['North Shore Fire Equipment', 'Northshore Fire Equipment'],
+    ['Digital Imaging and Laser Products Inc', 'DI Digital Imaging and Laser Products, Inc.'],
+    ['Key Enterprises Inc', 'Key Enterprises, Inc.'],
+    ['P and J Sprinkler Company Inc', 'P&J Sprinkler Company, Inc'],
+    ['Florida Fire Services Inc', 'Florida Fire Service'],
+    ['Rocky Mountain Medical Equipment Inc', 'Rocky Mountains Medical Equipment, Inc'],
+    ['Johnsons Corner', "Johnson's Corner"],
+    ['Sim Author Inc', 'Sim Author'],
+    ['Henry Smith Plumbing Heating & Cooling', 'Henry Smith Plumbing, Heating'],
+    ['SWC', 'SWC, Inc'],
+    ['Kennebec Fire Equipment', 'Kennebec Fire Equipment, Inc'],
+    ['Integrity Fire', 'Integrity Fire Safety Services'],
+    ['Big Bear A/C & Heating', 'Big Bear Air Conditioning and Heating'],
+    ['P&J Sprinkler Co', 'P&J Sprinkler Company, Inc'],
+    ['Florida Fire Service Co', 'Florida Fire Service'],
+    ['JOBS / AMST', 'JOBS-AMST'],
+    ['SWM International', 'SWM International, Inc'],
+    ['KMS Inc', 'KMS, Inc'],
+    ['Fire Protection Concepts Inc', 'Fire Protection Concepts, Inc'],
+    ['OnePoint BPO Services', 'OnePoint BPO Services, LLC'],
+    ["Saul's Seismic", 'SAULS Seismic, Inc'],
+    ['Pacific Cabinets Inc', 'Pacific Cabinets, Inc.'],
+    ['Sound Perfection Inc', 'Sound Perfection, Inc'],
+    ['Another Line Inc', 'Another Line, Inc'],
+    ['Mossberg & Midwest Sanitation', 'Mossberg Sanitation, Inc. and Midwest Sanitation Co., Inc'],
+    ['Whitworth Tool Inc', 'Whitworth Tool, Inc'],
+    ['Inter-American Oil Works Inc', 'Oil Works, Inc'],
+    ['Permian Fabrication & Services LP', 'Permian Fabrication and Services'],
+    ['Rocky Mountain Medical Equipment Inc', 'Rocky Mountains Medical Equipment, Inc'],
+    ['Recon Petrotechnologies', 'RECON Petrotechnologies, Inc'],
+    ["Johnston's Corner", "Johnson's Corner"],
+    ['Jim Myers Drugs Inc', 'Jim Myers Drug, Inc'],
+    ["Hammer's Quality Business Systems", 'Hammers Quality Business Systems, Inc'],
+    ['Essco Discount Drugs', 'Essco Discount Drug Center'],
+    ['Burlington Pharmacy Healthcare', 'Burlington Pharmacy Health Care'],
+    ['Bond Coat Inc', 'Bond Coat, Inc'],
+    ['Asher Agency', 'Asher Agency, Inc'],
+    ['Signal One Fire & Communications', 'Signal One Fire and Communication'],
+    ['Breckenridge Ski Enterprises Inc', 'Breckenbridge Ski Enterprises'],
+    ['Bid4Vacations.com', 'Bid4Vacations'],
+    ['SimAuthor Inc', 'Sim Author'],
+    ['UCH Pharmaceutical Services', 'UCH Pharmaceutical Services'],
+    ['BBB Tank Services Inc', 'BBB Tank Services, Inc'],
+    ['Colorado Lining International', 'Colorado Lining International, Inc'],
+  ];
+  for (const [csvName, canonicalKey] of aliases) {
+    if (out[canonicalKey] && !out[csvName]) {
+      out[csvName] = out[canonicalKey];
+    }
+  }
+  return out;
+}
+
+/** Normalize name for matching (lowercase, collapse punctuation/spaces). */
+function normalizeNameForMatch(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Resolve imagePath for a tombstone name: exact key match, or normalized match.
+ */
+function resolveImagePath(
+  name: string,
+  tombstoneImages: Record<string, string>
+): string | null {
+  if (tombstoneImages[name]) return tombstoneImages[name];
+  const normalized = normalizeNameForMatch(name);
+  for (const [key, imagePath] of Object.entries(tombstoneImages)) {
+    if (normalizeNameForMatch(key) === normalized) return imagePath;
+  }
+  return null;
+}
+
 function parseDate(dateStr: string | undefined): Date | null {
   if (!dateStr) return null;
 
@@ -194,6 +316,9 @@ async function seedContentTags() {
 async function seedTombstones() {
   console.log('Seeding tombstones from CSV...');
 
+  const tombstoneImages = loadTombstoneImages();
+  console.log(`  Loaded ${Object.keys(tombstoneImages).length} tombstone image mappings`);
+
   const content = fs.readFileSync(TOMBSTONES_CSV, 'utf-8');
   const rows = parseCSV(content);
 
@@ -206,6 +331,7 @@ async function seedTombstones() {
     const transactionYear = row.transaction_year
       ? parseInt(row.transaction_year, 10)
       : null;
+    const imagePath = resolveImagePath(name, tombstoneImages);
 
     // Match industry based on keywords
     const industryText = `${row.industry || ''} ${row.keywords || ''}`;
@@ -215,6 +341,7 @@ async function seedTombstones() {
       where: { slug },
       update: {
         name,
+        imagePath,
         industry: row.industry || null,
         buyerPeFirm: row.buyer_pe_firm || null,
         buyerPlatform: row.buyer_platform || null,
@@ -226,6 +353,7 @@ async function seedTombstones() {
       create: {
         name,
         slug,
+        imagePath,
         industry: row.industry || null,
         buyerPeFirm: row.buyer_pe_firm || null,
         buyerPlatform: row.buyer_platform || null,
@@ -720,6 +848,13 @@ async function seedServiceOfferings() {
     { title: 'Confidential and professional approach', category: 'sell-side', type: 'benefit', sortOrder: 4 },
     { title: 'Proven ability to maximize value and deal terms', category: 'sell-side', type: 'benefit', sortOrder: 5 },
 
+    // Buy-side services (shown on about page / homepage)
+    { title: 'Acquisition Search', category: 'buy-side', type: 'service', sortOrder: 0 },
+    { title: 'Sponsor Services', category: 'buy-side', type: 'service', sortOrder: 1 },
+    { title: 'Buy-side Representation', category: 'buy-side', type: 'service', sortOrder: 2 },
+    { title: 'Due Diligence Support', category: 'buy-side', type: 'service', sortOrder: 3 },
+    { title: 'Deal Structuring', category: 'buy-side', type: 'service', sortOrder: 4 },
+
     // Buy-side benefits
     { title: 'A "Free Look" with a strategic buyer in the identical/similar industry', category: 'buy-side', type: 'benefit', sortOrder: 0 },
     { title: 'Gain insights and perspectives from a larger operator', category: 'buy-side', type: 'benefit', sortOrder: 1 },
@@ -788,30 +923,156 @@ The deal process is 100% managed by a senior team member and not pushed down to 
     {
       pageKey: 'privacy-policy',
       title: 'Privacy Policy',
-      content: `# Privacy Policy
+      content: `Last updated: January 2026
 
-This Privacy Policy describes how Flatirons Capital Advisors collects, uses, and protects your personal information when you visit our website or use our services.
+## Introduction
+
+Flatirons Capital Advisors, LLC ("we," "our," or "us") respects your privacy and is committed to protecting your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website or engage our services.
 
 ## Information We Collect
 
-We may collect personal information that you voluntarily provide to us when you:
-- Fill out contact forms
-- Subscribe to our newsletter
-- Request information about our services
-- Submit seller intake forms
+We may collect information about you in a variety of ways, including:
 
-## How We Use Your Information
+- **Personal Data:** Personally identifiable information, such as your name, email address, telephone number, and company information that you voluntarily give to us when you contact us or engage our services.
+- **Derivative Data:** Information our servers automatically collect when you access the website, such as your IP address, browser type, operating system, access times, and pages viewed.
+- **Financial Data:** Financial information related to potential transactions that you provide to us in the course of our advisory services.
 
-We use the information we collect to:
-- Respond to your inquiries
-- Provide our M&A advisory services
-- Send you relevant industry updates and insights
+## Use of Your Information
+
+We may use information collected about you to:
+
+- Provide, operate, and maintain our services
+- Respond to your inquiries and fulfill your requests
+- Send you marketing and promotional communications
 - Improve our website and services
+- Comply with legal obligations
+
+## Disclosure of Your Information
+
+We may share information we have collected about you in certain situations. Your information may be disclosed as follows:
+
+- **By Law or to Protect Rights:** If we believe the release of information is necessary to respond to legal process or to protect the rights, property, and safety of others.
+- **Business Transfers:** In connection with any merger, sale of company assets, financing, or acquisition of all or a portion of our business.
+- **With Your Consent:** We may disclose your personal information for any other purpose with your consent.
+
+## Security of Your Information
+
+We use administrative, technical, and physical security measures to help protect your personal information. While we have taken reasonable steps to secure the personal information you provide to us, please be aware that no security measures are perfect or impenetrable.
 
 ## Contact Us
 
-If you have questions about this Privacy Policy, please contact us at info@flatironscap.com.`,
+If you have questions or comments about this Privacy Policy, please contact us at info@flatironscap.com or call 303.319.4540.`,
       metadata: {},
+    },
+    {
+      pageKey: 'sell-side',
+      title: 'Sell-Side M&A Advisory',
+      content: `At Flatirons Capital Advisors, we understand that selling your business is one of the most significant decisions you'll make. Our sell-side advisory services are designed to guide you through every step of the process, ensuring you achieve the best possible outcome while protecting what you've built.
+
+With decades of experience and a hands-on approach from senior team members, we create competitive processes that attract the right buyers and maximize value for our clients.
+
+---
+
+Our buyer relationships are crucial to our ongoing success in making markets for our clients and completing transactions in record time. The deal process is 100% managed by a senior team member and not pushed down to a junior analyst.`,
+      metadata: {
+        subtitle: 'Maximize Your Exit',
+        description: "The focus of our sell-side advisory approach is on helping you make the right strategic moves to protect what you've built through years of hard work and sacrifice.",
+        ctaTitle: 'Ready to explore your options?',
+        ctaDescription: "Contact us for a confidential conversation about your business and goals. We'll help you understand what's possible.",
+        whyChooseUs: [
+          'Senior-level attention throughout the entire process',
+          'Extensive relationships with strategic and financial buyers',
+          'Track record of 200+ completed transactions',
+          'Deep industry expertise across multiple sectors',
+          'Confidential and professional approach',
+          'Proven ability to maximize value and deal terms',
+        ],
+      },
+    },
+    {
+      pageKey: 'buy-side',
+      title: 'Buy-Side M&A Advisory',
+      content: `Flatirons Capital Advisors loves finding the simplest, shortest and most efficient solutions for our clients' desired outcomes. With our extensive knowledge of a broad range of industries and expansive relationships with strategic buyers across North America, in certain situations a possible solution for a business owner looking to retire or take some chips off the table is to take a buy-side approach to the sale.
+
+---
+
+Whether it's a buy-side or sell-side engagement, a key part of Flatirons Capital Advisors' expertise lies with identifying and maintaining relationships with key strategic buyers that have the cash on hand and are actively acquiring businesses in the same industry as the business owner's operations.
+
+This reduces the chances of deal fatigue and any surprises the buyer might have if they didn't intimately understand the owner's business/industry.
+
+The due diligence process/timeline is usually more efficient because the buyer understands the industry/business operations, thus reducing friction points and the time to close. Further, it elevates the chances of a successful post-merger integration.
+
+Finally, the business owner can feel confident with the ultimate sale price because in this highly competitive market these buyers understand they must present strong, fair-market-values up front in order to consistently complete acquisitions.`,
+      metadata: {
+        subtitle: 'A Free Look',
+        description: "Finding the simplest, shortest and most efficient solutions for our clients' desired outcomes.",
+        processBullets: [
+          'The buyer is our client and pays our fees',
+          "A high-level description of the business owner's operations is required",
+          'A 30-minute conference call takes place to determine if next steps are warranted',
+        ],
+        ctaTitle: 'Interested in a buy-side approach?',
+        ctaDescription: 'Contact us to discuss whether a buy-side engagement might be the right fit for your situation.',
+      },
+    },
+    {
+      pageKey: 'team',
+      title: 'Excellence is our foundation.',
+      content: '',
+      metadata: {
+        description: 'Our senior team members ensure a strategic and robust process for every client. The deal process is 100% managed by experienced professionals.',
+        communityDescription: 'The entire team at Flatirons Capital Advisors loves giving back to the community.',
+      },
+    },
+    {
+      pageKey: 'faq',
+      title: 'Frequently Asked Questions',
+      content: '',
+      metadata: {
+        description: 'Common questions about M&A transactions, business valuation, and working with our team.',
+        ctaTitle: 'Have more questions?',
+        ctaDescription: 'Our team is here to help. Reach out to discuss your specific situation and how we can assist.',
+      },
+    },
+    {
+      pageKey: 'contact',
+      title: "We'd love to hear from you!",
+      content: '',
+      metadata: {
+        description: "Let's explore how we can help you achieve your goals.",
+      },
+    },
+    {
+      pageKey: 'transactions',
+      title: 'Completed Transactions',
+      content: '',
+      metadata: {
+        subtitle: 'Strategic Advice | Process Driven™',
+        description: 'When it comes to closing a transaction, our clients value our advice, expertise and execution. Our commitment to excellence has allowed us to deliver world-class results.',
+        sectionDescription: 'Our commitment to excellence has allowed us to deliver world-class results to the middle and lower middle markets.',
+        ctaTitle: 'Ready to add your company to this list?',
+        ctaDescription: 'Let us help you achieve your transaction goals with the same expertise and dedication we bring to every engagement.',
+      },
+    },
+    {
+      pageKey: 'news',
+      title: 'News & Insights',
+      content: '',
+      metadata: {
+        subtitle: 'Recent Transaction Announcements',
+        description: 'Stay updated on our latest M&A transactions and industry insights.',
+      },
+    },
+    {
+      pageKey: 'resources',
+      title: 'Resources',
+      content: '',
+      metadata: {
+        subtitle: 'M&A Guides & Articles',
+        description: 'Featured articles and guides for business owners considering M&A transactions.',
+        ctaTitle: 'Have questions about selling your business?',
+        ctaDescription: 'Our team is here to help guide you through the process.',
+      },
     },
   ];
 

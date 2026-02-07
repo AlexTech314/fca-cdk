@@ -1,16 +1,19 @@
 {
   "name": "fca-cdk",
   "version": "0.1.0",
-  "bin": {
-    "fca-cdk": "bin/fca-cdk.js"
-  },
+  "bin": {"fca-cdk": "bin/fca-cdk.js"},
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "dupes": "jscpd src lib",
+    "todos": "leasot 'src/api/src/**/*.{ts,tsx,js,jsx}' 'src/api/prisma/**/*.ts' 'src/nextjs-web/src/**/*.{ts,tsx,js,jsx}' 'src/web-admin-spa/src/**/*.{ts,tsx,js,jsx}' 'src/lead-gen-spa/src/**/*.{ts,tsx,js,jsx}' 'lib/**/*.ts' 'bin/**/*.ts' 'test/**/*.ts' --reporter table",
+    "keywords": "node scripts/find-keywords.js"
   },
   "devDependencies": {
+    "jscpd": "^4.0.6",
+    "leasot": "^14.4.0",
     "@types/jest": "^30",
     "@types/node": "^24.10.1",
     "jest": "^30",

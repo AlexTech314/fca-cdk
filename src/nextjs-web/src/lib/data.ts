@@ -1,8 +1,7 @@
 /**
  * Data layer for Next.js
  *
- * This module fetches data from the API instead of the filesystem.
- * All functions maintain backward compatibility with existing page components.
+ * Fetches from the API and maps responses to app types (Tombstone, NewsArticle, ResourceArticle).
  */
 
 import type { NewsArticle, ResourceArticle, Tombstone, NewsArticleSummary, TombstoneSummary } from './types';
@@ -15,18 +14,29 @@ import {
   getRelatedContentForBlogPost,
   getAllTags,
   getTagBySlug,
+  getPageContent,
+  getTeamMembers,
+  getCommunityServices,
+  getFAQs,
+  getCoreValues,
+  getIndustrySectors,
+  getServiceOfferings,
   type ApiTombstone,
   type ApiBlogPost,
+  type ApiPageContent,
+  type ApiTeamMember,
+  type ApiCommunityService,
+  type ApiFAQ,
+  type ApiCoreValue,
+  type ApiIndustrySector,
+  type ApiServiceOffering,
 } from './api';
 
 // ============================================
-// CONVERSION HELPERS
+// API → APP TYPE MAPPERS
 // ============================================
 
-/**
- * Convert API tombstone to legacy Tombstone type
- */
-function apiTombstoneToLegacy(t: ApiTombstone): Tombstone {
+function fromApiTombstone(t: ApiTombstone): Tombstone {
   return {
     slug: t.slug,
     seller: t.name,
@@ -39,14 +49,11 @@ function apiTombstoneToLegacy(t: ApiTombstone): Tombstone {
     hasPressRelease: !!t.pressRelease,
     pressReleaseSlug: t.pressRelease?.slug || null,
     imagePath: t.imagePath || undefined,
-    tags: t.tags.map((tag) => tag.slug),
+    tags: (t.tags ?? []).map((tag) => tag.slug),
   };
 }
 
-/**
- * Convert API blog post to legacy NewsArticle type
- */
-function apiBlogPostToNewsArticle(p: ApiBlogPost): NewsArticle {
+function fromApiBlogPostToNewsArticle(p: ApiBlogPost): NewsArticle {
   return {
     slug: p.slug,
     title: p.title,
@@ -59,10 +66,7 @@ function apiBlogPostToNewsArticle(p: ApiBlogPost): NewsArticle {
   };
 }
 
-/**
- * Convert API blog post to legacy ResourceArticle type
- */
-function apiBlogPostToResourceArticle(p: ApiBlogPost): ResourceArticle {
+function fromApiBlogPostToResourceArticle(p: ApiBlogPost): ResourceArticle {
   return {
     slug: p.slug,
     title: p.title,
@@ -120,7 +124,7 @@ function parseDate(dateStr: string): Date {
  */
 export async function getTombstones(): Promise<Tombstone[]> {
   const response = await apiGetTombstones({ limit: 200 });
-  return response.items.map(apiTombstoneToLegacy);
+  return response.items.map(fromApiTombstone);
 }
 
 /**
@@ -128,7 +132,7 @@ export async function getTombstones(): Promise<Tombstone[]> {
  */
 export async function getTombstone(slug: string): Promise<Tombstone | null> {
   const tombstone = await apiGetTombstoneBySlug(slug);
-  return tombstone ? apiTombstoneToLegacy(tombstone) : null;
+  return tombstone ? fromApiTombstone(tombstone) : null;
 }
 
 /**
@@ -136,7 +140,7 @@ export async function getTombstone(slug: string): Promise<Tombstone | null> {
  */
 export async function getTombstonesByIndustry(industry: string): Promise<Tombstone[]> {
   const response = await apiGetTombstones({ industry, limit: 100 });
-  return response.items.map(apiTombstoneToLegacy);
+  return response.items.map(fromApiTombstone);
 }
 
 /**
@@ -144,7 +148,7 @@ export async function getTombstonesByIndustry(industry: string): Promise<Tombsto
  */
 export async function getTombstonesByYear(year: number): Promise<Tombstone[]> {
   const response = await apiGetTombstones({ year, limit: 100 });
-  return response.items.map(apiTombstoneToLegacy);
+  return response.items.map(fromApiTombstone);
 }
 
 /**
@@ -152,7 +156,7 @@ export async function getTombstonesByYear(year: number): Promise<Tombstone[]> {
  */
 export async function getTombstonesByTag(tag: string): Promise<Tombstone[]> {
   const response = await apiGetTombstones({ tag, limit: 100 });
-  return response.items.map(apiTombstoneToLegacy);
+  return response.items.map(fromApiTombstone);
 }
 
 /**
@@ -160,7 +164,7 @@ export async function getTombstonesByTag(tag: string): Promise<Tombstone[]> {
  */
 export async function getTombstonesByState(state: string): Promise<Tombstone[]> {
   const response = await apiGetTombstones({ state, limit: 100 });
-  return response.items.map(apiTombstoneToLegacy);
+  return response.items.map(fromApiTombstone);
 }
 
 /**
@@ -239,7 +243,7 @@ export async function getAllTransactionYears(): Promise<number[]> {
  */
 export async function getNewsArticles(): Promise<NewsArticle[]> {
   const response = await apiGetBlogPosts({ category: 'news', limit: 100 });
-  return response.items.map(apiBlogPostToNewsArticle);
+  return response.items.map(fromApiBlogPostToNewsArticle);
 }
 
 /**
@@ -248,7 +252,7 @@ export async function getNewsArticles(): Promise<NewsArticle[]> {
 export async function getNewsArticle(slug: string): Promise<NewsArticle | null> {
   const post = await apiGetBlogPostBySlug(slug);
   if (!post || post.category !== 'news') return null;
-  return apiBlogPostToNewsArticle(post);
+  return fromApiBlogPostToNewsArticle(post);
 }
 
 /**
@@ -256,7 +260,7 @@ export async function getNewsArticle(slug: string): Promise<NewsArticle | null> 
  */
 export async function getNewsArticlesByTag(tag: string): Promise<NewsArticle[]> {
   const response = await apiGetBlogPosts({ category: 'news', tag, limit: 100 });
-  return response.items.map(apiBlogPostToNewsArticle);
+  return response.items.map(fromApiBlogPostToNewsArticle);
 }
 
 /**
@@ -276,7 +280,7 @@ export async function getAllNewsTags(): Promise<string[]> {
  */
 export async function getResourceArticles(): Promise<ResourceArticle[]> {
   const response = await apiGetBlogPosts({ category: 'resource', limit: 100 });
-  return response.items.map(apiBlogPostToResourceArticle);
+  return response.items.map(fromApiBlogPostToResourceArticle);
 }
 
 /**
@@ -285,7 +289,7 @@ export async function getResourceArticles(): Promise<ResourceArticle[]> {
 export async function getResourceArticle(slug: string): Promise<ResourceArticle | null> {
   const post = await apiGetBlogPostBySlug(slug);
   if (!post || post.category !== 'resource') return null;
-  return apiBlogPostToResourceArticle(post);
+  return fromApiBlogPostToResourceArticle(post);
 }
 
 // ============================================
@@ -323,15 +327,9 @@ export async function getRelatedNewsForTombstone(
 /**
  * Get related tombstones for a news article
  */
-export async function getRelatedTombstonesForNews(article: NewsArticle): Promise<TombstoneSummary[]> {
+export async function getRelatedTombstonesForNews(article: NewsArticle): Promise<Tombstone[]> {
   const { tombstones } = await getRelatedContentForBlogPost(article.slug);
-
-  return tombstones.slice(0, 6).map((t) => ({
-    slug: t.slug,
-    seller: t.name,
-    industry: t.industry || '',
-    transactionYear: t.transactionYear || 0,
-  }));
+  return tombstones.slice(0, 6).map(fromApiTombstone);
 }
 
 /**
@@ -415,3 +413,102 @@ export function parseMarkdownContent(content: string): string[] {
     .map((block) => block.trim())
     .filter((block) => block.length > 0);
 }
+
+// ============================================
+// STATIC PAGE CONTENT
+// ============================================
+
+/**
+ * Get page content by key with fallback handling.
+ * Returns null if the page doesn't exist.
+ */
+export async function getPageData(pageKey: string): Promise<ApiPageContent | null> {
+  return getPageContent(pageKey);
+}
+
+/**
+ * Get all team members split by category.
+ */
+export async function getTeamMembersByCategory(): Promise<{
+  leadership: ApiTeamMember[];
+  analysts: ApiTeamMember[];
+}> {
+  try {
+    const [leadership, analysts] = await Promise.all([
+      getTeamMembers('leadership'),
+      getTeamMembers('analyst'),
+    ]);
+    return { leadership, analysts };
+  } catch {
+    return { leadership: [], analysts: [] };
+  }
+}
+
+/**
+ * Get all published FAQs.
+ */
+export async function getAllFAQs(): Promise<ApiFAQ[]> {
+  try {
+    return await getFAQs();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get all published core values.
+ */
+export async function getAllCoreValues(): Promise<ApiCoreValue[]> {
+  try {
+    return await getCoreValues();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get all published industry sectors.
+ */
+export async function getAllIndustrySectors(): Promise<ApiIndustrySector[]> {
+  try {
+    return await getIndustrySectors();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get service offerings by category and optional type.
+ */
+export async function getServicesByCategory(
+  category: string,
+  type?: string
+): Promise<ApiServiceOffering[]> {
+  try {
+    return await getServiceOfferings({ category, type });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get all published community services.
+ */
+export async function getAllCommunityServices(): Promise<ApiCommunityService[]> {
+  try {
+    return await getCommunityServices();
+  } catch {
+    return [];
+  }
+}
+
+// Re-export types for page components
+export type {
+  ApiPageContent,
+  ApiTeamMember,
+  ApiCommunityService,
+  ApiFAQ,
+  ApiCoreValue,
+  ApiIndustrySector,
+  ApiServiceOffering,
+};

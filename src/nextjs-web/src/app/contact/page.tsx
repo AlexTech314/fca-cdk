@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { Container } from '@/components/ui/Container';
 import { ContactForm } from '@/components/forms/ContactForm';
-import { getNewsArticles, getResourceArticles } from '@/lib/data';
+import { getNewsArticles, getResourceArticles, getPageData } from '@/lib/data';
 import { siteConfig } from '@/lib/utils';
 
 export const metadata: Metadata = {
@@ -14,14 +14,19 @@ export const metadata: Metadata = {
   },
 };
 
+interface ContactMetadata {
+  description?: string;
+}
+
 export default async function ContactPage() {
-  // Get the most recent news article
-  const articles = await getNewsArticles();
+  const [pageContent, articles, resources] = await Promise.all([
+    getPageData('contact'),
+    getNewsArticles(),
+    getResourceArticles(),
+  ]);
   const featuredArticle = articles[0];
-  
-  // Get the first resource
-  const resources = await getResourceArticles();
   const featuredResource = resources.length > 0 ? resources[0] : null;
+  const meta = (pageContent?.metadata || {}) as ContactMetadata;
 
   return (
     <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
@@ -30,10 +35,10 @@ export default async function ContactPage() {
         <div className="grid gap-8 lg:grid-cols-5 lg:gap-16">
           <div className="lg:col-span-3">
             <h1 className="mb-4 text-3xl font-bold text-primary md:text-4xl">
-              We&apos;d love to hear from you!
+              {pageContent?.title || "We'd love to hear from you!"}
             </h1>
             <p className="text-lg text-text-muted">
-              Let&apos;s explore how we can help you achieve your goals.
+              {meta.description || "Let's explore how we can help you achieve your goals."}
             </p>
           </div>
    

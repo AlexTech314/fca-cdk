@@ -12,7 +12,8 @@ import {
   getAllTombstoneTags, 
   getAllStates, 
   getAllCities, 
-  getAllTransactionYears 
+  getAllTransactionYears,
+  getPageData,
 } from '@/lib/data';
 
 export const metadata: Metadata = {
@@ -24,8 +25,17 @@ export const metadata: Metadata = {
   },
 };
 
+interface TransactionsMetadata {
+  subtitle?: string;
+  description?: string;
+  sectionDescription?: string;
+  ctaTitle?: string;
+  ctaDescription?: string;
+}
+
 export default async function TransactionsPage() {
-  const [tombstones, tags, states, cities, years] = await Promise.all([
+  const [pageContent, tombstones, tags, states, cities, years] = await Promise.all([
+    getPageData('transactions'),
     getTombstones(),
     getAllTombstoneTags(),
     getAllStates(),
@@ -33,12 +43,14 @@ export default async function TransactionsPage() {
     getAllTransactionYears(),
   ]);
 
+  const meta = (pageContent?.metadata || {}) as TransactionsMetadata;
+
   return (
     <>
       <Hero
-        title="Completed Transactions"
-        subtitle="Strategic Advice | Process Driven™"
-        description="When it comes to closing a transaction, our clients value our advice, expertise and execution. Our commitment to excellence has allowed us to deliver world-class results."
+        title={pageContent?.title || 'Completed Transactions'}
+        subtitle={meta.subtitle || 'Strategic Advice | Process Driven™'}
+        description={meta.description || 'When it comes to closing a transaction, our clients value our advice, expertise and execution. Our commitment to excellence has allowed us to deliver world-class results.'}
         compact
       />
 
@@ -47,7 +59,7 @@ export default async function TransactionsPage() {
           <SectionHeading
             subtitle="Track Record"
             title={`${tombstones.length}+ Transactions Completed`}
-            description="Our commitment to excellence has allowed us to deliver world-class results to the middle and lower middle markets."
+            description={meta.sectionDescription || 'Our commitment to excellence has allowed us to deliver world-class results to the middle and lower middle markets.'}
           />
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -91,8 +103,8 @@ export default async function TransactionsPage() {
       </section>
 
       <CTASection
-        title="Ready to add your company to this list?"
-        description="Let us help you achieve your transaction goals with the same expertise and dedication we bring to every engagement."
+        title={meta.ctaTitle || 'Ready to add your company to this list?'}
+        description={meta.ctaDescription || 'Let us help you achieve your transaction goals with the same expertise and dedication we bring to every engagement.'}
       />
     </>
   );

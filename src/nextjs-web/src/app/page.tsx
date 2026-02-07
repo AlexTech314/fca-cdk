@@ -5,7 +5,7 @@ import { TransactionGrid } from '@/components/sections/TransactionGrid';
 import { AwardsBar } from '@/components/sections/AwardsBar';
 import { CTASection } from '@/components/sections/CTASection';
 import { siteConfig } from '@/lib/utils';
-import { getTombstones } from '@/lib/data';
+import { getTombstones, getServicesByCategory } from '@/lib/data';
 import { getPageContent } from '@/lib/api';
 
 export const metadata: Metadata = {
@@ -52,10 +52,13 @@ const defaultCta = {
 };
 
 export default async function HomePage() {
-  // Fetch page content and tombstones in parallel
-  const [pageContent, tombstones] = await Promise.all([
+  // Fetch page content, tombstones, and services in parallel
+  const [pageContent, tombstones, buySide, sellSide, strategic] = await Promise.all([
     getPageContent('home').catch(() => null),
     getTombstones(),
+    getServicesByCategory('buy-side', 'service'),
+    getServicesByCategory('sell-side', 'service'),
+    getServicesByCategory('strategic', 'service'),
   ]);
 
   // Extract metadata with fallbacks
@@ -94,7 +97,11 @@ export default async function HomePage() {
       
       <AwardsBar />
       
-      <ServicesGrid />
+      <ServicesGrid
+        buySideServices={buySide.length > 0 ? buySide : undefined}
+        sellSideServices={sellSide.length > 0 ? sellSide : undefined}
+        strategicServices={strategic.length > 0 ? strategic : undefined}
+      />
       
       <TransactionGrid tombstones={tombstones} limit={10} />
       

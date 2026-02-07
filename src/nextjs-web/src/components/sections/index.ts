@@ -6,5 +6,7 @@ export { AwardsBar } from './AwardsBar';
 export { CTASection } from './CTASection';
 export { ContactInfo } from './ContactInfo';
 export { ContentExplorer } from './ContentExplorer';
+export { NewsCard } from './NewsCard';
 export { NewsGrid } from './NewsGrid';
+export { RelatedNewsSection } from './RelatedNewsSection';
 export { TombstoneGrid } from './TombstoneGrid';

@@ -4,7 +4,7 @@ import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
-import { getResourceArticles } from '@/lib/data';
+import { getResourceArticles, getPageData } from '@/lib/data';
 import { siteConfig } from '@/lib/utils';
 
 export const metadata: Metadata = {
@@ -16,15 +16,27 @@ export const metadata: Metadata = {
   },
 };
 
+interface ResourcesMetadata {
+  subtitle?: string;
+  description?: string;
+  ctaTitle?: string;
+  ctaDescription?: string;
+}
+
 export default async function ResourcesPage() {
-  const articles = await getResourceArticles();
+  const [pageContent, articles] = await Promise.all([
+    getPageData('resources'),
+    getResourceArticles(),
+  ]);
+
+  const meta = (pageContent?.metadata || {}) as ResourcesMetadata;
 
   return (
     <>
       <Hero
-        title="Resources"
-        subtitle="M&A Guides & Articles"
-        description="Featured articles and guides for business owners considering M&A transactions."
+        title={pageContent?.title || 'Resources'}
+        subtitle={meta.subtitle || 'M&A Guides & Articles'}
+        description={meta.description || 'Featured articles and guides for business owners considering M&A transactions.'}
         compact
       />
 
@@ -85,8 +97,8 @@ export default async function ResourcesPage() {
       </section>
 
       <CTASection
-        title="Have questions about selling your business?"
-        description="Our team is here to help guide you through the process."
+        title={meta.ctaTitle || 'Have questions about selling your business?'}
+        description={meta.ctaDescription || 'Our team is here to help guide you through the process.'}
       />
     </>
   );

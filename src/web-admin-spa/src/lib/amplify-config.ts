@@ -1,22 +1,12 @@
 /**
- * Amplify Configuration
- * 
- * Currently using mock auth. When Cognito is deployed:
+ * Amplify / Auth Configuration
+ *
+ * When Cognito is deployed:
  * 1. Set the VITE_COGNITO_* environment variables
  * 2. Uncomment the Amplify.configure() call in main.tsx
- * 3. Set USE_MOCK_AUTH to false
  */
 
-// Toggle this to switch between mock and real auth
-export const USE_MOCK_AUTH = true;
-
-// Demo credentials (shown on login screen when USE_MOCK_AUTH is true)
-export const DEMO_CREDENTIALS = {
-  email: 'admin@flatironscapital.com',
-  password: 'admin123',
-};
-
-// Cognito configuration (used when USE_MOCK_AUTH is false)
+// Cognito configuration
 const config = {
   Auth: {
     Cognito: {
@@ -42,15 +32,10 @@ const config = {
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/admin';
 
 export function configureAmplify() {
-  // Only configure when not using mock auth
-  if (!USE_MOCK_AUTH) {
-    // Uncomment when aws-amplify is installed and configured:
-    // import { Amplify } from 'aws-amplify';
-    // Amplify.configure(config);
-    console.log('Amplify configured with:', config.Auth.Cognito.userPoolId);
-  } else {
-    console.log('Using mock authentication');
-  }
+  // Uncomment when aws-amplify is installed and configured:
+  // import { Amplify } from 'aws-amplify';
+  // Amplify.configure(config);
+  console.log('Amplify configured with:', config.Auth.Cognito.userPoolId);
 }
 
 export default config;

@@ -46,7 +46,13 @@ type BlogPostFormData = z.infer<typeof blogPostSchema>;
 // Page schema
 const pageSchema = z.object({
   title: z.string().min(1, 'Title is required'),
-  content: z.string().min(1, 'Content is required'),
+  content: z.string(),
+  subtitle: z.string().optional(),
+  description: z.string().optional(),
+  ctaTitle: z.string().optional(),
+  ctaDescription: z.string().optional(),
+  ctaText: z.string().optional(),
+  ctaHref: z.string().optional(),
 });
 
 type PageFormData = z.infer<typeof pageSchema>;
@@ -98,6 +104,12 @@ export default function ContentEditor() {
     defaultValues: {
       title: '',
       content: '',
+      subtitle: '',
+      description: '',
+      ctaTitle: '',
+      ctaDescription: '',
+      ctaText: '',
+      ctaHref: '',
     },
   });
 
@@ -120,11 +132,18 @@ export default function ContentEditor() {
   // Load page data
   useEffect(() => {
     if (page && isPage) {
+      const meta = (page.metadata || {}) as Record<string, unknown>;
       pageForm.reset({
         title: page.title,
-        content: page.content,
+        content: page.content || '',
+        subtitle: (meta.subtitle as string) || '',
+        description: (meta.description as string) || '',
+        ctaTitle: (meta.ctaTitle as string) || '',
+        ctaDescription: (meta.ctaDescription as string) || '',
+        ctaText: (meta.ctaText as string) || '',
+        ctaHref: (meta.ctaHref as string) || '',
       });
-      contentRef.current = page.content;
+      contentRef.current = page.content || '';
     }
   }, [page, isPage, pageForm]);
 
@@ -177,10 +196,26 @@ export default function ContentEditor() {
   const handleSavePage = async (data: PageFormData) => {
     if (!id) return;
 
+    // Merge metadata fields with existing metadata
+    const existingMeta = (page?.metadata || {}) as Record<string, unknown>;
+    const metadata = {
+      ...existingMeta,
+      subtitle: data.subtitle || undefined,
+      description: data.description || undefined,
+      ctaTitle: data.ctaTitle || undefined,
+      ctaDescription: data.ctaDescription || undefined,
+      ctaText: data.ctaText || undefined,
+      ctaHref: data.ctaHref || undefined,
+    };
+
     try {
       await updatePageMutation.mutateAsync({
         pageKey: id,
-        input: data,
+        input: {
+          title: data.title,
+          content: data.content,
+          metadata,
+        },
       });
       toast({
         title: 'Saved',
@@ -435,6 +470,71 @@ export default function ContentEditor() {
               <p className="text-xs text-muted-foreground">
                 The page key cannot be changed.
               </p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="pageSubtitle">Subtitle</Label>
+              <Input
+                id="pageSubtitle"
+                placeholder="Page subtitle (shown in hero)"
+                {...pageForm.register('subtitle')}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="pageDescription">Description</Label>
+              <Textarea
+                id="pageDescription"
+                placeholder="Page description (shown in hero)"
+                rows={3}
+                {...pageForm.register('description')}
+              />
+            </div>
+
+            <Separator />
+
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              CTA Section
+            </p>
+
+            <div className="space-y-2">
+              <Label htmlFor="pageCtaTitle">CTA Title</Label>
+              <Input
+                id="pageCtaTitle"
+                placeholder="Call-to-action heading"
+                {...pageForm.register('ctaTitle')}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="pageCtaDescription">CTA Description</Label>
+              <Textarea
+                id="pageCtaDescription"
+                placeholder="Call-to-action description"
+                rows={2}
+                {...pageForm.register('ctaDescription')}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label htmlFor="pageCtaText">CTA Button Text</Label>
+                <Input
+                  id="pageCtaText"
+                  placeholder="Button text"
+                  {...pageForm.register('ctaText')}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pageCtaHref">CTA Button Link</Label>
+                <Input
+                  id="pageCtaHref"
+                  placeholder="/contact"
+                  {...pageForm.register('ctaHref')}
+                />
+              </div>
             </div>
 
             {pageForm.formState.errors.content && (

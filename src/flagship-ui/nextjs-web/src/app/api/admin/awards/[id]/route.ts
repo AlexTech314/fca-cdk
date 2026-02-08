@@ -1,20 +1,12 @@
 import { NextRequest } from 'next/server';
 import { adminProxy, readBody } from '@/lib/admin-api';
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  return adminProxy(`/admin/assets/${id}`);
-}
-
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  return adminProxy(`/admin/assets/${id}`, { method: 'PUT', body: await readBody(request) });
+  return adminProxy(`/admin/awards/${id}`, { method: 'PUT', body: await readBody(request) });
 }
 
 export async function DELETE(
@@ -22,5 +14,5 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  return adminProxy(`/admin/assets/${id}`, { method: 'DELETE' });
+  return adminProxy(`/admin/awards/${id}`, { method: 'DELETE' });
 }

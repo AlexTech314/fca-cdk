@@ -19,6 +19,7 @@ export function EditableHero({ tagline }: EditableHeroProps) {
 
   const handleImageSelect = (s3Url: string) => {
     updateField('heroImage', s3Url);
+    setPickerOpen(false);
   };
 
   return (

@@ -8,18 +8,9 @@ import { EditableAwardsBar } from '@/components/admin/sections/EditableAwardsBar
 import { EditableServicesGrid } from '@/components/admin/sections/EditableServicesGrid';
 import { EditableTransactionGrid } from '@/components/admin/sections/EditableTransactionGrid';
 import { EditableCTASection } from '@/components/admin/sections/EditableCTASection';
+import { toAssetUrl } from '@/lib/utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-
-const ASSET_BASE_URL =
-  'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com';
-
-function toAssetUrl(path?: string | null): string | undefined {
-  if (!path) return undefined;
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  if (path.startsWith('/')) return `${ASSET_BASE_URL}${path}`;
-  return `${ASSET_BASE_URL}/${path}`;
-}
 
 interface PageData {
   title: string;
@@ -200,7 +191,7 @@ export default function AdminHomePage() {
       <div className="bg-background">
         <EditableHero tagline={siteConfig.tagline} />
 
-        <EditableAwardsBar awards={awards} />
+        <EditableAwardsBar initialAwards={awards} />
 
         <EditableServicesGrid
           buySideServices={buySideServices}

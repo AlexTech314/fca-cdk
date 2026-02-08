@@ -165,7 +165,9 @@ export function AssetPickerModal({
     if (selectedS3Key) {
       const url = toAssetUrl(selectedS3Key);
       if (url) onSelect(url);
-      onClose();
+      // Don't call onClose() here -- the parent controls isOpen via state
+      // set in onSelect. Calling onClose() would trigger cleanup that
+      // conflicts with multi-step flows (e.g. awards: pick image -> enter name).
     }
   };
 

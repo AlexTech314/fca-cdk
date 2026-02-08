@@ -27,7 +27,7 @@ export function EditableTransactionGrid({
   const { data, updateField, dirtyFields } = useAdminPage();
   const meta = data.metadata;
 
-  const displayTombstones = tombstones.slice(0, limit);
+  const displayTombstones = tombstones.filter((t) => t.imagePath).slice(0, limit);
 
   return (
     <section className="py-16 md:py-24">
@@ -93,7 +93,7 @@ export function EditableTransactionGrid({
         {tombstones.length > limit && (
           <div className="mt-10 text-center">
             <span className="inline-flex items-center justify-center rounded-md border border-border px-6 py-3 text-sm font-medium text-text-muted">
-              View All {tombstones.length}+ Transactions
+              View All Transactions
             </span>
           </div>
         )}

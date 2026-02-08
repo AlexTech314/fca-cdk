@@ -22,7 +22,8 @@ export function TransactionGrid({
   title,
   description,
 }: TransactionGridProps) {
-  const displayTombstones = showAll ? tombstones : tombstones.slice(0, limit);
+  const withImages = tombstones.filter((t) => t.imagePath);
+  const displayTombstones = showAll ? tombstones : withImages.slice(0, limit);
 
   return (
     <section className="py-16 md:py-24">
@@ -64,7 +65,7 @@ export function TransactionGrid({
         {!showAll && tombstones.length > limit && (
           <div className="mt-10 text-center">
             <Button href="/transactions" variant="outline">
-              View All {tombstones.length}+ Transactions
+              View All Transactions
             </Button>
           </div>
         )}

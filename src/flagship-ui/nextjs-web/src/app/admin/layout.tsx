@@ -20,7 +20,7 @@ export default function AdminLayout({
       <AdminHeader />
       <div className="flex flex-1 overflow-hidden">
         <AdminSidebar />
-        <main className="flex-1 overflow-y-auto pb-20">
+        <main className="flex-1 overflow-y-auto">
           {children}
         </main>
       </div>

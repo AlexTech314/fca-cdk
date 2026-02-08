@@ -67,7 +67,7 @@ export default function AdminHomePage() {
           configRes,
         ] = await Promise.all([
           fetch('/api/admin/pages/home'),
-          fetch(`${API_URL}/tombstones?limit=10`),
+          fetch(`${API_URL}/tombstones?limit=50`),
           fetch(
             `${API_URL}/service-offerings?category=buy-side&type=service`
           ),
@@ -194,9 +194,9 @@ export default function AdminHomePage() {
         <EditableAwardsBar initialAwards={awards} />
 
         <EditableServicesGrid
-          buySideServices={buySideServices}
-          sellSideServices={sellSideServices}
-          strategicServices={strategicServices}
+          initialBuySide={buySideServices}
+          initialSellSide={sellSideServices}
+          initialStrategic={strategicServices}
         />
 
         <EditableTransactionGrid tombstones={tombstones} limit={10} />

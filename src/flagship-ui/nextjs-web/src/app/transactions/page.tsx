@@ -67,7 +67,7 @@ export default async function TransactionsPage() {
         <Container>
           <SectionHeading
             subtitle={meta.sectionSubtitle}
-            title={`${tombstones.length}+ Transactions Completed`}
+            title="Transactions Completed"
             description={meta.sectionDescription}
           />
 

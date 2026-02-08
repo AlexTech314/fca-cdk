@@ -1,20 +1,23 @@
 import Image from 'next/image';
 import { Container } from '@/components/ui/Container';
 import type { ApiTombstone } from '@/lib/api';
+import { toAssetUrl } from '@/lib/utils';
 
 interface PreviewTombstoneBodyProps {
   tombstone: ApiTombstone;
 }
 
 export function PreviewTombstoneBody({ tombstone }: PreviewTombstoneBodyProps) {
+  const imageUrl = tombstone.asset?.s3Key ? toAssetUrl(tombstone.asset.s3Key) : undefined;
+
   return (
     <section className="py-12 md:py-16">
       <Container>
         <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
           <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-surface shadow-lg">
-            {tombstone.imagePath ? (
+            {imageUrl ? (
               <Image
-                src={tombstone.imagePath}
+                src={imageUrl}
                 alt={`${tombstone.name} transaction`}
                 fill
                 className="object-contain p-8"

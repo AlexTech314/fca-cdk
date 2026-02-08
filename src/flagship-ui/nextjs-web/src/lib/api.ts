@@ -76,7 +76,13 @@ export interface ApiTombstone {
   id: string;
   name: string;
   slug: string;
-  imagePath: string | null;
+  assetId: string | null;
+  asset?: {
+    id: string;
+    s3Key: string;
+    fileName: string;
+    fileType: string;
+  } | null;
   industry: string | null;
   role: string | null;
   buyerPeFirm: string | null;

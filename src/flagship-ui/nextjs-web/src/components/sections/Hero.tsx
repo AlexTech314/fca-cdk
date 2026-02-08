@@ -12,6 +12,7 @@ interface HeroProps {
   heroImage?: string;
   showImage?: boolean;
   compact?: boolean;
+  tagline?: string;
 }
 
 export async function Hero({
@@ -25,6 +26,7 @@ export async function Hero({
   heroImage,
   showImage = true,
   compact = false,
+  tagline,
 }: HeroProps) {
   const config = await fetchSiteConfig();
   const resolvedHeroImage = heroImage ? (toAssetUrl(heroImage) || heroImage) : undefined;
@@ -131,7 +133,7 @@ export async function Hero({
               className="mt-8 text-sm font-medium"
               style={{ color: 'rgba(255, 255, 255, 0.8)' }}
             >
-              {config.tagline}
+              {tagline || config.tagline}
             </p>
           </div>
         </div>

@@ -40,6 +40,7 @@ export const tombstoneRepository = {
         orderBy: [{ transactionYear: 'desc' }, { sortOrder: 'asc' }],
         include: {
           tags: { include: { tag: true } },
+          asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
           pressRelease: { select: { id: true, slug: true, title: true } },
         },
       }),
@@ -60,6 +61,7 @@ export const tombstoneRepository = {
       where: { slug },
       include: {
         tags: { include: { tag: true } },
+        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
         pressRelease: { select: { id: true, slug: true, title: true } },
       },
     });
@@ -71,6 +73,7 @@ export const tombstoneRepository = {
       where: { id },
       include: {
         tags: { include: { tag: true } },
+        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
         pressRelease: { select: { id: true, slug: true, title: true } },
       },
     });
@@ -82,6 +85,7 @@ export const tombstoneRepository = {
       where: { slug, previewToken: token },
       include: {
         tags: { include: { tag: true } },
+        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
         pressRelease: { select: { id: true, slug: true, title: true } },
       },
     });
@@ -101,6 +105,7 @@ export const tombstoneRepository = {
       },
       include: {
         tags: { include: { tag: true } },
+        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
         pressRelease: { select: { id: true, slug: true, title: true } },
       },
     });
@@ -126,6 +131,7 @@ export const tombstoneRepository = {
       data: tombstoneData,
       include: {
         tags: { include: { tag: true } },
+        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
         pressRelease: { select: { id: true, slug: true, title: true } },
       },
     });
@@ -143,6 +149,7 @@ export const tombstoneRepository = {
       data: { pressReleaseId },
       include: {
         tags: { include: { tag: true } },
+        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
         pressRelease: { select: { id: true, slug: true, title: true } },
       },
     });

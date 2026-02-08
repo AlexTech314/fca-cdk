@@ -8,3 +8,4 @@ export * from './subscriber.model';
 export * from './seller-intake.model';
 export * from './analytics.model';
 export * from './static-content.model';
+export * from './asset.model';

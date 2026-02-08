@@ -3,7 +3,8 @@
  *
  * Seeds the database with:
  * - ContentTag taxonomy
- * - Tombstones from CSV
+ * - Assets (S3 file registry for tombstone images, awards, hero, OG)
+ * - Tombstones from CSV (linked to Asset records via assetId FK)
  * - BlogPosts from markdown files (news + articles)
  * - Static page content (team, FAQ, core values, etc.)
  * - PageContent for homepage and other pages
@@ -228,16 +229,30 @@ function normalizeNameForMatch(name: string): string {
 }
 
 /**
- * Resolve imagePath for a tombstone name: exact key match, or normalized match.
+ * Extract S3 key from a full S3 URL.
+ * e.g. "https://bucket.s3.region.amazonaws.com/tombstones/foo.jpg" -> "tombstones/foo.jpg"
  */
-function resolveImagePath(
+function extractS3KeyFromUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname.slice(1); // Remove leading slash
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Resolve S3 key for a tombstone name: exact key match, or normalized match.
+ * Returns the S3 key (not the full URL).
+ */
+function resolveS3Key(
   name: string,
   tombstoneImages: Record<string, string>
 ): string | null {
-  if (tombstoneImages[name]) {return tombstoneImages[name];}
+  if (tombstoneImages[name]) {return extractS3KeyFromUrl(tombstoneImages[name]);}
   const normalized = normalizeNameForMatch(name);
-  for (const [key, imagePath] of Object.entries(tombstoneImages)) {
-    if (normalizeNameForMatch(key) === normalized) {return imagePath;}
+  for (const [key, url] of Object.entries(tombstoneImages)) {
+    if (normalizeNameForMatch(key) === normalized) {return extractS3KeyFromUrl(url);}
   }
   return null;
 }
@@ -359,6 +374,87 @@ async function seedContentTags() {
   console.log(`  Seeded ${TAG_TAXONOMY.length} content tags`);
 }
 
+async function seedAssets() {
+  console.log('Seeding assets from existing S3 references...');
+
+  const tombstoneImages = loadTombstoneImages();
+  let count = 0;
+
+  // 1. Seed tombstone image assets from tombstone-images.json
+  for (const [_name, url] of Object.entries(tombstoneImages)) {
+    const s3Key = extractS3KeyFromUrl(url);
+    const fileName = s3Key.split('/').pop() || s3Key;
+
+    await prisma.asset.upsert({
+      where: { s3Key },
+      update: {},
+      create: {
+        fileName,
+        s3Key,
+        fileType: 'image/jpeg',
+        category: 'photo',
+        title: _name,
+      },
+    });
+    count++;
+  }
+
+  // 2. Seed award image assets
+  const awardImages = [
+    { s3Key: 'awards/axial-top-10-investment-bank-2022.png', title: 'Axial Top 10 Investment Bank 2022' },
+    { s3Key: 'awards/top50-software-email-2x.png', title: 'Top 50 Software Axial 2023' },
+    { s3Key: 'awards/axial-top-ib-badge-2020-359x450.png', title: 'Axial Top IB 2020' },
+    { s3Key: 'awards/2023-axial-advisor-100.png', title: '2023 Axial Advisor 100' },
+    { s3Key: 'awards/nfpa-member.png', title: 'NFPA Member' },
+  ];
+
+  for (const award of awardImages) {
+    const fileName = award.s3Key.split('/').pop() || award.s3Key;
+    await prisma.asset.upsert({
+      where: { s3Key: award.s3Key },
+      update: {},
+      create: {
+        fileName,
+        s3Key: award.s3Key,
+        fileType: 'image/png',
+        category: 'photo',
+        title: award.title,
+      },
+    });
+    count++;
+  }
+
+  // 3. Seed hero image asset
+  await prisma.asset.upsert({
+    where: { s3Key: 'hero/flatironsherowinter.jpg' },
+    update: {},
+    create: {
+      fileName: 'flatironsherowinter.jpg',
+      s3Key: 'hero/flatironsherowinter.jpg',
+      fileType: 'image/jpeg',
+      category: 'photo',
+      title: 'Homepage Hero Image',
+    },
+  });
+  count++;
+
+  // 4. Seed OG image asset
+  await prisma.asset.upsert({
+    where: { s3Key: 'meta/og-image.jpg' },
+    update: {},
+    create: {
+      fileName: 'og-image.jpg',
+      s3Key: 'meta/og-image.jpg',
+      fileType: 'image/jpeg',
+      category: 'photo',
+      title: 'OG Image',
+    },
+  });
+  count++;
+
+  console.log(`  Seeded ${count} assets`);
+}
+
 async function seedTombstones() {
   console.log('Seeding tombstones from CSV...');
 
@@ -377,7 +473,14 @@ async function seedTombstones() {
     const transactionYear = row.transaction_year
       ? parseInt(row.transaction_year, 10)
       : null;
-    const imagePath = resolveImagePath(name, tombstoneImages);
+    const s3Key = resolveS3Key(name, tombstoneImages);
+
+    // Look up the Asset record by s3Key to get the assetId
+    let assetId: string | null = null;
+    if (s3Key) {
+      const asset = await prisma.asset.findUnique({ where: { s3Key } });
+      assetId = asset?.id || null;
+    }
 
     // Match industry based on keywords
     const industryText = `${row.industry || ''} ${row.keywords || ''}`;
@@ -387,7 +490,7 @@ async function seedTombstones() {
       where: { slug },
       update: {
         name,
-        imagePath,
+        assetId,
         industry: row.industry || null,
         buyerPeFirm: row.buyer_pe_firm || null,
         buyerPlatform: row.buyer_platform || null,
@@ -399,7 +502,7 @@ async function seedTombstones() {
       create: {
         name,
         slug,
-        imagePath,
+        assetId,
         industry: row.industry || null,
         buyerPeFirm: row.buyer_pe_firm || null,
         buyerPlatform: row.buyer_platform || null,
@@ -1279,6 +1382,7 @@ async function main() {
   try {
     await seedSiteConfig();
     await seedContentTags();
+    await seedAssets();
     await seedTombstones();
     await seedBlogPosts();
     await linkPressReleases();

@@ -8,6 +8,7 @@ import { pageContentService } from '../services/page-content.service';
 import { subscriberService } from '../services/subscriber.service';
 import { sellerIntakeService } from '../services/seller-intake.service';
 import { analyticsService } from '../services/analytics.service';
+import { assetService } from '../services/asset.service';
 import {
   siteConfigService,
   teamMemberService,
@@ -50,6 +51,10 @@ import {
   createAwardSchema,
   updateAwardSchema,
   reorderSchema,
+  createAssetSchema,
+  updateAssetSchema,
+  assetQuerySchema,
+  presignedUrlSchema,
 } from '../models';
 
 const router = Router();
@@ -774,6 +779,67 @@ router.post('/awards/reorder', authorize('readwrite', 'admin'), validate(reorder
   try {
     await awardService.reorder(req.body.items);
     res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================
+// ASSETS
+// ============================================
+
+router.get('/assets', validate(assetQuerySchema, 'query'), async (req, res, next) => {
+  try {
+    const result = await assetService.list(req.query as any);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/assets/:id', async (req, res, next) => {
+  try {
+    const asset = await assetService.getById(req.params.id);
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+    res.json(asset);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/assets', authorize('readwrite', 'admin'), validate(createAssetSchema), async (req, res, next) => {
+  try {
+    const asset = await assetService.create(req.body);
+    res.status(201).json(asset);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/assets/:id', authorize('readwrite', 'admin'), validate(updateAssetSchema), async (req, res, next) => {
+  try {
+    const asset = await assetService.update(req.params.id, req.body);
+    res.json(asset);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/assets/:id', authorize('admin'), async (req, res, next) => {
+  try {
+    await assetService.delete(req.params.id);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/assets/presigned-url', authorize('readwrite', 'admin'), validate(presignedUrlSchema), async (req, res, next) => {
+  try {
+    const result = await assetService.generatePresignedUrl(req.body);
+    res.json(result);
   } catch (error) {
     next(error);
   }

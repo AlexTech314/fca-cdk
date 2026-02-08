@@ -10,3 +10,8 @@ cdk.out
 
 # Static analysis reports
 report/
+
+.env.local
+
+.env
+.env.*

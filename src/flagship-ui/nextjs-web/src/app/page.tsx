@@ -44,6 +44,7 @@ interface HomePageMetadata {
   transactionsSubtitle?: string;
   transactionsTitle?: string;
   transactionsDescription?: string;
+  heroTagline?: string;
 }
 
 export default async function HomePage() {
@@ -68,6 +69,7 @@ export default async function HomePage() {
         ctaHref={meta.ctaHref}
         secondaryCtaText={meta.secondaryCtaText}
         secondaryCtaHref={meta.secondaryCtaHref}
+        tagline={meta.heroTagline}
       />
       
       <AwardsBar />

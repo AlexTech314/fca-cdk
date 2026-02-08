@@ -3,7 +3,7 @@ import { z } from 'zod';
 // Base tombstone schema (shared fields)
 const tombstoneBase = {
   name: z.string().min(1, 'Name is required'),
-  imagePath: z.string().optional().nullable(),
+  assetId: z.string().uuid().optional().nullable(),
   industry: z.string().optional().nullable(),
   role: z.string().optional().nullable(),
   buyerPeFirm: z.string().optional().nullable(),
@@ -48,7 +48,7 @@ export const tombstoneResponseSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   slug: z.string(),
-  imagePath: z.string().nullable(),
+  assetId: z.string().uuid().nullable(),
   industry: z.string().nullable(),
   role: z.string().nullable(),
   buyerPeFirm: z.string().nullable(),
@@ -68,6 +68,12 @@ export const tombstoneResponseSchema = z.object({
     slug: z.string(),
     category: z.string().nullable(),
   })).optional(),
+  asset: z.object({
+    id: z.string(),
+    s3Key: z.string(),
+    fileName: z.string(),
+    fileType: z.string(),
+  }).nullable().optional(),
   pressRelease: z.object({
     id: z.string(),
     slug: z.string(),

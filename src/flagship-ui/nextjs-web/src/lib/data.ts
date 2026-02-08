@@ -49,7 +49,7 @@ function fromApiTombstone(t: ApiTombstone): Tombstone {
     state: t.state || '',
     hasPressRelease: !!t.pressRelease,
     pressReleaseSlug: t.pressRelease?.slug || null,
-    imagePath: toAssetUrl(t.imagePath) || undefined,
+    imagePath: t.asset?.s3Key ? toAssetUrl(t.asset.s3Key) : undefined,
     tags: (t.tags ?? []).map((tag) => tag.slug),
   };
 }

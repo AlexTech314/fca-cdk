@@ -36,7 +36,8 @@ model Tombstone {
   id              String    @id @default(uuid())
   name            String                          // Company/Seller name
   slug            String    @unique               // URL-friendly identifier
-  imagePath       String?   @map("image_path")    // Path to tombstone image
+  assetId         String?   @map("asset_id")      // FK to Asset (tombstone image)
+  asset           Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
   industry        String?                         // Industry category
   role            String?                         // Buy-side or Sell-side
 
@@ -347,4 +348,29 @@ model Award {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("awards")
+}
+
+// ===========================================
+// ASSETS (S3 file registry)
+// ===========================================
+
+model Asset {
+  id          String      @id @default(uuid())
+  fileName    String      @map("file_name")           // Original file name
+  s3Key       String      @unique @map("s3_key")      // S3 object key (any prefix)
+  fileType    String      @map("file_type")            // MIME type (e.g. application/pdf, image/png)
+  fileSize    Int?        @map("file_size")             // Size in bytes
+  category    String      @default("file")              // "file" or "photo"
+  title       String?
+  description String?
+  uploadedBy  String?     @map("uploaded_by")
+  isPublished Boolean     @default(true) @map("is_published")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  // Reverse relation: tombstones using this asset as their image
+  tombstones  Tombstone[]
+
+  @@index([category])
+  @@map("assets")
 }

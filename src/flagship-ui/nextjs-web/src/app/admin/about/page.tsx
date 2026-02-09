@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { AdminPageProvider } from '@/components/admin/AdminPageContext';
 import { SaveBar } from '@/components/admin/SaveBar';
@@ -38,20 +38,266 @@ interface CoreValue {
 }
 
 // ============================================
+// Editable criteria list (metadata-backed bullets)
+// ============================================
+
+interface CriteriaItem {
+  id: string;
+  text: string;
+}
+
+type CriteriaStatus = 'unchanged' | 'new' | 'modified' | 'deleted';
+
+let criteriaIdCounter = 0;
+function nextCriteriaId(): string {
+  return `crit-new-${++criteriaIdCounter}`;
+}
+
+function parseCriteria(value: string): CriteriaItem[] {
+  return value
+    .split('\n')
+    .filter((s) => s.trim())
+    .map((text, i) => ({ id: `crit-${i}`, text }));
+}
+
+function EditableCriteriaList({
+  metaKey,
+  value,
+  onChange,
+}: {
+  metaKey: string;
+  value: string;
+  onChange: (key: string, value: string) => void;
+}) {
+  const { saveStatus } = useAdminPage();
+
+  // Local state with stable IDs
+  const [items, setItems] = useState<CriteriaItem[]>(() => parseCriteria(value));
+  const [origItems, setOrigItems] = useState<CriteriaItem[]>(() => parseCriteria(value));
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const editRef = useRef<HTMLInputElement>(null);
+
+  // Track whether we triggered the value change ourselves
+  const selfUpdate = useRef(false);
+
+  // Re-initialize on save success (value may not change but local state needs resetting)
+  useEffect(() => {
+    if (saveStatus === 'success') {
+      const parsed = parseCriteria(value);
+      setItems(parsed);
+      setOrigItems(parsed);
+      setDeletedIds(new Set());
+      setEditingId(null);
+    }
+  }, [saveStatus, value]);
+
+  // Detect external changes (discard) by watching the metadata value
+  useEffect(() => {
+    if (selfUpdate.current) {
+      selfUpdate.current = false;
+      return;
+    }
+    // Value changed externally -- re-initialize
+    const parsed = parseCriteria(value);
+    setItems(parsed);
+    setOrigItems(parsed);
+    setDeletedIds(new Set());
+    setEditingId(null);
+  }, [value]);
+
+  useEffect(() => {
+    if (editingId && editRef.current) {
+      editRef.current.focus();
+      editRef.current.select();
+    }
+  }, [editingId]);
+
+  // Sync the "final" value (non-deleted items) to metadata
+  const syncToMeta = (currentItems: CriteriaItem[], deleted: Set<string>) => {
+    const finalValue = currentItems
+      .filter((item) => !deleted.has(item.id))
+      .map((item) => item.text)
+      .filter((t) => t.trim())
+      .join('\n');
+    selfUpdate.current = true;
+    onChange(metaKey, finalValue);
+  };
+
+  // Get status of an item
+  const getStatus = (item: CriteriaItem): CriteriaStatus => {
+    if (deletedIds.has(item.id)) return 'deleted';
+    if (item.id.startsWith('crit-new-')) return 'new';
+    const orig = origItems.find((o) => o.id === item.id);
+    if (orig && orig.text !== item.text) return 'modified';
+    return 'unchanged';
+  };
+
+  const commitEdit = () => {
+    if (editingId && editText.trim()) {
+      const updated = items.map((item) =>
+        item.id === editingId ? { ...item, text: editText.trim() } : item
+      );
+      setItems(updated);
+      syncToMeta(updated, deletedIds);
+    }
+    setEditingId(null);
+  };
+
+  const handleDelete = (id: string) => {
+    if (id.startsWith('crit-new-')) {
+      // New items can be removed outright
+      const updated = items.filter((item) => item.id !== id);
+      setItems(updated);
+      syncToMeta(updated, deletedIds);
+    } else {
+      // Original items get marked as deleted
+      const newDeleted = new Set(deletedIds);
+      newDeleted.add(id);
+      setDeletedIds(newDeleted);
+      syncToMeta(items, newDeleted);
+    }
+    if (editingId === id) setEditingId(null);
+  };
+
+  const handleUndoDelete = (id: string) => {
+    const newDeleted = new Set(deletedIds);
+    newDeleted.delete(id);
+    setDeletedIds(newDeleted);
+    syncToMeta(items, newDeleted);
+  };
+
+  const handleAdd = () => {
+    const newItem: CriteriaItem = { id: nextCriteriaId(), text: '' };
+    const updated = [...items, newItem];
+    setItems(updated);
+    // Don't sync yet -- empty text would be filtered out. Sync on commit.
+    setEditingId(newItem.id);
+    setEditText('');
+  };
+
+  return (
+    <>
+      <ul className="space-y-1">
+        {items.map((item) => {
+          const status = getStatus(item);
+          const isDeleted = status === 'deleted';
+          const isEditing = editingId === item.id;
+
+          return (
+            <li key={item.id} className="group/item relative">
+              <div className={`flex items-center gap-2 rounded px-1 py-0.5 transition-all ${
+                status === 'new' || status === 'modified'
+                  ? 'border border-dashed border-amber-400 bg-amber-50/50'
+                  : isDeleted
+                    ? 'border border-red-300 bg-red-50/50 opacity-60'
+                    : ''
+              }`}>
+                <span className={`mt-0.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${isDeleted ? 'bg-red-400' : 'bg-secondary'}`} />
+
+                {isEditing ? (
+                  <input
+                    ref={editRef}
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onBlur={commitEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitEdit();
+                      if (e.key === 'Escape') setEditingId(null);
+                    }}
+                    className="flex-1 rounded border border-blue-400 bg-white px-1 py-0 text-sm text-text-muted outline-none focus:ring-1 focus:ring-blue-400"
+                    placeholder="Criteria item..."
+                  />
+                ) : isDeleted ? (
+                  <span className="flex-1 text-sm text-text-muted line-through">
+                    {item.text}
+                  </span>
+                ) : (
+                  <span
+                    onClick={() => { setEditingId(item.id); setEditText(item.text); }}
+                    className="flex-1 cursor-pointer text-sm text-text-muted hover:text-primary"
+                  >
+                    {item.text || '(empty)'}
+                  </span>
+                )}
+
+                {isDeleted ? (
+                  <button
+                    onClick={() => handleUndoDelete(item.id)}
+                    className="shrink-0 text-[10px] font-medium text-red-500 hover:text-red-700"
+                  >
+                    Undo
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    className="shrink-0 rounded p-0.5 text-gray-300 opacity-0 transition-opacity hover:text-red-500 group-hover/item:opacity-100"
+                    title="Remove"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {status === 'new' && <p className="ml-4 text-[9px] font-medium text-amber-600">New</p>}
+              {status === 'modified' && <p className="ml-4 text-[9px] font-medium text-amber-600">Modified</p>}
+              {status === 'deleted' && <p className="ml-4 text-[9px] font-medium text-red-500">Will be removed on save</p>}
+            </li>
+          );
+        })}
+      </ul>
+      <button
+        onClick={handleAdd}
+        className="mt-3 flex items-center gap-1 text-xs font-medium text-gray-400 transition-colors hover:text-blue-500"
+      >
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Add criteria
+      </button>
+    </>
+  );
+}
+
+// ============================================
 // Inner component (needs AdminPageContext)
 // ============================================
 
 function AboutPageContent({
-  content,
   industrySectors,
   coreValues,
 }: {
-  content: string;
   industrySectors: IndustrySector[];
   coreValues: CoreValue[];
 }) {
-  const { data, updateField, dirtyFields } = useAdminPage();
+  const { data, updateField, dirtyFields, saveStatus } = useAdminPage();
   const meta = data.metadata;
+
+  // Track original content -- resets when save succeeds
+  const [origContent, setOrigContent] = useState(data.content || '');
+  useEffect(() => {
+    if (saveStatus === 'success') {
+      setOrigContent(data.content || '');
+    }
+  }, [saveStatus, data.content]);
+
+  // Split content into paragraphs for per-paragraph editing
+  const paragraphs = (data.content || '').split('\n\n').filter((p) => p.trim());
+  const origParagraphs = origContent.split('\n\n').filter((p) => p.trim());
+
+  const isParagraphDirty = (index: number): boolean => {
+    if (index >= origParagraphs.length) return true;
+    return paragraphs[index] !== origParagraphs[index];
+  };
+
+  const handleParagraphChange = (_key: string, value: string, index: number) => {
+    const updated = [...paragraphs];
+    updated[index] = value;
+    updateField('content', updated.join('\n\n'));
+  };
 
   return (
     <>
@@ -98,12 +344,18 @@ function AboutPageContent({
               placeholder="Company heading..."
             />
             <div className="space-y-4 text-lg text-text-muted">
-              {content
-                .split('\n\n')
-                .filter((p) => p.trim())
-                .map((p, i) => (
-                  <p key={i}>{p}</p>
-                ))}
+              {paragraphs.map((p, i) => (
+                <EditableField
+                  key={i}
+                  fieldKey={`content-para-${i}`}
+                  value={p}
+                  onChange={(_key, value) => handleParagraphChange(_key, value, i)}
+                  as="p"
+                  className=""
+                  isDirty={isParagraphDirty(i)}
+                  placeholder="Paragraph text..."
+                />
+              ))}
             </div>
           </div>
         </div>
@@ -145,17 +397,11 @@ function AboutPageContent({
                 isDirty={dirtyFields.has('financialCriteriaHeading')}
                 placeholder="Heading..."
               />
-              <ul className="space-y-3 text-text-muted">
-                {(meta.financialCriteria || '')
-                  .split('\n')
-                  .filter((s) => s.trim())
-                  .map((item, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
-                      {item}
-                    </li>
-                  ))}
-              </ul>
+              <EditableCriteriaList
+                metaKey="financialCriteria"
+                value={meta.financialCriteria || ''}
+                onChange={updateField}
+              />
             </div>
 
             <div className="rounded-xl border border-border bg-white p-8">
@@ -168,17 +414,11 @@ function AboutPageContent({
                 isDirty={dirtyFields.has('otherCriteriaHeading')}
                 placeholder="Heading..."
               />
-              <ul className="space-y-3 text-text-muted">
-                {(meta.otherCriteria || '')
-                  .split('\n')
-                  .filter((s) => s.trim())
-                  .map((item, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
-                      {item}
-                    </li>
-                  ))}
-              </ul>
+              <EditableCriteriaList
+                metaKey="otherCriteria"
+                value={meta.otherCriteria || ''}
+                onChange={updateField}
+              />
             </div>
           </div>
 
@@ -383,7 +623,6 @@ export default function AdminAboutPage() {
     <AdminPageProvider pageKey="about" initialData={pageData}>
       <div className="bg-background">
         <AboutPageContent
-          content={pageData.content}
           industrySectors={industrySectors}
           coreValues={coreValues}
         />

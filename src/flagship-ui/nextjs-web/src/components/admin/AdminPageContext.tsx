@@ -16,6 +16,7 @@ import {
 
 interface PageData {
   title: string;
+  content?: string;
   metadata: Record<string, string>;
 }
 
@@ -120,6 +121,9 @@ export function AdminPageProvider({
         if (key === 'title') {
           return { ...prev, title: value };
         }
+        if (key === 'content') {
+          return { ...prev, content: value };
+        }
         return {
           ...prev,
           metadata: { ...prev.metadata, [key]: value },
@@ -129,7 +133,9 @@ export function AdminPageProvider({
       const originalValue =
         key === 'title'
           ? originalData.title
-          : originalData.metadata[key] || '';
+          : key === 'content'
+            ? originalData.content || ''
+            : originalData.metadata[key] || '';
 
       setDirtyFields((prev) => {
         const next = new Set(prev);
@@ -161,6 +167,7 @@ export function AdminPageProvider({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: currentData.title,
+            content: currentData.content ?? '',
             metadata: currentData.metadata,
           }),
         });

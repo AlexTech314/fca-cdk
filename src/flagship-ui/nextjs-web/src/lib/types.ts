@@ -81,7 +81,7 @@ export interface ResourceArticle {
   slug: string;
   title: string;
   category: string;
-  author: string;
+  author?: string;
   excerpt: string;
   content: string;
 }

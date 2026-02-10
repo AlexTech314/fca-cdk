@@ -27,6 +27,8 @@ interface ServiceOffering {
   id: string;
   title: string;
   category: string;
+  type: string;
+  sortOrder?: number;
 }
 
 interface Award {

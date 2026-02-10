@@ -1,45 +1,35 @@
+# FCA Next.js Docker Compose
+#
+# Usage:
+#   docker compose up                    - Start both public and admin containers
+#   docker compose up web                - Start public container only
+#   docker compose up web-admin          - Start admin container only
+#   docker compose build --no-cache      - Rebuild both images
+#   docker compose down                  - Stop all services
+#
+# Prerequisites:
+#   - API must be running (see src/api/docker-compose.yml) on host port 4000
+#   - Create .env.public and .env.admin from the templates below if they don't exist
+#
 services:
-  # Production public service (no admin routes)
+  # Public site (no admin routes) -- port 3001
   web:
     build:
       context: .
       dockerfile: Dockerfile.public
     ports:
-      - "3001:3000"
-    environment:
-      - NODE_ENV=production
+      - "3002:3000"
+    env_file:
+      - .env.public
     restart: unless-stopped
-    profiles:
-      - prod
-    # Uncomment below to add environment variables from a file
-    # env_file:
-    #   - .env.production
 
-  # Production admin service (all routes including admin)
+  # Admin site (no public routes) -- port 3002
   web-admin:
     build:
       context: .
       dockerfile: Dockerfile.admin
     ports:
-      - "3002:3000"
-    environment:
-      - NODE_ENV=production
-      - ADMIN_API_TOKEN=dev-token-fca-admin-2024
+      - "3003:3000"
+    env_file:
+      - .env.admin
     restart: unless-stopped
-    profiles:
-      - prod
-
-  # Development service with hot reload (default)
-  dev:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    ports:
-      - "3001:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/.next
-    environment:
-      - NODE_ENV=development
-      - WATCHPACK_POLLING=true

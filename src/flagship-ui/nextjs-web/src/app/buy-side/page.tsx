@@ -16,7 +16,7 @@ interface BuySideMetadata {
   disadvantagesHeading?: string;
   approachSubtitle?: string;
   approachTitle?: string;
-  processBullets?: string[];
+  processBullets?: string;
   ctaTitle?: string;
   ctaDescription?: string;
   ctaText?: string;
@@ -49,7 +49,9 @@ export default async function BuySidePage() {
   const introParagraphs = contentSections[0]?.split('\n\n').filter((p) => p.trim()) || [];
   const approachParagraphs = contentSections[1]?.split('\n\n').filter((p) => p.trim()) || [];
 
-  const processBullets = meta.processBullets || [];
+  const processBullets = typeof meta.processBullets === 'string'
+    ? meta.processBullets.split('\n').filter((s) => s.trim())
+    : [];
 
   return (
     <>

@@ -22,7 +22,7 @@ interface SellSideMetadata {
   ctaTitle?: string;
   ctaDescription?: string;
   ctaText?: string;
-  whyChooseUs?: string[];
+  whyChooseUs?: string;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -53,7 +53,9 @@ export default async function SellSidePage() {
   const introParagraphs = contentSections[0]?.split('\n\n').filter((p) => p.trim()) || [];
   const approachText = contentSections[1]?.split('\n\n').filter((p) => p.trim()) || [];
 
-  const whyChooseUs = meta.whyChooseUs || [];
+  const whyChooseUs = typeof meta.whyChooseUs === 'string'
+    ? meta.whyChooseUs.split('\n').filter((s) => s.trim())
+    : [];
 
   return (
     <>

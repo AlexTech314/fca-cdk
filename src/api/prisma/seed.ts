@@ -17,6 +17,12 @@ import { TAG_TAXONOMY, matchContentToTags } from '../src/lib/taxonomy';
 
 const prisma = new PrismaClient();
 
+// Seed logger -- wraps console for eslint compliance
+const log = {
+  info: (...args: unknown[]): void => { process.stdout.write(args.map(String).join(' ') + '\n'); },
+  error: (...args: unknown[]): void => { process.stderr.write(args.map(String).join(' ') + '\n'); },
+};
+
 // Seed data lives alongside this file in prisma/data/
 const SEED_DATA_DIR = path.resolve(__dirname, 'data');
 const TOMBSTONES_CSV = path.join(SEED_DATA_DIR, 'tombstones.csv');
@@ -284,8 +290,8 @@ function parseDate(dateStr: string | undefined): Date | null {
 // SEED FUNCTIONS
 // ============================================
 
-async function seedSiteConfig() {
-  console.log('Seeding site config...');
+async function seedSiteConfig(): Promise<void> {
+  log.info('Seeding site config...');
 
   const siteConfigData = {
     name: 'Flatirons Capital Advisors',
@@ -346,11 +352,11 @@ async function seedSiteConfig() {
     create: { id: 'default', ...siteConfigData },
   });
 
-  console.log('  Seeded site config');
+  log.info('  Seeded site config');
 }
 
-async function seedContentTags() {
-  console.log('Seeding content tags...');
+async function seedContentTags(): Promise<void> {
+  log.info('Seeding content tags...');
 
   for (const tag of TAG_TAXONOMY) {
     await prisma.contentTag.upsert({
@@ -371,11 +377,11 @@ async function seedContentTags() {
     });
   }
 
-  console.log(`  Seeded ${TAG_TAXONOMY.length} content tags`);
+  log.info(`  Seeded ${TAG_TAXONOMY.length} content tags`);
 }
 
-async function seedAssets() {
-  console.log('Seeding assets from existing S3 references...');
+async function seedAssets(): Promise<void> {
+  log.info('Seeding assets from existing S3 references...');
 
   const tombstoneImages = loadTombstoneImages();
   let count = 0;
@@ -452,14 +458,14 @@ async function seedAssets() {
   });
   count++;
 
-  console.log(`  Seeded ${count} assets`);
+  log.info(`  Seeded ${count} assets`);
 }
 
-async function seedTombstones() {
-  console.log('Seeding tombstones from CSV...');
+async function seedTombstones(): Promise<void> {
+  log.info('Seeding tombstones from CSV...');
 
   const tombstoneImages = loadTombstoneImages();
-  console.log(`  Loaded ${Object.keys(tombstoneImages).length} tombstone image mappings`);
+  log.info(`  Loaded ${Object.keys(tombstoneImages).length} tombstone image mappings`);
 
   const content = fs.readFileSync(TOMBSTONES_CSV, 'utf-8');
   const rows = parseCSV(content);
@@ -530,11 +536,11 @@ async function seedTombstones() {
     count++;
   }
 
-  console.log(`  Seeded ${count} tombstones`);
+  log.info(`  Seeded ${count} tombstones`);
 }
 
-async function seedBlogPosts() {
-  console.log('Seeding blog posts from markdown...');
+async function seedBlogPosts(): Promise<void> {
+  log.info('Seeding blog posts from markdown...');
 
   let newsCount = 0;
   let articlesCount = 0;
@@ -642,12 +648,12 @@ async function seedBlogPosts() {
     }
   }
 
-  console.log(`  Seeded ${newsCount} news articles`);
-  console.log(`  Seeded ${articlesCount} resource articles`);
+  log.info(`  Seeded ${newsCount} news articles`);
+  log.info(`  Seeded ${articlesCount} resource articles`);
 }
 
-async function linkPressReleases() {
-  console.log('Linking press releases to tombstones...');
+async function linkPressReleases(): Promise<void> {
+  log.info('Linking press releases to tombstones...');
 
   // Get all tombstones and blog posts
   const tombstones = await prisma.tombstone.findMany();
@@ -685,11 +691,11 @@ async function linkPressReleases() {
     }
   }
 
-  console.log(`  Linked ${linkedCount} press releases to tombstones`);
+  log.info(`  Linked ${linkedCount} press releases to tombstones`);
 }
 
-async function seedTeamMembers() {
-  console.log('Seeding team members...');
+async function seedTeamMembers(): Promise<void> {
+  log.info('Seeding team members...');
 
   const leadership = [
     {
@@ -803,11 +809,11 @@ async function seedTeamMembers() {
     });
   }
 
-  console.log(`  Seeded ${allMembers.length} team members`);
+  log.info(`  Seeded ${allMembers.length} team members`);
 }
 
-async function seedCommunityServices() {
-  console.log('Seeding community services...');
+async function seedCommunityServices(): Promise<void> {
+  log.info('Seeding community services...');
 
   const services = [
     {
@@ -853,11 +859,11 @@ async function seedCommunityServices() {
     });
   }
 
-  console.log(`  Seeded ${services.length} community services`);
+  log.info(`  Seeded ${services.length} community services`);
 }
 
-async function seedFAQs() {
-  console.log('Seeding FAQs...');
+async function seedFAQs(): Promise<void> {
+  log.info('Seeding FAQs...');
 
   const faqs = [
     {
@@ -913,11 +919,11 @@ async function seedFAQs() {
     });
   }
 
-  console.log(`  Seeded ${faqs.length} FAQs`);
+  log.info(`  Seeded ${faqs.length} FAQs`);
 }
 
-async function seedCoreValues() {
-  console.log('Seeding core values...');
+async function seedCoreValues(): Promise<void> {
+  log.info('Seeding core values...');
 
   const values = [
     { title: 'Open and Honest Communication', description: 'We speak our minds to our clients and demand the same from all others we work with.', icon: '/icons/comm.png', sortOrder: 0 },
@@ -943,11 +949,11 @@ async function seedCoreValues() {
     });
   }
 
-  console.log(`  Seeded ${values.length} core values`);
+  log.info(`  Seeded ${values.length} core values`);
 }
 
-async function seedIndustrySectors() {
-  console.log('Seeding industry sectors...');
+async function seedIndustrySectors(): Promise<void> {
+  log.info('Seeding industry sectors...');
 
   const sectors = [
     { name: 'Information Technology', description: 'Hardware, Software (Big Data Business Analytics, ERP, etc.), Professional Services, Telecommunications, Biotech and Biomed Manufacturing Technologies', sortOrder: 0 },
@@ -969,11 +975,11 @@ async function seedIndustrySectors() {
     });
   }
 
-  console.log(`  Seeded ${sectors.length} industry sectors`);
+  log.info(`  Seeded ${sectors.length} industry sectors`);
 }
 
-async function seedServiceOfferings() {
-  console.log('Seeding service offerings...');
+async function seedServiceOfferings(): Promise<void> {
+  log.info('Seeding service offerings...');
 
   const offerings = [
     // Sell-side services
@@ -1034,11 +1040,11 @@ async function seedServiceOfferings() {
     });
   }
 
-  console.log(`  Seeded ${offerings.length} service offerings`);
+  log.info(`  Seeded ${offerings.length} service offerings`);
 }
 
-async function seedAwards() {
-  console.log('Seeding awards...');
+async function seedAwards(): Promise<void> {
+  log.info('Seeding awards...');
 
   const awards = [
     {
@@ -1079,11 +1085,11 @@ async function seedAwards() {
     });
   }
 
-  console.log(`  Seeded ${awards.length} awards`);
+  log.info(`  Seeded ${awards.length} awards`);
 }
 
-async function seedPageContent() {
-  console.log('Seeding page content...');
+async function seedPageContent(): Promise<void> {
+  log.info('Seeding page content...');
 
   const pages = [
     {
@@ -1131,22 +1137,17 @@ The deal process is 100% managed by a senior team member and not pushed down to 
         servicesTitle: 'Mergers & Acquisitions',
         servicesDescription: "The focus of our advisory services is to help you make the right strategic moves to protect what you've built.",
         buySideHeading: 'Buy-side Advisory',
+        buySideDescription: 'If your organization is considering an acquisition, leveraged buyout, joint venture, or alliance, Flatirons can support your search with a complete range of buy-side advisory services.',
         sellSideHeading: 'Sell-side Advisory',
+        sellSideDescription: "The focus of our sell-side advisory approach is on helping you make the right strategic moves to protect what you've built through years of hard work and sacrifice.",
         strategicHeading: 'Strategic Consulting',
+        strategicDescription: 'Strategy and business plan consulting from contract CFO and growth strategies to optimizations. We work with everyone from startups to Fortune 1000 public companies.',
         targetSubtitle: 'Target Profile',
         targetTitle: 'Industry Focus & Investment Criteria',
         financialCriteriaHeading: 'Financial Criteria',
-        financialCriteria: [
-          'EBITDA greater than $2.0M',
-          'No minimal EBITDA requirement for add-on acquisitions',
-          'Increasing revenue',
-        ],
+        financialCriteria: 'EBITDA greater than $2.0M\nNo minimal EBITDA requirement for add-on acquisitions\nIncreasing revenue',
         otherCriteriaHeading: 'Other Criteria',
-        otherCriteria: [
-          'Strong 2nd tier management',
-          'Customer & revenue diversification',
-          'Competitive differentiation & healthy growth potential',
-        ],
+        otherCriteria: 'Strong 2nd tier management\nCustomer & revenue diversification\nCompetitive differentiation & healthy growth potential',
         industrySectorsHeading: 'Industry Sectors',
         valuesSubtitle: 'Our Principles',
         valuesTitle: 'Core Values',
@@ -1226,14 +1227,7 @@ Our buyer relationships are crucial to our ongoing success in making markets for
         ctaTitle: 'Ready to explore your options?',
         ctaDescription: "Contact us for a confidential conversation about your business and goals. We'll help you understand what's possible.",
         ctaText: 'Contact Us Today',
-        whyChooseUs: [
-          'Senior-level attention throughout the entire process',
-          'Extensive relationships with strategic and financial buyers',
-          'Track record of 200+ completed transactions',
-          'Deep industry expertise across multiple sectors',
-          'Confidential and professional approach',
-          'Proven ability to maximize value and deal terms',
-        ],
+        whyChooseUs: 'Senior-level attention throughout the entire process\nExtensive relationships with strategic and financial buyers\nTrack record of 200+ completed transactions\nDeep industry expertise across multiple sectors\nConfidential and professional approach\nProven ability to maximize value and deal terms',
       },
     },
     {
@@ -1259,11 +1253,7 @@ Finally, the business owner can feel confident with the ultimate sale price beca
         disadvantagesHeading: 'Key Disadvantages to the Business Owner',
         approachSubtitle: 'How We Work',
         approachTitle: 'Our Approach',
-        processBullets: [
-          'The buyer is our client and pays our fees',
-          "A high-level description of the business owner's operations is required",
-          'A 30-minute conference call takes place to determine if next steps are warranted',
-        ],
+        processBullets: "The buyer is our client and pays our fees\nA high-level description of the business owner's operations is required\nA 30-minute conference call takes place to determine if next steps are warranted",
         ctaTitle: 'Interested in a buy-side approach?',
         ctaDescription: 'Contact us to discuss whether a buy-side engagement might be the right fit for your situation.',
         ctaText: 'Contact Us',
@@ -1369,15 +1359,15 @@ Finally, the business owner can feel confident with the ultimate sale price beca
     });
   }
 
-  console.log(`  Seeded ${pages.length} page content records`);
+  log.info(`  Seeded ${pages.length} page content records`);
 }
 
 // ============================================
 // MAIN
 // ============================================
 
-async function main() {
-  console.log('Starting database seed...\n');
+async function main(): Promise<void> {
+  log.info('Starting database seed...\n');
 
   try {
     await seedSiteConfig();
@@ -1395,9 +1385,9 @@ async function main() {
     await seedAwards();
     await seedPageContent();
 
-    console.log('\nDatabase seed completed successfully!');
+    log.info('\nDatabase seed completed successfully!');
   } catch (error) {
-    console.error('Seed failed:', error);
+    log.error('Seed failed:', error);
     throw error;
   } finally {
     await prisma.$disconnect();

@@ -3,8 +3,8 @@ import Image from 'next/image';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
+import { ServicesGrid } from '@/components/sections/ServicesGrid';
 import { CTASection } from '@/components/sections/CTASection';
-import { Button } from '@/components/ui/Button';
 import { fetchSiteConfig } from '@/lib/utils';
 import {
   getPageData,
@@ -26,9 +26,9 @@ interface AboutMetadata {
   targetSubtitle?: string;
   targetTitle?: string;
   financialCriteriaHeading?: string;
-  financialCriteria?: string[];
+  financialCriteria?: string;
   otherCriteriaHeading?: string;
-  otherCriteria?: string[];
+  otherCriteria?: string;
   industrySectorsHeading?: string;
   valuesSubtitle?: string;
   valuesTitle?: string;
@@ -72,6 +72,14 @@ export default async function AboutPage() {
     ? pageContent.content.split('\n\n').filter((p) => p.trim())
     : [];
 
+  // Criteria are stored as newline-separated strings
+  const financialCriteria = typeof meta.financialCriteria === 'string'
+    ? meta.financialCriteria.split('\n').filter((s) => s.trim())
+    : [];
+  const otherCriteria = typeof meta.otherCriteria === 'string'
+    ? meta.otherCriteria.split('\n').filter((s) => s.trim())
+    : [];
+
   return (
     <>
       <Hero
@@ -94,112 +102,18 @@ export default async function AboutPage() {
         </Container>
       </section>
 
-      {/* M&A Services */}
-      <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
-        <Container>
-          <SectionHeading
-            subtitle={meta.servicesSubtitle}
-            title={meta.servicesTitle}
-            description={meta.servicesDescription}
-          />
-
-          <div className="grid gap-8 md:grid-cols-3">
-            {/* Buy-Side */}
-            <div className="rounded-xl border border-border bg-white p-8 shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10">
-              <h3 className="mb-4 text-xl font-semibold text-primary">
-                {meta.buySideHeading || 'Buy-side Advisory'}
-              </h3>
-              <ul className="space-y-3">
-                {buySideServices.map((service) => (
-                  <li
-                    key={service.id}
-                    className="flex items-center gap-2 text-text-muted"
-                  >
-                    <svg
-                      className="h-4 w-4 flex-shrink-0 text-secondary"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    {service.title}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-6">
-                <Button href="/buy-side" variant="ghost" size="sm">
-                  Learn More →
-                </Button>
-              </div>
-            </div>
-
-            {/* Sell-Side */}
-            <div className="rounded-xl border border-border bg-white p-8 shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10">
-              <h3 className="mb-4 text-xl font-semibold text-primary">
-                {meta.sellSideHeading || 'Sell-side Advisory'}
-              </h3>
-              <ul className="space-y-3">
-                {sellSideServices.map((service) => (
-                  <li
-                    key={service.id}
-                    className="flex items-center gap-2 text-text-muted"
-                  >
-                    <svg
-                      className="h-4 w-4 flex-shrink-0 text-secondary"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    {service.title}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-6">
-                <Button href="/sell-side" variant="ghost" size="sm">
-                  Learn More →
-                </Button>
-              </div>
-            </div>
-
-            {/* Strategic Consulting */}
-            <div className="rounded-xl border border-border bg-white p-8 shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10">
-              <h3 className="mb-4 text-xl font-semibold text-primary">
-                {meta.strategicHeading || 'Strategic Consulting'}
-              </h3>
-              <ul className="space-y-3">
-                {strategicServices.map((service) => (
-                  <li
-                    key={service.id}
-                    className="flex items-center gap-2 text-text-muted"
-                  >
-                    <svg
-                      className="h-4 w-4 flex-shrink-0 text-secondary"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    {service.title}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </Container>
-      </section>
+      {/* M&A Services -- reuses shared ServicesGrid component */}
+      <ServicesGrid
+        buySideServices={buySideServices}
+        sellSideServices={sellSideServices}
+        strategicServices={strategicServices}
+        buySideDescription={meta.servicesDescription}
+        sellSideDescription={meta.servicesDescription}
+        strategicDescription={meta.servicesDescription}
+        sectionSubtitle={meta.servicesSubtitle}
+        sectionTitle={meta.servicesTitle}
+        sectionDescription={meta.servicesDescription}
+      />
 
       {/* Investment Criteria */}
       <section className="py-16 md:py-24">
@@ -209,15 +123,15 @@ export default async function AboutPage() {
             title={meta.targetTitle}
           />
 
-          {((meta.financialCriteria && meta.financialCriteria.length > 0) || (meta.otherCriteria && meta.otherCriteria.length > 0)) && (
+          {(financialCriteria.length > 0 || otherCriteria.length > 0) && (
           <div className="mb-12 grid gap-8 md:grid-cols-2">
-            {meta.financialCriteria && meta.financialCriteria.length > 0 && (
+            {financialCriteria.length > 0 && (
             <div className="rounded-xl border border-border bg-white p-8">
               <h3 className="mb-4 text-lg font-semibold text-text">
                 {meta.financialCriteriaHeading || 'Financial Criteria'}
               </h3>
               <ul className="space-y-3 text-text-muted">
-                {meta.financialCriteria.map((item, i) => (
+                {financialCriteria.map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
                     {item}
@@ -227,13 +141,13 @@ export default async function AboutPage() {
             </div>
             )}
 
-            {meta.otherCriteria && meta.otherCriteria.length > 0 && (
+            {otherCriteria.length > 0 && (
             <div className="rounded-xl border border-border bg-white p-8">
               <h3 className="mb-4 text-lg font-semibold text-text">
                 {meta.otherCriteriaHeading || 'Other Criteria'}
               </h3>
               <ul className="space-y-3 text-text-muted">
-                {meta.otherCriteria.map((item, i) => (
+                {otherCriteria.map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-secondary" />
                     {item}

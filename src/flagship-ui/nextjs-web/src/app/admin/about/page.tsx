@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { AdminPageProvider } from '@/components/admin/AdminPageContext';
 import { SaveBar } from '@/components/admin/SaveBar';
@@ -263,6 +263,337 @@ function EditableCriteriaList({
 }
 
 // ============================================
+// Editable industry sectors (edit only, no add/delete)
+// ============================================
+
+interface SectorItem {
+  id: string;
+  name: string;
+  description: string;
+}
+
+function EditableIndustrySectors({ initialSectors }: { initialSectors: IndustrySector[] }) {
+  const { registerChanges, unregisterChanges } = useAdminPage();
+
+  const [originalSectors, setOriginalSectors] = useState<SectorItem[]>(initialSectors);
+  const [currentSectors, setCurrentSectors] = useState<SectorItem[]>(initialSectors);
+  const [editingField, setEditingField] = useState<{ id: string; field: 'name' | 'description' } | null>(null);
+  const [editText, setEditText] = useState('');
+  const editRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+
+  const currentRef = useRef(currentSectors);
+  const originalRef = useRef(originalSectors);
+  currentRef.current = currentSectors;
+  originalRef.current = originalSectors;
+
+  useEffect(() => {
+    if (editingField && editRef.current) {
+      editRef.current.focus();
+      editRef.current.select();
+    }
+  }, [editingField]);
+
+  const isModified = (sector: SectorItem): boolean => {
+    const orig = originalSectors.find((s) => s.id === sector.id);
+    if (!orig) return false;
+    return orig.name !== sector.name || orig.description !== sector.description;
+  };
+
+  const computeDirtyCount = useCallback((): number => {
+    let count = 0;
+    for (const c of currentRef.current) {
+      const o = originalRef.current.find((s) => s.id === c.id);
+      if (o && (o.name !== c.name || o.description !== c.description)) count++;
+    }
+    return count;
+  }, []);
+
+  const saveSectors = useCallback(async () => {
+    const orig = originalRef.current;
+    const curr = currentRef.current;
+
+    for (const c of curr) {
+      const o = orig.find((s) => s.id === c.id);
+      if (o && (o.name !== c.name || o.description !== c.description)) {
+        const res = await fetch(`/api/admin/industry-sectors/${c.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: c.name, description: c.description }),
+        });
+        if (!res.ok) throw new Error('Failed to update industry sector');
+      }
+    }
+
+    setOriginalSectors([...currentRef.current]);
+  }, []);
+
+  const discardSectors = useCallback(() => {
+    setCurrentSectors([...originalRef.current]);
+    setEditingField(null);
+  }, []);
+
+  useEffect(() => {
+    registerChanges('industrySectors', {
+      count: computeDirtyCount(),
+      save: saveSectors,
+      discard: discardSectors,
+    });
+  }, [currentSectors, originalSectors, registerChanges, computeDirtyCount, saveSectors, discardSectors]);
+
+  useEffect(() => {
+    return () => unregisterChanges('industrySectors');
+  }, [unregisterChanges]);
+
+  const commitEdit = () => {
+    if (editingField && editText.trim()) {
+      setCurrentSectors((prev) =>
+        prev.map((s) =>
+          s.id === editingField.id ? { ...s, [editingField.field]: editText.trim() } : s
+        )
+      );
+    }
+    setEditingField(null);
+  };
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {currentSectors.map((sector) => {
+        const modified = isModified(sector);
+
+        return (
+          <div
+            key={sector.id}
+            className={`rounded-lg bg-surface p-5 transition-all ${
+              modified ? 'border-2 border-dashed border-amber-400' : 'border border-border'
+            }`}
+          >
+            {/* Name */}
+            {editingField?.id === sector.id && editingField.field === 'name' ? (
+              <input
+                ref={editRef as React.RefObject<HTMLInputElement>}
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitEdit();
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                className="mb-2 w-full rounded border border-blue-400 bg-white px-1 py-0.5 font-semibold text-primary outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            ) : (
+              <h4
+                onClick={() => { setEditingField({ id: sector.id, field: 'name' }); setEditText(sector.name); }}
+                className="mb-2 cursor-pointer font-semibold text-primary hover:text-primary/70"
+              >
+                {sector.name}
+              </h4>
+            )}
+
+            {/* Description */}
+            {editingField?.id === sector.id && editingField.field === 'description' ? (
+              <textarea
+                ref={editRef as React.RefObject<HTMLTextAreaElement>}
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                rows={3}
+                className="w-full rounded border border-blue-400 bg-white px-1 py-0.5 text-sm text-text-muted outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            ) : (
+              <p
+                onClick={() => { setEditingField({ id: sector.id, field: 'description' }); setEditText(sector.description); }}
+                className="cursor-pointer text-sm text-text-muted hover:text-text"
+              >
+                {sector.description}
+              </p>
+            )}
+
+            {modified && <p className="mt-1 text-[9px] font-medium text-amber-600">Modified</p>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================
+// Inner component (needs AdminPageContext)
+// ============================================
+
+// ============================================
+// Editable core values (edit only, no add/delete)
+// ============================================
+
+interface CoreValueItem {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+function EditableCoreValues({ initialValues }: { initialValues: CoreValue[] }) {
+  const { registerChanges, unregisterChanges } = useAdminPage();
+
+  const [originalValues, setOriginalValues] = useState<CoreValueItem[]>(initialValues);
+  const [currentValues, setCurrentValues] = useState<CoreValueItem[]>(initialValues);
+  const [editingField, setEditingField] = useState<{ id: string; field: 'title' | 'description' } | null>(null);
+  const [editText, setEditText] = useState('');
+  const editRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+
+  const currentRef = useRef(currentValues);
+  const originalRef = useRef(originalValues);
+  currentRef.current = currentValues;
+  originalRef.current = originalValues;
+
+  useEffect(() => {
+    if (editingField && editRef.current) {
+      editRef.current.focus();
+      editRef.current.select();
+    }
+  }, [editingField]);
+
+  const isModified = (val: CoreValueItem): boolean => {
+    const orig = originalValues.find((v) => v.id === val.id);
+    if (!orig) return false;
+    return orig.title !== val.title || orig.description !== val.description;
+  };
+
+  const computeDirtyCount = useCallback((): number => {
+    let count = 0;
+    for (const c of currentRef.current) {
+      const o = originalRef.current.find((v) => v.id === c.id);
+      if (o && (o.title !== c.title || o.description !== c.description)) count++;
+    }
+    return count;
+  }, []);
+
+  const saveValues = useCallback(async () => {
+    const orig = originalRef.current;
+    const curr = currentRef.current;
+
+    for (const c of curr) {
+      const o = orig.find((v) => v.id === c.id);
+      if (o && (o.title !== c.title || o.description !== c.description)) {
+        const res = await fetch(`/api/admin/core-values/${c.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: c.title, description: c.description }),
+        });
+        if (!res.ok) throw new Error('Failed to update core value');
+      }
+    }
+
+    setOriginalValues([...currentRef.current]);
+  }, []);
+
+  const discardValues = useCallback(() => {
+    setCurrentValues([...originalRef.current]);
+    setEditingField(null);
+  }, []);
+
+  useEffect(() => {
+    registerChanges('coreValues', {
+      count: computeDirtyCount(),
+      save: saveValues,
+      discard: discardValues,
+    });
+  }, [currentValues, originalValues, registerChanges, computeDirtyCount, saveValues, discardValues]);
+
+  useEffect(() => {
+    return () => unregisterChanges('coreValues');
+  }, [unregisterChanges]);
+
+  const commitEdit = () => {
+    if (editingField && editText.trim()) {
+      setCurrentValues((prev) =>
+        prev.map((v) =>
+          v.id === editingField.id ? { ...v, [editingField.field]: editText.trim() } : v
+        )
+      );
+    }
+    setEditingField(null);
+  };
+
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {currentValues.map((value) => {
+        const modified = isModified(value);
+
+        return (
+          <div
+            key={value.id}
+            className={`flex flex-col items-center rounded-xl bg-white p-6 text-center shadow-sm transition-all ${
+              modified
+                ? 'border-2 border-dashed border-amber-400'
+                : 'border border-border hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10'
+            }`}
+          >
+            <div className="relative mb-4 h-12 w-12">
+              <Image
+                src={value.icon}
+                alt={value.title}
+                fill
+                className="object-contain"
+                sizes="48px"
+              />
+            </div>
+
+            {/* Editable title */}
+            {editingField?.id === value.id && editingField.field === 'title' ? (
+              <input
+                ref={editRef as React.RefObject<HTMLInputElement>}
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitEdit();
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                className="mb-2 w-full rounded border border-blue-400 bg-white px-1 py-0.5 text-center font-semibold text-primary outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            ) : (
+              <h3
+                onClick={() => { setEditingField({ id: value.id, field: 'title' }); setEditText(value.title); }}
+                className="mb-2 cursor-pointer font-semibold text-primary hover:text-primary/70"
+              >
+                {value.title}
+              </h3>
+            )}
+
+            {/* Editable description */}
+            {editingField?.id === value.id && editingField.field === 'description' ? (
+              <textarea
+                ref={editRef as React.RefObject<HTMLTextAreaElement>}
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setEditingField(null);
+                }}
+                rows={3}
+                className="w-full rounded border border-blue-400 bg-white px-1 py-0.5 text-center text-sm text-text-muted outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            ) : (
+              <p
+                onClick={() => { setEditingField({ id: value.id, field: 'description' }); setEditText(value.description); }}
+                className="cursor-pointer text-sm text-text-muted hover:text-text"
+              >
+                {value.description}
+              </p>
+            )}
+
+            {modified && <p className="mt-2 text-[9px] font-medium text-amber-600">Modified</p>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================
 // Inner component (needs AdminPageContext)
 // ============================================
 
@@ -422,7 +753,7 @@ function AboutPageContent({
             </div>
           </div>
 
-          {/* Industry Sectors (read-only) */}
+          {/* Industry Sectors */}
           <EditableField
             fieldKey="industrySectorsHeading"
             value={meta.industrySectorsHeading || 'Industry Sectors'}
@@ -432,21 +763,11 @@ function AboutPageContent({
             isDirty={dirtyFields.has('industrySectorsHeading')}
             placeholder="Heading..."
           />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {industrySectors.map((sector) => (
-              <div
-                key={sector.id}
-                className="rounded-lg border border-border bg-surface p-5"
-              >
-                <h4 className="mb-2 font-semibold text-primary">{sector.name}</h4>
-                <p className="text-sm text-text-muted">{sector.description}</p>
-              </div>
-            ))}
-          </div>
+          <EditableIndustrySectors initialSectors={industrySectors} />
         </div>
       </section>
 
-      {/* Core Values (read-only) */}
+      {/* Core Values */}
       <section className="bg-gradient-to-b from-surface to-surface-blue/30 py-16 md:py-24">
         <div className="container-max">
           <div className="mb-8 flex justify-center">
@@ -479,26 +800,7 @@ function AboutPageContent({
             />
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {coreValues.map((value) => (
-              <div
-                key={value.id}
-                className="flex flex-col items-center rounded-xl border border-border bg-white p-6 text-center shadow-sm transition-all hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10"
-              >
-                <div className="relative mb-4 h-12 w-12">
-                  <Image
-                    src={value.icon}
-                    alt={value.title}
-                    fill
-                    className="object-contain"
-                    sizes="48px"
-                  />
-                </div>
-                <h3 className="mb-2 font-semibold text-primary">{value.title}</h3>
-                <p className="text-sm text-text-muted">{value.description}</p>
-              </div>
-            ))}
-          </div>
+          <EditableCoreValues initialValues={coreValues} />
         </div>
       </section>
     </>
@@ -545,12 +847,7 @@ export default function AdminAboutPage() {
         const metadata: Record<string, string> = {};
         if (page.metadata) {
           for (const [key, value] of Object.entries(page.metadata)) {
-            // Arrays get joined with newlines for text editing
-            if (Array.isArray(value)) {
-              metadata[key] = value.join('\n');
-            } else {
-              metadata[key] = String(value ?? '');
-            }
+            metadata[key] = String(value ?? '');
           }
         }
 

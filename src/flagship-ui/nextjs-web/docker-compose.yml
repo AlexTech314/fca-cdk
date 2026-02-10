@@ -4,6 +4,8 @@
 #   docker compose up                    - Start both public and admin containers
 #   docker compose up web                - Start public container only
 #   docker compose up web-admin          - Start admin container only
+#   docker compose up web-dev            - Start public dev server with hot reload
+#   docker compose up web-admin-dev      - Start admin dev server with hot reload
 #   docker compose build --no-cache      - Rebuild both images
 #   docker compose down                  - Stop all services
 #
@@ -12,7 +14,9 @@
 #   - Create .env.public and .env.admin from the templates below if they don't exist
 #
 services:
-  # Public site (no admin routes) -- port 3001
+  # ── Production ──────────────────────────────────────
+
+  # Public site (no admin routes) -- port 3002
   web:
     build:
       context: .
@@ -23,7 +27,7 @@ services:
       - .env.public
     restart: unless-stopped
 
-  # Admin site (no public routes) -- port 3002
+  # Admin site (no public routes) -- port 3003
   web-admin:
     build:
       context: .
@@ -33,3 +37,4 @@ services:
     env_file:
       - .env.admin
     restart: unless-stopped
+    

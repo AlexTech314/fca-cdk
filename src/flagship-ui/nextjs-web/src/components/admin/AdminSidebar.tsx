@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useUnsavedChanges } from './UnsavedChangesContext';
 
 interface NavItem {
   name: string;
@@ -127,6 +127,7 @@ const assetItems: NavItem[] = [
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { requestNavigation } = useUnsavedChanges();
 
   return (
     <aside
@@ -144,10 +145,10 @@ export function AdminSidebar() {
         {pageItems.map((item) => {
           const isActive = pathname === item.href;
           return (
-            <Link
+            <button
               key={item.href}
-              href={item.href}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors"
+              onClick={() => requestNavigation(item.href)}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors"
               style={{
                 color: isActive ? '#ffffff' : 'rgba(255,255,255,0.85)',
                 backgroundColor: isActive ? 'rgba(255,255,255,0.12)' : undefined,
@@ -155,7 +156,7 @@ export function AdminSidebar() {
             >
               {item.icon}
               {item.name}
-            </Link>
+            </button>
           );
         })}
 
@@ -168,10 +169,10 @@ export function AdminSidebar() {
         {assetItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
-            <Link
+            <button
               key={item.href}
-              href={item.href}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors"
+              onClick={() => requestNavigation(item.href)}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors"
               style={{
                 color: isActive ? '#ffffff' : 'rgba(255,255,255,0.85)',
                 backgroundColor: isActive ? 'rgba(255,255,255,0.12)' : undefined,
@@ -179,7 +180,7 @@ export function AdminSidebar() {
             >
               {item.icon}
               {item.name}
-            </Link>
+            </button>
           );
         })}
       </nav>

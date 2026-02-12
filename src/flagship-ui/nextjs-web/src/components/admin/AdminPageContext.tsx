@@ -5,10 +5,12 @@ import {
   useContext,
   useState,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   type ReactNode,
 } from 'react';
+import { useUnsavedChanges } from './UnsavedChangesContext';
 
 // ============================================
 // TYPES
@@ -216,6 +218,17 @@ export function AdminPageProvider({
 
   const isDirty = dirtyFields.size > 0 || registeredDirtyCount > 0;
   const dirtyCount = dirtyFields.size + registeredDirtyCount;
+
+  // Register with the unsaved changes navigation guard
+  const { registerGuard, unregisterGuard } = useUnsavedChanges();
+
+  useEffect(() => {
+    registerGuard({ isDirty, save, discard });
+  }, [isDirty, save, discard, registerGuard]);
+
+  useEffect(() => {
+    return () => unregisterGuard();
+  }, [unregisterGuard]);
 
   const value = useMemo<AdminPageContextValue>(
     () => ({

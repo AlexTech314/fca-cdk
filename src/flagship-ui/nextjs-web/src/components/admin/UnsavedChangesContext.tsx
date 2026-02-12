@@ -59,6 +59,9 @@ const pageNameMap: Record<string, string> = {
   '/admin/contact': 'Contact',
   '/admin/assets/photos': 'Images',
   '/admin/assets/files': 'Files',
+  '/admin/manage/tags': 'Content Tags',
+  '/admin/manage/analytics': 'Analytics',
+  '/admin/manage/team-members': 'Team Members',
 };
 
 // ============================================

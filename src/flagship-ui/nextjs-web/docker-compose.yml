@@ -37,4 +37,3 @@ services:
     env_file:
       - .env.admin
     restart: unless-stopped
-    

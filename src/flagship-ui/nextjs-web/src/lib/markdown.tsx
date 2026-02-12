@@ -128,16 +128,14 @@ export function renderMarkdownBlock(block: string, index: number): React.ReactNo
     const alt = imageBlockMatch[1] || 'Image';
     const src = imageBlockMatch[2];
     const isExternal = src.startsWith('http://') || src.startsWith('https://');
-    // Don't show figcaption if alt looks like a filename
-    const isFilenameAlt = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(alt);
     return (
-      <figure key={index} className="my-8">
+      <div key={index} className="my-8 flex justify-center">
         {isExternal ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={src}
             alt={alt}
-            className="max-w-full h-auto rounded-lg shadow-md mx-auto"
+            className="max-w-full h-auto rounded-lg shadow-md"
             loading="lazy"
           />
         ) : (
@@ -146,19 +144,21 @@ export function renderMarkdownBlock(block: string, index: number): React.ReactNo
             alt={alt}
             width={800}
             height={450}
-            className="max-w-full h-auto rounded-lg shadow-md mx-auto"
+            className="max-w-full h-auto rounded-lg shadow-md"
           />
         )}
-        {alt && alt !== 'Image' && !isFilenameAlt && (
-          <figcaption className="text-center text-sm text-text-muted mt-2">
-            {alt}
-          </figcaption>
-        )}
-      </figure>
+      </div>
     );
   }
   
   // Check if it's a heading
+  if (block.startsWith('# ') && !block.startsWith('## ')) {
+    return (
+      <h1 key={index} className="mb-4 text-3xl font-bold text-text md:text-4xl">
+        {parseInlineMarkdown(block.replace('# ', ''))}
+      </h1>
+    );
+  }
   if (block.startsWith('## ')) {
     return (
       <h2 key={index} className="mt-8 mb-4 text-xl font-bold text-text">
@@ -186,13 +186,13 @@ export function renderMarkdownBlock(block: string, index: number): React.ReactNo
     );
   }
   
-  // Check if it's a bullet list
-  if (block.startsWith('- ')) {
-    const items = block.split('\n').filter((line) => line.startsWith('- '));
+  // Check if it's a bullet list (supports both - and * prefixes)
+  if (block.startsWith('- ') || block.startsWith('* ')) {
+    const items = block.split('\n').filter((line) => line.startsWith('- ') || line.startsWith('* '));
     return (
       <ul key={index} className="mb-4 list-disc space-y-2 pl-6 text-text-muted">
         {items.map((item, i) => (
-          <li key={i}>{parseInlineMarkdown(item.replace('- ', ''))}</li>
+          <li key={i}>{parseInlineMarkdown(item.replace(/^[-*]\s/, ''))}</li>
         ))}
       </ul>
     );

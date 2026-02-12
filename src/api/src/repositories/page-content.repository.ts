@@ -14,12 +14,6 @@ export const pageContentRepository = {
     });
   },
 
-  async findByPreviewToken(pageKey: string, token: string) {
-    return prisma.pageContent.findFirst({
-      where: { pageKey, previewToken: token },
-    });
-  },
-
   async upsert(data: PageContentInput) {
     return prisma.pageContent.upsert({
       where: { pageKey: data.pageKey },

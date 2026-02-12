@@ -74,17 +74,6 @@ export const blogPostRepository = {
     return post ? formatBlogPost(post) : null;
   },
 
-  async findByPreviewToken(slug: string, token: string) {
-    const post = await prisma.blogPost.findFirst({
-      where: { slug, previewToken: token },
-      include: {
-        tags: { include: { tag: true } },
-        tombstone: { select: { id: true, slug: true, name: true } },
-      },
-    });
-    return post ? formatBlogPost(post) : null;
-  },
-
   async create(data: CreateBlogPostInput) {
     const { tagIds, ...postData } = data;
 

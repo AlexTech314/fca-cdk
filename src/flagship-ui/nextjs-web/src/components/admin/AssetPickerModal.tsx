@@ -18,6 +18,8 @@ interface AssetPickerModalProps {
   onClose: () => void;
   onSelect: (s3Url: string) => void;
   currentValue?: string;
+  /** Asset category to browse. Defaults to 'photo'. */
+  category?: 'photo' | 'file';
 }
 
 export function AssetPickerModal({
@@ -25,6 +27,7 @@ export function AssetPickerModal({
   onClose,
   onSelect,
   currentValue,
+  category = 'photo',
 }: AssetPickerModalProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +51,7 @@ export function AssetPickerModal({
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        category: 'photo',
+        category,
         limit: '60',
         page: '1',
       });
@@ -63,9 +66,9 @@ export function AssetPickerModal({
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch]);
+  }, [debouncedSearch, category]);
 
-  // Fetch when opened or search changes
+  // Fetch when opened or search/category changes
   useEffect(() => {
     if (isOpen) {
       fetchAssets();
@@ -83,7 +86,7 @@ export function AssetPickerModal({
 
   // Upload a file, create asset record, add to grid, and auto-select it
   const handleUpload = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
+    if (category === 'photo' && !file.type.startsWith('image/')) {
       setUploadError('Only image files are allowed');
       return;
     }
@@ -100,8 +103,8 @@ export function AssetPickerModal({
         body: JSON.stringify({
           fileName: file.name,
           fileType: file.type,
-          category: 'photo',
-          prefix: 'images',
+          category,
+          prefix: category === 'photo' ? 'images' : 'files',
         }),
       });
       if (!presignRes.ok) throw new Error('Failed to get upload URL');
@@ -134,7 +137,7 @@ export function AssetPickerModal({
           s3Key,
           fileType: file.type,
           fileSize: file.size,
-          category: 'photo',
+          category,
         }),
       });
       if (!createRes.ok) throw new Error('Failed to create asset record');
@@ -236,7 +239,7 @@ export function AssetPickerModal({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={category === 'photo' ? 'image/*' : '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv'}
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -329,7 +332,7 @@ export function AssetPickerModal({
                           : 'border-transparent hover:border-gray-300'
                     }`}
                   >
-                    {url && (
+                    {url && category === 'photo' ? (
                       <Image
                         src={url}
                         alt={asset.title || asset.fileName}
@@ -337,6 +340,13 @@ export function AssetPickerModal({
                         className="object-contain bg-gray-50 p-1"
                         sizes="150px"
                       />
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center gap-1.5 bg-gray-50 p-2">
+                        <svg className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                        </svg>
+                        <p className="max-w-full truncate text-[9px] text-gray-500">{asset.fileName}</p>
+                      </div>
                     )}
 
                     {/* Selected checkmark */}

@@ -107,25 +107,20 @@ export default async function NewsArticlePage({ params }: PageProps) {
       <article className="py-12 md:py-16">
         <Container>
           <div className="mx-auto max-w-3xl">
-            {/* Header */}
-            <header className="mb-8">
-              <div className="mb-4 flex items-center gap-4">
-                <span className="text-sm text-secondary">{article.date}</span>
-                {article.author && (
-                  <>
-                    <span className="text-text-light">•</span>
-                    <span className="text-sm text-text-muted">
-                      {article.author}
-                    </span>
-                  </>
-                )}
-              </div>
-              <h1 className="text-3xl font-bold text-text md:text-4xl">
-                {article.title}
-              </h1>
-            </header>
+            {/* Header meta */}
+            <div className="mb-4 flex items-center gap-4">
+              <span className="text-sm text-secondary">{article.date}</span>
+              {article.author && (
+                <>
+                  <span className="text-text-light">•</span>
+                  <span className="text-sm text-text-muted">
+                    {article.author}
+                  </span>
+                </>
+              )}
+            </div>
 
-            {/* Content */}
+            {/* Content (title is the first H1 in the markdown) */}
             <MarkdownContent blocks={contentBlocks} />
 
             {/* Related Transactions (same tombstone cards as elsewhere, with images) */}

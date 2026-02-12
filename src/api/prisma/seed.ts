@@ -558,11 +558,14 @@ async function seedBlogPosts(): Promise<void> {
       const slug = file.replace('.md', '');
       const publishedAt = parseDate(date);
 
+      // Prepend title as H1 to content so it renders as part of the markdown
+      const fullContent = `# ${title}\n\n${body}`;
+
       const blogPost = await prisma.blogPost.upsert({
         where: { slug },
         update: {
           title,
-          content: body,
+          content: fullContent,
           author: author || null,
           category: 'news',
           publishedAt,
@@ -571,7 +574,7 @@ async function seedBlogPosts(): Promise<void> {
         create: {
           slug,
           title,
-          content: body,
+          content: fullContent,
           author: author || null,
           category: 'news',
           publishedAt,
@@ -610,11 +613,14 @@ async function seedBlogPosts(): Promise<void> {
 
       const slug = file.replace('.md', '');
 
+      // Prepend title as H1 to content so it renders as part of the markdown
+      const fullContent = `# ${title}\n\n${body}`;
+
       const blogPost = await prisma.blogPost.upsert({
         where: { slug },
         update: {
           title,
-          content: body,
+          content: fullContent,
           author: author || null,
           category: 'resource',
           isPublished: true,
@@ -622,7 +628,7 @@ async function seedBlogPosts(): Promise<void> {
         create: {
           slug,
           title,
-          content: body,
+          content: fullContent,
           author: author || null,
           category: 'resource',
           isPublished: true,

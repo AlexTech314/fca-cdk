@@ -433,30 +433,3 @@ export async function recordPageView(path: string): Promise<void> {
   }
 }
 
-// ============================================
-// PREVIEW (Token-based)
-// ============================================
-
-export async function getPreviewTombstone(slug: string, token: string): Promise<ApiTombstone | null> {
-  try {
-    return await apiFetch<ApiTombstone>(`/preview/tombstones/${slug}?token=${token}`);
-  } catch {
-    return null;
-  }
-}
-
-export async function getPreviewBlogPost(slug: string, token: string): Promise<ApiBlogPost | null> {
-  try {
-    return await apiFetch<ApiBlogPost>(`/preview/blog-posts/${slug}?token=${token}`);
-  } catch {
-    return null;
-  }
-}
-
-export async function getPreviewPage(pageKey: string, token: string): Promise<ApiPageContent | null> {
-  try {
-    return await apiFetch<ApiPageContent>(`/preview/pages/${pageKey}?token=${token}`);
-  } catch {
-    return null;
-  }
-}

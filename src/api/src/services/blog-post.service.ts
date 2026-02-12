@@ -14,10 +14,6 @@ export const blogPostService = {
     return blogPostRepository.findById(id);
   },
 
-  async getByPreviewToken(slug: string, token: string) {
-    return blogPostRepository.findByPreviewToken(slug, token);
-  },
-
   async create(data: CreateBlogPostInput) {
     return blogPostRepository.create(data);
   },

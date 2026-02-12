@@ -15,10 +15,6 @@ export const tombstoneService = {
     return tombstoneRepository.findById(id);
   },
 
-  async getByPreviewToken(slug: string, token: string) {
-    return tombstoneRepository.findByPreviewToken(slug, token);
-  },
-
   async create(data: CreateTombstoneInput) {
     // Auto-generate tags from industry/keywords if not provided
     if (!data.tagIds && data.industry) {

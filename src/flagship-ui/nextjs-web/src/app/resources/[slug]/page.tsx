@@ -89,22 +89,17 @@ export default async function ResourceArticlePage({ params }: PageProps) {
       <article className="py-12 md:py-16">
         <Container>
           <div className="mx-auto max-w-3xl">
-            {/* Header */}
-            <header className="mb-8">
-              <div className="mb-4 flex items-center gap-4">
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-                  {article.category}
-                </span>
-                <span className="text-sm text-text-muted">
-                  By {article.author || config.name}
-                </span>
-              </div>
-              <h1 className="text-3xl font-bold text-text md:text-4xl">
-                {article.title}
-              </h1>
-            </header>
+            {/* Header meta */}
+            <div className="mb-4 flex items-center gap-4">
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                {article.category}
+              </span>
+              <span className="text-sm text-text-muted">
+                By {article.author || config.name}
+              </span>
+            </div>
 
-            {/* Content */}
+            {/* Content (title is the first H1 in the markdown) */}
             <MarkdownContent blocks={contentBlocks} />
 
             {/* About section */}

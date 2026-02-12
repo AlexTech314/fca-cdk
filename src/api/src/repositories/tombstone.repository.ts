@@ -80,18 +80,6 @@ export const tombstoneRepository = {
     return tombstone ? formatTombstone(tombstone) : null;
   },
 
-  async findByPreviewToken(slug: string, token: string) {
-    const tombstone = await prisma.tombstone.findFirst({
-      where: { slug, previewToken: token },
-      include: {
-        tags: { include: { tag: true } },
-        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
-        pressRelease: { select: { id: true, slug: true, title: true } },
-      },
-    });
-    return tombstone ? formatTombstone(tombstone) : null;
-  },
-
   async create(data: CreateTombstoneInput) {
     const { tagIds, ...tombstoneData } = data;
 

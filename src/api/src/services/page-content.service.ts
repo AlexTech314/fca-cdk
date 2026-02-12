@@ -10,10 +10,6 @@ export const pageContentService = {
     return pageContentRepository.findByKey(pageKey);
   },
 
-  async getByPreviewToken(pageKey: string, token: string) {
-    return pageContentRepository.findByPreviewToken(pageKey, token);
-  },
-
   async upsert(data: PageContentInput) {
     return pageContentRepository.upsert(data);
   },

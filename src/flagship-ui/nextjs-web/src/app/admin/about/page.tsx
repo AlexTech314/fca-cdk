@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { AdminPageProvider } from '@/components/admin/AdminPageContext';
 import { SaveBar } from '@/components/admin/SaveBar';
 import { EditableField } from '@/components/admin/EditableField';
+import { EditableInlineField } from '@/components/admin/EditableInlineField';
 import { EditableServicesGrid } from '@/components/admin/sections/EditableServicesGrid';
 import { EditableAboutCTA } from '@/components/admin/sections/EditableAboutCTA';
 import { useAdminPage } from '@/components/admin/AdminPageContext';
@@ -77,10 +78,6 @@ function EditableCriteriaList({
   const [items, setItems] = useState<CriteriaItem[]>(() => parseCriteria(value));
   const [origItems, setOrigItems] = useState<CriteriaItem[]>(() => parseCriteria(value));
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState('');
-  const editRef = useRef<HTMLInputElement>(null);
-
   // Track whether we triggered the value change ourselves
   const selfUpdate = useRef(false);
 
@@ -91,7 +88,6 @@ function EditableCriteriaList({
       setItems(parsed);
       setOrigItems(parsed);
       setDeletedIds(new Set());
-      setEditingId(null);
     }
   }, [saveStatus, value]);
 
@@ -101,20 +97,11 @@ function EditableCriteriaList({
       selfUpdate.current = false;
       return;
     }
-    // Value changed externally -- re-initialize
     const parsed = parseCriteria(value);
     setItems(parsed);
     setOrigItems(parsed);
     setDeletedIds(new Set());
-    setEditingId(null);
   }, [value]);
-
-  useEffect(() => {
-    if (editingId && editRef.current) {
-      editRef.current.focus();
-      editRef.current.select();
-    }
-  }, [editingId]);
 
   // Sync the "final" value (non-deleted items) to metadata
   const syncToMeta = (currentItems: CriteriaItem[], deleted: Set<string>) => {
@@ -136,15 +123,12 @@ function EditableCriteriaList({
     return 'unchanged';
   };
 
-  const commitEdit = () => {
-    if (editingId && editText.trim()) {
-      const updated = items.map((item) =>
-        item.id === editingId ? { ...item, text: editText.trim() } : item
-      );
-      setItems(updated);
-      syncToMeta(updated, deletedIds);
-    }
-    setEditingId(null);
+  const updateItemText = (id: string, text: string) => {
+    const updated = items.map((item) =>
+      item.id === id ? { ...item, text } : item
+    );
+    setItems(updated);
+    syncToMeta(updated, deletedIds);
   };
 
   const handleDelete = (id: string) => {
@@ -160,7 +144,6 @@ function EditableCriteriaList({
       setDeletedIds(newDeleted);
       syncToMeta(items, newDeleted);
     }
-    if (editingId === id) setEditingId(null);
   };
 
   const handleUndoDelete = (id: string) => {
@@ -174,9 +157,6 @@ function EditableCriteriaList({
     const newItem: CriteriaItem = { id: nextCriteriaId(), text: '' };
     const updated = [...items, newItem];
     setItems(updated);
-    // Don't sync yet -- empty text would be filtered out. Sync on commit.
-    setEditingId(newItem.id);
-    setEditText('');
   };
 
   return (
@@ -185,7 +165,7 @@ function EditableCriteriaList({
         {items.map((item) => {
           const status = getStatus(item);
           const isDeleted = status === 'deleted';
-          const isEditing = editingId === item.id;
+          const orig = origItems.find((o) => o.id === item.id);
 
           return (
             <li key={item.id} className="group/item relative">
@@ -198,31 +178,15 @@ function EditableCriteriaList({
               }`}>
                 <span className={`mt-0.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${isDeleted ? 'bg-red-400' : 'bg-secondary'}`} />
 
-                {isEditing ? (
-                  <input
-                    ref={editRef}
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    onBlur={commitEdit}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') commitEdit();
-                      if (e.key === 'Escape') setEditingId(null);
-                    }}
-                    className="flex-1 rounded border border-blue-400 bg-white px-1 py-0 text-sm text-text-muted outline-none focus:ring-1 focus:ring-blue-400"
-                    placeholder="Criteria item..."
-                  />
-                ) : isDeleted ? (
-                  <span className="flex-1 text-sm text-text-muted line-through">
-                    {item.text}
-                  </span>
-                ) : (
-                  <span
-                    onClick={() => { setEditingId(item.id); setEditText(item.text); }}
-                    className="flex-1 cursor-pointer text-sm text-text-muted hover:text-primary"
-                  >
-                    {item.text || '(empty)'}
-                  </span>
-                )}
+                <EditableInlineField
+                  value={item.text}
+                  onChangeValue={(v) => updateItemText(item.id, v)}
+                  originalValue={orig?.text}
+                  as="span"
+                  className="flex-1 text-sm text-text-muted"
+                  placeholder="Criteria item..."
+                  disabled={isDeleted}
+                />
 
                 {isDeleted ? (
                   <button
@@ -279,21 +243,11 @@ function EditableIndustrySectors({ initialSectors }: { initialSectors: IndustryS
 
   const [originalSectors, setOriginalSectors] = useState<SectorItem[]>(initialSectors);
   const [currentSectors, setCurrentSectors] = useState<SectorItem[]>(initialSectors);
-  const [editingField, setEditingField] = useState<{ id: string; field: 'name' | 'description' } | null>(null);
-  const [editText, setEditText] = useState('');
-  const editRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
   const currentRef = useRef(currentSectors);
   const originalRef = useRef(originalSectors);
   currentRef.current = currentSectors;
   originalRef.current = originalSectors;
-
-  useEffect(() => {
-    if (editingField && editRef.current) {
-      editRef.current.focus();
-      editRef.current.select();
-    }
-  }, [editingField]);
 
   const isModified = (sector: SectorItem): boolean => {
     const orig = originalSectors.find((s) => s.id === sector.id);
@@ -331,7 +285,6 @@ function EditableIndustrySectors({ initialSectors }: { initialSectors: IndustryS
 
   const discardSectors = useCallback(() => {
     setCurrentSectors([...originalRef.current]);
-    setEditingField(null);
   }, []);
 
   useEffect(() => {
@@ -346,21 +299,17 @@ function EditableIndustrySectors({ initialSectors }: { initialSectors: IndustryS
     return () => unregisterChanges('industrySectors');
   }, [unregisterChanges]);
 
-  const commitEdit = () => {
-    if (editingField && editText.trim()) {
-      setCurrentSectors((prev) =>
-        prev.map((s) =>
-          s.id === editingField.id ? { ...s, [editingField.field]: editText.trim() } : s
-        )
-      );
-    }
-    setEditingField(null);
+  const updateSectorField = (id: string, field: string, value: string) => {
+    setCurrentSectors((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, [field]: value } : s))
+    );
   };
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {currentSectors.map((sector) => {
         const modified = isModified(sector);
+        const orig = originalSectors.find((s) => s.id === sector.id);
 
         return (
           <div
@@ -369,49 +318,24 @@ function EditableIndustrySectors({ initialSectors }: { initialSectors: IndustryS
               modified ? 'border-2 border-dashed border-amber-400' : 'border border-border'
             }`}
           >
-            {/* Name */}
-            {editingField?.id === sector.id && editingField.field === 'name' ? (
-              <input
-                ref={editRef as React.RefObject<HTMLInputElement>}
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                onBlur={commitEdit}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitEdit();
-                  if (e.key === 'Escape') setEditingField(null);
-                }}
-                className="mb-2 w-full rounded border border-blue-400 bg-white px-1 py-0.5 font-semibold text-primary outline-none focus:ring-1 focus:ring-blue-400"
-              />
-            ) : (
-              <h4
-                onClick={() => { setEditingField({ id: sector.id, field: 'name' }); setEditText(sector.name); }}
-                className="mb-2 cursor-pointer font-semibold text-primary hover:text-primary/70"
-              >
-                {sector.name}
-              </h4>
-            )}
+            <EditableInlineField
+              value={sector.name}
+              onChangeValue={(v) => updateSectorField(sector.id, 'name', v)}
+              originalValue={orig?.name}
+              as="h4"
+              className="mb-2 font-semibold text-primary"
+              placeholder="Sector name..."
+            />
 
-            {/* Description */}
-            {editingField?.id === sector.id && editingField.field === 'description' ? (
-              <textarea
-                ref={editRef as React.RefObject<HTMLTextAreaElement>}
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                onBlur={commitEdit}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setEditingField(null);
-                }}
-                rows={3}
-                className="w-full rounded border border-blue-400 bg-white px-1 py-0.5 text-sm text-text-muted outline-none focus:ring-1 focus:ring-blue-400"
-              />
-            ) : (
-              <p
-                onClick={() => { setEditingField({ id: sector.id, field: 'description' }); setEditText(sector.description); }}
-                className="cursor-pointer text-sm text-text-muted hover:text-text"
-              >
-                {sector.description}
-              </p>
-            )}
+            <EditableInlineField
+              value={sector.description}
+              onChangeValue={(v) => updateSectorField(sector.id, 'description', v)}
+              originalValue={orig?.description}
+              as="p"
+              multiline
+              className="text-sm text-text-muted"
+              placeholder="Description..."
+            />
 
             {modified && <p className="mt-1 text-[9px] font-medium text-amber-600">Modified</p>}
           </div>
@@ -441,21 +365,11 @@ function EditableCoreValues({ initialValues }: { initialValues: CoreValue[] }) {
 
   const [originalValues, setOriginalValues] = useState<CoreValueItem[]>(initialValues);
   const [currentValues, setCurrentValues] = useState<CoreValueItem[]>(initialValues);
-  const [editingField, setEditingField] = useState<{ id: string; field: 'title' | 'description' } | null>(null);
-  const [editText, setEditText] = useState('');
-  const editRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
   const currentRef = useRef(currentValues);
   const originalRef = useRef(originalValues);
   currentRef.current = currentValues;
   originalRef.current = originalValues;
-
-  useEffect(() => {
-    if (editingField && editRef.current) {
-      editRef.current.focus();
-      editRef.current.select();
-    }
-  }, [editingField]);
 
   const isModified = (val: CoreValueItem): boolean => {
     const orig = originalValues.find((v) => v.id === val.id);
@@ -493,7 +407,6 @@ function EditableCoreValues({ initialValues }: { initialValues: CoreValue[] }) {
 
   const discardValues = useCallback(() => {
     setCurrentValues([...originalRef.current]);
-    setEditingField(null);
   }, []);
 
   useEffect(() => {
@@ -508,21 +421,17 @@ function EditableCoreValues({ initialValues }: { initialValues: CoreValue[] }) {
     return () => unregisterChanges('coreValues');
   }, [unregisterChanges]);
 
-  const commitEdit = () => {
-    if (editingField && editText.trim()) {
-      setCurrentValues((prev) =>
-        prev.map((v) =>
-          v.id === editingField.id ? { ...v, [editingField.field]: editText.trim() } : v
-        )
-      );
-    }
-    setEditingField(null);
+  const updateValueField = (id: string, field: string, val: string) => {
+    setCurrentValues((prev) =>
+      prev.map((v) => (v.id === id ? { ...v, [field]: val } : v))
+    );
   };
 
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {currentValues.map((value) => {
         const modified = isModified(value);
+        const orig = originalValues.find((v) => v.id === value.id);
 
         return (
           <div
@@ -543,49 +452,24 @@ function EditableCoreValues({ initialValues }: { initialValues: CoreValue[] }) {
               />
             </div>
 
-            {/* Editable title */}
-            {editingField?.id === value.id && editingField.field === 'title' ? (
-              <input
-                ref={editRef as React.RefObject<HTMLInputElement>}
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                onBlur={commitEdit}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitEdit();
-                  if (e.key === 'Escape') setEditingField(null);
-                }}
-                className="mb-2 w-full rounded border border-blue-400 bg-white px-1 py-0.5 text-center font-semibold text-primary outline-none focus:ring-1 focus:ring-blue-400"
-              />
-            ) : (
-              <h3
-                onClick={() => { setEditingField({ id: value.id, field: 'title' }); setEditText(value.title); }}
-                className="mb-2 cursor-pointer font-semibold text-primary hover:text-primary/70"
-              >
-                {value.title}
-              </h3>
-            )}
+            <EditableInlineField
+              value={value.title}
+              onChangeValue={(v) => updateValueField(value.id, 'title', v)}
+              originalValue={orig?.title}
+              as="h3"
+              className="mb-2 font-semibold text-primary"
+              placeholder="Title..."
+            />
 
-            {/* Editable description */}
-            {editingField?.id === value.id && editingField.field === 'description' ? (
-              <textarea
-                ref={editRef as React.RefObject<HTMLTextAreaElement>}
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                onBlur={commitEdit}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') setEditingField(null);
-                }}
-                rows={3}
-                className="w-full rounded border border-blue-400 bg-white px-1 py-0.5 text-center text-sm text-text-muted outline-none focus:ring-1 focus:ring-blue-400"
-              />
-            ) : (
-              <p
-                onClick={() => { setEditingField({ id: value.id, field: 'description' }); setEditText(value.description); }}
-                className="cursor-pointer text-sm text-text-muted hover:text-text"
-              >
-                {value.description}
-              </p>
-            )}
+            <EditableInlineField
+              value={value.description}
+              onChangeValue={(v) => updateValueField(value.id, 'description', v)}
+              originalValue={orig?.description}
+              as="p"
+              multiline
+              className="text-sm text-text-muted"
+              placeholder="Description..."
+            />
 
             {modified && <p className="mt-2 text-[9px] font-medium text-amber-600">Modified</p>}
           </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { EditableField } from '../EditableField';
+import { EditableInlineField } from '../EditableInlineField';
 import { useAdminPage } from '../AdminPageContext';
 
 interface ServiceOffering {
@@ -59,9 +60,7 @@ export function EditableServicesGrid({
   const [originalServices, setOriginalServices] = useState<ServiceOffering[]>(allInitial);
   const [currentServices, setCurrentServices] = useState<ServiceOffering[]>(allInitial);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const editInputRef = useRef<HTMLInputElement>(null);
+  // (editing state removed -- using EditableInlineField)
 
   // Refs for stable closures
   const currentRef = useRef(currentServices);
@@ -71,13 +70,12 @@ export function EditableServicesGrid({
   originalRef.current = originalServices;
   deletedRef.current = deletedIds;
 
-  // Focus edit input
-  useEffect(() => {
-    if (editingId && editInputRef.current) {
-      editInputRef.current.focus();
-      editInputRef.current.select();
-    }
-  }, [editingId]);
+  // Helper to update a service title
+  const updateServiceTitle = (id: string, title: string) => {
+    setCurrentServices((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, title } : s))
+    );
+  };
 
   // Get items for a category
   const getItems = (category: string) =>
@@ -175,7 +173,6 @@ export function EditableServicesGrid({
   const discardServices = useCallback(() => {
     setCurrentServices([...originalRef.current]);
     setDeletedIds(new Set());
-    setEditingId(null);
   }, []);
 
   // Register with change registry
@@ -193,19 +190,7 @@ export function EditableServicesGrid({
 
   // --- Handlers ---
 
-  const startEdit = (item: ServiceOffering) => {
-    setEditingId(item.id);
-    setEditValue(item.title);
-  };
-
-  const commitEdit = () => {
-    if (editingId && editValue.trim()) {
-      setCurrentServices((prev) =>
-        prev.map((s) => (s.id === editingId ? { ...s, title: editValue.trim() } : s))
-      );
-    }
-    setEditingId(null);
-  };
+  // (startEdit/commitEdit removed -- using EditableInlineField)
 
   const handleAdd = (category: string) => {
     const items = currentServices.filter((s) => s.category === category && s.type === 'service');
@@ -214,9 +199,7 @@ export function EditableServicesGrid({
       ...prev,
       { id: newId, title: '', category, type: 'service', sortOrder: items.length },
     ]);
-    // Auto-edit the new item
-    setEditingId(newId);
-    setEditValue('');
+    // New item will show as empty with placeholder
   };
 
   const handleDelete = (id: string) => {
@@ -225,7 +208,7 @@ export function EditableServicesGrid({
     } else {
       setDeletedIds((prev) => new Set(prev).add(id));
     }
-    if (editingId === id) setEditingId(null);
+    // (no editingId to clear -- using EditableInlineField)
   };
 
   const handleUndoDelete = (id: string) => {
@@ -306,7 +289,7 @@ export function EditableServicesGrid({
                   {items.map((item) => {
                     const status = getStatus(item);
                     const isDeleted = status === 'deleted';
-                    const isEditing = editingId === item.id;
+                    const orig = originalServices.find((s) => s.id === item.id);
 
                     return (
                       <li key={item.id} className="group/item relative">
@@ -330,30 +313,16 @@ export function EditableServicesGrid({
                             />
                           </svg>
 
-                          {/* Title -- inline edit or display */}
-                          {isEditing ? (
-                            <input
-                              ref={editInputRef}
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={commitEdit}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') commitEdit();
-                                if (e.key === 'Escape') { setEditingId(null); }
-                              }}
-                              className="flex-1 rounded border border-blue-400 bg-white px-1 py-0 text-sm text-text-muted outline-none focus:ring-1 focus:ring-blue-400"
-                              placeholder="Service title..."
-                            />
-                          ) : (
-                            <span
-                              onClick={() => !isDeleted && startEdit(item)}
-                              className={`flex-1 cursor-pointer text-sm text-text-muted ${
-                                isDeleted ? 'cursor-default line-through' : 'hover:text-primary'
-                              }`}
-                            >
-                              {item.title || '(untitled)'}
-                            </span>
-                          )}
+                          {/* Title -- contentEditable inline field */}
+                          <EditableInlineField
+                            value={item.title}
+                            onChangeValue={(v) => updateServiceTitle(item.id, v)}
+                            originalValue={orig?.title}
+                            as="span"
+                            className="flex-1 text-sm text-text-muted"
+                            placeholder="Service title..."
+                            disabled={isDeleted}
+                          />
 
                           {/* Action buttons */}
                           {isDeleted ? (

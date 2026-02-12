@@ -52,7 +52,7 @@ export default async function FAQPage() {
                   className="rounded-xl border border-border bg-white p-6 md:p-8"
                 >
                   <h2 className="mb-4 text-lg font-semibold text-text md:text-xl">
-                    {index + 1}. {faq.question}
+                    {faq.question}
                   </h2>
                   <p className="text-text-muted leading-relaxed">{faq.answer}</p>
                 </div>

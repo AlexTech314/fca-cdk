@@ -1,12 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import dynamic from 'next/dynamic';
 import { fetchSiteConfig } from '@/lib/utils';
-
-const Navigation = dynamic(
-  () => import('./Navigation').then((mod) => mod.Navigation),
-  { ssr: false }
-);
+import { Navigation } from './Navigation';
 
 export async function Header() {
   const config = await fetchSiteConfig();

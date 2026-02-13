@@ -5,7 +5,7 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { ServicesGrid } from '@/components/sections/ServicesGrid';
 import { CTASection } from '@/components/sections/CTASection';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 import {
   getPageData,
   getServicesByCategory,
@@ -43,11 +43,11 @@ export async function generateMetadata(): Promise<Metadata> {
     getPageData('about'),
   ]);
   const meta = (pageContent?.metadata || {}) as AboutMetadata;
-  return {
+  return pageMetadata(config, {
     title: 'About',
     description: meta.metaDescription || config.description,
-    alternates: { canonical: `${config.url}/about` },
-  };
+    canonical: `${config.url}/about`,
+  });
 }
 
 export default async function AboutPage() {
@@ -183,7 +183,7 @@ export default async function AboutPage() {
         <Container>
           <div className="mb-8 flex justify-center">
             <Image
-              src="https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/logos/fca-mountain-on-white.png"
+              src="https://d1bjh7dvpwoxii.cloudfront.net/logos/fca-mountain-on-white.png"
               alt="Flatirons Capital Advisors"
               width={200}
               height={80}

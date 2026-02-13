@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Container } from '@/components/ui/Container';
 import { Hero } from '@/components/sections/Hero';
 import { MarkdownContent } from '@/components/common/MarkdownContent';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 import { getPageData, parseMarkdownContent } from '@/lib/data';
 
 interface PrivacyMetadata {
@@ -15,12 +15,12 @@ export async function generateMetadata(): Promise<Metadata> {
     getPageData('privacy-policy'),
   ]);
   const meta = (pageContent?.metadata || {}) as PrivacyMetadata;
-  return {
+  return pageMetadata(config, {
     title: 'Privacy Policy',
     description: meta.metaDescription || config.description,
-    alternates: { canonical: `${config.url}/privacy-policy` },
+    canonical: `${config.url}/privacy-policy`,
     robots: { index: false, follow: true },
-  };
+  });
 }
 
 export default async function PrivacyPolicyPage() {

@@ -103,7 +103,7 @@ export default async function RootLayout({
     name: config.name,
     description: config.description,
     url: config.url,
-    logo: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/logos/fca-mountain-on-white.png',
+    logo: 'https://d1bjh7dvpwoxii.cloudfront.net/logos/fca-mountain-on-white.png',
     telephone: config.phone,
     email: config.email,
     sameAs: [config.linkedIn],
@@ -123,8 +123,6 @@ export default async function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <head>
-        <link rel="preconnect" href="https://fca-assets-113862367661.s3.us-east-2.amazonaws.com" />
-        <link rel="dns-prefetch" href="https://fca-assets-113862367661.s3.us-east-2.amazonaws.com" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

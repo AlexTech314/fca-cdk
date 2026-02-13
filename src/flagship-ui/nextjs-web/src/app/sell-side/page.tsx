@@ -4,7 +4,7 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { Button } from '@/components/ui/Button';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 import { getPageData, getServicesByCategory } from '@/lib/data';
 
 interface SellSideMetadata {
@@ -31,11 +31,11 @@ export async function generateMetadata(): Promise<Metadata> {
     getPageData('sell-side'),
   ]);
   const meta = (pageContent?.metadata || {}) as SellSideMetadata;
-  return {
+  return pageMetadata(config, {
     title: 'Sell-Side Advisory',
-    description: meta.metaDescription || config.description,
-    alternates: { canonical: `${config.url}/sell-side` },
-  };
+    description: meta.metaDescription || 'Sell-side M&A advisory services from Flatirons Capital Advisors. Private company exits, recapitalizations, divestitures, and generational transfers for business owners.',
+    canonical: `${config.url}/sell-side`,
+  });
 }
 
 export default async function SellSidePage() {

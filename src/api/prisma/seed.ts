@@ -155,7 +155,7 @@ function loadTombstoneImages(): Record<string, string> {
   }
   // Aliases: CSV seller name -> canonical key in mapping (so all CSV rows resolve to an image when we have one)
   const aliases: [string, string][] = [
-    ['World Resoures Distribution', 'World Resources Distribution'],
+    ['World Resources Distribution', 'World Resources Distribution'],
     ['Precision Pool & Spa', 'Precision Pool and Spa'],
     ["Pod's Complete Car Care", 'PODs Complete Car Care and Accessories'],
     ['thriveMD', 'ThriveMD-Platt Park & Formula Wellness'],
@@ -174,6 +174,7 @@ function loadTombstoneImages(): Record<string, string> {
     ['Murraysmith Inc', 'Murray Smith, Inc'],
     ['North Shore Fire Equipment', 'Northshore Fire Equipment'],
     ['Digital Imaging and Laser Products Inc', 'DI Digital Imaging and Laser Products, Inc.'],
+    ['Digital Imaging & Laser Products', 'DI Digital Imaging and Laser Products, Inc.'],
     ['Key Enterprises Inc', 'Key Enterprises, Inc.'],
     ['P and J Sprinkler Company Inc', 'P&J Sprinkler Company, Inc'],
     ['Florida Fire Services Inc', 'Florida Fire Service'],
@@ -301,7 +302,7 @@ async function seedSiteConfig(): Promise<void> {
     phone: '303.319.4540',
     email: 'info@flatironscap.com',
     linkedIn: 'https://www.linkedin.com/company/flatirons-capital-advisors-llc',
-    ogImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/og-image.jpg',
+    ogImage: 'https://d1bjh7dvpwoxii.cloudfront.net/meta/og-image.jpg',
     locations: [
       { city: 'Denver', state: 'Colorado' },
       { city: 'Dallas', state: 'Texas' },
@@ -397,7 +398,7 @@ async function seedAssets(): Promise<void> {
       create: {
         fileName,
         s3Key,
-        fileType: 'image/jpeg',
+        fileType: 'image/webp',
         category: 'photo',
         title: _name,
       },
@@ -430,16 +431,29 @@ async function seedAssets(): Promise<void> {
     count++;
   }
 
-  // 3. Seed hero image asset
+  // 3. Seed hero image assets (desktop + mobile)
   await prisma.asset.upsert({
-    where: { s3Key: 'hero/flatironsherowinter.jpg' },
+    where: { s3Key: 'hero/flatironsherowinter.webp' },
     update: {},
     create: {
-      fileName: 'flatironsherowinter.jpg',
-      s3Key: 'hero/flatironsherowinter.jpg',
-      fileType: 'image/jpeg',
+      fileName: 'flatironsherowinter.webp',
+      s3Key: 'hero/flatironsherowinter.webp',
+      fileType: 'image/webp',
       category: 'photo',
       title: 'Homepage Hero Image',
+    },
+  });
+  count++;
+
+  await prisma.asset.upsert({
+    where: { s3Key: 'hero/flatironsherowinter_mobile.webp' },
+    update: {},
+    create: {
+      fileName: 'flatironsherowinter_mobile.webp',
+      s3Key: 'hero/flatironsherowinter_mobile.webp',
+      fileType: 'image/webp',
+      category: 'photo',
+      title: 'Homepage Hero Image (Mobile)',
     },
   });
   count++;
@@ -1055,27 +1069,27 @@ async function seedAwards(): Promise<void> {
   const awards = [
     {
       name: 'Axial Top 10 Investment Bank 2022',
-      image: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/awards/axial-top-10-investment-bank-2022.png',
+      image: 'https://d1bjh7dvpwoxii.cloudfront.net/awards/axial-top-10-investment-bank-2022.png',
       sortOrder: 0,
     },
     {
       name: 'Top 50 Software Axial 2023',
-      image: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/awards/top50-software-email-2x.png',
+      image: 'https://d1bjh7dvpwoxii.cloudfront.net/awards/top50-software-email-2x.png',
       sortOrder: 1,
     },
     {
       name: 'Axial Top IB 2020',
-      image: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/awards/axial-top-ib-badge-2020-359x450.png',
+      image: 'https://d1bjh7dvpwoxii.cloudfront.net/awards/axial-top-ib-badge-2020-359x450.png',
       sortOrder: 2,
     },
     {
       name: '2023 Axial Advisor 100',
-      image: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/awards/2023-axial-advisor-100.png',
+      image: 'https://d1bjh7dvpwoxii.cloudfront.net/awards/2023-axial-advisor-100.png',
       sortOrder: 3,
     },
     {
       name: 'NFPA Member',
-      image: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/awards/nfpa-member.png',
+      image: 'https://d1bjh7dvpwoxii.cloudfront.net/awards/nfpa-member.png',
       sortOrder: 4,
     },
   ];
@@ -1107,7 +1121,8 @@ async function seedPageContent(): Promise<void> {
         metaDescription: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm specializing in lower middle-market transactions. Over 200 completed transactions.',
         subtitle: 'Middle Market M&A Advisory',
         description: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm focused on privately-held, lower middle-market companies.',
-        heroImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/hero/flatironsherowinter.jpg',
+        heroImage: 'https://d1bjh7dvpwoxii.cloudfront.net/hero/flatironsherowinter.webp',
+        heroImageMobile: 'https://d1bjh7dvpwoxii.cloudfront.net/hero/flatironsherowinter_mobile.webp',
         ctaText: 'Start a Conversation',
         ctaHref: '/contact',
         secondaryCtaText: 'View Transactions',

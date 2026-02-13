@@ -10,6 +10,7 @@ interface HeroProps {
   secondaryCtaText?: string;
   secondaryCtaHref?: string;
   heroImage?: string;
+  heroImageMobile?: string;
   showImage?: boolean;
   compact?: boolean;
   tagline?: string;
@@ -24,12 +25,14 @@ export async function Hero({
   secondaryCtaText,
   secondaryCtaHref,
   heroImage,
+  heroImageMobile,
   showImage = true,
   compact = false,
   tagline,
 }: HeroProps) {
   const config = await fetchSiteConfig();
   const resolvedHeroImage = heroImage ? (toAssetUrl(heroImage) || heroImage) : undefined;
+  const resolvedMobileImage = heroImageMobile ? (toAssetUrl(heroImageMobile) || heroImageMobile) : undefined;
   if (compact) {
     return (
       <section
@@ -66,19 +69,46 @@ export async function Hero({
 
   return (
     <section className="relative min-h-[600px] overflow-hidden md:min-h-[700px]">
-      {/* Background Image */}
+      {/* Background Image — mobile variant for smaller payloads on phones */}
       {showImage && resolvedHeroImage && (
         <div className="absolute inset-0">
-          <Image
-            src={resolvedHeroImage}
-            alt="Flatirons mountain range - symbolizing stability and strength in M&A advisory"
-            fill
-            priority
-            fetchPriority="high"
-            quality={55}
-            className="object-cover"
-            sizes="100vw"
-          />
+          {resolvedMobileImage ? (
+            <>
+              {/* Mobile: smaller image, hidden on md+ */}
+              <Image
+                src={resolvedMobileImage}
+                alt="Flatirons mountain range - symbolizing stability and strength in M&A advisory"
+                fill
+                priority
+                fetchPriority="high"
+                quality={60}
+                className="object-cover md:hidden"
+                sizes="100vw"
+              />
+              {/* Desktop: full image, hidden below md */}
+              <Image
+                src={resolvedHeroImage}
+                alt="Flatirons mountain range - symbolizing stability and strength in M&A advisory"
+                fill
+                priority
+                fetchPriority="high"
+                quality={55}
+                className="hidden object-cover md:block"
+                sizes="100vw"
+              />
+            </>
+          ) : (
+            <Image
+              src={resolvedHeroImage}
+              alt="Flatirons mountain range - symbolizing stability and strength in M&A advisory"
+              fill
+              priority
+              fetchPriority="high"
+              quality={55}
+              className="object-cover"
+              sizes="100vw"
+            />
+          )}
           <div className="hero-gradient absolute inset-0" />
         </div>
       )}

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Container } from '@/components/ui/Container';
 import { ContactForm } from '@/components/forms/ContactForm';
 import { getNewsArticles, getResourceArticles, getPageData } from '@/lib/data';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 
 export async function generateMetadata(): Promise<Metadata> {
   const [config, pageContent] = await Promise.all([
@@ -11,11 +11,11 @@ export async function generateMetadata(): Promise<Metadata> {
     getPageData('contact'),
   ]);
   const meta = (pageContent?.metadata || {}) as ContactMetadata;
-  return {
+  return pageMetadata(config, {
     title: 'Contact',
     description: meta.metaDescription || config.description,
-    alternates: { canonical: `${config.url}/contact` },
-  };
+    canonical: `${config.url}/contact`,
+  });
 }
 
 interface ContactMetadata {

@@ -14,27 +14,27 @@ A curated collection of articles and resources for business owners considering M
 
 ### Articles by Flatirons Capital Advisors
 
-- [Estate Planning: A Small Slice of a Bigger Pie](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/estate-planning-a-small-slice-of-a-bigger-pie.pdf)
+- [Estate Planning: A Small Slice of a Bigger Pie](https://d1bjh7dvpwoxii.cloudfront.net/docs/estate-planning-a-small-slice-of-a-bigger-pie.pdf)
 
-- [Recapitalizations: There are options other than selling your company](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/there-are-options-other-than-selling-your-company-recapitalizations.pdf)
+- [Recapitalizations: There are options other than selling your company](https://d1bjh7dvpwoxii.cloudfront.net/docs/there-are-options-other-than-selling-your-company-recapitalizations.pdf)
 
-- [Succession Planning for Family-owned Businesses](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/succession-planning-for-family-owned-businesses.pdf)
+- [Succession Planning for Family-owned Businesses](https://d1bjh7dvpwoxii.cloudfront.net/docs/succession-planning-for-family-owned-businesses.pdf)
 
-- [Grow or Sell Your Information Technology Company](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/grow-or-sell-your-information-technology-company.pdf)
+- [Grow or Sell Your Information Technology Company](https://d1bjh7dvpwoxii.cloudfront.net/docs/grow-or-sell-your-information-technology-company.pdf)
 
-- [Six Major Questions Business Owners Should Be Answering](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/six-major-questions-business-owners-should-be-answering.pdf)
+- [Six Major Questions Business Owners Should Be Answering](https://d1bjh7dvpwoxii.cloudfront.net/docs/six-major-questions-business-owners-should-be-answering.pdf)
 
-- [Top 10 ways to increase your Company's Enterprise Value](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/top-10-ways-to-increase-your-company-s-enterprise-value-short-version.pdf)
+- [Top 10 ways to increase your Company's Enterprise Value](https://d1bjh7dvpwoxii.cloudfront.net/docs/top-10-ways-to-increase-your-company-s-enterprise-value-short-version.pdf)
 
-- [If you miss the current Premium Seller's Market](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/market-cycles-if-you-miss-the-current-seller-s-premium-market.docx)
+- [If you miss the current Premium Seller's Market](https://d1bjh7dvpwoxii.cloudfront.net/docs/market-cycles-if-you-miss-the-current-seller-s-premium-market.docx)
 
-- [Selling a Company vs. Selling a House](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/selling-a-company-vs-selling-a-house.pdf)
+- [Selling a Company vs. Selling a House](https://d1bjh7dvpwoxii.cloudfront.net/docs/selling-a-company-vs-selling-a-house.pdf)
 
-- [10 Keys to a Successful Sale](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/10-keys-to-a-successful-business-sale.pdf)
+- [10 Keys to a Successful Sale](https://d1bjh7dvpwoxii.cloudfront.net/docs/10-keys-to-a-successful-business-sale.pdf)
 
-- [Private Equity and the Healthcare Industry](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/private-equity-and-the-healthcare-industry.pdf)
+- [Private Equity and the Healthcare Industry](https://d1bjh7dvpwoxii.cloudfront.net/docs/private-equity-and-the-healthcare-industry.pdf)
 
-- [2023 Axial Advisor 100](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/axial-100.pdf)
+- [2023 Axial Advisor 100](https://d1bjh7dvpwoxii.cloudfront.net/docs/axial-100.pdf)
 
 ---
 

@@ -8,7 +8,7 @@
 
 ---
 
-![Top Gun Collision Experts](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/news/top-gun-collision-collisionright.png)
+![Top Gun Collision Experts](https://d1bjh7dvpwoxii.cloudfront.net/news/top-gun-collision-collisionright.png)
 
 As of September 15th, we are pleased to welcome Top Gun Collision Center's in Maryland to the CollisionRight family!
 

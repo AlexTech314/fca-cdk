@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Container } from '@/components/ui/Container';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 import { getPageData, getAllFAQs } from '@/lib/data';
 
 interface FAQMetadata {
@@ -19,11 +19,11 @@ export async function generateMetadata(): Promise<Metadata> {
     getPageData('faq'),
   ]);
   const meta = (pageContent?.metadata || {}) as FAQMetadata;
-  return {
+  return pageMetadata(config, {
     title: 'FAQ',
     description: meta.metaDescription || config.description,
-    alternates: { canonical: `${config.url}/faq` },
-  };
+    canonical: `${config.url}/faq`,
+  });
 }
 
 export default async function FAQPage() {

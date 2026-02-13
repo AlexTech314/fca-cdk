@@ -658,7 +658,7 @@ function AboutPageContent({
         <div className="container-max">
           <div className="mb-8 flex justify-center">
             <Image
-              src="https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/logos/fca-mountain-on-white.png"
+              src="https://d1bjh7dvpwoxii.cloudfront.net/logos/fca-mountain-on-white.png"
               alt="Flatirons Capital Advisors"
               width={200}
               height={80}

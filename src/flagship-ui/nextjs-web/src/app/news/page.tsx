@@ -5,7 +5,7 @@ import { Hero } from '@/components/sections/Hero';
 import { NewsGrid } from '@/components/sections/NewsGrid';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
 import { getNewsArticles, getAllNewsTags, getPageData, getTagNamesMap } from '@/lib/data';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 
 interface NewsMetadata {
   metaDescription?: string;
@@ -21,11 +21,11 @@ export async function generateMetadata(): Promise<Metadata> {
     getPageData('news'),
   ]);
   const meta = (pageContent?.metadata || {}) as NewsMetadata;
-  return {
+  return pageMetadata(config, {
     title: 'News & Insights',
     description: meta.metaDescription || config.description,
-    alternates: { canonical: `${config.url}/news` },
-  };
+    canonical: `${config.url}/news`,
+  });
 }
 
 export default async function NewsPage() {

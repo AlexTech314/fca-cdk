@@ -22,7 +22,7 @@ Flatirons Capital Advisors is a mergers and acquisitions advisory firm that prov
 
 **LinkedIn:** https://www.linkedin.com/company/flatirons-capital-advisors-llc
 
-[Corporate Overview (PDF)](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/flatirons-brochure-2025.pdf)
+[Corporate Overview (PDF)](https://d1bjh7dvpwoxii.cloudfront.net/docs/flatirons-brochure-2025.pdf)
 
 ---
 

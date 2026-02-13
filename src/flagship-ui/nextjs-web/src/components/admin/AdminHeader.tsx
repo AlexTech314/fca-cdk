@@ -15,7 +15,7 @@ export function AdminHeader() {
         <div className="flex items-center gap-3">
           <Link href="/admin" className="flex items-center gap-3">
             <Image
-              src="https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/logos/fca-mountain-on-white.png"
+              src="https://d1bjh7dvpwoxii.cloudfront.net/logos/fca-mountain-on-white.png"
               alt="FCA"
               width={100}
               height={35}

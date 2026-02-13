@@ -5,7 +5,7 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { getResourceArticles, getPageData } from '@/lib/data';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 
 interface ResourcesMetadata {
   metaDescription?: string;
@@ -24,11 +24,11 @@ export async function generateMetadata(): Promise<Metadata> {
     getPageData('resources'),
   ]);
   const meta = (pageContent?.metadata || {}) as ResourcesMetadata;
-  return {
+  return pageMetadata(config, {
     title: 'Resources',
     description: meta.metaDescription || config.description,
-    alternates: { canonical: `${config.url}/resources` },
-  };
+    canonical: `${config.url}/resources`,
+  });
 }
 
 export default async function ResourcesPage() {

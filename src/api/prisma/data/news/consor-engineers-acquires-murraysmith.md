@@ -1,6 +1,6 @@
 # CONSOR Engineers Acquires Murraysmith and Quincy Engineering
 
-**URL:** https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/con-mur-1.pdf
+**URL:** https://d1bjh7dvpwoxii.cloudfront.net/docs/con-mur-1.pdf
 
 **Author:** Morrissey Goodale
 

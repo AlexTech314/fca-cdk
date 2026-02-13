@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'fca-assets-113862367661.s3.us-east-2.amazonaws.com',
+        hostname: 'd1bjh7dvpwoxii.cloudfront.net',
         pathname: '/**',
       },
     ],

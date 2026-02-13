@@ -5,7 +5,7 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { ExpandBioButton } from '@/components/ui/ExpandBioButton';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 import {
   getPageData,
   getTeamMembersByCategory,
@@ -34,11 +34,11 @@ export async function generateMetadata(): Promise<Metadata> {
     getPageData('team'),
   ]);
   const meta = (pageContent?.metadata || {}) as TeamMetadata;
-  return {
+  return pageMetadata(config, {
     title: 'Team',
     description: meta.metaDescription || config.description,
-    alternates: { canonical: `${config.url}/team` },
-  };
+    canonical: `${config.url}/team`,
+  });
 }
 
 export default async function TeamPage() {

@@ -4,7 +4,7 @@ import { ServicesGrid } from '@/components/sections/ServicesGrid';
 import { TransactionGrid } from '@/components/sections/TransactionGrid';
 import { AwardsBar } from '@/components/sections/AwardsBar';
 import { CTASection } from '@/components/sections/CTASection';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 import { getTombstones, getServicesByCategory, getPageData } from '@/lib/data';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -13,11 +13,11 @@ export async function generateMetadata(): Promise<Metadata> {
     getPageData('home'),
   ]);
   const meta = (pageContent?.metadata || {}) as HomePageMetadata;
-  return {
+  return pageMetadata(config, {
     title: meta.metaTitle || 'Middle Market M&A Investment Bank',
     description: meta.metaDescription || config.description,
-    alternates: { canonical: config.url },
-  };
+    canonical: config.url,
+  });
 }
 
 // Type for homepage metadata
@@ -27,6 +27,7 @@ interface HomePageMetadata {
   subtitle?: string;
   description?: string;
   heroImage?: string;
+  heroImageMobile?: string;
   ctaText?: string;
   ctaHref?: string;
   secondaryCtaText?: string;
@@ -65,6 +66,8 @@ export default async function HomePage() {
         subtitle={meta.subtitle}
         description={meta.description}
         heroImage={meta.heroImage}
+        // TODO: add heroImageMobile
+        heroImageMobile={meta.heroImage}
         ctaText={meta.ctaText}
         ctaHref={meta.ctaHref}
         secondaryCtaText={meta.secondaryCtaText}

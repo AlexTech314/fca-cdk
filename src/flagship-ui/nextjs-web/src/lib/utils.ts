@@ -21,7 +21,7 @@ export function slugify(text: string): string {
     .trim();
 }
 
-export const assetBaseUrl = 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com';
+export const assetBaseUrl = 'https://d1bjh7dvpwoxii.cloudfront.net';
 
 export function toAssetUrl(path?: string | null): string | undefined {
   if (!path) return undefined;
@@ -107,7 +107,7 @@ export const siteConfigDefaults: SiteConfigData = {
     { city: 'Miami', state: 'Florida' },
     { city: 'Chicago', state: 'Illinois' },
   ],
-  ogImage: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/og-image.jpg',
+  ogImage: 'https://d1bjh7dvpwoxii.cloudfront.net/meta/og-image.jpg',
   serviceTypes: [
     'Mergers and Acquisitions Advisory',
     'Sell-Side Advisory',
@@ -182,4 +182,54 @@ export async function fetchSiteConfig(): Promise<SiteConfigData> {
   const api = await getSiteConfig();
   if (!api) return siteConfigDefaults;
   return mapApiToSiteConfig(api);
+}
+
+/**
+ * Build page-level metadata that properly overrides root layout OG/Twitter
+ * without losing images, card type, etc.
+ *
+ * Usage in page generateMetadata():
+ *   return pageMetadata(config, { title: 'About', description: '...' });
+ */
+export function pageMetadata(
+  config: SiteConfigData,
+  opts: {
+    title: string;
+    description: string;
+    canonical: string;
+    robots?: { index: boolean; follow: boolean };
+  },
+) {
+  const ogTitle = opts.title.includes(config.name)
+    ? opts.title
+    : `${opts.title} | ${config.name}`;
+
+  return {
+    title: opts.title,
+    description: opts.description,
+    alternates: { canonical: opts.canonical },
+    ...(opts.robots ? { robots: opts.robots } : {}),
+    openGraph: {
+      title: ogTitle,
+      description: opts.description,
+      url: opts.canonical,
+      type: 'website' as const,
+      siteName: config.name,
+      locale: 'en_US',
+      images: [
+        {
+          url: config.ogImage,
+          width: 1200,
+          height: 630,
+          alt: config.name,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image' as const,
+      title: ogTitle,
+      description: opts.description,
+      images: [config.ogImage],
+    },
+  };
 }

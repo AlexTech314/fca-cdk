@@ -115,7 +115,7 @@ export async function generateGroupingMetadata(
 
   switch (type) {
     case 'tag':
-      title = `${tagName} M&A Transactions (${count} Deals) | ${config.name}`;
+      title = `${tagName} M&A Transactions (${count} Deals)`;
       description = tagData?.description 
         ? tagData.description.slice(0, 155) + '...'
         : `Browse ${count} completed ${tagName.toLowerCase()} M&A transactions. ${config.name} specializes in lower middle-market mergers and acquisitions.`;
@@ -124,7 +124,7 @@ export async function generateGroupingMetadata(
 
     case 'state':
       const stateName = getStateName(value);
-      title = `${stateName} M&A Transactions | ${config.name}`;
+      title = `${stateName} M&A Transactions`;
       description = `Explore ${count} completed M&A transactions in ${stateName}. ${config.name} is a trusted M&A advisor in the lower middle-market.`;
       canonicalPath = `/transactions/state/${value.toLowerCase()}`;
       break;
@@ -132,19 +132,19 @@ export async function generateGroupingMetadata(
     case 'city':
       const cityDisplay = formatTagName(value);
       const stateDisplay = additionalContext?.state ? `, ${getStateName(additionalContext.state)}` : '';
-      title = `${cityDisplay}${stateDisplay} M&A Deals | ${config.name}`;
+      title = `${cityDisplay}${stateDisplay} M&A Deals`;
       description = `View ${count} completed M&A transactions in ${cityDisplay}${stateDisplay}. Expert sell-side and buy-side advisory from ${config.name}.`;
       canonicalPath = `/transactions/city/${value}`;
       break;
 
     case 'year':
-      title = `${value} Completed Transactions | ${config.name}`;
+      title = `${value} Completed Transactions`;
       description = `Review ${count} M&A transactions completed in ${value}. See our track record of successful deals at ${config.name}.`;
       canonicalPath = `/transactions/year/${value}`;
       break;
 
     case 'news-tag':
-      title = `${tagName} News & Insights (${count} Articles) | ${config.name}`;
+      title = `${tagName} News & Insights (${count} Articles)`;
       description = tagData?.description 
         ? tagData.description.slice(0, 155) + '...'
         : `Read ${count} news articles and insights about ${tagName.toLowerCase()} from ${config.name}, a leading M&A advisory firm.`;
@@ -152,10 +152,13 @@ export async function generateGroupingMetadata(
       break;
 
     default:
-      title = `M&A Transactions | ${config.name}`;
+      title = 'M&A Transactions';
       description = config.description;
       canonicalPath = '/transactions';
   }
+
+  // OG/Twitter titles need the full brand since they don't use Next.js title.template
+  const ogTitle = `${title} | ${config.name}`;
 
   return {
     title,
@@ -164,7 +167,7 @@ export async function generateGroupingMetadata(
       canonical: `${config.url}${canonicalPath}`,
     },
     openGraph: {
-      title,
+      title: ogTitle,
       description,
       url: `${config.url}${canonicalPath}`,
       type: 'website',
@@ -180,7 +183,7 @@ export async function generateGroupingMetadata(
     },
     twitter: {
       card: 'summary_large_image',
-      title,
+      title: ogTitle,
       description,
     },
   };

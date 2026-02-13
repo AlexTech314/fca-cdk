@@ -4,7 +4,7 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { Button } from '@/components/ui/Button';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 import { getPageData, getServicesByCategory } from '@/lib/data';
 
 interface BuySideMetadata {
@@ -28,11 +28,11 @@ export async function generateMetadata(): Promise<Metadata> {
     getPageData('buy-side'),
   ]);
   const meta = (pageContent?.metadata || {}) as BuySideMetadata;
-  return {
+  return pageMetadata(config, {
     title: 'Buy-Side Advisory',
-    description: meta.metaDescription || config.description,
-    alternates: { canonical: `${config.url}/buy-side` },
-  };
+    description: meta.metaDescription || 'Buy-side M&A advisory services from Flatirons Capital Advisors. Acquisition search, sponsor services, and buy-side representation for strategic buyers.',
+    canonical: `${config.url}/buy-side`,
+  });
 }
 
 export default async function BuySidePage() {

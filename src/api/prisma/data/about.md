@@ -16,7 +16,7 @@ Our buyer relationships are crucial to our ongoing success in making markets for
 
 The deal process is 100% managed by a senior team member and not pushed down to a junior analyst. This hands-on approach by senior team members ensures a strategic and robust process for our clients.
 
-[Corporate Overview (PDF)](https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/docs/flatirons-brochure-2025.pdf)
+[Corporate Overview (PDF)](https://d1bjh7dvpwoxii.cloudfront.net/docs/flatirons-brochure-2025.pdf)
 
 ---
 

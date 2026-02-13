@@ -6,7 +6,7 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 import { 
   getTombstones, 
   getAllTombstoneTags, 
@@ -34,11 +34,11 @@ export async function generateMetadata(): Promise<Metadata> {
     getPageData('transactions'),
   ]);
   const meta = (pageContent?.metadata || {}) as TransactionsMetadata;
-  return {
+  return pageMetadata(config, {
     title: 'Transactions',
     description: meta.metaDescription || config.description,
-    alternates: { canonical: `${config.url}/transactions` },
-  };
+    canonical: `${config.url}/transactions`,
+  });
 }
 
 export default async function TransactionsPage() {

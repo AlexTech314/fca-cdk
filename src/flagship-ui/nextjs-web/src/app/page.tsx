@@ -27,7 +27,6 @@ interface HomePageMetadata {
   subtitle?: string;
   description?: string;
   heroImage?: string;
-  heroImageMobile?: string;
   ctaText?: string;
   ctaHref?: string;
   secondaryCtaText?: string;
@@ -66,8 +65,6 @@ export default async function HomePage() {
         subtitle={meta.subtitle}
         description={meta.description}
         heroImage={meta.heroImage}
-        // TODO: add heroImageMobile
-        heroImageMobile={meta.heroImage}
         ctaText={meta.ctaText}
         ctaHref={meta.ctaHref}
         secondaryCtaText={meta.secondaryCtaText}

@@ -431,7 +431,7 @@ async function seedAssets(): Promise<void> {
     count++;
   }
 
-  // 3. Seed hero image assets (desktop + mobile)
+  // 3. Seed hero image asset
   await prisma.asset.upsert({
     where: { s3Key: 'hero/flatironsherowinter.webp' },
     update: {},
@@ -446,14 +446,27 @@ async function seedAssets(): Promise<void> {
   count++;
 
   await prisma.asset.upsert({
-    where: { s3Key: 'hero/flatironsherowinter_mobile.webp' },
+    where: { s3Key: 'hero/flatironsherospring.webp' },
     update: {},
     create: {
-      fileName: 'flatironsherowinter_mobile.webp',
-      s3Key: 'hero/flatironsherowinter_mobile.webp',
+      fileName: 'flatironsherospring.webp',
+      s3Key: 'hero/flatironsherospring.webp',
       fileType: 'image/webp',
       category: 'photo',
-      title: 'Homepage Hero Image (Mobile)',
+      title: 'Homepage Hero Image (Spring)',
+    },
+  });
+  count++;
+
+  await prisma.asset.upsert({
+    where: { s3Key: 'hero/flatironsherofall.webp' },
+    update: {},
+    create: {
+      fileName: 'flatironsherofall.webp',
+      s3Key: 'hero/flatironsherofall.webp',
+      fileType: 'image/webp',
+      category: 'photo',
+      title: 'Homepage Hero Image (Fall)',
     },
   });
   count++;
@@ -1122,7 +1135,6 @@ async function seedPageContent(): Promise<void> {
         subtitle: 'Middle Market M&A Advisory',
         description: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm focused on privately-held, lower middle-market companies.',
         heroImage: 'https://d1bjh7dvpwoxii.cloudfront.net/hero/flatironsherowinter.webp',
-        heroImageMobile: 'https://d1bjh7dvpwoxii.cloudfront.net/hero/flatironsherowinter_mobile.webp',
         ctaText: 'Start a Conversation',
         ctaHref: '/contact',
         secondaryCtaText: 'View Transactions',

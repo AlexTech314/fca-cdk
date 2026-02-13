@@ -34,7 +34,7 @@ export function EditableHero({ tagline }: EditableHeroProps) {
               fill
               priority
               fetchPriority="high"
-              quality={55}
+
               className="object-cover"
               sizes="100vw"
             />

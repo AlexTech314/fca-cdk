@@ -9,23 +9,44 @@
 // Default to port 4000 for local Docker development
 const API_URL = process.env.API_URL || 'http://localhost:4000/api';
 
+type NextRequestInit = RequestInit & {
+  next?: {
+    revalidate?: number;
+    tags?: string[];
+  };
+};
+
 /**
- * Fetch options for dynamic (no-cache) requests
+ * Default fetch options:
+ * - GET requests: cacheable with periodic revalidation for better performance/bfcache
+ * - Mutations: explicitly no-store
  */
-const dynamicFetchOptions: RequestInit = {
-  cache: 'no-store',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+const baseHeaders = {
+  'Content-Type': 'application/json',
 };
 
 /**
  * Generic fetch wrapper with error handling
  */
-async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function apiFetch<T>(endpoint: string, options?: NextRequestInit): Promise<T> {
+  const method = (options?.method || 'GET').toUpperCase();
+  const isGet = method === 'GET';
+
   const response = await fetch(`${API_URL}${endpoint}`, {
-    ...dynamicFetchOptions,
     ...options,
+    headers: {
+      ...baseHeaders,
+      ...(options?.headers || {}),
+    },
+    ...(isGet
+      ? {
+          cache: 'force-cache',
+          next: {
+            revalidate: 300,
+            ...(options?.next || {}),
+          },
+        }
+      : { cache: 'no-store' }),
   });
 
   if (!response.ok) {

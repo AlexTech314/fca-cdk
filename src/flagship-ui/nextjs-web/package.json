@@ -8,6 +8,20 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "browserslist": {
+    "production": [
+      "chrome >= 109",
+      "edge >= 109",
+      "firefox >= 115",
+      "safari >= 16.4",
+      "ios_saf >= 16.4"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
   "dependencies": {
     "@blocknote/core": "^0.46.2",
     "@blocknote/mantine": "^0.46.2",

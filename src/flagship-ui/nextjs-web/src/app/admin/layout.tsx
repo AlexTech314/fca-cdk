@@ -2,6 +2,7 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { UnsavedChangesProvider } from '@/components/admin/UnsavedChangesContext';
 import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal';
+import './admin.css';
 
 export const metadata = {
   title: 'Admin Dashboard | Flatirons Capital Advisors',

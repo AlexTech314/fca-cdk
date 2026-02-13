@@ -20,7 +20,7 @@ export function TombstoneGrid({ tombstones, emptyMessage = 'No transactions foun
 
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-      {tombstones.map((tombstone) => (
+      {tombstones.map((tombstone, index) => (
         <Link
           key={tombstone.slug}
           href={`/transactions/${tombstone.slug}`}
@@ -34,6 +34,8 @@ export function TombstoneGrid({ tombstones, emptyMessage = 'No transactions foun
                 fill
                 className="object-cover"
                 sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                loading={index === 0 ? 'eager' : 'lazy'}
+                fetchPriority={index === 0 ? 'high' : 'auto'}
               />
             </div>
           ) : (

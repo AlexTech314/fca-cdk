@@ -33,6 +33,8 @@ export function EditableHero({ tagline }: EditableHeroProps) {
               alt="Hero background"
               fill
               priority
+              fetchPriority="high"
+              quality={55}
               className="object-cover"
               sizes="100vw"
             />

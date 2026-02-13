@@ -67,7 +67,9 @@ export function parseInlineMarkdown(text: string): React.ReactNode[] {
               src={src}
               alt={alt}
               className="max-w-full h-auto rounded-lg shadow-md mx-auto"
-              loading="lazy"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
             />
           ) : (
             <Image
@@ -75,6 +77,8 @@ export function parseInlineMarkdown(text: string): React.ReactNode[] {
               alt={alt}
               width={800}
               height={450}
+              priority
+              fetchPriority="high"
               className="max-w-full h-auto rounded-lg shadow-md mx-auto"
             />
           )}
@@ -136,7 +140,9 @@ export function renderMarkdownBlock(block: string, index: number): React.ReactNo
             src={src}
             alt={alt}
             className="max-w-full h-auto rounded-lg shadow-md"
-            loading="lazy"
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
           />
         ) : (
           <Image
@@ -144,6 +150,8 @@ export function renderMarkdownBlock(block: string, index: number): React.ReactNo
             alt={alt}
             width={800}
             height={450}
+            priority
+            fetchPriority="high"
             className="max-w-full h-auto rounded-lg shadow-md"
           />
         )}

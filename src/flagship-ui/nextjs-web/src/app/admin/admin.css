@@ -1,0 +1,68 @@
+/* ============================================
+   BlockNote article editor overrides (admin-only)
+   ============================================ */
+
+/* Text colors */
+.bn-container[data-article-editor] .bn-inline-content {
+  color: #64748b !important;
+}
+
+/* Heading colors + weight */
+.bn-container[data-article-editor] h1.bn-inline-content,
+.bn-container[data-article-editor] h2.bn-inline-content {
+  color: #1e293b !important;
+  font-weight: 700 !important;
+}
+.bn-container[data-article-editor] h3.bn-inline-content {
+  color: #1e293b !important;
+  font-weight: 600 !important;
+}
+
+/* Heading font sizes (override .bn-default-styles reset) */
+.bn-container[data-article-editor] .bn-default-styles h1 {
+  font-size: 1.875rem !important;
+  font-weight: 700 !important;
+}
+@media (min-width: 768px) {
+  .bn-container[data-article-editor] .bn-default-styles h1 {
+    font-size: 2.25rem !important;
+  }
+}
+.bn-container[data-article-editor] .bn-default-styles h2 {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+}
+.bn-container[data-article-editor] .bn-default-styles h3 {
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+}
+
+/* Links */
+.bn-container[data-article-editor] .bn-editor a {
+  color: var(--color-secondary) !important;
+  text-decoration: underline !important;
+}
+.bn-container[data-article-editor] .bn-editor a:hover {
+  color: var(--color-primary) !important;
+}
+
+/* Bold */
+.bn-container[data-article-editor] .bn-editor strong {
+  color: #1e293b !important;
+}
+
+/* Horizontal rule */
+.bn-container[data-article-editor] .bn-editor [data-content-type="divider"] hr {
+  border-color: var(--color-border) !important;
+}
+
+/* Asset image block: center the image */
+.bn-container[data-article-editor] .bn-block-content[data-content-type="assetImage"] {
+  justify-content: center !important;
+}
+
+/* Asset blocks: reset text color inheritance so buttons render correctly */
+.bn-container[data-article-editor] .bn-block-content[data-content-type="assetImage"],
+.bn-container[data-article-editor] .bn-block-content[data-content-type="assetFile"] {
+  color: inherit;
+}

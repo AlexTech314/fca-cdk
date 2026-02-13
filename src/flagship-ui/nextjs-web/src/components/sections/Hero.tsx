@@ -74,6 +74,8 @@ export async function Hero({
             alt="Flatirons mountain range - symbolizing stability and strength in M&A advisory"
             fill
             priority
+            fetchPriority="high"
+            quality={55}
             className="object-cover"
             sizes="100vw"
           />

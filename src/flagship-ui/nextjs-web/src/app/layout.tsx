@@ -24,15 +24,15 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: {
       icon: [
         {
-          url: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/favicon-light.ico',
+          url: '/meta/favicon-light.ico',
           media: '(prefers-color-scheme: light)',
         },
         {
-          url: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/favicon-dark.ico',
+          url: '/meta/favicon-dark.ico',
           media: '(prefers-color-scheme: dark)',
         },
       ],
-      apple: 'https://fca-assets-113862367661.s3.us-east-2.amazonaws.com/meta/favicon-light.ico',
+      apple: '/meta/favicon-light.ico',
     },
     keywords: [
       'M&A advisory',
@@ -123,6 +123,8 @@ export default async function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <head>
+        <link rel="preconnect" href="https://fca-assets-113862367661.s3.us-east-2.amazonaws.com" />
+        <link rel="dns-prefetch" href="https://fca-assets-113862367661.s3.us-east-2.amazonaws.com" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

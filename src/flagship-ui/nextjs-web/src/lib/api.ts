@@ -42,7 +42,7 @@ async function apiFetch<T>(endpoint: string, options?: NextRequestInit): Promise
       ? {
           cache: 'force-cache',
           next: {
-            revalidate: 300,
+            revalidate: 60,
             ...(options?.next || {}),
           },
         }

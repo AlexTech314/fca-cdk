@@ -44,11 +44,13 @@ export const assetService = {
   async generatePresignedUrl(input: PresignedUrlInput) {
     const { fileName, fileType, prefix } = input;
 
-    // Build the S3 key: {prefix}/{uuid}-{sanitized-fileName}
+    // Build the S3 key: {prefix}/{epoch}-{uuid}-{sanitized-fileName}
+    // Epoch timestamp ensures keys are unique and naturally sortable
     const sanitized = sanitizeFileName(fileName);
+    const epoch = Date.now();
     const uniqueId = randomUUID().slice(0, 8);
     const s3Prefix = prefix || 'uploads';
-    const s3Key = `${s3Prefix}/${uniqueId}-${sanitized}`;
+    const s3Key = `${s3Prefix}/${epoch}-${uniqueId}-${sanitized}`;
 
     const result = await generatePresignedUploadUrl(s3Key, fileType);
 

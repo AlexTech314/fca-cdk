@@ -17,9 +17,14 @@ export const s3Client = new S3Client({
 export const BUCKET_NAME = process.env.BUCKET_NAME || '';
 
 /**
- * Build the full public S3 URL for a given s3Key.
+ * Build the full public URL for a given s3Key.
+ * Uses CloudFront when configured, otherwise falls back to direct S3.
  */
 export function getS3Url(s3Key: string): string {
+  const cdnDomain = process.env.CDN_DOMAIN; // e.g. "d1bjh7dvpwoxii.cloudfront.net"
+  if (cdnDomain) {
+    return `https://${cdnDomain}/${s3Key}`;
+  }
   const region = process.env.AWS_REGION || 'us-east-2';
   return `https://${BUCKET_NAME}.s3.${region}.amazonaws.com/${s3Key}`;
 }
@@ -50,6 +55,7 @@ export async function generatePresignedUploadUrl(
     Bucket: BUCKET_NAME,
     Key: s3Key,
     ContentType: contentType,
+    CacheControl: 'public, max-age=31536000, immutable',
   });
 
   const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn });

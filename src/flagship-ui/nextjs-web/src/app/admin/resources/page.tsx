@@ -6,6 +6,7 @@ import { SaveBar } from '@/components/admin/SaveBar';
 import { EditableField } from '@/components/admin/EditableField';
 import { BlogPostsTable } from '@/components/admin/sections/BlogPostsTable';
 import { useUnsavedChanges } from '@/components/admin/UnsavedChangesContext';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -107,7 +108,7 @@ export default function AdminResourcesPage() {
     async function fetchData() {
       try {
         const [pageRes, postsRes] = await Promise.all([
-          fetch('/api/admin/pages/resources'),
+          authedApiFetch('/api/admin/pages/resources'),
           fetch(`${API_URL}/blog-posts?category=resource&limit=200`),
         ]);
         if (!pageRes.ok) throw new Error('Failed to fetch page data');

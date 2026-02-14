@@ -9,7 +9,18 @@ export const createApp = (): Express => {
 
   // Security middleware
   app.use(helmet());
-  app.use(cors());
+  app.use(cors({
+    origin: [
+      'http://localhost:3000',  // next dev
+      'http://localhost:3002',  // public site (docker)
+      'http://localhost:3003',  // admin site (docker)
+      'http://localhost:3004',  // dev server alt
+      'http://localhost:3005',  // dev server alt
+      process.env.ADMIN_ORIGIN,  // production admin CloudFront
+      process.env.PUBLIC_ORIGIN, // production public site
+    ].filter(Boolean) as string[],
+    credentials: true,
+  }));
 
   // Request parsing
   app.use(express.json());

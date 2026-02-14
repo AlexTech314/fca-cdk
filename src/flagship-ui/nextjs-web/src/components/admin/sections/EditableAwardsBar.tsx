@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAdminPage } from '../AdminPageContext';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 import { AssetPickerModal } from '../AssetPickerModal';
 import { AwardNameModal } from '../AwardNameModal';
 
@@ -90,7 +91,7 @@ export function EditableAwardsBar({ initialAwards }: EditableAwardsBarProps) {
     // Creates (temp IDs, not deleted)
     const creates = curr.filter((a) => isTempId(a.id) && !deleted.has(a.id));
     for (const award of creates) {
-      const res = await fetch('/api/admin/awards', {
+      const res = await authedApiFetch('/api/admin/awards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: award.name, image: award.image, sortOrder: award.sortOrder ?? 0 }),
@@ -103,7 +104,7 @@ export function EditableAwardsBar({ initialAwards }: EditableAwardsBarProps) {
       if (isTempId(c.id) || deleted.has(c.id)) continue;
       const o = orig.find((a) => a.id === c.id);
       if (o && (o.name !== c.name || o.image !== c.image)) {
-        const res = await fetch(`/api/admin/awards/${c.id}`, {
+        const res = await authedApiFetch(`/api/admin/awards/${c.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: c.name, image: c.image }),
@@ -115,12 +116,12 @@ export function EditableAwardsBar({ initialAwards }: EditableAwardsBarProps) {
     // Deletes
     for (const id of deleted) {
       if (isTempId(id)) continue; // temp awards were never persisted
-      const res = await fetch(`/api/admin/awards/${id}`, { method: 'DELETE' });
+      const res = await authedApiFetch(`/api/admin/awards/${id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Failed to delete award');
     }
 
     // Re-fetch fresh state
-    const listRes = await fetch('/api/admin/awards');
+    const listRes = await authedApiFetch('/api/admin/awards');
     if (listRes.ok) {
       const freshAwards: Award[] = await listRes.json();
       setOriginalAwards(freshAwards);

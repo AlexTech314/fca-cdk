@@ -9,6 +9,7 @@ import { EditableServicesGrid } from '@/components/admin/sections/EditableServic
 import { EditableTransactionGrid } from '@/components/admin/sections/EditableTransactionGrid';
 import { EditableCTASection } from '@/components/admin/sections/EditableCTASection';
 import { toAssetUrl } from '@/lib/utils';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -68,7 +69,7 @@ export default function AdminHomePage() {
           awardsRes,
           configRes,
         ] = await Promise.all([
-          fetch('/api/admin/pages/home'),
+          authedApiFetch('/api/admin/pages/home'),
           fetch(`${API_URL}/tombstones?limit=50`),
           fetch(
             `${API_URL}/service-offerings?category=buy-side&type=service`

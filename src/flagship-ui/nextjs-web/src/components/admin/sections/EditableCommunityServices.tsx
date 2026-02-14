@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAdminPage } from '../AdminPageContext';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 import { EditableInlineField } from '../EditableInlineField';
 
 interface CommunityService {
@@ -77,7 +78,7 @@ export function EditableCommunityServices({ initialServices }: EditableCommunity
 
     const creates = curr.filter((s) => isTempId(s.id) && !deleted.has(s.id));
     for (const svc of creates) {
-      const res = await fetch('/api/admin/community-services', {
+      const res = await authedApiFetch('/api/admin/community-services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: svc.name, description: svc.description, url: svc.url, sortOrder: svc.sortOrder }),
@@ -89,7 +90,7 @@ export function EditableCommunityServices({ initialServices }: EditableCommunity
       if (isTempId(c.id) || deleted.has(c.id)) continue;
       const o = orig.find((s) => s.id === c.id);
       if (o && (o.name !== c.name || o.description !== c.description || o.url !== c.url)) {
-        const res = await fetch(`/api/admin/community-services/${c.id}`, {
+        const res = await authedApiFetch(`/api/admin/community-services/${c.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: c.name, description: c.description, url: c.url }),
@@ -100,11 +101,11 @@ export function EditableCommunityServices({ initialServices }: EditableCommunity
 
     for (const id of deleted) {
       if (isTempId(id)) continue;
-      const res = await fetch(`/api/admin/community-services/${id}`, { method: 'DELETE' });
+      const res = await authedApiFetch(`/api/admin/community-services/${id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Failed to delete community service');
     }
 
-    const listRes = await fetch('/api/admin/community-services');
+    const listRes = await authedApiFetch('/api/admin/community-services');
     if (listRes.ok) {
       const fresh: CommunityService[] = await listRes.json();
       setOriginalServices(fresh);

@@ -8,6 +8,7 @@ import { EditableField } from '@/components/admin/EditableField';
 import { TransactionsTable } from '@/components/admin/sections/TransactionsTable';
 import { useUnsavedChanges } from '@/components/admin/UnsavedChangesContext';
 import { toAssetUrl } from '@/lib/utils';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -249,7 +250,7 @@ export default function AdminTransactionsPage() {
     async function fetchData() {
       try {
         const [pageRes, tombRes] = await Promise.all([
-          fetch('/api/admin/pages/transactions'),
+          authedApiFetch('/api/admin/pages/transactions'),
           fetch(`${API_URL}/tombstones?limit=200`),
         ]);
 

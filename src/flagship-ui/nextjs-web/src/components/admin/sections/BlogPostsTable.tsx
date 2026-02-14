@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAdminPage } from '../AdminPageContext';
 import { useUnsavedChanges } from '../UnsavedChangesContext';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 import { EditableInlineField } from '../EditableInlineField';
 
 interface BlogPost {
@@ -90,7 +91,7 @@ export function BlogPostsTable({ initialPosts, category, detailBasePath }: BlogP
     // Creates
     const creates = curr.filter((p) => isTempId(p.id) && !deleted.has(p.id));
     for (const post of creates) {
-      const res = await fetch('/api/admin/blog-posts', {
+      const res = await authedApiFetch('/api/admin/blog-posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -111,7 +112,7 @@ export function BlogPostsTable({ initialPosts, category, detailBasePath }: BlogP
       if (o && hasChanged(c, o)) {
         // Update fields
         if (c.title !== o.title || c.author !== o.author) {
-          const res = await fetch(`/api/admin/blog-posts/${c.id}`, {
+          const res = await authedApiFetch(`/api/admin/blog-posts/${c.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: c.title, author: c.author }),
@@ -120,7 +121,7 @@ export function BlogPostsTable({ initialPosts, category, detailBasePath }: BlogP
         }
         // Toggle publish
         if (c.isPublished !== o.isPublished) {
-          const res = await fetch(`/api/admin/blog-posts/${c.id}/publish`, {
+          const res = await authedApiFetch(`/api/admin/blog-posts/${c.id}/publish`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ publish: c.isPublished }),
@@ -133,12 +134,12 @@ export function BlogPostsTable({ initialPosts, category, detailBasePath }: BlogP
     // Deletes
     for (const id of deleted) {
       if (isTempId(id)) continue;
-      const res = await fetch(`/api/admin/blog-posts/${id}`, { method: 'DELETE' });
+      const res = await authedApiFetch(`/api/admin/blog-posts/${id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Failed to delete post');
     }
 
     // Re-fetch
-    const listRes = await fetch(`/api/admin/blog-posts?category=${category}&limit=200`);
+    const listRes = await authedApiFetch(`/api/admin/blog-posts?category=${category}&limit=200`);
     if (listRes.ok) {
       const data = await listRes.json();
       const fresh: BlogPost[] = data.items || data;

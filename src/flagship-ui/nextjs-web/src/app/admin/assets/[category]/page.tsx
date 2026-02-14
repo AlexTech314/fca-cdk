@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState, useCallback, useRef } from 'react';
 import { PhotoAssetCard, FileAssetCard, type Asset } from '@/components/admin/AssetCard';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const ITEMS_PER_PAGE = 24;
 
@@ -53,7 +54,7 @@ export default function AssetManagerPage({ params }: { params: Promise<{ categor
         });
         if (debouncedSearch) params.set('search', debouncedSearch);
 
-        const res = await fetch(`/api/admin/assets?${params}`);
+        const res = await authedApiFetch(`/api/admin/assets?${params}`);
         if (!res.ok) throw new Error('Failed to fetch assets');
 
         const data = await res.json();
@@ -96,7 +97,7 @@ export default function AssetManagerPage({ params }: { params: Promise<{ categor
 
       try {
         // 1. Get presigned URL
-        const presignRes = await fetch('/api/admin/assets/presigned-url', {
+        const presignRes = await authedApiFetch('/api/admin/assets/presigned-url', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -128,7 +129,7 @@ export default function AssetManagerPage({ params }: { params: Promise<{ categor
         });
 
         // 3. Create asset record in DB
-        const createRes = await fetch('/api/admin/assets', {
+        const createRes = await authedApiFetch('/api/admin/assets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -161,7 +162,7 @@ export default function AssetManagerPage({ params }: { params: Promise<{ categor
   // Delete
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/admin/assets/${id}`, { method: 'DELETE' });
+      const res = await authedApiFetch(`/api/admin/assets/${id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Failed to delete asset');
       setAssets((prev) => prev.filter((a) => a.id !== id));
       setTotal((prev) => prev - 1);

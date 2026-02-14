@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ArticleEditor } from '@/components/admin/ArticleEditor';
 import { useUnsavedChanges } from '@/components/admin/UnsavedChangesContext';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -29,7 +30,7 @@ export default function AdminResourceDetailPage() {
     async function fetchData() {
       try {
         const [postsRes, tagsRes] = await Promise.all([
-          fetch('/api/admin/blog-posts?category=resource&limit=200'),
+          authedApiFetch('/api/admin/blog-posts?category=resource&limit=200'),
           fetch(`${API_URL}/tags`),
         ]);
 

@@ -10,6 +10,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 import { useUnsavedChanges } from './UnsavedChangesContext';
 
 // ============================================
@@ -164,7 +165,7 @@ export function AdminPageProvider({
     try {
       // Save page data
       if (dirtyFields.size > 0) {
-        const response = await fetch(`/api/admin/pages/${pageKey}`, {
+        const response = await authedApiFetch(`/api/admin/pages/${pageKey}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

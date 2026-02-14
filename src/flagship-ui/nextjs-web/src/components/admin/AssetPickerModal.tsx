@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 import { toAssetUrl } from '@/lib/utils';
 
 interface Asset {
@@ -57,7 +58,7 @@ export function AssetPickerModal({
       });
       if (debouncedSearch) params.set('search', debouncedSearch);
 
-      const res = await fetch(`/api/admin/assets?${params}`);
+      const res = await authedApiFetch(`/api/admin/assets?${params}`);
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setAssets(data.items || []);
@@ -97,7 +98,7 @@ export function AssetPickerModal({
 
     try {
       // 1. Get presigned URL
-      const presignRes = await fetch('/api/admin/assets/presigned-url', {
+      const presignRes = await authedApiFetch('/api/admin/assets/presigned-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -129,7 +130,7 @@ export function AssetPickerModal({
       });
 
       // 3. Create asset record
-      const createRes = await fetch('/api/admin/assets', {
+      const createRes = await authedApiFetch('/api/admin/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

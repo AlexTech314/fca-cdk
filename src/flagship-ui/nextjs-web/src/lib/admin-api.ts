@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { headers as nextHeaders } from 'next/headers';
 
 const API_URL = process.env.API_URL || 'http://localhost:4000/api';
-const ADMIN_API_TOKEN = process.env.ADMIN_API_TOKEN || 'dev-token-fca-admin-2024';
 
 interface ProxyOptions {
   method?: string;
@@ -13,6 +13,9 @@ interface ProxyOptions {
 /**
  * Shared admin API proxy. Forwards requests to the Express backend
  * with optional auth and body. All admin route handlers use this.
+ *
+ * When auth is true, forwards the client's Authorization header
+ * (Cognito JWT) to the Express API.
  */
 export async function adminProxy(
   endpoint: string,
@@ -24,7 +27,11 @@ export async function adminProxy(
 
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (auth) headers['Authorization'] = `Bearer ${ADMIN_API_TOKEN}`;
+  if (auth) {
+    const reqHeaders = await nextHeaders();
+    const authHeader = reqHeaders.get('authorization');
+    if (authHeader) headers['Authorization'] = authHeader;
+  }
 
   try {
     const response = await fetch(url, {

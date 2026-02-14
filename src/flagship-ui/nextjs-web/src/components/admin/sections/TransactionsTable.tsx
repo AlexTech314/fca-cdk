@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAdminPage } from '../AdminPageContext';
 import { useUnsavedChanges } from '../UnsavedChangesContext';
 import { EditableInlineField } from '../EditableInlineField';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 import { toAssetUrl } from '@/lib/utils';
 
 interface Tombstone {
@@ -103,7 +104,7 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
     // Creates
     const creates = curr.filter((t) => isTempId(t.id) && !deleted.has(t.id));
     for (const item of creates) {
-      const res = await fetch('/api/admin/tombstones', {
+      const res = await authedApiFetch('/api/admin/tombstones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -125,7 +126,7 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
       if (isTempId(c.id) || deleted.has(c.id)) continue;
       const o = orig.find((t) => t.id === c.id);
       if (o && hasFieldChanged(c, o)) {
-        const res = await fetch(`/api/admin/tombstones/${c.id}`, {
+        const res = await authedApiFetch(`/api/admin/tombstones/${c.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -143,7 +144,7 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
 
       // Handle publish toggle separately
       if (o && c.isPublished !== o.isPublished) {
-        const res = await fetch(`/api/admin/tombstones/${c.id}/publish`, {
+        const res = await authedApiFetch(`/api/admin/tombstones/${c.id}/publish`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ publish: c.isPublished }),
@@ -155,12 +156,12 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
     // Deletes
     for (const id of deleted) {
       if (isTempId(id)) continue;
-      const res = await fetch(`/api/admin/tombstones/${id}`, { method: 'DELETE' });
+      const res = await authedApiFetch(`/api/admin/tombstones/${id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Failed to delete transaction');
     }
 
     // Re-fetch
-    const listRes = await fetch('/api/admin/tombstones?limit=200');
+    const listRes = await authedApiFetch('/api/admin/tombstones?limit=200');
     if (listRes.ok) {
       const data = await listRes.json();
       const fresh: Tombstone[] = (data.items || data).map((t: Tombstone) => ({

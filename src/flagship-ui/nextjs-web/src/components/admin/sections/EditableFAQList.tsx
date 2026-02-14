@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAdminPage } from '../AdminPageContext';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 import { EditableInlineField } from '../EditableInlineField';
 
 interface FAQ {
@@ -74,7 +75,7 @@ export function EditableFAQList({ initialFaqs }: EditableFAQListProps) {
 
     const creates = curr.filter((f) => isTempId(f.id) && !deleted.has(f.id));
     for (const faq of creates) {
-      const res = await fetch('/api/admin/faqs', {
+      const res = await authedApiFetch('/api/admin/faqs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: faq.question, answer: faq.answer, sortOrder: faq.sortOrder }),
@@ -86,7 +87,7 @@ export function EditableFAQList({ initialFaqs }: EditableFAQListProps) {
       if (isTempId(c.id) || deleted.has(c.id)) continue;
       const o = orig.find((f) => f.id === c.id);
       if (o && (o.question !== c.question || o.answer !== c.answer)) {
-        const res = await fetch(`/api/admin/faqs/${c.id}`, {
+        const res = await authedApiFetch(`/api/admin/faqs/${c.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question: c.question, answer: c.answer }),
@@ -97,11 +98,11 @@ export function EditableFAQList({ initialFaqs }: EditableFAQListProps) {
 
     for (const id of deleted) {
       if (isTempId(id)) continue;
-      const res = await fetch(`/api/admin/faqs/${id}`, { method: 'DELETE' });
+      const res = await authedApiFetch(`/api/admin/faqs/${id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Failed to delete FAQ');
     }
 
-    const listRes = await fetch('/api/admin/faqs');
+    const listRes = await authedApiFetch('/api/admin/faqs');
     if (listRes.ok) {
       const fresh: FAQ[] = await listRes.json();
       setOriginalFaqs(fresh);

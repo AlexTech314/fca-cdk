@@ -89,11 +89,25 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+// When NEXT_PUBLIC_DEFAULT_ROUTE is /admin (admin container), skip
+// the public Header/Footer and SEO schema — admin has its own shell.
+const isAdminOnly = process.env.NEXT_PUBLIC_DEFAULT_ROUTE === '/admin';
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  if (isAdminOnly) {
+    return (
+      <html lang="en" className={inter.variable}>
+        <body className="min-h-screen font-sans antialiased">
+          {children}
+        </body>
+      </html>
+    );
+  }
+
   const config = await fetchSiteConfig();
 
   // JSON-LD Organization Schema

@@ -8,6 +8,7 @@ import { AssetPickerModal } from '@/components/admin/AssetPickerModal';
 import { EditableInlineField } from '@/components/admin/EditableInlineField';
 import { TagPicker } from '@/components/admin/TagPicker';
 import { toAssetUrl } from '@/lib/utils';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -73,7 +74,7 @@ export default function AdminTransactionDetailPage() {
     async function fetchData() {
       try {
         // Fetch all tombstones (admin route includes unpublished) and find by slug
-        const tombRes = await fetch('/api/admin/tombstones?limit=200');
+        const tombRes = await authedApiFetch('/api/admin/tombstones?limit=200');
         const tagsRes = await fetch(`${API_URL}/tags`);
         const postsRes = await fetch(`${API_URL}/blog-posts?category=news&limit=100`);
 
@@ -121,7 +122,7 @@ export default function AdminTransactionDetailPage() {
 
     try {
       // Update main fields
-      const res = await fetch(`/api/admin/tombstones/${tombstone.id}`, {
+      const res = await authedApiFetch(`/api/admin/tombstones/${tombstone.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -144,7 +145,7 @@ export default function AdminTransactionDetailPage() {
       const origPrId = original?.pressRelease?.id || null;
       const currPrId = tombstone.pressRelease?.id || null;
       if (origPrId !== currPrId) {
-        const prRes = await fetch(`/api/admin/tombstones/${tombstone.id}/press-release`, {
+        const prRes = await authedApiFetch(`/api/admin/tombstones/${tombstone.id}/press-release`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ pressReleaseId: currPrId }),
@@ -166,7 +167,7 @@ export default function AdminTransactionDetailPage() {
     if (!tombstone) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/tombstones/${tombstone.id}`, { method: 'DELETE' });
+      const res = await authedApiFetch(`/api/admin/tombstones/${tombstone.id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Delete failed');
       requestNavigation('/admin/transactions');
     } catch (err) {

@@ -7,6 +7,7 @@ import { EditableField } from '@/components/admin/EditableField';
 import { EditableTeamGrid } from '@/components/admin/sections/EditableTeamGrid';
 import { EditableCommunityServices } from '@/components/admin/sections/EditableCommunityServices';
 import { toAssetUrl } from '@/lib/utils';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -262,7 +263,7 @@ export default function AdminTeamPage() {
     async function fetchData() {
       try {
         const [pageRes, leadershipRes, analystRes, communityRes] = await Promise.all([
-          fetch('/api/admin/pages/team'),
+          authedApiFetch('/api/admin/pages/team'),
           fetch(`${API_URL}/team-members?category=leadership`),
           fetch(`${API_URL}/team-members?category=analyst`),
           fetch(`${API_URL}/community-services`),

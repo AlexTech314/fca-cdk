@@ -5,6 +5,7 @@ import { AdminPageProvider, useAdminPage } from '@/components/admin/AdminPageCon
 import { SaveBar } from '@/components/admin/SaveBar';
 import { EditableField } from '@/components/admin/EditableField';
 import { EditableFAQList } from '@/components/admin/sections/EditableFAQList';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -134,7 +135,7 @@ export default function AdminFAQPage() {
     async function fetchData() {
       try {
         const [pageRes, faqsRes] = await Promise.all([
-          fetch('/api/admin/pages/faq'),
+          authedApiFetch('/api/admin/pages/faq'),
           fetch(`${API_URL}/faqs`),
         ]);
 

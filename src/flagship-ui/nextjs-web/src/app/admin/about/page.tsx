@@ -10,6 +10,7 @@ import { EditableServicesGrid } from '@/components/admin/sections/EditableServic
 import { EditableAboutCTA } from '@/components/admin/sections/EditableAboutCTA';
 import { useAdminPage } from '@/components/admin/AdminPageContext';
 import { toAssetUrl } from '@/lib/utils';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -271,7 +272,7 @@ function EditableIndustrySectors({ initialSectors }: { initialSectors: IndustryS
     for (const c of curr) {
       const o = orig.find((s) => s.id === c.id);
       if (o && (o.name !== c.name || o.description !== c.description)) {
-        const res = await fetch(`/api/admin/industry-sectors/${c.id}`, {
+        const res = await authedApiFetch(`/api/admin/industry-sectors/${c.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: c.name, description: c.description }),
@@ -393,7 +394,7 @@ function EditableCoreValues({ initialValues }: { initialValues: CoreValue[] }) {
     for (const c of curr) {
       const o = orig.find((v) => v.id === c.id);
       if (o && (o.title !== c.title || o.description !== c.description)) {
-        const res = await fetch(`/api/admin/core-values/${c.id}`, {
+        const res = await authedApiFetch(`/api/admin/core-values/${c.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: c.title, description: c.description }),
@@ -712,7 +713,7 @@ export default function AdminAboutPage() {
       try {
         const [pageRes, buyRes, sellRes, stratRes, sectorsRes, valuesRes] =
           await Promise.all([
-            fetch('/api/admin/pages/about'),
+            authedApiFetch('/api/admin/pages/about'),
             fetch(`${API_URL}/service-offerings?category=buy-side&type=service`),
             fetch(`${API_URL}/service-offerings?category=sell-side&type=service`),
             fetch(`${API_URL}/service-offerings?category=strategic&type=service`),

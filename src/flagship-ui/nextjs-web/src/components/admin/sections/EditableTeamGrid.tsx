@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAdminPage } from '../AdminPageContext';
 import { AssetPickerModal } from '../AssetPickerModal';
 import { EditableInlineField } from '../EditableInlineField';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 import { toAssetUrl } from '@/lib/utils';
 
 interface TeamMember {
@@ -102,7 +103,7 @@ export function EditableTeamGrid({ initialMembers, category, changeKey }: Editab
 
     const creates = curr.filter((m) => isTempId(m.id) && !deleted.has(m.id));
     for (const member of creates) {
-      const res = await fetch('/api/admin/team-members', {
+      const res = await authedApiFetch('/api/admin/team-members', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -121,7 +122,7 @@ export function EditableTeamGrid({ initialMembers, category, changeKey }: Editab
         o.name !== c.name || o.title !== c.title || o.bio !== c.bio ||
         o.image !== c.image || o.email !== c.email || o.linkedIn !== c.linkedIn
       )) {
-        const res = await fetch(`/api/admin/team-members/${c.id}`, {
+        const res = await authedApiFetch(`/api/admin/team-members/${c.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -135,11 +136,11 @@ export function EditableTeamGrid({ initialMembers, category, changeKey }: Editab
 
     for (const id of deleted) {
       if (isTempId(id)) continue;
-      const res = await fetch(`/api/admin/team-members/${id}`, { method: 'DELETE' });
+      const res = await authedApiFetch(`/api/admin/team-members/${id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Failed to delete team member');
     }
 
-    const listRes = await fetch(`/api/admin/team-members?category=${category}`);
+    const listRes = await authedApiFetch(`/api/admin/team-members?category=${category}`);
     if (listRes.ok) {
       const raw: TeamMember[] = await listRes.json();
       const fresh = raw.map((m) => ({ ...m, image: toAssetUrl(m.image) ?? m.image }));

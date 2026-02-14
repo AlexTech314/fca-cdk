@@ -1,7 +1,5 @@
-import { AdminHeader } from '@/components/admin/AdminHeader';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { UnsavedChangesProvider } from '@/components/admin/UnsavedChangesContext';
-import { UnsavedChangesModal } from '@/components/admin/UnsavedChangesModal';
+import { AuthProvider } from '@/contexts/admin/AuthContext';
+import { AdminShell } from '@/components/admin/AdminShell';
 import './admin.css';
 
 export const metadata = {
@@ -9,9 +7,12 @@ export const metadata = {
 };
 
 /**
- * Admin layout renders as a full-viewport overlay that covers the public
- * Header/Footer from the root layout. This avoids needing to refactor all
- * public routes into a (public) route group.
+ * Admin layout.
+ *
+ * AuthProvider gives all admin pages access to auth state.
+ * AdminShell handles the auth guard + layout chrome:
+ *   - /admin/login renders without header/sidebar
+ *   - All other routes redirect to login if unauthenticated
  */
 export default function AdminLayout({
   children,
@@ -19,17 +20,8 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <UnsavedChangesProvider>
-      <div className="fixed inset-0 z-[100] flex flex-col bg-surface">
-        <AdminHeader />
-        <div className="flex flex-1 overflow-hidden">
-          <AdminSidebar />
-          <main className="flex-1 overflow-y-auto">
-            {children}
-          </main>
-        </div>
-      </div>
-      <UnsavedChangesModal />
-    </UnsavedChangesProvider>
+    <AuthProvider>
+      <AdminShell>{children}</AdminShell>
+    </AuthProvider>
   );
 }

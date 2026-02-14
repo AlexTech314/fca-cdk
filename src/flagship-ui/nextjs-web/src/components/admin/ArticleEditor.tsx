@@ -14,6 +14,7 @@ import { TagPicker } from './TagPicker';
 import { AssetPickerModal } from './AssetPickerModal';
 import { createAssetImage } from './blocks/AssetImageBlock';
 import { createAssetFile } from './blocks/AssetFileBlock';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 import { toAssetUrl } from '@/lib/utils';
 
 // ============================================
@@ -202,7 +203,7 @@ export function ArticleEditor({
     setError(null);
 
     try {
-      const res = await fetch(`/api/admin/blog-posts/${post.id}`, {
+      const res = await authedApiFetch(`/api/admin/blog-posts/${post.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -232,7 +233,7 @@ export function ArticleEditor({
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/blog-posts/${post.id}`, { method: 'DELETE' });
+      const res = await authedApiFetch(`/api/admin/blog-posts/${post.id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Delete failed');
       requestNavigation(backHref);
     } catch (err) {

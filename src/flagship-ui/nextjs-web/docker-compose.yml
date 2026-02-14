@@ -32,6 +32,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.admin
+      args:
+        NEXT_PUBLIC_COGNITO_USER_POOL_ID: local_78JrbF81
+        NEXT_PUBLIC_COGNITO_CLIENT_ID: 04gwak3yjbqvy0fmus1dj8us6
+        NEXT_PUBLIC_COGNITO_ENDPOINT: http://localhost:9229
+        NEXT_PUBLIC_API_URL: http://localhost:4000/api
     ports:
       - "3003:3000"
     env_file:

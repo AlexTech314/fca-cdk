@@ -23,10 +23,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Remove admin routes -- public container only serves public pages
+# Remove admin routes, components, and admin-only libs
 RUN rm -rf src/app/admin \
            src/app/api/admin \
-           src/components/admin
+           src/components/admin \
+           src/lib/admin \
+           src/contexts/admin
 
 # Public-specific env vars (build-time)
 ENV NEXT_TELEMETRY_DISABLED=1

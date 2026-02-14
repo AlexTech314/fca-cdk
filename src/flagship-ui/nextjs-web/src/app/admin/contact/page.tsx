@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { AdminPageProvider, useAdminPage } from '@/components/admin/AdminPageContext';
 import { SaveBar } from '@/components/admin/SaveBar';
 import { EditableField } from '@/components/admin/EditableField';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 interface PageData {
   title: string;
@@ -141,7 +142,7 @@ export default function AdminContactPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const pageRes = await fetch('/api/admin/pages/contact');
+        const pageRes = await authedApiFetch('/api/admin/pages/contact');
         if (!pageRes.ok) throw new Error('Failed to fetch page data');
 
         const page = await pageRes.json();

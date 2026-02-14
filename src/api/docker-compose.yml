@@ -1,10 +1,12 @@
 # FCA API Docker Compose - Development
 #
 # Usage:
-#   docker compose up        - Start API and PostgreSQL (seeds on first run)
+#   docker compose up        - Start API, PostgreSQL, and Cognito Local (seeds on first run)
 #   docker compose down      - Stop services
-#   docker compose down -v   - Stop services and delete database (forces reseed on next up)
+#   docker compose down -v   - Stop services and delete all data (forces reseed on next up)
 #   docker compose build     - Rebuild API image after Dockerfile changes
+#
+# Cognito Local: http://localhost:9229
 #
 services:
   api:
@@ -23,6 +25,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      cognito:
+        condition: service_started
     restart: unless-stopped
 
   db:
@@ -44,5 +48,14 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  cognito:
+    image: jagregory/cognito-local:latest
+    ports:
+      - "9229:9229"
+    volumes:
+      - cognito_data:/app/.cognito
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  cognito_data:

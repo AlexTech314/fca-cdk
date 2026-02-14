@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { EditableField } from '../EditableField';
 import { EditableInlineField } from '../EditableInlineField';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 import { useAdminPage } from '../AdminPageContext';
 
 interface ServiceOffering {
@@ -117,7 +118,7 @@ export function EditableServicesGrid({
     // Creates
     const creates = curr.filter((s) => isTempId(s.id) && !deleted.has(s.id));
     for (const svc of creates) {
-      const res = await fetch('/api/admin/service-offerings', {
+      const res = await authedApiFetch('/api/admin/service-offerings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -135,7 +136,7 @@ export function EditableServicesGrid({
       if (isTempId(c.id) || deleted.has(c.id)) continue;
       const o = orig.find((s) => s.id === c.id);
       if (o && o.title !== c.title) {
-        const res = await fetch(`/api/admin/service-offerings/${c.id}`, {
+        const res = await authedApiFetch(`/api/admin/service-offerings/${c.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: c.title }),
@@ -147,15 +148,15 @@ export function EditableServicesGrid({
     // Deletes
     for (const id of deleted) {
       if (isTempId(id)) continue;
-      const res = await fetch(`/api/admin/service-offerings/${id}`, { method: 'DELETE' });
+      const res = await authedApiFetch(`/api/admin/service-offerings/${id}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 204) throw new Error('Failed to delete service offering');
     }
 
     // Re-fetch all three categories
     const [buyRes, sellRes, stratRes] = await Promise.all([
-      fetch('/api/admin/service-offerings?category=buy-side&type=service'),
-      fetch('/api/admin/service-offerings?category=sell-side&type=service'),
-      fetch('/api/admin/service-offerings?category=strategic&type=service'),
+      authedApiFetch('/api/admin/service-offerings?category=buy-side&type=service'),
+      authedApiFetch('/api/admin/service-offerings?category=sell-side&type=service'),
+      authedApiFetch('/api/admin/service-offerings?category=strategic&type=service'),
     ]);
 
     const fresh = [

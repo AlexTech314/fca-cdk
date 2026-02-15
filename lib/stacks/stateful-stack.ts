@@ -39,9 +39,10 @@ export class StatefulStack extends cdk.Stack {
     // ============================================================
     // RDS PostgreSQL Instance (credentials auto-created in Secrets Manager)
     // ============================================================
+    // PostgreSQL 16.12: latest 16.x available in us-east-2 (16.4 not available in this region)
     this.database = new rds.DatabaseInstance(this, 'Database', {
       engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_16_4,
+        version: rds.PostgresEngineVersion.of('16.12', '16', { s3Import: true, s3Export: true }),
       }),
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
       vpc,

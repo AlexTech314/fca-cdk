@@ -15,3 +15,7 @@ export {
   industrySectorRepository,
   serviceOfferingRepository,
 } from './static-content.repository';
+
+// Lead generation
+export { leadRepository } from './lead.repository';
+export { campaignRepository, campaignRunRepository } from './campaign.repository';

@@ -1,25 +1,16 @@
 /**
  * API Export
  * 
- * This file exports the active API implementation.
- * 
- * To switch from mock to real API:
- * 1. Uncomment the realApi import
- * 2. Change the export to use realApi
- * 
- * Example:
- *   import { realApi } from './client';
- *   export const api = realApi;
+ * Switches between mock and real API based on VITE_USE_MOCK_API env var.
+ * Default: real API (set VITE_USE_MOCK_API=true for local dev without backend).
  */
 
 import { mockApi } from './mock';
-// import { realApi } from './client';  // Future: uncomment when backend is ready
+import { realApi } from './client';
 
-// Export the mock API for now
-export const api = mockApi;
+const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
-// Future: Export the real API
-// export const api = realApi;
+export const api = USE_MOCK_API ? mockApi : realApi;
 
 // Re-export types for convenience
 export type { LeadGenApi } from './types';

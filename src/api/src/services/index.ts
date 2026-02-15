@@ -15,3 +15,7 @@ export {
   industrySectorService,
   serviceOfferingService,
 } from './static-content.service';
+
+// Lead generation
+export { leadService } from './lead.service';
+export { campaignService, campaignRunService } from './campaign.service';

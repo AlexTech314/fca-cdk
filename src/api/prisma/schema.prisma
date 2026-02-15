@@ -351,6 +351,97 @@ model Award {
 }
 
 // ===========================================
+// LEAD GENERATION
+// ===========================================
+
+model Lead {
+  id                   String    @id @default(uuid())
+  placeId              String    @unique @map("place_id")       // Google Places ID (dedupe key)
+  campaignId           String?   @map("campaign_id")
+  campaign             Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  campaignRunId        String?   @map("campaign_run_id")
+  campaignRun          CampaignRun? @relation(fields: [campaignRunId], references: [id], onDelete: SetNull)
+
+  // Business info (from Google Places)
+  name                 String
+  address              String?
+  city                 String?
+  state                String?
+  zipCode              String?   @map("zip_code")
+  phone                String?
+  website              String?
+  rating               Float?
+  reviewCount          Int?      @map("review_count")
+  priceLevel           Int?      @map("price_level")
+  businessType         String?   @map("business_type")
+  source               String?                                   // "google_places", "manual", "import"
+
+  // AI Qualification (Claude scoring)
+  qualificationScore   Int?      @map("qualification_score")     // 0-100
+  qualificationNotes   String?   @map("qualification_notes")
+  qualifiedAt          DateTime? @map("qualified_at")
+
+  // Web Scraping
+  webScrapedAt         DateTime? @map("web_scraped_at")
+  webScrapedData       Json?     @map("web_scraped_data")        // Extracted data from website
+
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@index([campaignId])
+  @@index([campaignRunId])
+  @@index([businessType])
+  @@index([state])
+  @@index([qualificationScore])
+  @@index([createdAt])
+  @@map("leads")
+}
+
+model Campaign {
+  id                   String    @id @default(uuid())
+  name                 String
+  description          String?
+  queriesS3Key         String?   @map("queries_s3_key")          // S3 key for searches JSON
+  queriesCount         Int       @default(0) @map("queries_count")
+  createdById          String?   @map("created_by_id")
+
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  leads                Lead[]
+  runs                 CampaignRun[]
+
+  @@index([createdAt])
+  @@map("campaigns")
+}
+
+model CampaignRun {
+  id                   String    @id @default(uuid())
+  campaignId           String    @map("campaign_id")
+  campaign             Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  startedById          String?   @map("started_by_id")
+
+  status               String    @default("pending")             // pending, running, completed, failed
+  startedAt            DateTime  @default(now()) @map("started_at")
+  completedAt          DateTime? @map("completed_at")
+
+  // Metrics
+  queriesTotal         Int       @default(0) @map("queries_total")
+  queriesExecuted      Int       @default(0) @map("queries_executed")
+  leadsFound           Int       @default(0) @map("leads_found")
+  duplicatesSkipped    Int       @default(0) @map("duplicates_skipped")
+  errors               Int       @default(0)
+  errorMessages        String[]  @default([]) @map("error_messages")
+
+  leads                Lead[]
+
+  @@index([campaignId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("campaign_runs")
+}
+
+// ===========================================
 // ASSETS (S3 file registry)
 // ===========================================
 

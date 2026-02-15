@@ -19,7 +19,7 @@
   "context": {
     "repositoryName": "AlexTech314/fca-cdk",
     "branchName": "main",
-    "connectionArn": "arn:aws:codeconnections:us-east-1:281318412783:connection/34fdc2cb-3dc6-4f6c-a9d5-0397dd6a392a",
+    "connectionArn": "arn:aws:codeconnections:us-east-2:166763268311:connection/46950f38-ff02-4ed9-8fac-bb73c3ad33d5",
     "@aws-cdk/aws-signer:signingProfileNamePassedToCfn": true,
     "@aws-cdk/aws-ecs-patterns:secGroupsDisablesImplicitOpenListener": true,
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,

@@ -16,8 +16,11 @@ export const createApp = (): Express => {
       'http://localhost:3003',  // admin site (docker)
       'http://localhost:3004',  // dev server alt
       'http://localhost:3005',  // dev server alt
-      process.env.ADMIN_ORIGIN,  // production admin CloudFront
-      process.env.PUBLIC_ORIGIN, // production public site
+      'http://localhost:5173',  // lead-gen-spa (vite dev)
+      'http://localhost:5174',  // lead-gen-spa (vite alt)
+      process.env.ADMIN_ORIGIN,     // production admin CloudFront
+      process.env.PUBLIC_ORIGIN,    // production public site
+      process.env.LEADGEN_ORIGIN,   // production lead-gen-spa
     ].filter(Boolean) as string[],
     credentials: true,
   }));

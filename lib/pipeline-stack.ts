@@ -48,8 +48,17 @@ export class PipelineStack extends cdk.Stack {
       synth: new pipelines.ShellStep('Synth', {
         input: source,
         commands: [
+          // Install CDK project dependencies
           'npm ci',
           'npm run build',
+
+          // Install pipeline task dependencies (Docker builds use these)
+          'cd src/pipeline/places-task && npm ci && cd ../../..',
+          'cd src/pipeline/scrape-task && npm ci && cd ../../..',
+          'cd src/lambda/prepare-scrape && npm ci && cd ../../..',
+          'cd src/lambda/aggregate-scrape && npm ci && cd ../../..',
+
+          // Synthesize CDK
           'npx cdk synth',
         ],
         primaryOutputDirectory: 'cdk.out',

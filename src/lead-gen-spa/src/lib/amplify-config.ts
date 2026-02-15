@@ -1,14 +1,13 @@
 /**
  * Amplify Configuration
- * 
- * Currently using mock auth. When Cognito is deployed:
- * 1. Set the VITE_COGNITO_* environment variables
- * 2. Uncomment the Amplify.configure() call in main.tsx
- * 3. Set USE_MOCK_AUTH to false
+ *
+ * Set VITE_USE_MOCK_AUTH=true for local dev with mock auth.
+ * When Cognito is deployed, set the VITE_COGNITO_* environment variables.
  */
 
 // Toggle this to switch between mock and real auth
-export const USE_MOCK_AUTH = true;
+export const USE_MOCK_AUTH = import.meta.env.VITE_USE_MOCK_AUTH === 'true' ||
+  (!import.meta.env.VITE_COGNITO_USER_POOL_ID); // Default to mock if no pool configured
 
 // Demo credentials (shown on login screen when USE_MOCK_AUTH is true)
 export const DEMO_CREDENTIALS = {
@@ -16,15 +15,18 @@ export const DEMO_CREDENTIALS = {
   password: 'demo123',
 };
 
-// Cognito configuration (used when USE_MOCK_AUTH is false)
-const config = {
+// API base URL for leadgen endpoints
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/leadgen';
+
+// Cognito configuration
+const amplifyConfig = {
   Auth: {
     Cognito: {
-      userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID || 'us-east-1_PLACEHOLDER',
-      userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID || 'placeholder-client-id',
+      userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID || '',
+      userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID || '',
       loginWith: {
         oauth: {
-          domain: import.meta.env.VITE_COGNITO_DOMAIN || 'auth.flatironscapital.com',
+          domain: import.meta.env.VITE_COGNITO_DOMAIN || '',
           scopes: ['openid', 'email'],
           redirectSignIn: [
             import.meta.env.VITE_REDIRECT_SIGN_IN || 'http://localhost:5173/',
@@ -39,18 +41,17 @@ const config = {
   },
 };
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/leadgen';
-
 export function configureAmplify() {
-  // Only configure when not using mock auth
-  if (!USE_MOCK_AUTH) {
-    // Uncomment when aws-amplify is installed and configured:
-    // import { Amplify } from 'aws-amplify';
-    // Amplify.configure(config);
-    console.log('Amplify configured with:', config.Auth.Cognito.userPoolId);
-  } else {
-    console.log('Using mock authentication');
+  if (USE_MOCK_AUTH) {
+    console.log('[auth] Using mock authentication');
+    return;
   }
+
+  // Dynamically import to avoid loading Amplify when using mock auth
+  import('aws-amplify').then(({ Amplify }) => {
+    Amplify.configure(amplifyConfig);
+    console.log('[auth] Amplify configured with pool:', amplifyConfig.Auth.Cognito.userPoolId);
+  });
 }
 
-export default config;
+export default amplifyConfig;

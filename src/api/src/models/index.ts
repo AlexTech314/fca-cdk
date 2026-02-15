@@ -9,3 +9,7 @@ export * from './seller-intake.model';
 export * from './analytics.model';
 export * from './static-content.model';
 export * from './asset.model';
+
+// Lead generation
+export * from './lead.model';
+export * from './campaign.model';

@@ -7,15 +7,15 @@ const app = new cdk.App();
 
 // Environment configuration
 const env = {
-  account: process.env.CDK_DEFAULT_ACCOUNT,
-  region: process.env.CDK_DEFAULT_REGION,
+  account: '166763268311',
+  region: 'us-east-2',
 };
 
-// Pipeline configuration from context
+// Pipeline configuration from cdk.json context
 const pipelineConfig = {
-  repositoryName: app.node.tryGetContext('repositoryName') || 'OWNER/fca-cdk',
-  branchName: app.node.tryGetContext('branchName') || 'main',
-  connectionArn: app.node.tryGetContext('connectionArn') || 'arn:aws:codestar-connections:REGION:ACCOUNT:connection/CONNECTION_ID',
+  repositoryName: app.node.getContext('repositoryName'),
+  branchName: app.node.getContext('branchName'),
+  connectionArn: app.node.getContext('connectionArn'),
 };
 
 // ============================================================

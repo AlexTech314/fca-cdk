@@ -1,0 +1,8 @@
+{
+  "availability-zones:account=166763268311:region=us-east-2": [
+    "us-east-2a",
+    "us-east-2b",
+    "us-east-2c"
+  ],
+  "ami:account=166763268311:filters.image-type.0=machine:filters.name.0=fck-nat-al2023-*-arm64-ebs:filters.state.0=available:owners.0=568608671756:region=us-east-2": "ami-0a342b1b279f4ed1a"
+}

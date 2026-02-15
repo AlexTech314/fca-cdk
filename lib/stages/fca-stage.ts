@@ -1,6 +1,8 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { FcaStack } from '../stacks/fca-stack';
+import { NetworkStack } from '../stacks/network-stack';
+import { StatefulStack } from '../stacks/stateful-stack';
+import { LeadGenPipelineStack } from '../stacks/leadgen-pipeline-stack';
 
 export interface FcaStageProps extends cdk.StageProps {
   // Add stage-specific configuration here
@@ -8,23 +10,38 @@ export interface FcaStageProps extends cdk.StageProps {
 
 /**
  * The FCA application stage.
- * 
- * Stages group related stacks that should be deployed together.
- * Add additional stacks here as your application grows.
+ *
+ * Deploys 3 stacks in order:
+ * 1. NetworkStack - Shared VPC with fck-nat
+ * 2. StatefulStack - RDS, RDS Proxy, S3 (depends on VPC)
+ * 3. LeadGenPipelineStack - SQS, Lambdas, Fargate tasks, Step Functions (depends on VPC + Stateful)
  */
 export class FcaStage extends cdk.Stage {
-  public readonly fcaStack: FcaStack;
+  public readonly networkStack: NetworkStack;
+  public readonly statefulStack: StatefulStack;
+  public readonly pipelineStack: LeadGenPipelineStack;
 
   constructor(scope: Construct, id: string, props?: FcaStageProps) {
     super(scope, id, props);
 
-    // Create the main application stack
-    this.fcaStack = new FcaStack(this, 'FcaStack', {
-      // Stack-specific props can be passed here
-    });
+    // Stack 1: Shared VPC
+    this.networkStack = new NetworkStack(this, 'Network', {});
 
-    // Add additional stacks as needed:
-    // this.databaseStack = new DatabaseStack(this, 'DatabaseStack', { ... });
-    // this.apiStack = new ApiStack(this, 'ApiStack', { ... });
+    // Stack 2: Stateful resources (RDS, S3)
+    this.statefulStack = new StatefulStack(this, 'Stateful', {
+      vpc: this.networkStack.vpc,
+    });
+    this.statefulStack.addDependency(this.networkStack);
+
+    // Stack 3: Lead generation pipeline (compute, queues, step functions)
+    this.pipelineStack = new LeadGenPipelineStack(this, 'LeadGenPipeline', {
+      vpc: this.networkStack.vpc,
+      database: this.statefulStack.database,
+      databaseProxy: this.statefulStack.databaseProxy,
+      databaseSecret: this.statefulStack.databaseSecret,
+      dbSecurityGroup: this.statefulStack.dbSecurityGroup,
+      campaignDataBucket: this.statefulStack.campaignDataBucket,
+    });
+    this.pipelineStack.addDependency(this.statefulStack);
   }
 }

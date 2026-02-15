@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import userRoutes from './user.routes';
 import publicRoutes from './public.routes';
-
 import adminRoutes from './admin.routes';
+import leadgenRoutes from './leadgen.routes';
 
 const router = Router();
 
@@ -19,6 +19,9 @@ router.use('/', publicRoutes);
 
 // Admin routes (auth required)
 router.use('/admin', adminRoutes);
+
+// Lead generation routes (auth required)
+router.use('/leadgen', leadgenRoutes);
 
 // Legacy user routes
 router.use('/users', userRoutes);

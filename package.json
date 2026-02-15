@@ -1,7 +1,9 @@
 {
   "name": "fca-cdk",
   "version": "0.1.0",
-  "bin": {"fca-cdk": "bin/fca-cdk.js"},
+  "bin": {
+    "fca-cdk": "bin/fca-cdk.js"
+  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
@@ -12,18 +14,19 @@
     "keywords": "node scripts/find-keywords.js"
   },
   "devDependencies": {
-    "jscpd": "^4.0.6",
-    "leasot": "^14.4.0",
     "@types/jest": "^30",
     "@types/node": "^24.10.1",
-    "jest": "^30",
-    "ts-jest": "^29",
     "aws-cdk": "2.1104.0",
+    "jest": "^30",
+    "jscpd": "^4.0.6",
+    "leasot": "^14.4.0",
+    "ts-jest": "^29",
     "ts-node": "^10.9.2",
     "typescript": "~5.9.3"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.236.0",
+    "cdk-fck-nat": "^1.6.22",
     "constructs": "^10.0.0"
   }
 }

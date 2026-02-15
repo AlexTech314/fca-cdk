@@ -38,6 +38,15 @@ let mockAuthState: AuthState = {
 let mockRequiresNewPassword = false;
 
 // ===========================================
+// Cognito (lazy-loaded to avoid import when using mock)
+// ===========================================
+
+async function getAmplifyAuth() {
+  const { signIn, signOut, getCurrentUser, fetchAuthSession, confirmSignIn, resetPassword, confirmResetPassword } = await import('aws-amplify/auth');
+  return { signIn, signOut, getCurrentUser, fetchAuthSession, confirmSignIn, resetPassword, confirmResetPassword };
+}
+
+// ===========================================
 // Auth Functions
 // ===========================================
 
@@ -45,158 +54,162 @@ let mockRequiresNewPassword = false;
  * Get the current authenticated user
  */
 export async function getCurrentAuthUser(): Promise<User | null> {
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
   if (USE_MOCK_AUTH) {
+    await new Promise(resolve => setTimeout(resolve, 100));
     return mockAuthState.user;
   }
-  
-  // Real Cognito implementation would go here:
-  // try {
-  //   const user = await getCurrentUser();
-  //   return { email: user.signInDetails?.loginId || user.username, ... };
-  // } catch { return null; }
-  
-  return null;
+
+  try {
+    const { getCurrentUser, fetchAuthSession } = await getAmplifyAuth();
+    const cognitoUser = await getCurrentUser();
+    const session = await fetchAuthSession();
+    const groups = (session.tokens?.accessToken?.payload?.['cognito:groups'] as string[]) || [];
+    const role = groups.includes('admin') ? 'admin' : groups.includes('readwrite') ? 'readwrite' : 'readonly';
+
+    return {
+      id: cognitoUser.userId,
+      email: cognitoUser.signInDetails?.loginId || cognitoUser.username,
+      name: null,
+      cognitoSub: cognitoUser.userId,
+      organizationId: null,
+      role,
+      invitedAt: '',
+      lastActiveAt: null,
+      createdAt: '',
+      updatedAt: '',
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Check if there's a valid session
  */
 export async function checkAuthSession(): Promise<AuthState> {
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
   if (USE_MOCK_AUTH) {
+    await new Promise(resolve => setTimeout(resolve, 100));
     return mockAuthState;
   }
-  
-  // Real Cognito implementation would go here:
-  // try {
-  //   const session = await fetchAuthSession();
-  //   if (session.tokens?.idToken) { ... }
-  // } catch { ... }
-  
-  return { user: null, isAuthenticated: false };
+
+  try {
+    const user = await getCurrentAuthUser();
+    return { user, isAuthenticated: !!user };
+  } catch {
+    return { user: null, isAuthenticated: false };
+  }
 }
 
 /**
  * Sign in with email and password
  */
 export async function login(email: string, password: string): Promise<SignInResult> {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
   if (USE_MOCK_AUTH) {
-    // Check demo credentials
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     if (email === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
-      mockAuthState = {
-        user: mockCurrentUser,
-        isAuthenticated: true,
-      };
+      mockAuthState = { user: mockCurrentUser, isAuthenticated: true };
       return { isSignedIn: true, user: mockCurrentUser };
     }
-    
-    // Simulate temp password flow (for testing)
+
     if (email === 'newuser@flatironscapital.com' && password === 'temppass123') {
       mockRequiresNewPassword = true;
-      return { 
-        isSignedIn: false, 
-        nextStep: 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED' 
-      };
+      return { isSignedIn: false, nextStep: 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED' };
     }
-    
+
     throw new Error('Invalid email or password');
   }
-  
-  // Real Cognito implementation would go here:
-  // const result = await amplifySignIn({ username: email, password });
-  // ...
-  
-  throw new Error('Real auth not configured');
+
+  const { signIn } = await getAmplifyAuth();
+  const result = await signIn({ username: email, password });
+
+  if (result.isSignedIn) {
+    const user = await getCurrentAuthUser();
+    return { isSignedIn: true, user: user || undefined };
+  }
+
+  if (result.nextStep?.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
+    return { isSignedIn: false, nextStep: 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED' };
+  }
+
+  return { isSignedIn: false };
 }
 
 /**
  * Confirm sign-in with a new password (for first-time login with temp password)
  */
-export async function confirmSignInWithNewPassword(_newPassword: string): Promise<SignInResult> {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
+export async function confirmSignInWithNewPassword(newPassword: string): Promise<SignInResult> {
   if (USE_MOCK_AUTH) {
+    await new Promise(resolve => setTimeout(resolve, 500));
     if (mockRequiresNewPassword) {
       mockRequiresNewPassword = false;
-      mockAuthState = {
-        user: mockCurrentUser,
-        isAuthenticated: true,
-      };
+      mockAuthState = { user: mockCurrentUser, isAuthenticated: true };
       return { isSignedIn: true, user: mockCurrentUser };
     }
     throw new Error('No pending password change');
   }
-  
-  // Real Cognito implementation would go here:
-  // const result = await amplifyConfirmSignIn({ challengeResponse: newPassword });
-  // ...
-  
-  throw new Error('Real auth not configured');
+
+  const { confirmSignIn } = await getAmplifyAuth();
+  const result = await confirmSignIn({ challengeResponse: newPassword });
+
+  if (result.isSignedIn) {
+    const user = await getCurrentAuthUser();
+    return { isSignedIn: true, user: user || undefined };
+  }
+
+  return { isSignedIn: false };
 }
 
 /**
  * Initiate password reset flow
  */
 export async function initiatePasswordReset(email: string): Promise<{ destination?: string }> {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
   if (USE_MOCK_AUTH) {
-    // Simulate sending reset code
+    await new Promise(resolve => setTimeout(resolve, 500));
     const maskedEmail = email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
     return { destination: maskedEmail };
   }
-  
-  // Real Cognito implementation would go here:
-  // const result = await amplifyResetPassword({ username: email });
-  // ...
-  
-  throw new Error('Real auth not configured');
+
+  const { resetPassword } = await getAmplifyAuth();
+  const result = await resetPassword({ username: email });
+  return {
+    destination: result.nextStep?.codeDeliveryDetails?.destination,
+  };
 }
 
 /**
  * Confirm password reset with code and new password
  */
 export async function confirmPasswordReset(
-  email: string, 
-  confirmationCode: string, 
-  _newPassword: string
+  email: string,
+  confirmationCode: string,
+  newPassword: string
 ): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
   if (USE_MOCK_AUTH) {
-    // Simulate code validation
+    await new Promise(resolve => setTimeout(resolve, 500));
     if (confirmationCode === '123456') {
-      // Update demo credentials for this session
       console.log(`Password reset for ${email} with new password`);
       return;
     }
     throw new Error('Invalid verification code');
   }
-  
-  // Real Cognito implementation would go here:
-  // await amplifyConfirmResetPassword({ username: email, confirmationCode, newPassword });
-  
-  throw new Error('Real auth not configured');
+
+  const { confirmResetPassword } = await getAmplifyAuth();
+  await confirmResetPassword({ username: email, confirmationCode, newPassword });
 }
 
 /**
  * Sign out the current user
  */
 export async function logout(): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  
   if (USE_MOCK_AUTH) {
+    await new Promise(resolve => setTimeout(resolve, 200));
     mockAuthState = { user: null, isAuthenticated: false };
     return;
   }
-  
-  // Real Cognito implementation would go here:
-  // await amplifySignOut();
+
+  const { signOut } = await getAmplifyAuth();
+  await signOut();
 }
 
 /**
@@ -206,12 +219,14 @@ export async function getIdToken(): Promise<string | null> {
   if (USE_MOCK_AUTH) {
     return mockAuthState.isAuthenticated ? 'mock-id-token' : null;
   }
-  
-  // Real Cognito implementation would go here:
-  // const session = await fetchAuthSession();
-  // return session.tokens?.idToken?.toString() || null;
-  
-  return null;
+
+  try {
+    const { fetchAuthSession } = await getAmplifyAuth();
+    const session = await fetchAuthSession();
+    return session.tokens?.idToken?.toString() || null;
+  } catch {
+    return null;
+  }
 }
 
 // ===========================================
@@ -228,7 +243,7 @@ export function hasPermission(user: User, requiredRole: 'readonly' | 'readwrite'
     readwrite: 1,
     admin: 2,
   };
-  
+
   return roleHierarchy[user.role] >= roleHierarchy[requiredRole];
 }
 

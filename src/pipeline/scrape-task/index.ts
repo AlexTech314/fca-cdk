@@ -12,6 +12,7 @@
 
 import { Client } from 'pg';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import type { Browser } from 'puppeteer';
 import puppeteer from 'puppeteer';
 
 const s3Client = new S3Client({});
@@ -35,7 +36,7 @@ interface ScrapeResult {
   error?: string;
 }
 
-async function scrapeSite(url: string, browser: puppeteer.Browser): Promise<{
+async function scrapeSite(url: string, browser: Browser): Promise<{
   html: string;
   emails: string[];
   phones: string[];
@@ -53,8 +54,8 @@ async function scrapeSite(url: string, browser: puppeteer.Browser): Promise<{
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
     const phoneRegex = /(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/g;
 
-    const emails = [...new Set(html.match(emailRegex) || [])];
-    const phones = [...new Set(html.match(phoneRegex) || [])];
+    const emails: string[] = [...new Set(html.match(emailRegex) ?? [])];
+    const phones: string[] = [...new Set(html.match(phoneRegex) ?? [])];
 
     return {
       html,

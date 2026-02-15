@@ -10,12 +10,14 @@ export interface StatefulStackProps extends cdk.StackProps {
 }
 
 /**
- * Stateful resources -- RDS, RDS Proxy, S3 campaign data bucket.
+ * Stateful resources -- RDS, S3 campaign data bucket.
  * These persist across deployments. Use terminationProtection in production.
+ *
+ * No RDS Proxy: peak concurrent connections ~30-40 (during scrape runs),
+ * db.t4g.micro supports ~80. Saves $21.90/mo.
  */
 export class StatefulStack extends cdk.Stack {
   public readonly database: rds.DatabaseInstance;
-  public readonly databaseProxy: rds.DatabaseProxy;
   public readonly databaseSecret: secretsmanager.ISecret;
   public readonly campaignDataBucket: s3.Bucket;
   public readonly dbSecurityGroup: ec2.SecurityGroup;
@@ -59,24 +61,12 @@ export class StatefulStack extends cdk.Stack {
       storageEncrypted: true,
       multiAz: false, // Single AZ for dev cost savings
       backupRetention: cdk.Duration.days(7),
-      deletionProtection: false, // Set to true for production
-      removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
+      deletionProtection: false,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
       // Enable aws_lambda extension support
       parameters: {
         'shared_preload_libraries': 'pg_stat_statements',
       },
-    });
-
-    // ============================================================
-    // RDS Proxy (connection pooling for Fargate tasks + Lambdas)
-    // ============================================================
-    this.databaseProxy = this.database.addProxy('DbProxy', {
-      secrets: [this.databaseSecret],
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [this.dbSecurityGroup],
-      requireTLS: true,
-      dbProxyName: undefined, // Let CDK generate the name
     });
 
     // ============================================================
@@ -87,7 +77,8 @@ export class StatefulStack extends cdk.Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
       versioned: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
       cors: [
         {
           allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET, s3.HttpMethods.HEAD],
@@ -121,11 +112,6 @@ export class StatefulStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'DatabaseEndpoint', {
       value: this.database.dbInstanceEndpointAddress,
       description: 'RDS PostgreSQL endpoint',
-    });
-
-    new cdk.CfnOutput(this, 'DatabaseProxyEndpoint', {
-      value: this.databaseProxy.endpoint,
-      description: 'RDS Proxy endpoint',
     });
 
     new cdk.CfnOutput(this, 'CampaignDataBucketName', {

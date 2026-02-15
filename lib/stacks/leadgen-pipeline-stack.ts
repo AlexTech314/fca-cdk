@@ -17,7 +17,6 @@ import * as path from 'path';
 export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
   readonly database: rds.IDatabaseInstance;
-  readonly databaseProxy: rds.IDatabaseProxy;
   readonly databaseSecret: secretsmanager.ISecret;
   readonly dbSecurityGroup: ec2.ISecurityGroup;
   readonly campaignDataBucket: s3.IBucket;
@@ -33,7 +32,10 @@ export class LeadGenPipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
     super(scope, id, props);
 
-    const { vpc, database, databaseProxy, databaseSecret, dbSecurityGroup, campaignDataBucket } = props;
+    const { vpc, database, databaseSecret, dbSecurityGroup, campaignDataBucket } = props;
+
+    // Direct RDS connection (no proxy -- saves $21.90/mo, peak ~40 connections vs ~80 limit)
+    const databaseEndpoint = database.dbInstanceEndpointAddress;
 
     // ============================================================
     // Secrets
@@ -166,7 +168,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       },
       environment: {
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
-        DATABASE_URL: `postgresql://postgres@${databaseProxy.endpoint}:5432/fca_db?sslmode=require`,
+        DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
         AWS_REGION: this.region,
       },
     });
@@ -192,7 +194,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       }),
       environment: {
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
-        DATABASE_URL: `postgresql://postgres@${databaseProxy.endpoint}:5432/fca_db?sslmode=require`,
+        DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
         AWS_REGION: this.region,
       },
     });
@@ -219,7 +221,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [pipelineSg],
       environment: {
-        DATABASE_URL: `postgresql://postgres@${databaseProxy.endpoint}:5432/fca_db?sslmode=require`,
+        DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
       },
     });
@@ -246,7 +248,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [pipelineSg],
       environment: {
-        DATABASE_URL: `postgresql://postgres@${databaseProxy.endpoint}:5432/fca_db?sslmode=require`,
+        DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
       },
     });
@@ -341,7 +343,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [pipelineSg],
       environment: {
-        DATABASE_URL: `postgresql://postgres@${databaseProxy.endpoint}:5432/fca_db?sslmode=require`,
+        DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
         CLAUDE_API_KEY: claudeApiKey.secretValue.unsafeUnwrap(),
       },
       reservedConcurrentExecutions: 5, // Control Claude API rate

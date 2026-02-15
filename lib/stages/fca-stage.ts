@@ -13,7 +13,7 @@ export interface FcaStageProps extends cdk.StageProps {
  *
  * Deploys 3 stacks in order:
  * 1. NetworkStack - Shared VPC with fck-nat
- * 2. StatefulStack - RDS, RDS Proxy, S3 (depends on VPC)
+ * 2. StatefulStack - RDS, S3 (depends on VPC)
  * 3. LeadGenPipelineStack - SQS, Lambdas, Fargate tasks, Step Functions (depends on VPC + Stateful)
  */
 export class FcaStage extends cdk.Stage {
@@ -37,7 +37,6 @@ export class FcaStage extends cdk.Stage {
     this.pipelineStack = new LeadGenPipelineStack(this, 'LeadGenPipeline', {
       vpc: this.networkStack.vpc,
       database: this.statefulStack.database,
-      databaseProxy: this.statefulStack.databaseProxy,
       databaseSecret: this.statefulStack.databaseSecret,
       dbSecurityGroup: this.statefulStack.dbSecurityGroup,
       campaignDataBucket: this.statefulStack.campaignDataBucket,

@@ -9,7 +9,8 @@ import { Construct } from 'constructs';
  * Uses fck-nat (t4g.nano ~$3/mo) instead of managed NAT Gateway (~$32/mo per AZ).
  * https://fck-nat.dev/stable/deploying/
  *
- * VPC endpoints for S3 (Gateway) and SQS (Interface) reduce NAT traffic and costs.
+ * S3 Gateway VPC endpoint (free) reduces NAT traffic.
+ * No SQS Interface endpoint -- $14.60/mo not worth it at low volume; routes through fck-nat instead.
  */
 export class NetworkStack extends cdk.Stack {
   public readonly vpc: ec2.Vpc;
@@ -63,12 +64,6 @@ export class NetworkStack extends cdk.Stack {
     // S3 Gateway Endpoint (free, no NAT traffic for S3)
     this.vpc.addGatewayEndpoint('S3Endpoint', {
       service: ec2.GatewayVpcEndpointAwsService.S3,
-    });
-
-    // SQS Interface Endpoint (reduces NAT traffic for queue operations)
-    this.vpc.addInterfaceEndpoint('SqsEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.SQS,
-      privateDnsEnabled: true,
     });
 
     // ============================================================

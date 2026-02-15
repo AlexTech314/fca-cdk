@@ -49,7 +49,7 @@ export class StatefulStack extends cdk.Stack {
     this.dbSecurityGroup.addIngressRule(
       this.pipelineSecurityGroup,
       ec2.Port.tcp(5432),
-      'Pipeline -> RDS'
+      'Pipeline to RDS'
     );
 
     // ============================================================

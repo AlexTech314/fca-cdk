@@ -327,7 +327,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
         DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
         CLAUDE_API_KEY: claudeApiKey.secretValue.unsafeUnwrap(),
       },
-      reservedConcurrentExecutions: 5, // Control Claude API rate
+      // No reservedConcurrentExecutions: account must keep ≥10 unreserved; use SQS batch size to limit rate
     });
 
     // SQS event source (batch of 10)

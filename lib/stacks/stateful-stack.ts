@@ -28,13 +28,6 @@ export class StatefulStack extends cdk.Stack {
     const { vpc } = props;
 
     // ============================================================
-    // RDS PostgreSQL Master Password (pre-created in Secrets Manager)
-    // ============================================================
-    this.databaseSecret = secretsmanager.Secret.fromSecretNameV2(
-      this, 'RdsMasterPassword', 'fca/rds-master-password'
-    );
-
-    // ============================================================
     // Security Group for RDS
     // ============================================================
     this.dbSecurityGroup = new ec2.SecurityGroup(this, 'DbSecurityGroup', {
@@ -44,7 +37,7 @@ export class StatefulStack extends cdk.Stack {
     });
 
     // ============================================================
-    // RDS PostgreSQL Instance
+    // RDS PostgreSQL Instance (credentials auto-created in Secrets Manager)
     // ============================================================
     this.database = new rds.DatabaseInstance(this, 'Database', {
       engine: rds.DatabaseInstanceEngine.postgres({
@@ -54,7 +47,7 @@ export class StatefulStack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [this.dbSecurityGroup],
-      credentials: rds.Credentials.fromSecret(this.databaseSecret),
+      credentials: rds.Credentials.fromGeneratedSecret('postgres'),
       databaseName: 'fca_db',
       allocatedStorage: 20,
       maxAllocatedStorage: 100,
@@ -68,6 +61,8 @@ export class StatefulStack extends cdk.Stack {
         'shared_preload_libraries': 'pg_stat_statements',
       },
     });
+
+    this.databaseSecret = this.database.secret!;
 
     // ============================================================
     // S3 Bucket for Campaign Data

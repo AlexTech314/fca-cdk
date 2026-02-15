@@ -18,7 +18,7 @@ export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
   readonly database: rds.IDatabaseInstance;
   readonly databaseSecret: secretsmanager.ISecret;
-  readonly dbSecurityGroup: ec2.ISecurityGroup;
+  readonly pipelineSecurityGroup: ec2.ISecurityGroup;
   readonly campaignDataBucket: s3.IBucket;
 }
 
@@ -32,7 +32,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
     super(scope, id, props);
 
-    const { vpc, database, databaseSecret, dbSecurityGroup, campaignDataBucket } = props;
+    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket } = props;
 
     // Direct RDS connection (no proxy -- saves $21.90/mo, peak ~40 connections vs ~80 limit)
     const databaseEndpoint = database.dbInstanceEndpointAddress;
@@ -47,26 +47,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       this, 'ClaudeApiKey', 'fca/CLAUDE_API_KEY'
     );
 
-    // ============================================================
-    // Security Group for Lambda/Fargate -> RDS
-    // ============================================================
-    const pipelineSg = new ec2.SecurityGroup(this, 'PipelineSecurityGroup', {
-      vpc,
-      description: 'Security group for pipeline Lambdas and Fargate tasks',
-      allowAllOutbound: true,
-    });
-
-    // Allow pipeline SG to connect to RDS
-    // Use CfnSecurityGroupIngress to avoid cyclic cross-stack reference
-    // (addIngressRule on the stateful stack's SG would create a back-reference)
-    new ec2.CfnSecurityGroupIngress(this, 'PipelineToDbIngress', {
-      ipProtocol: 'tcp',
-      fromPort: 5432,
-      toPort: 5432,
-      groupId: dbSecurityGroup.securityGroupId,
-      sourceSecurityGroupId: pipelineSg.securityGroupId,
-      description: 'Pipeline -> RDS',
-    });
+    // Pipeline SG and RDS ingress live in StatefulStack to avoid cross-stack SecurityGroupIngress CREATE_FAILED
 
     // ============================================================
     // ECS Cluster
@@ -219,7 +200,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       logGroup: prepareScrapeLogGroup,
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [pipelineSg],
+      securityGroups: [pipelineSecurityGroup],
       environment: {
         DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
@@ -246,7 +227,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       logGroup: aggregateScrapeLogGroup,
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [pipelineSg],
+      securityGroups: [pipelineSecurityGroup],
       environment: {
         DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
@@ -281,7 +262,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
         ],
       }],
       subnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [pipelineSg],
+      securityGroups: [pipelineSecurityGroup],
       resultPath: sfn.JsonPath.DISCARD,
     });
 
@@ -341,7 +322,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       logGroup: scoringLambdaLogGroup,
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [pipelineSg],
+      securityGroups: [pipelineSecurityGroup],
       environment: {
         DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
         CLAUDE_API_KEY: claudeApiKey.secretValue.unsafeUnwrap(),

@@ -21,6 +21,8 @@ export class StatefulStack extends cdk.Stack {
   public readonly databaseSecret: secretsmanager.ISecret;
   public readonly campaignDataBucket: s3.Bucket;
   public readonly dbSecurityGroup: ec2.SecurityGroup;
+  /** SG for pipeline Lambdas/Fargate; ingress to RDS is in this stack to avoid cross-stack reference failure */
+  public readonly pipelineSecurityGroup: ec2.SecurityGroup;
 
   constructor(scope: Construct, id: string, props: StatefulStackProps) {
     super(scope, id, props);
@@ -35,6 +37,20 @@ export class StatefulStack extends cdk.Stack {
       description: 'Security group for RDS PostgreSQL',
       allowAllOutbound: false,
     });
+
+    // ============================================================
+    // Pipeline SG + ingress to RDS (same stack = no cross-stack CREATE_FAILED)
+    // ============================================================
+    this.pipelineSecurityGroup = new ec2.SecurityGroup(this, 'PipelineSecurityGroup', {
+      vpc,
+      description: 'Security group for pipeline Lambdas and Fargate tasks',
+      allowAllOutbound: true,
+    });
+    this.dbSecurityGroup.addIngressRule(
+      this.pipelineSecurityGroup,
+      ec2.Port.tcp(5432),
+      'Pipeline -> RDS'
+    );
 
     // ============================================================
     // RDS PostgreSQL Instance (credentials auto-created in Secrets Manager)

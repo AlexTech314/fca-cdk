@@ -27,6 +27,11 @@
   },
   "exclude": [
     "node_modules",
-    "cdk.out"
+    "cdk.out",
+    "src/api",
+    "src/flagship-ui",
+    "src/lead-gen-spa",
+    "src/pipeline",
+    "src/lambda"
   ]
 }

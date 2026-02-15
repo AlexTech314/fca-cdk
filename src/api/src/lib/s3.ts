@@ -14,7 +14,7 @@ export const s3Client = new S3Client({
   responseChecksumValidation: 'WHEN_REQUIRED',
 });
 
-export const BUCKET_NAME = process.env.BUCKET_NAME || '';
+export const ASSETS_BUCKET_NAME = process.env.ASSETS_BUCKET_NAME || '';
 
 /**
  * Build the full public URL for a given s3Key.
@@ -26,7 +26,7 @@ export function getS3Url(s3Key: string): string {
     return `https://${cdnDomain}/${s3Key}`;
   }
   const region = process.env.AWS_REGION || 'us-east-2';
-  return `https://${BUCKET_NAME}.s3.${region}.amazonaws.com/${s3Key}`;
+  return `https://${ASSETS_BUCKET_NAME}.s3.${region}.amazonaws.com/${s3Key}`;
 }
 
 /**
@@ -52,7 +52,7 @@ export async function generatePresignedUploadUrl(
   expiresIn = 900 // 15 minutes
 ): Promise<{ uploadUrl: string; s3Key: string; expiresIn: number }> {
   const command = new PutObjectCommand({
-    Bucket: BUCKET_NAME,
+    Bucket: ASSETS_BUCKET_NAME,
     Key: s3Key,
     ContentType: contentType,
     CacheControl: 'public, max-age=31536000, immutable',
@@ -68,7 +68,7 @@ export async function generatePresignedUploadUrl(
  */
 export async function deleteS3Object(s3Key: string): Promise<void> {
   const command = new DeleteObjectCommand({
-    Bucket: BUCKET_NAME,
+    Bucket: ASSETS_BUCKET_NAME,
     Key: s3Key,
   });
 

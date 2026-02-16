@@ -42,7 +42,15 @@ export const campaignRepository = {
     });
   },
 
-  async update(id: string, data: Partial<UpdateCampaignInput> & { queriesS3Key?: string; queriesCount?: number }) {
+  async update(
+    id: string,
+    data: Partial<UpdateCampaignInput> & {
+      queriesS3Key?: string;
+      queriesCount?: number;
+      maxResultsPerSearch?: number;
+      skipCachedSearches?: boolean;
+    }
+  ) {
     const { updateSearches, ...updateData } = data;
     return prisma.campaign.update({
       where: { id },

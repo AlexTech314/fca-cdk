@@ -1,5 +1,7 @@
 import type {
   Lead,
+  Franchise,
+  FranchiseWithLeads,
   Campaign,
   CampaignRun,
   CampaignWithStats,
@@ -134,6 +136,20 @@ export interface LeadGenApi {
    * Start a new campaign run
    */
   startCampaignRun(campaignId: string): Promise<CampaignRun>;
+
+  // ===========================================
+  // Franchises
+  // ===========================================
+
+  /**
+   * Get all franchises with location counts
+   */
+  getFranchises(): Promise<Franchise[]>;
+
+  /**
+   * Get a franchise by ID with its leads (locations)
+   */
+  getFranchise(id: string): Promise<FranchiseWithLeads>;
 
   // ===========================================
   // Users (Admin Only)

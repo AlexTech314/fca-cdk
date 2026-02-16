@@ -1,8 +1,9 @@
 import { campaignRepository, campaignRunRepository } from '../repositories/campaign.repository';
-import type { CreateCampaignInput, UpdateCampaignInput } from '../models/campaign.model';
+import type { CreateCampaignInput, UpdateCampaignInput, StartCampaignRunInput } from '../models/campaign.model';
 import { s3Client } from '../lib/s3';
 import { PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET || '';
 const PRESIGNED_URL_EXPIRY = 3600; // 1 hour
@@ -107,6 +108,9 @@ export const campaignService = {
   },
 };
 
+const lambdaClient = new LambdaClient({});
+const START_PLACES_LAMBDA_ARN = process.env.START_PLACES_LAMBDA_ARN || '';
+
 export const campaignRunService = {
   async listByCampaign(campaignId: string) {
     return campaignRunRepository.findByCampaignId(campaignId);
@@ -116,9 +120,10 @@ export const campaignRunService = {
     return campaignRunRepository.findById(id);
   },
 
-  async start(campaignId: string, userId?: string) {
+  async start(campaignId: string, userId?: string, options?: StartCampaignRunInput) {
     const campaign = await campaignRepository.findById(campaignId);
     if (!campaign) throw new Error('Campaign not found');
+    if (!campaign.queriesS3Key) throw new Error('Campaign has no searches. Upload and confirm searches first.');
 
     const run = await campaignRunRepository.create({
       campaignId,
@@ -126,7 +131,23 @@ export const campaignRunService = {
       queriesTotal: campaign.queriesCount,
     });
 
-    // TODO: Trigger Step Functions execution here when pipeline is wired up
+    if (!START_PLACES_LAMBDA_ARN) {
+      throw new Error('START_PLACES_LAMBDA_ARN not configured. Deploy the pipeline stack and set the env var.');
+    }
+
+    await lambdaClient.send(
+      new InvokeCommand({
+        FunctionName: START_PLACES_LAMBDA_ARN,
+        InvocationType: 'Event',
+        Payload: JSON.stringify({
+          campaignId,
+          campaignRunId: run.id,
+          queriesS3Key: campaign.queriesS3Key,
+          skipCachedSearches: options?.skipCachedSearches ?? campaign.skipCachedSearches,
+          maxResultsPerSearch: options?.maxResultsPerSearch ?? campaign.maxResultsPerSearch,
+        }),
+      })
+    );
 
     return run;
   },

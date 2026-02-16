@@ -15,7 +15,6 @@ export interface User {
   email: string;
   name: string | null;
   cognitoSub: string | null;
-  organizationId: string | null;
   role: UserRole;
   invitedAt: string;
   lastActiveAt: string | null;
@@ -25,10 +24,20 @@ export interface User {
 
 export type UserRole = 'readonly' | 'readwrite' | 'admin';
 
+export interface Franchise {
+  id: string;
+  name: string;
+  displayName: string | null;
+  locationCount?: number;
+}
+
+export interface FranchiseWithLeads extends Franchise {
+  leads: Lead[];
+}
+
 export interface Lead {
   id: string;
   placeId: string;
-  organizationId: string;
   campaignId: string | null;
   campaignRunId: string | null;
   name: string;
@@ -46,13 +55,15 @@ export interface Lead {
   qualificationNotes: string | null;
   qualifiedAt: string | null;
   source: string | null;
+  franchiseId: string | null;
+  franchise?: Franchise | null;
+  campaign?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface Campaign {
   id: string;
-  organizationId: string;
   name: string;
   description: string | null;
   queries: string[];
@@ -64,7 +75,6 @@ export interface Campaign {
 export interface CampaignRun {
   id: string;
   campaignId: string;
-  organizationId: string;
   startedById: string;
   status: CampaignRunStatus;
   startedAt: string;
@@ -89,6 +99,7 @@ export interface LeadFilters {
   states?: string[];
   businessTypes?: string[];
   campaignId?: string;
+  franchiseId?: string;
   ratingMin?: number;
   ratingMax?: number;
   qualificationMin?: number;

@@ -8,6 +8,8 @@ import LeadDetail from '@/pages/LeadDetail'
 import Campaigns from '@/pages/Campaigns'
 import CampaignDetail from '@/pages/CampaignDetail'
 import CampaignCreate from '@/pages/CampaignCreate'
+import Franchises from '@/pages/Franchises'
+import FranchiseDetail from '@/pages/FranchiseDetail'
 import Admin from '@/pages/Admin'
 import Export from '@/pages/Export'
 import Settings from '@/pages/Settings'
@@ -43,6 +45,8 @@ function AuthenticatedLayout() {
           <Route path="/campaigns/new" element={<CampaignCreate />} />
           <Route path="/campaigns/:id" element={<CampaignDetail />} />
           <Route path="/campaigns/:id/edit" element={<CampaignCreate />} />
+          <Route path="/franchises" element={<Franchises />} />
+          <Route path="/franchises/:id" element={<FranchiseDetail />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/export" element={<Export />} />
           <Route path="/settings" element={<Settings />} />

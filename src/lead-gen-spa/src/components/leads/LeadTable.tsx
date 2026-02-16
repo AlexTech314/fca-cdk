@@ -168,6 +168,11 @@ export function LeadTable({
                     >
                       {lead.name}
                     </Link>
+                    {lead.franchise && (
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Location of: {lead.franchise.displayName ?? lead.franchise.name}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{lead.city || '-'}</TableCell>
                   <TableCell>

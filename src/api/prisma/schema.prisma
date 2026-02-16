@@ -354,6 +354,65 @@ model Award {
 // LEAD GENERATION
 // ===========================================
 
+model SearchQuery {
+  id           String    @id @default(uuid())
+  textQuery    String    @map("text_query")
+  includedType String?   @map("included_type")
+  campaignId   String    @map("campaign_id")
+  campaign     Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignRunId String?   @map("campaign_run_id")
+  campaignRun   CampaignRun? @relation(fields: [campaignRunId], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  leads        Lead[]
+
+  @@index([campaignId])
+  @@index([campaignRunId])
+  @@index([textQuery])
+  @@map("search_queries")
+}
+
+model Franchise {
+  id          String   @id @default(uuid())
+  name        String   // normalized for matching (e.g. "xyz plumbing")
+  displayName String?  @map("display_name")  // original (e.g. "XYZ Plumbing")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  leads       Lead[]
+
+  @@unique([name])
+  @@map("franchises")
+}
+
+model Job {
+  id             String    @id @default(uuid())
+  campaignId     String?   @map("campaign_id")
+  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  campaignRunId  String?   @map("campaign_run_id")
+  campaignRun    CampaignRun? @relation(fields: [campaignRunId], references: [id], onDelete: SetNull)
+
+  type           String    // places_search, web_scrape, score_leads, prepare_scrape
+  status         String    @default("pending")  // pending, running, completed, failed
+  startedAt      DateTime? @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  externalId     String?   @map("external_id")  // ECS task ARN, Step Functions exec ARN, etc.
+  errorMessage   String?   @map("error_message")
+  metadata       Json?
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([campaignId])
+  @@index([campaignRunId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@map("jobs")
+}
+
 model Lead {
   id                   String    @id @default(uuid())
   placeId              String    @unique @map("place_id")       // Google Places ID (dedupe key)
@@ -361,9 +420,14 @@ model Lead {
   campaign             Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   campaignRunId        String?   @map("campaign_run_id")
   campaignRun          CampaignRun? @relation(fields: [campaignRunId], references: [id], onDelete: SetNull)
+  searchQueryId        String?   @map("search_query_id")
+  searchQuery          SearchQuery? @relation(fields: [searchQueryId], references: [id], onDelete: SetNull)
+  franchiseId          String?   @map("franchise_id")
+  franchise            Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
 
   // Business info (from Google Places)
   name                 String
+  nameNormalized       String?   @map("name_normalized")  // lowercase, trimmed for franchise matching
   address              String?
   city                 String?
   state                String?
@@ -375,6 +439,16 @@ model Lead {
   priceLevel           Int?      @map("price_level")
   businessType         String?   @map("business_type")
   source               String?                                   // "google_places", "manual", "import"
+
+  // Extended Places fields
+  businessStatus       String?   @map("business_status")   // OPERATIONAL, CLOSED_PERMANENTLY, etc.
+  latitude             Float?
+  longitude            Float?
+  primaryType          String?   @map("primary_type")      // Google type code
+  openingHours         String?   @map("opening_hours")
+  editorialSummary     String?   @map("editorial_summary")
+  reviewSummary        String?   @map("review_summary")
+  googleMapsUri        String?   @map("google_maps_uri")
 
   // AI Qualification (Claude scoring)
   qualificationScore   Int?      @map("qualification_score")     // 0-100
@@ -390,8 +464,12 @@ model Lead {
 
   @@index([campaignId])
   @@index([campaignRunId])
+  @@index([searchQueryId])
+  @@index([franchiseId])
+  @@index([nameNormalized])
   @@index([businessType])
   @@index([state])
+  @@index([businessStatus])
   @@index([qualificationScore])
   @@index([createdAt])
   @@map("leads")
@@ -403,6 +481,8 @@ model Campaign {
   description          String?
   queriesS3Key         String?   @map("queries_s3_key")          // S3 key for searches JSON
   queriesCount         Int       @default(0) @map("queries_count")
+  maxResultsPerSearch  Int       @default(60) @map("max_results_per_search")
+  skipCachedSearches   Boolean   @default(false) @map("skip_cached_searches")
   createdById          String?   @map("created_by_id")
 
   createdAt            DateTime  @default(now()) @map("created_at")
@@ -410,6 +490,8 @@ model Campaign {
 
   leads                Lead[]
   runs                 CampaignRun[]
+  searchQueries        SearchQuery[]
+  jobs                 Job[]
 
   @@index([createdAt])
   @@map("campaigns")
@@ -434,6 +516,8 @@ model CampaignRun {
   errorMessages        String[]  @default([]) @map("error_messages")
 
   leads                Lead[]
+  searchQueries        SearchQuery[]
+  jobs                 Job[]
 
   @@index([campaignId])
   @@index([status])

@@ -96,6 +96,11 @@ export default function LeadDetail() {
             <CardContent className="space-y-4">
               <div>
                 <h3 className="text-lg font-semibold">{lead.name}</h3>
+                {lead.franchise && (
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Location of: {lead.franchise.displayName ?? lead.franchise.name}
+                  </p>
+                )}
                 {lead.businessType && (
                   <Badge variant="secondary" className="mt-1">
                     {lead.businessType}

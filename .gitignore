@@ -15,3 +15,5 @@ report/
 
 .env
 .env.*
+
+dist

@@ -71,7 +71,6 @@ export async function getCurrentAuthUser(): Promise<User | null> {
       email: cognitoUser.signInDetails?.loginId || cognitoUser.username,
       name: null,
       cognitoSub: cognitoUser.userId,
-      organizationId: null,
       role,
       invitedAt: '',
       lastActiveAt: null,

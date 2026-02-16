@@ -8,6 +8,8 @@
 import type { LeadGenApi } from './types';
 import type {
   Lead,
+  Franchise,
+  FranchiseWithLeads,
   Campaign,
   CampaignRun,
   CampaignWithStats,
@@ -69,11 +71,19 @@ async function apiClient<T>(
 // Transform Helpers (snake_case -> camelCase)
 // ============================================
 
+function transformFranchise(raw: any): Franchise {
+  return {
+    id: raw.id,
+    name: raw.name,
+    displayName: raw.displayName ?? raw.display_name ?? null,
+    locationCount: raw.locationCount ?? raw.location_count,
+  };
+}
+
 function transformLead(raw: any): Lead {
   return {
     id: raw.id,
     placeId: raw.placeId || raw.place_id,
-    organizationId: '',
     campaignId: raw.campaignId || raw.campaign_id || null,
     campaignRunId: raw.campaignRunId || raw.campaign_run_id || null,
     name: raw.name,
@@ -91,6 +101,9 @@ function transformLead(raw: any): Lead {
     qualificationNotes: raw.qualificationNotes || raw.qualification_notes || null,
     qualifiedAt: raw.qualifiedAt || raw.qualified_at || null,
     source: raw.source || null,
+    franchiseId: raw.franchiseId ?? raw.franchise_id ?? null,
+    franchise: raw.franchise ? transformFranchise(raw.franchise) : null,
+    campaign: raw.campaign ? { id: raw.campaign.id, name: raw.campaign.name } : null,
     createdAt: raw.createdAt || raw.created_at,
     updatedAt: raw.updatedAt || raw.updated_at,
   };
@@ -99,7 +112,6 @@ function transformLead(raw: any): Lead {
 function transformCampaign(raw: any): Campaign {
   return {
     id: raw.id,
-    organizationId: '',
     name: raw.name,
     description: raw.description || null,
     queries: raw.searches || raw.queries || [],
@@ -122,7 +134,6 @@ function transformCampaignRun(raw: any): CampaignRun {
   return {
     id: raw.id,
     campaignId: raw.campaignId || raw.campaign_id,
-    organizationId: '',
     startedById: raw.startedById || raw.started_by_id || '',
     status: raw.status,
     startedAt: raw.startedAt || raw.started_at,
@@ -142,7 +153,6 @@ function transformUser(raw: any): User {
     email: raw.email,
     name: raw.name || null,
     cognitoSub: raw.cognitoSub || raw.cognito_sub || null,
-    organizationId: null,
     role: raw.role,
     invitedAt: raw.createdAt || raw.created_at,
     lastActiveAt: raw.lastActiveAt || raw.last_active_at || null,
@@ -211,6 +221,7 @@ export const realApi: LeadGenApi = {
     if (filters.qualificationMax !== undefined) qs.set('qualificationMax', String(filters.qualificationMax));
     if (filters.hasWebsite !== undefined) qs.set('hasWebsite', String(filters.hasWebsite));
     if (filters.hasPhone !== undefined) qs.set('hasPhone', String(filters.hasPhone));
+    if (filters.franchiseId) qs.set('franchiseId', filters.franchiseId);
 
     const result = await apiClient<{ data: any[]; total: number; page: number; limit: number; totalPages: number }>(
       `/leads?${qs}`
@@ -227,11 +238,7 @@ export const realApi: LeadGenApi = {
 
   async getLead(id: string): Promise<LeadWithCampaign> {
     const raw = await apiClient<any>(`/leads/${id}`);
-    const lead = transformLead(raw);
-    return {
-      ...lead,
-      campaign: raw.campaign ? transformCampaign(raw.campaign) : undefined,
-    };
+    return transformLead(raw) as LeadWithCampaign;
   },
 
   async getLeadCount(params: LeadQueryParams): Promise<number> {
@@ -241,6 +248,7 @@ export const realApi: LeadGenApi = {
     if (filters.states?.length) qs.set('states', filters.states.join(','));
     if (filters.businessTypes?.length) qs.set('businessTypes', filters.businessTypes.join(','));
     if (filters.campaignId) qs.set('campaignId', filters.campaignId);
+    if (filters.franchiseId) qs.set('franchiseId', filters.franchiseId);
 
     const result = await apiClient<{ count: number }>(`/leads/count?${qs}`);
     return result.count;
@@ -360,6 +368,24 @@ export const realApi: LeadGenApi = {
   async startCampaignRun(campaignId: string): Promise<CampaignRun> {
     const raw = await apiClient<any>(`/campaigns/${campaignId}/run`, { method: 'POST' });
     return transformCampaignRun(raw);
+  },
+
+  // ===========================================
+  // Franchises
+  // ===========================================
+
+  async getFranchises(): Promise<Franchise[]> {
+    const raw = await apiClient<any[]>('/franchises');
+    return raw.map(transformFranchise);
+  },
+
+  async getFranchise(id: string): Promise<FranchiseWithLeads> {
+    const raw = await apiClient<any>(`/franchises/${id}`);
+    return {
+      ...transformFranchise(raw),
+      locationCount: raw.leads?.length ?? raw.locationCount ?? raw.location_count,
+      leads: (raw.leads || []).map(transformLead),
+    };
   },
 
   // ===========================================

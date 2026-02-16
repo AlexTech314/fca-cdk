@@ -25,6 +25,7 @@ export const leadFiltersSchema = z.object({
     (v) => (v === 'true' ? true : v === 'false' ? false : v),
     z.boolean().optional()
   ),
+  franchiseId: z.string().optional(),
 });
 
 // Lead list query params
@@ -57,6 +58,7 @@ export const leadQuerySchema = z.object({
     (v) => (v === 'true' ? true : v === 'false' ? false : v),
     z.boolean().optional()
   ),
+  franchiseId: z.string().optional(),
 });
 
 // Types

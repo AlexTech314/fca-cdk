@@ -6,10 +6,38 @@
  */
 
 import { SQSEvent } from 'aws-lambda';
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { Client } from 'pg';
 
-const DATABASE_URL = process.env.DATABASE_URL!;
+// Cached outside handler for warm invocations
+const secretsManager = new SecretsManagerClient({});
+let cachedDatabaseUrl: string | null = null;
+let pgClient: Client | null = null;
+
 const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY!;
+
+async function getDatabaseUrl(): Promise<string> {
+  if (cachedDatabaseUrl) return cachedDatabaseUrl;
+  const secretArn = process.env.DATABASE_SECRET_ARN;
+  const host = process.env.DATABASE_HOST;
+  if (!secretArn || !host) {
+    throw new Error('DATABASE_SECRET_ARN and DATABASE_HOST are required');
+  }
+  const res = await secretsManager.send(new GetSecretValueCommand({ SecretId: secretArn }));
+  const secret = JSON.parse(res.SecretString!);
+  const { username, password, dbname } = secret;
+  const port = secret.port ?? 5432;
+  cachedDatabaseUrl = `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}/${dbname}?sslmode=require`;
+  return cachedDatabaseUrl;
+}
+
+async function getPgClient(): Promise<Client> {
+  if (pgClient) return pgClient;
+  const url = await getDatabaseUrl();
+  pgClient = new Client({ connectionString: url });
+  await pgClient.connect();
+  return pgClient;
+}
 
 interface LeadMessage {
   lead_id: string;
@@ -75,8 +103,7 @@ Respond with ONLY valid JSON in this exact format:
 export async function handler(event: SQSEvent): Promise<void> {
   console.log(`Score Lambda received ${event.Records.length} messages`);
 
-  const client = new Client({ connectionString: DATABASE_URL });
-  await client.connect();
+  const client = await getPgClient();
 
   try {
     for (const record of event.Records) {
@@ -138,7 +165,6 @@ export async function handler(event: SQSEvent): Promise<void> {
         throw error;
       }
     }
-  } finally {
-    await client.end();
   }
+  // Do not end() - keep connection warm for next invocation
 }

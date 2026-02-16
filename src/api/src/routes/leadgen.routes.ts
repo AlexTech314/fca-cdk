@@ -3,12 +3,14 @@ import { authenticate, authorize } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { leadService } from '../services/lead.service';
 import { campaignService, campaignRunService } from '../services/campaign.service';
+import { franchiseService } from '../services/franchise.service';
 import { userService } from '../services/user.service';
 import {
   leadQuerySchema,
   createCampaignSchema,
   updateCampaignSchema,
   confirmUploadSchema,
+  startCampaignRunSchema,
 } from '../models';
 
 const router = Router();
@@ -211,9 +213,9 @@ router.get('/campaigns/:id/runs', async (req, res, next) => {
   }
 });
 
-router.post('/campaigns/:id/run', authorize('readwrite', 'admin'), async (req, res, next) => {
+router.post('/campaigns/:id/run', authorize('readwrite', 'admin'), validate(startCampaignRunSchema, 'body'), async (req, res, next) => {
   try {
-    const run = await campaignRunService.start(String(req.params.id), req.user?.id);
+    const run = await campaignRunService.start(String(req.params.id), req.user?.id, req.body);
     res.status(201).json(run);
   } catch (error) {
     next(error);
@@ -228,6 +230,55 @@ router.get('/runs/:id', async (req, res, next) => {
       return;
     }
     res.json(run);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================
+// FRANCHISES
+// ============================================
+
+router.get('/franchises', async (_req, res, next) => {
+  try {
+    const franchises = await franchiseService.list();
+    res.json(franchises);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/franchises/:id', async (req, res, next) => {
+  try {
+    const franchise = await franchiseService.getById(String(req.params.id));
+    if (!franchise) {
+      res.status(404).json({ error: 'Franchise not found' });
+      return;
+    }
+    res.json(franchise);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/franchises/:id/leads', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const { leadIds } = req.body;
+    if (!Array.isArray(leadIds) || leadIds.length === 0) {
+      res.status(400).json({ error: 'leadIds array is required' });
+      return;
+    }
+    const franchise = await franchiseService.linkLeads(String(req.params.id), leadIds);
+    res.json(franchise);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/leads/:id/franchise', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const lead = await franchiseService.unlinkLead(String(req.params.id));
+    res.json(lead);
   } catch (error) {
     next(error);
   }

@@ -78,7 +78,6 @@ export const mockUsers: User[] = [
     email: 'admin@flatironscapital.com',
     name: 'John Smith',
     cognitoSub: 'cognito-sub-1',
-    organizationId: 'org-1',
     role: 'admin',
     invitedAt: '2024-01-01T00:00:00.000Z',
     lastActiveAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
@@ -90,7 +89,6 @@ export const mockUsers: User[] = [
     email: 'jane@flatironscapital.com',
     name: 'Jane Doe',
     cognitoSub: 'cognito-sub-2',
-    organizationId: 'org-1',
     role: 'readwrite',
     invitedAt: '2024-01-15T00:00:00.000Z',
     lastActiveAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
@@ -102,7 +100,6 @@ export const mockUsers: User[] = [
     email: 'bob@flatironscapital.com',
     name: 'Bob Wilson',
     cognitoSub: 'cognito-sub-3',
-    organizationId: 'org-1',
     role: 'readwrite',
     invitedAt: '2024-02-01T00:00:00.000Z',
     lastActiveAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
@@ -114,7 +111,6 @@ export const mockUsers: User[] = [
     email: 'sarah@flatironscapital.com',
     name: 'Sarah Johnson',
     cognitoSub: 'cognito-sub-4',
-    organizationId: 'org-1',
     role: 'readonly',
     invitedAt: '2024-03-01T00:00:00.000Z',
     lastActiveAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
@@ -130,7 +126,6 @@ export const mockUsers: User[] = [
 export const mockCampaigns: Campaign[] = [
   {
     id: 'campaign-1',
-    organizationId: 'org-1',
     name: 'Colorado Plumbers',
     description: 'Targeting plumbing businesses across Colorado metro areas',
     queries: [
@@ -147,7 +142,6 @@ export const mockCampaigns: Campaign[] = [
   },
   {
     id: 'campaign-2',
-    organizationId: 'org-1',
     name: 'Texas HVAC',
     description: 'HVAC contractors in major Texas cities',
     queries: [
@@ -163,7 +157,6 @@ export const mockCampaigns: Campaign[] = [
   },
   {
     id: 'campaign-3',
-    organizationId: 'org-1',
     name: 'Arizona Electricians',
     description: 'Electrical contractors in Arizona',
     queries: [
@@ -178,7 +171,6 @@ export const mockCampaigns: Campaign[] = [
   },
   {
     id: 'campaign-4',
-    organizationId: 'org-1',
     name: 'Southwest Roofers',
     description: 'Roofing companies across the Southwest',
     queries: [
@@ -193,7 +185,6 @@ export const mockCampaigns: Campaign[] = [
   },
   {
     id: 'campaign-5',
-    organizationId: 'org-1',
     name: 'General Contractors CO',
     description: 'General contractors in Colorado',
     queries: [
@@ -207,7 +198,6 @@ export const mockCampaigns: Campaign[] = [
   },
   {
     id: 'campaign-6',
-    organizationId: 'org-1',
     name: 'Landscapers Multi-State',
     description: 'Landscaping businesses across multiple states',
     queries: [
@@ -231,7 +221,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-1',
     campaignId: 'campaign-1',
-    organizationId: 'org-1',
     startedById: 'user-1',
     status: 'completed',
     startedAt: '2024-12-01T10:00:00.000Z',
@@ -246,7 +235,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-2',
     campaignId: 'campaign-1',
-    organizationId: 'org-1',
     startedById: 'user-1',
     status: 'completed',
     startedAt: '2024-12-15T14:00:00.000Z',
@@ -261,7 +249,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-3',
     campaignId: 'campaign-1',
-    organizationId: 'org-1',
     startedById: 'user-2',
     status: 'completed',
     startedAt: '2025-01-10T09:00:00.000Z',
@@ -277,7 +264,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-4',
     campaignId: 'campaign-2',
-    organizationId: 'org-1',
     startedById: 'user-1',
     status: 'completed',
     startedAt: '2024-12-05T11:00:00.000Z',
@@ -292,7 +278,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-5',
     campaignId: 'campaign-2',
-    organizationId: 'org-1',
     startedById: 'user-2',
     status: 'completed',
     startedAt: '2025-01-05T15:30:00.000Z',
@@ -308,7 +293,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-6',
     campaignId: 'campaign-3',
-    organizationId: 'org-1',
     startedById: 'user-2',
     status: 'completed',
     startedAt: '2024-12-10T08:00:00.000Z',
@@ -323,7 +307,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-7',
     campaignId: 'campaign-3',
-    organizationId: 'org-1',
     startedById: 'user-1',
     status: 'failed',
     startedAt: '2025-01-15T10:00:00.000Z',
@@ -339,7 +322,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-8',
     campaignId: 'campaign-4',
-    organizationId: 'org-1',
     startedById: 'user-2',
     status: 'completed',
     startedAt: '2024-12-20T13:00:00.000Z',
@@ -354,7 +336,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-9',
     campaignId: 'campaign-4',
-    organizationId: 'org-1',
     startedById: 'user-3',
     status: 'completed',
     startedAt: '2025-01-20T16:00:00.000Z',
@@ -370,7 +351,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-10',
     campaignId: 'campaign-5',
-    organizationId: 'org-1',
     startedById: 'user-1',
     status: 'completed',
     startedAt: '2025-01-08T09:30:00.000Z',
@@ -386,7 +366,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-11',
     campaignId: 'campaign-6',
-    organizationId: 'org-1',
     startedById: 'user-3',
     status: 'completed',
     startedAt: '2025-01-25T11:00:00.000Z',
@@ -401,7 +380,6 @@ export const mockCampaignRuns: CampaignRun[] = [
   {
     id: 'run-12',
     campaignId: 'campaign-6',
-    organizationId: 'org-1',
     startedById: 'user-2',
     status: 'running',
     startedAt: new Date().toISOString(),
@@ -439,7 +417,6 @@ function generateLeads(): Lead[] {
     leads.push({
       id: `lead-${i + 1}`,
       placeId: generatePlaceId(),
-      organizationId: 'org-1',
       campaignId: campaign.id,
       campaignRunId: campaignRun?.id || null,
       name: `${prefix} ${businessType} ${suffix}`,
@@ -457,6 +434,7 @@ function generateLeads(): Lead[] {
       qualificationNotes: score !== null ? generateQualificationNotes(score) : null,
       qualifiedAt,
       source: 'google_maps',
+      franchiseId: null,
       createdAt: randomDate(new Date('2024-06-01'), new Date()),
       updatedAt: randomDate(new Date('2024-06-01'), new Date()),
     });

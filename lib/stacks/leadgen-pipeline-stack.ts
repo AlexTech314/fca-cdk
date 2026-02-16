@@ -149,13 +149,45 @@ export class LeadGenPipelineStack extends cdk.Stack {
       },
       environment: {
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
-        DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
         AWS_REGION: this.region,
       },
     });
 
     campaignDataBucket.grantRead(placesTaskDef.taskRole);
     databaseSecret.grantRead(placesTaskDef.taskRole);
+
+    // ============================================================
+    // Start Places Lambda (invoked by API when campaign run starts)
+    // ============================================================
+    const startPlacesLogGroup = new logs.LogGroup(this, 'StartPlacesLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const startPlacesLambda = new lambda.DockerImageFunction(this, 'StartPlaces', {
+      code: lambda.DockerImageCode.fromImageAsset(
+        path.join(__dirname, '../../src/lambda/start-places')
+      ),
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+      logGroup: startPlacesLogGroup,
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [pipelineSecurityGroup],
+      environment: {
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
+        CLUSTER_ARN: cluster.clusterArn,
+        PLACES_TASK_DEF_ARN: placesTaskDef.taskDefinitionArn,
+        SUBNETS: vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }).subnetIds.join(','),
+        SECURITY_GROUPS: pipelineSecurityGroup.securityGroupId,
+      },
+    });
+
+    placesTaskDef.grantRun(startPlacesLambda);
+    databaseSecret.grantRead(startPlacesLambda);
 
     // ============================================================
     // Scrape Fargate Task
@@ -175,7 +207,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
       }),
       environment: {
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
-        DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
         AWS_REGION: this.region,
       },
     });
@@ -202,7 +235,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [pipelineSecurityGroup],
       environment: {
-        DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
       },
     });
@@ -229,7 +263,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [pipelineSecurityGroup],
       environment: {
-        DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
       },
     });
@@ -324,7 +359,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [pipelineSecurityGroup],
       environment: {
-        DATABASE_URL: `postgresql://postgres@${databaseEndpoint}:5432/fca_db?sslmode=require`,
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
         CLAUDE_API_KEY: claudeApiKey.secretValue.unsafeUnwrap(),
       },
       // No reservedConcurrentExecutions: account must keep ≥10 unreserved; use SQS batch size to limit rate
@@ -371,6 +407,11 @@ export class LeadGenPipelineStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'PlacesTaskDefArn', {
       value: placesTaskDef.taskDefinitionArn,
       description: 'Places Fargate task definition ARN',
+    });
+
+    new cdk.CfnOutput(this, 'StartPlacesLambdaArn', {
+      value: startPlacesLambda.functionArn,
+      description: 'Start Places Lambda ARN (invoke from API when starting campaign run)',
     });
   }
 }

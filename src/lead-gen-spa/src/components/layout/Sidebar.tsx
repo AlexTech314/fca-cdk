@@ -3,6 +3,7 @@ import {
   LayoutDashboard, 
   Users, 
   Target, 
+  Building2,
   Download, 
   Settings, 
   Shield,
@@ -49,6 +50,7 @@ export function Sidebar() {
     { to: '/', icon: <LayoutDashboard className="h-4 w-4" />, label: 'Dashboard' },
     { to: '/leads', icon: <Users className="h-4 w-4" />, label: 'Leads' },
     { to: '/campaigns', icon: <Target className="h-4 w-4" />, label: 'Campaigns' },
+    { to: '/franchises', icon: <Building2 className="h-4 w-4" />, label: 'Franchises' },
     { to: '/export', icon: <Download className="h-4 w-4" />, label: 'Export' },
   ];
 

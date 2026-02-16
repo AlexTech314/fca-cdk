@@ -30,6 +30,7 @@ export const leadRepository = {
         orderBy: { [orderByField]: order },
         include: {
           campaign: { select: { id: true, name: true } },
+          franchise: { select: { id: true, name: true, displayName: true } },
         },
       }),
       prisma.lead.count({ where }),
@@ -50,6 +51,8 @@ export const leadRepository = {
       include: {
         campaign: true,
         campaignRun: true,
+        franchise: true,
+        searchQuery: { select: { id: true, textQuery: true } },
       },
     });
   },
@@ -169,6 +172,9 @@ function buildWhereClause(
   }
   if (filters.hasPhone !== undefined) {
     where.phone = filters.hasPhone ? { not: null } : null;
+  }
+  if (filters.franchiseId) {
+    where.franchiseId = filters.franchiseId;
   }
 
   return where;

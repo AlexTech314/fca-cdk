@@ -20,7 +20,8 @@ export const confirmUploadSchema = z.object({
 
 // Start campaign run
 export const startCampaignRunSchema = z.object({
-  skipCachedSearches: z.boolean().default(true),
+  skipCachedSearches: z.boolean().optional(),
+  maxResultsPerSearch: z.number().int().min(1).max(60).optional(),
 });
 
 // Types

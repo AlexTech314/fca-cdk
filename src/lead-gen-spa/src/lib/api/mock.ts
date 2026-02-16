@@ -180,7 +180,6 @@ export const mockApi: LeadGenApi = {
     await randomDelay();
     const newCampaign: Campaign = {
       id: `campaign-${generateId()}`,
-      organizationId: mockOrganization.id,
       name: data.name,
       description: data.description || null,
       queries: data.queries,
@@ -246,7 +245,6 @@ export const mockApi: LeadGenApi = {
     const newRun: CampaignRun = {
       id: `run-${generateId()}`,
       campaignId,
-      organizationId: mockOrganization.id,
       startedById: users[0].id,
       status: 'running',
       startedAt: new Date().toISOString(),
@@ -261,6 +259,20 @@ export const mockApi: LeadGenApi = {
     
     campaignRuns = [...campaignRuns, newRun];
     return newRun;
+  },
+
+  // ===========================================
+  // Franchises
+  // ===========================================
+
+  async getFranchises() {
+    await randomDelay();
+    return [];
+  },
+
+  async getFranchise(_id: string) {
+    await randomDelay();
+    throw new Error('Franchise not found');
   },
 
   // ===========================================
@@ -279,7 +291,6 @@ export const mockApi: LeadGenApi = {
       email: data.email,
       name: data.name || null,
       cognitoSub: null,
-      organizationId: mockOrganization.id,
       role: data.role,
       invitedAt: new Date().toISOString(),
       lastActiveAt: null,

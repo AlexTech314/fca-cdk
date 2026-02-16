@@ -197,9 +197,17 @@ export class LeadGenPipelineStack extends cdk.Stack {
       cpu: 1024,
     });
 
+    // ECR pull-through cache base image (must deploy EcrCache stack first)
+    const baseImage = `${this.account}.dkr.ecr.${this.region}.amazonaws.com/ghcr/puppeteer/puppeteer:24.0.0`;
+
     scrapeTaskDef.addContainer('scrape', {
       image: ecs.ContainerImage.fromAsset(
-        path.join(__dirname, '../../src/pipeline/scrape-task')
+        path.join(__dirname, '../../src/pipeline/scrape-task'),
+        {
+          buildArgs: {
+            BASE_IMAGE: baseImage,
+          },
+        }
       ),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'scrape',

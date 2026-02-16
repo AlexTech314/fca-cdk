@@ -105,65 +105,63 @@ export async function handler(event: SQSEvent): Promise<void> {
 
   const client = await getPgClient();
 
-  try {
-    for (const record of event.Records) {
-      const message: LeadMessage = JSON.parse(record.body);
-      const { lead_id } = message;
+  for (const record of event.Records) {
+    const message: LeadMessage = JSON.parse(record.body);
+    const { lead_id } = message;
 
-      try {
-        // Fetch lead data from Postgres
-        const leadResult = await client.query(
-          `SELECT * FROM leads WHERE id = $1`,
-          [lead_id]
-        );
+    try {
+      // Fetch lead data from Postgres
+      const leadResult = await client.query(
+        `SELECT * FROM leads WHERE id = $1`,
+        [lead_id]
+      );
 
-        if (leadResult.rows.length === 0) {
-          console.warn(`Lead ${lead_id} not found, skipping`);
-          continue;
-        }
-
-        const lead = leadResult.rows[0];
-
-        // Skip if already qualified
-        if (lead.qualification_score !== null) {
-          console.log(`Lead ${lead_id} already scored (${lead.qualification_score}), skipping`);
-          continue;
-        }
-
-        // Prepare lead data for Claude (include scraped data if available)
-        const leadData = {
-          name: lead.name,
-          business_type: lead.business_type,
-          city: lead.city,
-          state: lead.state,
-          phone: lead.phone,
-          website: lead.website,
-          rating: lead.rating,
-          review_count: lead.review_count,
-          price_level: lead.price_level,
-          web_scraped_data: lead.web_scraped_data,
-        };
-
-        // Score with Claude
-        const result = await scoreLead(leadData);
-
-        // Update lead in Postgres
-        await client.query(
-          `UPDATE leads SET
-             qualification_score = $1,
-             qualification_notes = $2,
-             qualified_at = NOW(),
-             updated_at = NOW()
-           WHERE id = $3`,
-          [result.score, result.notes, lead_id]
-        );
-
-        console.log(`Scored lead ${lead_id}: ${result.score}/100`);
-      } catch (error) {
-        console.error(`Failed to score lead ${lead_id}:`, error);
-        // Let SQS retry via visibility timeout / DLQ
-        throw error;
+      if (leadResult.rows.length === 0) {
+        console.warn(`Lead ${lead_id} not found, skipping`);
+        continue;
       }
+
+      const lead = leadResult.rows[0];
+
+      // Skip if already qualified
+      if (lead.qualification_score !== null) {
+        console.log(`Lead ${lead_id} already scored (${lead.qualification_score}), skipping`);
+        continue;
+      }
+
+      // Prepare lead data for Claude (include scraped data if available)
+      const leadData = {
+        name: lead.name,
+        business_type: lead.business_type,
+        city: lead.city,
+        state: lead.state,
+        phone: lead.phone,
+        website: lead.website,
+        rating: lead.rating,
+        review_count: lead.review_count,
+        price_level: lead.price_level,
+        web_scraped_data: lead.web_scraped_data,
+      };
+
+      // Score with Claude
+      const result = await scoreLead(leadData);
+
+      // Update lead in Postgres
+      await client.query(
+        `UPDATE leads SET
+           qualification_score = $1,
+           qualification_notes = $2,
+           qualified_at = NOW(),
+           updated_at = NOW()
+         WHERE id = $3`,
+        [result.score, result.notes, lead_id]
+      );
+
+      console.log(`Scored lead ${lead_id}: ${result.score}/100`);
+    } catch (error) {
+      console.error(`Failed to score lead ${lead_id}:`, error);
+      // Let SQS retry via visibility timeout / DLQ
+      throw error;
     }
   }
   // Do not end() - keep connection warm for next invocation

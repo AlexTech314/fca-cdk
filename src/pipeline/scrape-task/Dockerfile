@@ -1,7 +1,8 @@
 # Use Puppeteer base image with Chromium pre-installed
-# Pulled via ECR pull-through cache from GitHub Container Registry
-ARG ECR_REGISTRY
-FROM ${ECR_REGISTRY}/ghcr/puppeteer/puppeteer:24.0.0
+# BASE_IMAGE: pass at build time for ECR pull-through cache
+# Default ghcr.io for local builds without --build-arg
+ARG BASE_IMAGE=ghcr.io/puppeteer/puppeteer:24.0.0
+FROM ${BASE_IMAGE}
 
 # Set working directory
 WORKDIR /app

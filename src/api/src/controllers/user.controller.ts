@@ -4,12 +4,12 @@ import { CreateUserInput, UpdateUserInput, ListUsersQuery } from '../models/user
 
 export class UserController {
   async list(
-    req: Request<unknown, unknown, unknown, ListUsersQuery>,
+    req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
-      const { page, limit, search } = req.query;
+      const { page, limit, search } = req.query as unknown as ListUsersQuery;
       const result = await userService.list({ page, limit, search });
 
       res.json({

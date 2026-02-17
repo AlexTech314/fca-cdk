@@ -17,35 +17,36 @@ router.use(authenticate);
 // GET /users - List all users with pagination
 router.get(
   '/',
-  validate({ query: listUsersQuerySchema }),
+  validate(listUsersQuerySchema, 'query'),
   userController.list.bind(userController)
 );
 
 // GET /users/:id - Get user by ID
 router.get(
   '/:id',
-  validate({ params: userIdParamSchema }),
+  validate(userIdParamSchema, 'params'),
   userController.getById.bind(userController)
 );
 
 // POST /users - Create a new user
 router.post(
   '/',
-  validate({ body: createUserSchema }),
+  validate(createUserSchema),
   userController.create.bind(userController)
 );
 
 // PATCH /users/:id - Update a user
 router.patch(
   '/:id',
-  validate({ params: userIdParamSchema, body: updateUserSchema }),
+  validate(userIdParamSchema, 'params'),
+  validate(updateUserSchema),
   userController.update.bind(userController)
 );
 
 // DELETE /users/:id - Delete a user
 router.delete(
   '/:id',
-  validate({ params: userIdParamSchema }),
+  validate(userIdParamSchema, 'params'),
   userController.delete.bind(userController)
 );
 

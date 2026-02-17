@@ -26,11 +26,14 @@ export const userIdParamSchema = z.object({
   id: z.string().uuid('Invalid user ID'),
 });
 
-// Schema for list query params
+// Schema for list query params (Express sends string | string[])
+const parseQueryVal = (v: unknown): string | undefined =>
+  Array.isArray(v) ? (v[0] as string) : typeof v === 'string' ? v : undefined;
+
 export const listUsersQuerySchema = z.object({
-  page: z.string().transform(Number).default('1'),
-  limit: z.string().transform(Number).default('10'),
-  search: z.string().optional(),
+  page: z.preprocess(parseQueryVal, z.coerce.number().default(1)),
+  limit: z.preprocess(parseQueryVal, z.coerce.number().default(10)),
+  search: z.preprocess(parseQueryVal, z.string().optional()),
 });
 
 // TypeScript types derived from schemas

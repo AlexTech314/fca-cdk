@@ -59,6 +59,17 @@ import {
 
 const router = Router();
 
+/** Normalize Express param (string | string[]) to string */
+const p = (req: { params: Record<string, string | string[]> }, key: string): string =>
+  (Array.isArray(req.params[key]) ? (req.params[key] as string[])[0] : req.params[key]) ?? '';
+
+/** Normalize Express query value for number parsing */
+const qNum = (req: { query: Record<string, unknown> }, key: string, def: number): number => {
+  const v = req.query[key];
+  const s = Array.isArray(v) ? v[0] : v;
+  return s ? parseInt(String(s), 10) : def;
+};
+
 // Apply authentication to all admin routes
 router.use(authenticate);
 
@@ -102,7 +113,7 @@ router.get('/tombstones', validate(tombstoneQuerySchema, 'query'), async (req, r
 
 router.get('/tombstones/:id', async (req, res, next) => {
   try {
-    const tombstone = await tombstoneService.getById(req.params.id);
+    const tombstone = await tombstoneService.getById(p(req, 'id'));
     if (!tombstone) {
       return res.status(404).json({ error: 'Tombstone not found' });
     }
@@ -123,7 +134,7 @@ router.post('/tombstones', authorize('readwrite', 'admin'), validate(createTombs
 
 router.put('/tombstones/:id', authorize('readwrite', 'admin'), validate(updateTombstoneSchema), async (req, res, next) => {
   try {
-    const tombstone = await tombstoneService.update(req.params.id, req.body);
+    const tombstone = await tombstoneService.update(p(req, 'id'), req.body);
     res.json(tombstone);
   } catch (error) {
     next(error);
@@ -132,7 +143,7 @@ router.put('/tombstones/:id', authorize('readwrite', 'admin'), validate(updateTo
 
 router.delete('/tombstones/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await tombstoneService.delete(req.params.id);
+    await tombstoneService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -142,7 +153,7 @@ router.delete('/tombstones/:id', authorize('admin'), async (req, res, next) => {
 router.post('/tombstones/:id/publish', authorize('readwrite', 'admin'), async (req, res, next) => {
   try {
     const { publish = true } = req.body;
-    const tombstone = await tombstoneService.publish(req.params.id, publish);
+    const tombstone = await tombstoneService.publish(p(req, 'id'), publish);
     res.json(tombstone);
   } catch (error) {
     next(error);
@@ -152,7 +163,7 @@ router.post('/tombstones/:id/publish', authorize('readwrite', 'admin'), async (r
 router.put('/tombstones/:id/press-release', authorize('readwrite', 'admin'), async (req, res, next) => {
   try {
     const { pressReleaseId } = req.body;
-    const tombstone = await tombstoneService.linkPressRelease(req.params.id, pressReleaseId);
+    const tombstone = await tombstoneService.linkPressRelease(p(req, 'id'), pressReleaseId);
     res.json(tombstone);
   } catch (error) {
     next(error);
@@ -174,7 +185,7 @@ router.get('/blog-posts', validate(blogPostQuerySchema, 'query'), async (req, re
 
 router.get('/blog-posts/:id', async (req, res, next) => {
   try {
-    const post = await blogPostService.getById(req.params.id);
+    const post = await blogPostService.getById(p(req, 'id'));
     if (!post) {
       return res.status(404).json({ error: 'Blog post not found' });
     }
@@ -195,7 +206,7 @@ router.post('/blog-posts', authorize('readwrite', 'admin'), validate(createBlogP
 
 router.put('/blog-posts/:id', authorize('readwrite', 'admin'), validate(updateBlogPostSchema), async (req, res, next) => {
   try {
-    const post = await blogPostService.update(req.params.id, req.body);
+    const post = await blogPostService.update(p(req, 'id'), req.body);
     res.json(post);
   } catch (error) {
     next(error);
@@ -204,7 +215,7 @@ router.put('/blog-posts/:id', authorize('readwrite', 'admin'), validate(updateBl
 
 router.delete('/blog-posts/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await blogPostService.delete(req.params.id);
+    await blogPostService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -214,7 +225,7 @@ router.delete('/blog-posts/:id', authorize('admin'), async (req, res, next) => {
 router.post('/blog-posts/:id/publish', authorize('readwrite', 'admin'), async (req, res, next) => {
   try {
     const { publish = true } = req.body;
-    const post = await blogPostService.publish(req.params.id, publish);
+    const post = await blogPostService.publish(p(req, 'id'), publish);
     res.json(post);
   } catch (error) {
     next(error);
@@ -245,7 +256,7 @@ router.post('/tags', authorize('admin'), validate(createContentTagSchema), async
 
 router.put('/tags/:id', authorize('admin'), validate(updateContentTagSchema), async (req, res, next) => {
   try {
-    const tag = await contentTagService.update(req.params.id, req.body);
+    const tag = await contentTagService.update(p(req, 'id'), req.body);
     res.json(tag);
   } catch (error) {
     next(error);
@@ -254,7 +265,7 @@ router.put('/tags/:id', authorize('admin'), validate(updateContentTagSchema), as
 
 router.delete('/tags/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await contentTagService.delete(req.params.id);
+    await contentTagService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -276,7 +287,7 @@ router.get('/pages', async (_req, res, next) => {
 
 router.get('/pages/:pageKey', async (req, res, next) => {
   try {
-    const page = await pageContentService.getByKey(req.params.pageKey);
+    const page = await pageContentService.getByKey(p(req, 'pageKey'));
     if (!page) {
       return res.status(404).json({ error: 'Page not found' });
     }
@@ -288,7 +299,7 @@ router.get('/pages/:pageKey', async (req, res, next) => {
 
 router.put('/pages/:pageKey', authorize('readwrite', 'admin'), validate(updatePageContentSchema), async (req, res, next) => {
   try {
-    const page = await pageContentService.update(req.params.pageKey, req.body);
+    const page = await pageContentService.update(p(req, 'pageKey'), req.body);
     res.json(page);
   } catch (error) {
     next(error);
@@ -310,7 +321,7 @@ router.get('/subscribers', validate(subscriberQuerySchema, 'query'), async (req,
 
 router.delete('/subscribers/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await subscriberService.delete(req.params.id);
+    await subscriberService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -332,7 +343,7 @@ router.get('/seller-intakes', validate(sellerIntakeQuerySchema, 'query'), async 
 
 router.get('/seller-intakes/:id', async (req, res, next) => {
   try {
-    const intake = await sellerIntakeService.getById(req.params.id);
+    const intake = await sellerIntakeService.getById(p(req, 'id'));
     if (!intake) {
       return res.status(404).json({ error: 'Seller intake not found' });
     }
@@ -344,7 +355,7 @@ router.get('/seller-intakes/:id', async (req, res, next) => {
 
 router.put('/seller-intakes/:id', authorize('readwrite', 'admin'), validate(updateSellerIntakeSchema), async (req, res, next) => {
   try {
-    const intake = await sellerIntakeService.update(req.params.id, req.body);
+    const intake = await sellerIntakeService.update(p(req, 'id'), req.body);
     res.json(intake);
   } catch (error) {
     next(error);
@@ -366,7 +377,7 @@ router.get('/analytics/pageviews', validate(analyticsQuerySchema, 'query'), asyn
 
 router.get('/analytics/top-pages', async (req, res, next) => {
   try {
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+    const limit = qNum(req, 'limit', 20);
     const result = await analyticsService.getTopPages(limit);
     res.json(result);
   } catch (error) {
@@ -376,7 +387,7 @@ router.get('/analytics/top-pages', async (req, res, next) => {
 
 router.get('/analytics/trends', async (req, res, next) => {
   try {
-    const days = req.query.days ? parseInt(req.query.days as string, 10) : 7;
+    const days = qNum(req, 'days', 7);
     const result = await analyticsService.getTrends(days);
     res.json(result);
   } catch (error) {
@@ -399,7 +410,7 @@ router.get('/team-members', validate(teamMemberQuerySchema, 'query'), async (req
 
 router.get('/team-members/:id', async (req, res, next) => {
   try {
-    const member = await teamMemberService.getById(req.params.id);
+    const member = await teamMemberService.getById(p(req, 'id'));
     if (!member) {
       return res.status(404).json({ error: 'Team member not found' });
     }
@@ -420,7 +431,7 @@ router.post('/team-members', authorize('readwrite', 'admin'), validate(createTea
 
 router.put('/team-members/:id', authorize('readwrite', 'admin'), validate(updateTeamMemberSchema), async (req, res, next) => {
   try {
-    const member = await teamMemberService.update(req.params.id, req.body);
+    const member = await teamMemberService.update(p(req, 'id'), req.body);
     res.json(member);
   } catch (error) {
     next(error);
@@ -429,7 +440,7 @@ router.put('/team-members/:id', authorize('readwrite', 'admin'), validate(update
 
 router.delete('/team-members/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await teamMemberService.delete(req.params.id);
+    await teamMemberService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -460,7 +471,7 @@ router.get('/community-services', async (_req, res, next) => {
 
 router.get('/community-services/:id', async (req, res, next) => {
   try {
-    const service = await communityServiceService.getById(req.params.id);
+    const service = await communityServiceService.getById(p(req, 'id'));
     if (!service) {
       return res.status(404).json({ error: 'Community service not found' });
     }
@@ -481,7 +492,7 @@ router.post('/community-services', authorize('readwrite', 'admin'), validate(cre
 
 router.put('/community-services/:id', authorize('readwrite', 'admin'), validate(updateCommunityServiceSchema), async (req, res, next) => {
   try {
-    const service = await communityServiceService.update(req.params.id, req.body);
+    const service = await communityServiceService.update(p(req, 'id'), req.body);
     res.json(service);
   } catch (error) {
     next(error);
@@ -490,7 +501,7 @@ router.put('/community-services/:id', authorize('readwrite', 'admin'), validate(
 
 router.delete('/community-services/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await communityServiceService.delete(req.params.id);
+    await communityServiceService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -512,7 +523,7 @@ router.get('/faqs', async (_req, res, next) => {
 
 router.get('/faqs/:id', async (req, res, next) => {
   try {
-    const faq = await faqService.getById(req.params.id);
+    const faq = await faqService.getById(p(req, 'id'));
     if (!faq) {
       return res.status(404).json({ error: 'FAQ not found' });
     }
@@ -533,7 +544,7 @@ router.post('/faqs', authorize('readwrite', 'admin'), validate(createFAQSchema),
 
 router.put('/faqs/:id', authorize('readwrite', 'admin'), validate(updateFAQSchema), async (req, res, next) => {
   try {
-    const faq = await faqService.update(req.params.id, req.body);
+    const faq = await faqService.update(p(req, 'id'), req.body);
     res.json(faq);
   } catch (error) {
     next(error);
@@ -542,7 +553,7 @@ router.put('/faqs/:id', authorize('readwrite', 'admin'), validate(updateFAQSchem
 
 router.delete('/faqs/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await faqService.delete(req.params.id);
+    await faqService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -573,7 +584,7 @@ router.get('/core-values', async (_req, res, next) => {
 
 router.get('/core-values/:id', async (req, res, next) => {
   try {
-    const value = await coreValueService.getById(req.params.id);
+    const value = await coreValueService.getById(p(req, 'id'));
     if (!value) {
       return res.status(404).json({ error: 'Core value not found' });
     }
@@ -594,7 +605,7 @@ router.post('/core-values', authorize('readwrite', 'admin'), validate(createCore
 
 router.put('/core-values/:id', authorize('readwrite', 'admin'), validate(updateCoreValueSchema), async (req, res, next) => {
   try {
-    const value = await coreValueService.update(req.params.id, req.body);
+    const value = await coreValueService.update(p(req, 'id'), req.body);
     res.json(value);
   } catch (error) {
     next(error);
@@ -603,7 +614,7 @@ router.put('/core-values/:id', authorize('readwrite', 'admin'), validate(updateC
 
 router.delete('/core-values/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await coreValueService.delete(req.params.id);
+    await coreValueService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -634,7 +645,7 @@ router.get('/industry-sectors', async (_req, res, next) => {
 
 router.get('/industry-sectors/:id', async (req, res, next) => {
   try {
-    const sector = await industrySectorService.getById(req.params.id);
+    const sector = await industrySectorService.getById(p(req, 'id'));
     if (!sector) {
       return res.status(404).json({ error: 'Industry sector not found' });
     }
@@ -655,7 +666,7 @@ router.post('/industry-sectors', authorize('readwrite', 'admin'), validate(creat
 
 router.put('/industry-sectors/:id', authorize('readwrite', 'admin'), validate(updateIndustrySectorSchema), async (req, res, next) => {
   try {
-    const sector = await industrySectorService.update(req.params.id, req.body);
+    const sector = await industrySectorService.update(p(req, 'id'), req.body);
     res.json(sector);
   } catch (error) {
     next(error);
@@ -664,7 +675,7 @@ router.put('/industry-sectors/:id', authorize('readwrite', 'admin'), validate(up
 
 router.delete('/industry-sectors/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await industrySectorService.delete(req.params.id);
+    await industrySectorService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -686,7 +697,7 @@ router.get('/service-offerings', validate(serviceOfferingQuerySchema, 'query'), 
 
 router.get('/service-offerings/:id', async (req, res, next) => {
   try {
-    const offering = await serviceOfferingService.getById(req.params.id);
+    const offering = await serviceOfferingService.getById(p(req, 'id'));
     if (!offering) {
       return res.status(404).json({ error: 'Service offering not found' });
     }
@@ -707,7 +718,7 @@ router.post('/service-offerings', authorize('readwrite', 'admin'), validate(crea
 
 router.put('/service-offerings/:id', authorize('readwrite', 'admin'), validate(updateServiceOfferingSchema), async (req, res, next) => {
   try {
-    const offering = await serviceOfferingService.update(req.params.id, req.body);
+    const offering = await serviceOfferingService.update(p(req, 'id'), req.body);
     res.json(offering);
   } catch (error) {
     next(error);
@@ -716,7 +727,7 @@ router.put('/service-offerings/:id', authorize('readwrite', 'admin'), validate(u
 
 router.delete('/service-offerings/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await serviceOfferingService.delete(req.params.id);
+    await serviceOfferingService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -738,7 +749,7 @@ router.get('/awards', async (_req, res, next) => {
 
 router.get('/awards/:id', async (req, res, next) => {
   try {
-    const award = await awardService.getById(req.params.id);
+    const award = await awardService.getById(p(req, 'id'));
     if (!award) {
       return res.status(404).json({ error: 'Award not found' });
     }
@@ -759,7 +770,7 @@ router.post('/awards', authorize('readwrite', 'admin'), validate(createAwardSche
 
 router.put('/awards/:id', authorize('readwrite', 'admin'), validate(updateAwardSchema), async (req, res, next) => {
   try {
-    const award = await awardService.update(req.params.id, req.body);
+    const award = await awardService.update(p(req, 'id'), req.body);
     res.json(award);
   } catch (error) {
     next(error);
@@ -768,7 +779,7 @@ router.put('/awards/:id', authorize('readwrite', 'admin'), validate(updateAwardS
 
 router.delete('/awards/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await awardService.delete(req.params.id);
+    await awardService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -799,7 +810,7 @@ router.get('/assets', validate(assetQuerySchema, 'query'), async (req, res, next
 
 router.get('/assets/:id', async (req, res, next) => {
   try {
-    const asset = await assetService.getById(req.params.id);
+    const asset = await assetService.getById(p(req, 'id'));
     if (!asset) {
       return res.status(404).json({ error: 'Asset not found' });
     }
@@ -820,7 +831,7 @@ router.post('/assets', authorize('readwrite', 'admin'), validate(createAssetSche
 
 router.put('/assets/:id', authorize('readwrite', 'admin'), validate(updateAssetSchema), async (req, res, next) => {
   try {
-    const asset = await assetService.update(req.params.id, req.body);
+    const asset = await assetService.update(p(req, 'id'), req.body);
     res.json(asset);
   } catch (error) {
     next(error);
@@ -829,7 +840,7 @@ router.put('/assets/:id', authorize('readwrite', 'admin'), validate(updateAssetS
 
 router.delete('/assets/:id', authorize('admin'), async (req, res, next) => {
   try {
-    await assetService.delete(req.params.id);
+    await assetService.delete(p(req, 'id'));
     res.status(204).send();
   } catch (error) {
     next(error);

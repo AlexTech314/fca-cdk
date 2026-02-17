@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import { prisma } from '@fca/db';
 
 export const franchiseRepository = {
   async findMany() {

@@ -1,12 +1,18 @@
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
+import * as path from 'path';
 
 export interface StatefulStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
+  /** Cognito User Pool ID for seed-db Lambda to create admin user (optional) */
+  readonly cognitoUserPoolId?: string;
 }
 
 /**
@@ -27,7 +33,7 @@ export class StatefulStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: StatefulStackProps) {
     super(scope, id, props);
 
-    const { vpc } = props;
+    const { vpc, cognitoUserPoolId } = props;
 
     // ============================================================
     // Security Group for RDS
@@ -119,8 +125,57 @@ export class StatefulStack extends cdk.Stack {
     });
 
     // ============================================================
+    // Seed DB Lambda (invoke to wipe/migrate/seed the database)
+    // ============================================================
+    const seedLambdaLogGroup = new logs.LogGroup(this, 'SeedDbLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const seedLambda = new lambda.DockerImageFunction(this, 'SeedDbLambda', {
+      code: lambda.DockerImageCode.fromImageAsset(
+        path.join(__dirname, '../../src'),
+        { file: 'lambda/seed-db/Dockerfile' }
+      ),
+      timeout: cdk.Duration.minutes(10),
+      memorySize: 512,
+      logGroup: seedLambdaLogGroup,
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [this.pipelineSecurityGroup],
+      environment: {
+        DATABASE_SECRET_ARN: this.databaseSecret.secretArn,
+        DATABASE_HOST: this.database.dbInstanceEndpointAddress,
+        ...(cognitoUserPoolId ? { COGNITO_USER_POOL_ID: cognitoUserPoolId } : {}),
+      },
+    });
+
+    this.databaseSecret.grantRead(seedLambda);
+
+    if (cognitoUserPoolId) {
+      seedLambda.addToRolePolicy(
+        new iam.PolicyStatement({
+          actions: [
+            'cognito-idp:AdminCreateUser',
+            'cognito-idp:AdminSetUserPassword',
+            'cognito-idp:AdminAddUserToGroup',
+            'cognito-idp:CreateGroup',
+          ],
+          resources: [
+            `arn:aws:cognito-idp:${this.region}:${this.account}:userpool/${cognitoUserPoolId}`,
+          ],
+        })
+      );
+    }
+
+    // ============================================================
     // Outputs
     // ============================================================
+    new cdk.CfnOutput(this, 'SeedDbLambdaArn', {
+      value: seedLambda.functionArn,
+      description: 'Seed DB Lambda ARN (invoke with: aws lambda invoke --function-name <arn> --payload \'{"action":"reset"}\' /dev/stdout)',
+    });
+
     new cdk.CfnOutput(this, 'DatabaseEndpoint', {
       value: this.database.dbInstanceEndpointAddress,
       description: 'RDS PostgreSQL endpoint',

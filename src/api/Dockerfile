@@ -1,45 +1,57 @@
-# Node Express API Server
-FROM node:20-slim AS builder
+# Build context: src/ (not src/api/)
+# Build db package first, then API
 
+# Stage 1: Build shared db package
+FROM node:20-slim AS db-builder
+WORKDIR /app/packages/db
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+COPY packages/db/package*.json ./
+RUN npm ci
+COPY packages/db/prisma ./prisma/
+RUN npx prisma generate
+COPY packages/db/src ./src/
+COPY packages/db/tsconfig.json ./
+RUN npx tsc
+
+# Stage 2: Build API
+FROM node:20-slim AS builder
 WORKDIR /app
 
-# Install OpenSSL (required for Prisma)
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-COPY package*.json ./
-RUN npm ci
+# Copy built db package
+COPY --from=db-builder /app/packages/db /app/packages/db
 
-# Copy Prisma schema and generate client
-COPY prisma ./prisma/
-RUN npx prisma generate
+# Install API dependencies (resolves @fca/db via file: link)
+COPY api/package*.json ./api/
+RUN cd api && npm ci
 
-# Copy source and build
-COPY . .
-RUN npm run build
+# Copy API source and build
+COPY api/src ./api/src/
+COPY api/tsconfig.json ./api/
+RUN cd api && npm run build
 
-# Production image
+# Stage 3: Production image
 FROM node:20-slim AS runner
-
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install OpenSSL (required for Prisma)
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
 RUN groupadd --system --gid 1001 nodejs && \
     useradd --system --uid 1001 --gid nodejs express
 
-# Copy built assets and Prisma client
-COPY --from=builder --chown=express:nodejs /app/dist ./dist
-COPY --from=builder --chown=express:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=express:nodejs /app/package.json ./
-COPY --from=builder --chown=express:nodejs /app/prisma ./prisma
+# Copy db package (needed at runtime for Prisma client)
+COPY --from=db-builder --chown=express:nodejs /app/packages/db /app/packages/db
+
+# Copy built API
+COPY --from=builder --chown=express:nodejs /app/api/dist ./api/dist
+COPY --from=builder --chown=express:nodejs /app/api/node_modules ./api/node_modules
+COPY --from=builder --chown=express:nodejs /app/api/package.json ./api/
 
 USER express
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "api/dist/index.js"]

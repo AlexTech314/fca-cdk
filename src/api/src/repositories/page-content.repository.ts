@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import { prisma } from '@fca/db';
 import type { PageContentInput, UpdatePageContentInput } from '../models/page-content.model';
 
 export const pageContentRepository = {

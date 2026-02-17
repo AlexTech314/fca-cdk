@@ -100,7 +100,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     const bridgeLambda = new lambda.DockerImageFunction(this, 'BridgeLambda', {
       code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src/lambda/bridge')
+        path.join(__dirname, '../../src'),
+        { file: 'lambda/bridge/Dockerfile' }
       ),
       timeout: cdk.Duration.seconds(10),
       memorySize: 128,
@@ -140,7 +141,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     placesTaskDef.addContainer('places', {
       image: ecs.ContainerImage.fromAsset(
-        path.join(__dirname, '../../src/pipeline/places-task')
+        path.join(__dirname, '../../src'),
+        { file: 'pipeline/places-task/Dockerfile' }
       ),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'places',
@@ -170,7 +172,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     const startPlacesLambda = new lambda.DockerImageFunction(this, 'StartPlaces', {
       code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src/lambda/start-places')
+        path.join(__dirname, '../../src'),
+        { file: 'lambda/start-places/Dockerfile' }
       ),
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
@@ -206,8 +209,9 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     scrapeTaskDef.addContainer('scrape', {
       image: ecs.ContainerImage.fromAsset(
-        path.join(__dirname, '../../src/pipeline/scrape-task'),
+        path.join(__dirname, '../../src'),
         {
+          file: 'pipeline/scrape-task/Dockerfile',
           buildArgs: {
             BASE_IMAGE: baseImage,
           },
@@ -238,7 +242,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     const prepareScrapeLambda = new lambda.DockerImageFunction(this, 'PrepareScrape', {
       code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src/lambda/prepare-scrape')
+        path.join(__dirname, '../../src'),
+        { file: 'lambda/prepare-scrape/Dockerfile' }
       ),
       timeout: cdk.Duration.minutes(5),
       memorySize: 512,
@@ -266,7 +271,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     const aggregateScrapeLambda = new lambda.DockerImageFunction(this, 'AggregateScrape', {
       code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src/lambda/aggregate-scrape')
+        path.join(__dirname, '../../src'),
+        { file: 'lambda/aggregate-scrape/Dockerfile' }
       ),
       timeout: cdk.Duration.minutes(5),
       memorySize: 512,
@@ -362,7 +368,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     const scoringLambda = new lambda.DockerImageFunction(this, 'ScoringLambda', {
       code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src/lambda/score-leads')
+        path.join(__dirname, '../../src'),
+        { file: 'lambda/score-leads/Dockerfile' }
       ),
       timeout: cdk.Duration.minutes(3),
       memorySize: 256,

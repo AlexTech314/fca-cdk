@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import { prisma } from '@fca/db';
 import type { CreateAssetInput, UpdateAssetInput, AssetQuery } from '../models/asset.model';
 
 export const assetRepository = {

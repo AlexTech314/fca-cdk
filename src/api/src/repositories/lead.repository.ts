@@ -1,5 +1,5 @@
-import { prisma } from '../lib/prisma';
-import type { Prisma } from '@prisma/client';
+import { prisma } from '@fca/db';
+import type { Prisma } from '@fca/db';
 import type { LeadQuery } from '../models/lead.model';
 
 // Map sort field names from camelCase frontend to Prisma field names

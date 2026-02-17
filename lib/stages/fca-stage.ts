@@ -36,13 +36,18 @@ export class FcaStage extends cdk.Stage {
     // Stack 1: Shared VPC
     this.networkStack = new NetworkStack(this, 'Network', {});
 
-    // Stack 2: Stateful resources (RDS, S3)
+    // Stack 2: Cognito (no dependencies; created before Stateful for seed-db Lambda)
+    this.cognitoStack = new CognitoStack(this, 'Cognito', {});
+
+    // Stack 3: Stateful resources (RDS, S3)
     this.statefulStack = new StatefulStack(this, 'Stateful', {
       vpc: this.networkStack.vpc,
+      cognitoUserPoolId: this.cognitoStack.userPool.userPoolId,
     });
     this.statefulStack.addDependency(this.networkStack);
+    this.statefulStack.addDependency(this.cognitoStack);
 
-    // Stack 3: Lead generation pipeline (compute, queues, step functions)
+    // Stack 4: Lead generation pipeline (compute, queues, step functions)
     this.pipelineStack = new LeadGenPipelineStack(this, 'LeadGenPipeline', {
       vpc: this.networkStack.vpc,
       database: this.statefulStack.database,
@@ -51,9 +56,6 @@ export class FcaStage extends cdk.Stage {
       campaignDataBucket: this.statefulStack.campaignDataBucket,
     });
     this.pipelineStack.addDependency(this.statefulStack);
-
-    // Stack 4: Cognito (no dependencies)
-    this.cognitoStack = new CognitoStack(this, 'Cognito', {});
 
     // Stack 5: API (shared by lead-gen-spa, nextjs-web)
     this.apiStack = new ApiStack(this, 'Api', {

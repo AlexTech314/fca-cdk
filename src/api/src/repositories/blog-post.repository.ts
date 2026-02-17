@@ -1,5 +1,5 @@
-import { prisma } from '../lib/prisma';
-import type { Prisma } from '@prisma/client';
+import { prisma } from '@fca/db';
+import type { Prisma } from '@fca/db';
 import type { BlogPostQuery, CreateBlogPostInput, UpdateBlogPostInput } from '../models/blog-post.model';
 
 export const blogPostRepository = {

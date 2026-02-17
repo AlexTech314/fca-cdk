@@ -68,7 +68,8 @@ export class ApiStack extends cdk.Stack {
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
       },
       taskImageOptions: {
-        image: ecs.ContainerImage.fromAsset(path.join(__dirname, '../../src/api'), {
+        image: ecs.ContainerImage.fromAsset(path.join(__dirname, '../../src'), {
+          file: 'api/Dockerfile',
           platform: ecr_assets.Platform.LINUX_ARM64,
         }),
         containerPort: 3000,

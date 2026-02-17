@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import { prisma } from '@fca/db';
 import { CreateUserInput, UpdateUserInput } from '../models/user.model';
 
 export interface PaginationOptions {

@@ -1,4 +1,5 @@
 # Development Dockerfile with hot reload
+# Build context: src/ (not src/api/)
 FROM node:20-slim
 
 WORKDIR /app
@@ -6,28 +7,27 @@ WORKDIR /app
 # Install OpenSSL and bash (required for Prisma on Debian slim)
 RUN apt-get update && apt-get install -y openssl bash && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-COPY package*.json ./
-RUN npm ci
-
 # Install ts-node globally for seed script
 RUN npm install -g ts-node typescript
 
-# Copy Prisma schema for generation
-COPY prisma ./prisma/
+# Install db package
+COPY packages/db/package*.json ./packages/db/
+RUN cd packages/db && npm ci
+COPY packages/db/prisma ./packages/db/prisma/
+RUN cd packages/db && npx prisma generate
+COPY packages/db/src ./packages/db/src/
+COPY packages/db/tsconfig.json ./packages/db/
+RUN cd packages/db && npx tsc
 
-# Generate Prisma client
-RUN npx prisma generate
+# Install API dependencies
+COPY api/package*.json ./api/
+RUN cd api && npm ci
 
-# Copy source files (will be overwritten by volume mount)
-COPY . .
+# Copy API source (will be overwritten by volume mount for hot reload)
+COPY api/ ./api/
 
-# Copy entrypoint script
-COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+WORKDIR /app/api
 
-# Expose port
 EXPOSE 3000
 
-# Use entrypoint script to run migrations, seed, then start dev server
-ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["npx", "ts-node-dev", "--respawn", "--transpile-only", "src/index.ts"]

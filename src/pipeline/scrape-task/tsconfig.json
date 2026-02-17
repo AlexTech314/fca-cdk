@@ -14,6 +14,6 @@
     "declaration": true,
     "declarationMap": true
   },
-  "include": ["*.ts"],
+  "include": ["*.ts", "extractors/**/*.ts", "scraper/**/*.ts", "storage/**/*.ts", "utils/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

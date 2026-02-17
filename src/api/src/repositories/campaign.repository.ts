@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import { prisma } from '@fca/db';
 import type { CreateCampaignInput, UpdateCampaignInput } from '../models/campaign.model';
 
 export const campaignRepository = {

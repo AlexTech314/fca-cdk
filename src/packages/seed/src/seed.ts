@@ -13,9 +13,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
-import { TAG_TAXONOMY, matchContentToTags } from '../src/lib/taxonomy';
-
-const prisma = new PrismaClient();
+import { TAG_TAXONOMY, matchContentToTags } from '@fca/db';
 
 // Seed logger -- wraps console for eslint compliance
 const log = {
@@ -23,8 +21,8 @@ const log = {
   error: (...args: unknown[]): void => { process.stderr.write(args.map(String).join(' ') + '\n'); },
 };
 
-// Seed data lives alongside this file in prisma/data/
-const SEED_DATA_DIR = path.resolve(__dirname, 'data');
+// Seed data lives in ../data/ relative to this file
+const SEED_DATA_DIR = path.resolve(__dirname, '../data');
 const TOMBSTONES_CSV = path.join(SEED_DATA_DIR, 'tombstones.csv');
 const NEWS_DIR = path.join(SEED_DATA_DIR, 'news');
 const ARTICLES_DIR = path.join(SEED_DATA_DIR, 'articles');
@@ -148,7 +146,7 @@ function parseMarkdown(content: string): MarkdownMetadata {
 function loadTombstoneImages(): Record<string, string> {
   const out: Record<string, string> = {};
   // Load from bundled tombstone-images.json (canonical source)
-  const jsonPath = path.join(__dirname, 'tombstone-images.json');
+  const jsonPath = path.join(__dirname, '../data/tombstone-images.json');
   if (fs.existsSync(jsonPath)) {
     const data = JSON.parse(fs.readFileSync(jsonPath, 'utf-8')) as Record<string, string>;
     Object.assign(out, data);
@@ -291,7 +289,7 @@ function parseDate(dateStr: string | undefined): Date | null {
 // SEED FUNCTIONS
 // ============================================
 
-async function seedSiteConfig(): Promise<void> {
+async function seedSiteConfig(prisma: PrismaClient): Promise<void> {
   log.info('Seeding site config...');
 
   const siteConfigData = {
@@ -356,7 +354,7 @@ async function seedSiteConfig(): Promise<void> {
   log.info('  Seeded site config');
 }
 
-async function seedContentTags(): Promise<void> {
+async function seedContentTags(prisma: PrismaClient): Promise<void> {
   log.info('Seeding content tags...');
 
   for (const tag of TAG_TAXONOMY) {
@@ -381,7 +379,7 @@ async function seedContentTags(): Promise<void> {
   log.info(`  Seeded ${TAG_TAXONOMY.length} content tags`);
 }
 
-async function seedAssets(): Promise<void> {
+async function seedAssets(prisma: PrismaClient): Promise<void> {
   log.info('Seeding assets from existing S3 references...');
 
   const tombstoneImages = loadTombstoneImages();
@@ -488,7 +486,7 @@ async function seedAssets(): Promise<void> {
   log.info(`  Seeded ${count} assets`);
 }
 
-async function seedTombstones(): Promise<void> {
+async function seedTombstones(prisma: PrismaClient): Promise<void> {
   log.info('Seeding tombstones from CSV...');
 
   const tombstoneImages = loadTombstoneImages();
@@ -566,7 +564,7 @@ async function seedTombstones(): Promise<void> {
   log.info(`  Seeded ${count} tombstones`);
 }
 
-async function seedBlogPosts(): Promise<void> {
+async function seedBlogPosts(prisma: PrismaClient): Promise<void> {
   log.info('Seeding blog posts from markdown...');
 
   let newsCount = 0;
@@ -685,7 +683,7 @@ async function seedBlogPosts(): Promise<void> {
   log.info(`  Seeded ${articlesCount} resource articles`);
 }
 
-async function linkPressReleases(): Promise<void> {
+async function linkPressReleases(prisma: PrismaClient): Promise<void> {
   log.info('Linking press releases to tombstones...');
 
   // Get all tombstones and blog posts
@@ -727,7 +725,7 @@ async function linkPressReleases(): Promise<void> {
   log.info(`  Linked ${linkedCount} press releases to tombstones`);
 }
 
-async function seedTeamMembers(): Promise<void> {
+async function seedTeamMembers(prisma: PrismaClient): Promise<void> {
   log.info('Seeding team members...');
 
   const leadership = [
@@ -845,7 +843,7 @@ async function seedTeamMembers(): Promise<void> {
   log.info(`  Seeded ${allMembers.length} team members`);
 }
 
-async function seedCommunityServices(): Promise<void> {
+async function seedCommunityServices(prisma: PrismaClient): Promise<void> {
   log.info('Seeding community services...');
 
   const services = [
@@ -895,7 +893,7 @@ async function seedCommunityServices(): Promise<void> {
   log.info(`  Seeded ${services.length} community services`);
 }
 
-async function seedFAQs(): Promise<void> {
+async function seedFAQs(prisma: PrismaClient): Promise<void> {
   log.info('Seeding FAQs...');
 
   const faqs = [
@@ -955,7 +953,7 @@ async function seedFAQs(): Promise<void> {
   log.info(`  Seeded ${faqs.length} FAQs`);
 }
 
-async function seedCoreValues(): Promise<void> {
+async function seedCoreValues(prisma: PrismaClient): Promise<void> {
   log.info('Seeding core values...');
 
   const values = [
@@ -985,7 +983,7 @@ async function seedCoreValues(): Promise<void> {
   log.info(`  Seeded ${values.length} core values`);
 }
 
-async function seedIndustrySectors(): Promise<void> {
+async function seedIndustrySectors(prisma: PrismaClient): Promise<void> {
   log.info('Seeding industry sectors...');
 
   const sectors = [
@@ -1011,7 +1009,7 @@ async function seedIndustrySectors(): Promise<void> {
   log.info(`  Seeded ${sectors.length} industry sectors`);
 }
 
-async function seedServiceOfferings(): Promise<void> {
+async function seedServiceOfferings(prisma: PrismaClient): Promise<void> {
   log.info('Seeding service offerings...');
 
   const offerings = [
@@ -1076,7 +1074,7 @@ async function seedServiceOfferings(): Promise<void> {
   log.info(`  Seeded ${offerings.length} service offerings`);
 }
 
-async function seedAwards(): Promise<void> {
+async function seedAwards(prisma: PrismaClient): Promise<void> {
   log.info('Seeding awards...');
 
   const awards = [
@@ -1121,7 +1119,7 @@ async function seedAwards(): Promise<void> {
   log.info(`  Seeded ${awards.length} awards`);
 }
 
-async function seedPageContent(): Promise<void> {
+async function seedPageContent(prisma: PrismaClient): Promise<void> {
   log.info('Seeding page content...');
 
   const pages = [
@@ -1396,35 +1394,65 @@ Finally, the business owner can feel confident with the ultimate sale price beca
 }
 
 // ============================================
-// MAIN
+// EXPORTED SEED / WIPE FUNCTIONS
 // ============================================
 
-async function main(): Promise<void> {
+export async function runSeed(prisma: PrismaClient): Promise<void> {
   log.info('Starting database seed...\n');
 
   try {
-    await seedSiteConfig();
-    await seedContentTags();
-    await seedAssets();
-    await seedTombstones();
-    await seedBlogPosts();
-    await linkPressReleases();
-    await seedTeamMembers();
-    await seedCommunityServices();
-    await seedFAQs();
-    await seedCoreValues();
-    await seedIndustrySectors();
-    await seedServiceOfferings();
-    await seedAwards();
-    await seedPageContent();
+    await seedSiteConfig(prisma);
+    await seedContentTags(prisma);
+    await seedAssets(prisma);
+    await seedTombstones(prisma);
+    await seedBlogPosts(prisma);
+    await linkPressReleases(prisma);
+    await seedTeamMembers(prisma);
+    await seedCommunityServices(prisma);
+    await seedFAQs(prisma);
+    await seedCoreValues(prisma);
+    await seedIndustrySectors(prisma);
+    await seedServiceOfferings(prisma);
+    await seedAwards(prisma);
+    await seedPageContent(prisma);
 
     log.info('\nDatabase seed completed successfully!');
   } catch (error) {
     log.error('Seed failed:', error);
     throw error;
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
-main();
+export async function wipeSeed(prisma: PrismaClient): Promise<void> {
+  log.info('Wiping seed data...');
+  await prisma.tombstoneTag.deleteMany();
+  await prisma.blogPostTag.deleteMany();
+  await prisma.tombstone.deleteMany();
+  await prisma.blogPost.deleteMany();
+  await prisma.contentTag.deleteMany();
+  await prisma.pageContent.deleteMany();
+  await prisma.teamMember.deleteMany();
+  await prisma.communityService.deleteMany();
+  await prisma.fAQ.deleteMany();
+  await prisma.coreValue.deleteMany();
+  await prisma.industrySector.deleteMany();
+  await prisma.serviceOffering.deleteMany();
+  await prisma.award.deleteMany();
+  await prisma.emailNotification.deleteMany();
+  await prisma.asset.deleteMany();
+  await prisma.siteConfig.deleteMany();
+  log.info('Wiped all seed data');
+}
+
+// ============================================
+// AUTO-RUN GUARD
+// ============================================
+
+export { seedCognitoUser } from './cognito';
+
+if (require.main === module) {
+  const prisma = new PrismaClient();
+  runSeed(prisma)
+    .then(() => prisma.$disconnect())
+    .catch((e) => { console.error(e); process.exit(1); });
+}

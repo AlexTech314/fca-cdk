@@ -1,5 +1,5 @@
-import { prisma } from '../lib/prisma';
-import type { Prisma } from '@prisma/client';
+import { prisma } from '@fca/db';
+import type { Prisma } from '@fca/db';
 import type { SellerIntakeInput, UpdateSellerIntakeInput, SellerIntakeQuery } from '../models/seller-intake.model';
 
 export const sellerIntakeRepository = {

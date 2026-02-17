@@ -1,7 +1,7 @@
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 
 /**
- * Bootstrap DATABASE_URL from Secrets Manager when running in Fargate.
+ * Bootstrap DATABASE_URL from Secrets Manager when running in Fargate/Lambda.
  * If DATABASE_URL is already set (local dev), no-op.
  *
  * ECS injects the secret VALUE (JSON) when using ecs.Secret.fromSecretsManager.

@@ -13,27 +13,12 @@
  *   CAMPAIGN_DATA_BUCKET - S3 bucket for campaign data
  */
 
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
-import { Client } from 'pg';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { bootstrapDatabaseUrl, prisma } from '@fca/db';
 
 const s3Client = new S3Client({});
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY!;
 const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
-
-async function getDatabaseUrl(): Promise<string> {
-  const secretArn = process.env.DATABASE_SECRET_ARN;
-  const host = process.env.DATABASE_HOST;
-  if (!secretArn || !host) {
-    throw new Error('DATABASE_SECRET_ARN and DATABASE_HOST are required');
-  }
-  const sm = new SecretsManagerClient({});
-  const res = await sm.send(new GetSecretValueCommand({ SecretId: secretArn }));
-  const secret = JSON.parse(res.SecretString!);
-  const { username, password, dbname } = secret;
-  const port = secret.port ?? 5432;
-  return `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}/${dbname}?sslmode=require`;
-}
 
 const RATE_LIMIT_PER_SECOND = 5;
 let lastRequestTime = 0;
@@ -48,7 +33,6 @@ async function rateLimit(): Promise<void> {
   lastRequestTime = Date.now();
 }
 
-// Full field mask: Pro + Enterprise + Atmosphere (reviewSummary, not reviews)
 const FIELD_MASK = [
   'places.id',
   'places.displayName',
@@ -188,42 +172,36 @@ async function searchPlaces(
 }
 
 async function ensureFranchiseAndLink(
-  pg: Client,
   name: string,
   nameNormalized: string,
-  placeId: string
 ): Promise<string | null> {
-  const existingFranchise = await pg.query(
-    `SELECT id FROM franchises WHERE name = $1`,
-    [nameNormalized]
-  );
-  if (existingFranchise.rows.length > 0) {
-    return existingFranchise.rows[0].id;
-  }
+  const existingFranchise = await prisma.franchise.findUnique({
+    where: { name: nameNormalized },
+  });
+  if (existingFranchise) return existingFranchise.id;
 
-  const existingLead = await pg.query(
-    `SELECT id FROM leads WHERE name_normalized = $1 LIMIT 1`,
-    [nameNormalized]
-  );
-  if (existingLead.rows.length > 0) {
-    const franchiseResult = await pg.query(
-      `INSERT INTO franchises (id, name, display_name, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, $2, NOW(), NOW())
-       RETURNING id`,
-      [nameNormalized, name]
-    );
-    const franchiseId = franchiseResult.rows[0].id;
-    await pg.query(
-      `UPDATE leads SET franchise_id = $1, updated_at = NOW() WHERE name_normalized = $2`,
-      [franchiseId, nameNormalized]
-    );
-    return franchiseId;
+  const existingLead = await prisma.lead.findFirst({
+    where: { nameNormalized },
+    select: { id: true },
+  });
+
+  if (existingLead) {
+    const franchise = await prisma.franchise.create({
+      data: { name: nameNormalized, displayName: name },
+    });
+    await prisma.lead.updateMany({
+      where: { nameNormalized },
+      data: { franchiseId: franchise.id },
+    });
+    return franchise.id;
   }
 
   return null;
 }
 
 async function main() {
+  await bootstrapDatabaseUrl();
+
   const jobInput = JSON.parse(process.env.JOB_INPUT || '{}');
   const {
     jobId,
@@ -239,16 +217,16 @@ async function main() {
     process.exit(1);
   }
 
-  const databaseUrl = await getDatabaseUrl();
-  const pg = new Client({ connectionString: databaseUrl });
-  await pg.connect();
-
   const updateJobStatus = async (status: string, errorMessage?: string) => {
     if (!jobId) return;
-    await pg.query(
-      `UPDATE jobs SET status = $1, completed_at = NOW(), error_message = $2, updated_at = NOW() WHERE id = $3`,
-      [status, errorMessage || null, jobId]
-    );
+    await prisma.job.update({
+      where: { id: jobId },
+      data: {
+        status,
+        completedAt: new Date(),
+        errorMessage: errorMessage || null,
+      },
+    });
   };
 
   try {
@@ -264,10 +242,12 @@ async function main() {
     const { searches = [] } = JSON.parse(body) as { searches?: SearchQueryInput[] };
     if (searches.length === 0) {
       await updateJobStatus('completed');
-      await pg.query(
-        `UPDATE campaign_runs SET status = 'completed', completed_at = NOW() WHERE id = $1`,
-        [campaignRunId]
-      );
+      if (campaignRunId) {
+        await prisma.campaignRun.update({
+          where: { id: campaignRunId },
+          data: { status: 'completed', completedAt: new Date() },
+        });
+      }
       return;
     }
 
@@ -284,14 +264,17 @@ async function main() {
       const includedType = typeof q === 'object' ? q.includedType : undefined;
 
       if (skipCachedSearches) {
-        const cached = await pg.query(
-          `SELECT id FROM search_queries
-           WHERE text_query = $1 AND (included_type = $2 OR (included_type IS NULL AND $2 IS NULL))
-           AND created_at > NOW() - ($3::text || ' days')::interval
-           LIMIT 1`,
-          [textQuery, includedType ?? null, String(CACHE_DAYS)]
-        );
-        if (cached.rows.length > 0) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - CACHE_DAYS);
+        const cached = await prisma.searchQuery.findFirst({
+          where: {
+            textQuery,
+            includedType: includedType ?? null,
+            createdAt: { gt: cutoff },
+          },
+          select: { id: true },
+        });
+        if (cached) {
           console.log(`[${i + 1}/${searches.length}] Skipped (cached): "${textQuery}"`);
           queriesExecuted++;
           continue;
@@ -301,13 +284,14 @@ async function main() {
       const places = await searchPlaces(textQuery, maxResultsPerSearch);
       queriesExecuted++;
 
-      const searchQueryResult = await pg.query(
-        `INSERT INTO search_queries (id, text_query, included_type, campaign_id, campaign_run_id, created_at)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())
-         RETURNING id`,
-        [textQuery, includedType ?? null, campaignId, campaignRunId ?? null]
-      );
-      const searchQueryId = searchQueryResult.rows[0].id;
+      const searchQuery = await prisma.searchQuery.create({
+        data: {
+          textQuery,
+          includedType: includedType ?? null,
+          campaignId,
+          campaignRunId: campaignRunId ?? null,
+        },
+      });
 
       for (const place of places) {
         if (place.businessStatus === 'CLOSED_PERMANENTLY') continue;
@@ -326,14 +310,15 @@ async function main() {
 
         let franchiseId: string | null = null;
         try {
-          franchiseId = await ensureFranchiseAndLink(pg, name, nameNormalized, place.id);
+          franchiseId = await ensureFranchiseAndLink(name, nameNormalized);
         } catch (e) {
           console.warn(`Franchise link failed for ${place.id}:`, e);
         }
 
         try {
-          const result = await pg.query(
-            `INSERT INTO leads (
+          // Use raw upsert to handle ON CONFLICT (place_id) DO NOTHING
+          const result = await prisma.$executeRaw`
+            INSERT INTO leads (
               id, place_id, campaign_id, campaign_run_id, search_query_id, franchise_id,
               name, name_normalized, address, city, state, zip_code, phone, website,
               rating, review_count, price_level, business_type, source,
@@ -341,43 +326,24 @@ async function main() {
               editorial_summary, review_summary, google_maps_uri,
               created_at, updated_at
             ) VALUES (
-              gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-              $14, $15, $16, $17, 'google_places',
-              $18, $19, $20, $21, $22, $23, $24, $25,
+              gen_random_uuid(), ${place.id}, ${campaignId}, ${campaignRunId ?? null},
+              ${searchQuery.id}, ${franchiseId},
+              ${name}, ${nameNormalized}, ${place.formattedAddress ?? null},
+              ${city || null}, ${state || null}, ${zipCode || null},
+              ${place.nationalPhoneNumber ?? null}, ${place.websiteUri ?? null},
+              ${place.rating ?? null}, ${place.userRatingCount ?? null},
+              ${mapPriceLevel(place.priceLevel)},
+              ${place.primaryTypeDisplayName?.text ?? place.primaryType ?? null},
+              'google_places',
+              ${place.businessStatus ?? null},
+              ${place.location?.latitude ?? null}, ${place.location?.longitude ?? null},
+              ${place.primaryType ?? null}, ${openingHours},
+              ${editorialSummary}, ${reviewSummary}, ${place.googleMapsUri ?? null},
               NOW(), NOW()
             )
-            ON CONFLICT (place_id) DO NOTHING
-            RETURNING id`,
-            [
-              place.id,
-              campaignId,
-              campaignRunId ?? null,
-              searchQueryId,
-              franchiseId,
-              name,
-              nameNormalized,
-              place.formattedAddress ?? null,
-              city || null,
-              state || null,
-              zipCode || null,
-              place.nationalPhoneNumber ?? null,
-              place.websiteUri ?? null,
-              place.rating ?? null,
-              place.userRatingCount ?? null,
-              mapPriceLevel(place.priceLevel),
-              place.primaryTypeDisplayName?.text ?? place.primaryType ?? null,
-              place.businessStatus ?? null,
-              place.location?.latitude ?? null,
-              place.location?.longitude ?? null,
-              place.primaryType ?? null,
-              openingHours,
-              editorialSummary,
-              reviewSummary,
-              place.googleMapsUri ?? null,
-            ]
-          );
+            ON CONFLICT (place_id) DO NOTHING`;
 
-          if (result.rowCount && result.rowCount > 0) {
+          if (result > 0) {
             leadsFound++;
           } else {
             duplicatesSkipped++;
@@ -392,13 +358,17 @@ async function main() {
     }
 
     if (campaignRunId) {
-      await pg.query(
-        `UPDATE campaign_runs SET
-           queries_executed = $1, leads_found = $2, duplicates_skipped = $3, errors = $4,
-           status = 'completed', completed_at = NOW()
-         WHERE id = $5`,
-        [queriesExecuted, leadsFound, duplicatesSkipped, errors, campaignRunId]
-      );
+      await prisma.campaignRun.update({
+        where: { id: campaignRunId },
+        data: {
+          queriesExecuted,
+          leadsFound,
+          duplicatesSkipped,
+          errors,
+          status: 'completed',
+          completedAt: new Date(),
+        },
+      });
     }
 
     await updateJobStatus('completed');
@@ -409,7 +379,7 @@ async function main() {
     await updateJobStatus('failed', msg);
     process.exit(1);
   } finally {
-    await pg.end();
+    await prisma.$disconnect();
   }
 }
 

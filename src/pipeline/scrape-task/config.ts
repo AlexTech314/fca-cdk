@@ -1,6 +1,4 @@
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { S3Client } from '@aws-sdk/client-s3';
-import { Client } from 'pg';
 import { EventEmitter } from 'events';
 import { createRequire } from 'module';
 import { FIRST_NAMES } from './first-names.js';
@@ -12,36 +10,9 @@ EventEmitter.defaultMaxListeners = 50;
 const require = createRequire(import.meta.url);
 export const cloudscraper = require('cloudscraper');
 
-// ============ AWS Clients (cached for warm invocations) ============
+// ============ AWS Clients ============
 
-const secretsManager = new SecretsManagerClient({ region: process.env.AWS_REGION });
 export const s3Client = new S3Client({ region: process.env.AWS_REGION });
-
-let cachedDatabaseUrl: string | null = null;
-let pgClient: Client | null = null;
-
-async function getDatabaseUrl(): Promise<string> {
-  if (cachedDatabaseUrl) return cachedDatabaseUrl;
-  const secretArn = process.env.DATABASE_SECRET_ARN;
-  const host = process.env.DATABASE_HOST;
-  if (!secretArn || !host) {
-    throw new Error('DATABASE_SECRET_ARN and DATABASE_HOST are required');
-  }
-  const res = await secretsManager.send(new GetSecretValueCommand({ SecretId: secretArn }));
-  const secret = JSON.parse(res.SecretString!);
-  const { username, password, dbname } = secret;
-  const port = secret.port ?? 5432;
-  cachedDatabaseUrl = `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}/${dbname}?sslmode=require`;
-  return cachedDatabaseUrl;
-}
-
-export async function getPgClient(): Promise<Client> {
-  if (pgClient) return pgClient;
-  const url = await getDatabaseUrl();
-  pgClient = new Client({ connectionString: url });
-  await pgClient.connect();
-  return pgClient;
-}
 
 // ============ Environment Variables ============
 

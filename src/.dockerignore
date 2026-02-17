@@ -1,0 +1,26 @@
+# Exclude large directories from Docker build context (context = src/)
+# This keeps builds fast even though the context is wider
+
+# SPA / Frontend
+lead-gen-spa/node_modules
+lead-gen-spa/dist
+lead-gen-spa/.vite
+
+# Next.js admin
+flagship-ui
+
+# Node modules for all services (will npm ci inside Docker)
+**/node_modules
+**/.env
+**/.env.*
+
+# Build artifacts
+api/dist
+packages/db/dist
+pipeline/*/dist
+lambda/*/dist
+
+# Dev files
+**/.git
+**/.DS_Store
+**/tsconfig.tsbuildinfo

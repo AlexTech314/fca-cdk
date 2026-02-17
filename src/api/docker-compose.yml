@@ -1,51 +1,35 @@
 # FCA API Docker Compose - Development
 #
-# Usage:
-#   docker compose up        - Start API, PostgreSQL, and Cognito Local (seeds on first run)
-#   docker compose down      - Stop services
-#   docker compose down -v   - Stop services and delete all data (forces reseed on next up)
-#   docker compose build     - Rebuild API image after Dockerfile changes
+# Prerequisites:
+#   cd ../packages/db && docker compose up -d    # Start PostgreSQL
+#   cd ../packages/db && npx prisma migrate dev  # Run migrations
+#   cd ../packages/db && npx prisma db seed      # Seed data
 #
+# Usage:
+#   docker compose up        - Start API and Cognito Local
+#   docker compose down      - Stop services
+#
+# Or run natively (preferred for hot reload):
+#   npm run dev
+#
+# Database: started separately via packages/db/docker-compose.yml
 # Cognito Local: http://localhost:9229
 #
 services:
   api:
     build:
-      context: .
-      dockerfile: Dockerfile.dev
+      context: ..
+      dockerfile: api/Dockerfile.dev
     ports:
       - "4000:3000"
     volumes:
-      - ./src:/app/src
-      - ./prisma:/app/prisma
-      - ./scripts:/app/scripts
-      - /app/node_modules
+      - ./src:/app/api/src
+      - /app/api/node_modules
     env_file:
       - .env.local
     depends_on:
-      db:
-        condition: service_healthy
       cognito:
         condition: service_started
-    restart: unless-stopped
-
-  db:
-    image: postgres:18
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=fca_db
-    volumes:
-      - postgres_data:/var/lib/postgresql
-    shm_size: 128mb
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
     restart: unless-stopped
 
   cognito:
@@ -57,5 +41,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
   cognito_data:

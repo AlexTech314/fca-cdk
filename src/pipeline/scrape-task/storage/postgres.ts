@@ -4,9 +4,8 @@
  * Updates jobs with scrape metrics in metadata.
  */
 
-import { Client } from 'pg';
+import { prisma } from '@fca/db';
 import type { ExtractedData, ScrapeMetrics } from '../types.js';
-import { getPgClient } from '../config.js';
 
 export interface BatchLead {
   id: string;
@@ -28,7 +27,6 @@ export async function updateLeadWithScrapeData(
   durationMs: number,
   extracted: ExtractedData
 ): Promise<void> {
-  const pg = await getPgClient();
   const webScrapedData = {
     rawS3Key,
     extractedS3Key,
@@ -61,31 +59,28 @@ export async function updateLeadWithScrapeData(
     },
   };
 
-  await pg.query(
-    `UPDATE leads SET
-       web_scraped_at = NOW(),
-       web_scraped_data = $1,
-       updated_at = NOW()
-     WHERE id = $2`,
-    [JSON.stringify(webScrapedData), leadId]
-  );
-  console.log(`  [Postgres] Updated lead ${leadId} with scrape data`);
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      webScrapedAt: new Date(),
+      webScrapedData: webScrapedData,
+    },
+  });
+  console.log(`  [Prisma] Updated lead ${leadId} with scrape data`);
 }
 
 /**
  * Mark a lead as failed to scrape
  */
 export async function markLeadScrapeFailed(leadId: string): Promise<void> {
-  const pg = await getPgClient();
-  await pg.query(
-    `UPDATE leads SET
-       web_scraped_at = NOW(),
-       web_scraped_data = $1,
-       updated_at = NOW()
-     WHERE id = $2`,
-    [JSON.stringify({ status: 'failed', failed_at: new Date().toISOString() }), leadId]
-  );
-  console.log(`  [Postgres] Marked lead ${leadId} as scrape failed`);
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      webScrapedAt: new Date(),
+      webScrapedData: { status: 'failed', failed_at: new Date().toISOString() },
+    },
+  });
+  console.log(`  [Prisma] Marked lead ${leadId} as scrape failed`);
 }
 
 /**
@@ -95,13 +90,11 @@ export async function updateJobMetrics(
   jobId: string,
   metrics: ScrapeMetrics
 ): Promise<void> {
-  const pg = await getPgClient();
-  await pg.query(
-    `UPDATE jobs SET
-       metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb,
-       updated_at = NOW()
-     WHERE id = $2`,
-    [JSON.stringify({ scrape: metrics }), jobId]
-  );
-  console.log(`  [Postgres] Updated job ${jobId} metrics`);
+  // Use raw query for JSONB merge since Prisma doesn't support this natively
+  await prisma.$executeRaw`
+    UPDATE jobs SET
+      metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ scrape: metrics })}::jsonb,
+      updated_at = NOW()
+    WHERE id = ${jobId}`;
+  console.log(`  [Prisma] Updated job ${jobId} metrics`);
 }

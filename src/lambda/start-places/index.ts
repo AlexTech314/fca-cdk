@@ -7,38 +7,10 @@
  * Input: { campaignId, campaignRunId, queriesS3Key, skipCachedSearches?, maxResultsPerSearch? }
  */
 
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
-import { Client } from 'pg';
 import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
+import { bootstrapDatabaseUrl, prisma } from '@fca/db';
 
-// Cached outside handler for warm invocations
-const secretsManager = new SecretsManagerClient({});
 const ecsClient = new ECSClient({});
-let cachedDatabaseUrl: string | null = null;
-let pgClient: Client | null = null;
-
-async function getDatabaseUrl(): Promise<string> {
-  if (cachedDatabaseUrl) return cachedDatabaseUrl;
-  const secretArn = process.env.DATABASE_SECRET_ARN;
-  const host = process.env.DATABASE_HOST;
-  if (!secretArn || !host) {
-    throw new Error('DATABASE_SECRET_ARN and DATABASE_HOST are required');
-  }
-  const res = await secretsManager.send(new GetSecretValueCommand({ SecretId: secretArn }));
-  const secret = JSON.parse(res.SecretString!);
-  const { username, password, dbname } = secret;
-  const port = secret.port ?? 5432;
-  cachedDatabaseUrl = `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}/${dbname}?sslmode=require`;
-  return cachedDatabaseUrl;
-}
-
-async function getPgClient(): Promise<Client> {
-  if (pgClient) return pgClient;
-  const url = await getDatabaseUrl();
-  pgClient = new Client({ connectionString: url });
-  await pgClient.connect();
-  return pgClient;
-}
 
 const CLUSTER_ARN = process.env.CLUSTER_ARN!;
 const PLACES_TASK_DEF_ARN = process.env.PLACES_TASK_DEF_ARN!;
@@ -54,6 +26,7 @@ interface StartPlacesInput {
 }
 
 export async function handler(event: StartPlacesInput): Promise<{ jobId: string; taskArn?: string }> {
+  await bootstrapDatabaseUrl();
   console.log('StartPlaces input:', JSON.stringify(event));
 
   const { campaignId, campaignRunId, queriesS3Key, skipCachedSearches, maxResultsPerSearch } = event;
@@ -61,16 +34,16 @@ export async function handler(event: StartPlacesInput): Promise<{ jobId: string;
     throw new Error('campaignId, campaignRunId, and queriesS3Key are required');
   }
 
-  const client = await getPgClient();
-
   try {
-    const jobResult = await client.query(
-      `INSERT INTO jobs (id, campaign_id, campaign_run_id, type, status, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, $2, 'places_search', 'running', NOW(), NOW())
-       RETURNING id`,
-      [campaignId, campaignRunId]
-    );
-    const jobId = jobResult.rows[0].id;
+    const job = await prisma.job.create({
+      data: {
+        campaignId,
+        campaignRunId,
+        type: 'places_search',
+        status: 'running',
+      },
+    });
+    const jobId = job.id;
 
     const jobInput = JSON.stringify({
       jobId,
@@ -108,14 +81,14 @@ export async function handler(event: StartPlacesInput): Promise<{ jobId: string;
 
     const taskArn = runResult.tasks?.[0]?.taskArn;
     if (taskArn) {
-      await client.query(
-        `UPDATE jobs SET external_id = $1, updated_at = NOW() WHERE id = $2`,
-        [taskArn, jobId]
-      );
+      await prisma.job.update({
+        where: { id: jobId },
+        data: { externalId: taskArn },
+      });
     }
 
     return { jobId, taskArn };
   } finally {
-    // Do not end() - keep connection warm for next invocation
+    // Keep Prisma connection alive for warm invocations
   }
 }

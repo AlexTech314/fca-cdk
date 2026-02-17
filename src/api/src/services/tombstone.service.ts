@@ -1,6 +1,6 @@
 import { tombstoneRepository } from '../repositories/tombstone.repository';
 import type { TombstoneQuery, CreateTombstoneInput, UpdateTombstoneInput } from '../models/tombstone.model';
-import { matchContentToTags } from '../lib/taxonomy';
+import { matchContentToTags } from '@fca/db';
 
 export const tombstoneService = {
   async list(query: TombstoneQuery) {

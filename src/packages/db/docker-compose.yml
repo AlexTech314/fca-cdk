@@ -1,0 +1,29 @@
+# FCA Database - Local Development
+#
+# Usage:
+#   docker compose up -d     - Start PostgreSQL
+#   docker compose down      - Stop
+#   docker compose down -v   - Stop and delete data
+#
+services:
+  db:
+    image: postgres:18
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=fca_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    shm_size: 128mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

@@ -2,42 +2,13 @@
  * Score Leads Lambda
  *
  * Consumes SQS scoring queue (batch size = 10).
- * Calls Claude API to score each lead, updates Postgres.
+ * Calls Claude API to score each lead, updates Postgres via Prisma.
  */
 
 import { SQSEvent } from 'aws-lambda';
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
-import { Client } from 'pg';
-
-// Cached outside handler for warm invocations
-const secretsManager = new SecretsManagerClient({});
-let cachedDatabaseUrl: string | null = null;
-let pgClient: Client | null = null;
+import { bootstrapDatabaseUrl, prisma } from '@fca/db';
 
 const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY!;
-
-async function getDatabaseUrl(): Promise<string> {
-  if (cachedDatabaseUrl) return cachedDatabaseUrl;
-  const secretArn = process.env.DATABASE_SECRET_ARN;
-  const host = process.env.DATABASE_HOST;
-  if (!secretArn || !host) {
-    throw new Error('DATABASE_SECRET_ARN and DATABASE_HOST are required');
-  }
-  const res = await secretsManager.send(new GetSecretValueCommand({ SecretId: secretArn }));
-  const secret = JSON.parse(res.SecretString!);
-  const { username, password, dbname } = secret;
-  const port = secret.port ?? 5432;
-  cachedDatabaseUrl = `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port}/${dbname}?sslmode=require`;
-  return cachedDatabaseUrl;
-}
-
-async function getPgClient(): Promise<Client> {
-  if (pgClient) return pgClient;
-  const url = await getDatabaseUrl();
-  pgClient = new Client({ connectionString: url });
-  await pgClient.connect();
-  return pgClient;
-}
 
 interface LeadMessage {
   lead_id: string;
@@ -93,7 +64,6 @@ Respond with ONLY valid JSON in this exact format:
   try {
     return JSON.parse(text);
   } catch {
-    // Try to extract JSON from the response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) return JSON.parse(jsonMatch[0]);
     return { score: 50, notes: 'Unable to parse Claude response' };
@@ -101,68 +71,54 @@ Respond with ONLY valid JSON in this exact format:
 }
 
 export async function handler(event: SQSEvent): Promise<void> {
+  await bootstrapDatabaseUrl();
   console.log(`Score Lambda received ${event.Records.length} messages`);
-
-  const client = await getPgClient();
 
   for (const record of event.Records) {
     const message: LeadMessage = JSON.parse(record.body);
     const { lead_id } = message;
 
     try {
-      // Fetch lead data from Postgres
-      const leadResult = await client.query(
-        `SELECT * FROM leads WHERE id = $1`,
-        [lead_id]
-      );
+      const lead = await prisma.lead.findUnique({ where: { id: lead_id } });
 
-      if (leadResult.rows.length === 0) {
+      if (!lead) {
         console.warn(`Lead ${lead_id} not found, skipping`);
         continue;
       }
 
-      const lead = leadResult.rows[0];
-
-      // Skip if already qualified
-      if (lead.qualification_score !== null) {
-        console.log(`Lead ${lead_id} already scored (${lead.qualification_score}), skipping`);
+      if (lead.qualificationScore !== null) {
+        console.log(`Lead ${lead_id} already scored (${lead.qualificationScore}), skipping`);
         continue;
       }
 
-      // Prepare lead data for Claude (include scraped data if available)
       const leadData = {
         name: lead.name,
-        business_type: lead.business_type,
+        business_type: lead.businessType,
         city: lead.city,
         state: lead.state,
         phone: lead.phone,
         website: lead.website,
         rating: lead.rating,
-        review_count: lead.review_count,
-        price_level: lead.price_level,
-        web_scraped_data: lead.web_scraped_data,
+        review_count: lead.reviewCount,
+        price_level: lead.priceLevel,
+        web_scraped_data: lead.webScrapedData,
       };
 
-      // Score with Claude
       const result = await scoreLead(leadData);
 
-      // Update lead in Postgres
-      await client.query(
-        `UPDATE leads SET
-           qualification_score = $1,
-           qualification_notes = $2,
-           qualified_at = NOW(),
-           updated_at = NOW()
-         WHERE id = $3`,
-        [result.score, result.notes, lead_id]
-      );
+      await prisma.lead.update({
+        where: { id: lead_id },
+        data: {
+          qualificationScore: result.score,
+          qualificationNotes: result.notes,
+          qualifiedAt: new Date(),
+        },
+      });
 
       console.log(`Scored lead ${lead_id}: ${result.score}/100`);
     } catch (error) {
       console.error(`Failed to score lead ${lead_id}:`, error);
-      // Let SQS retry via visibility timeout / DLQ
       throw error;
     }
   }
-  // Do not end() - keep connection warm for next invocation
 }

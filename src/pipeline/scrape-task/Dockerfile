@@ -1,26 +1,39 @@
+# Build context: src/
 # Use Puppeteer base image with Chromium pre-installed
 # BASE_IMAGE: pass at build time for ECR pull-through cache
 # Default ghcr.io for local builds without --build-arg
 ARG BASE_IMAGE=ghcr.io/puppeteer/puppeteer:24.0.0
-FROM ${BASE_IMAGE}
 
-# Set working directory
+# Stage 1: Build shared db package
+FROM node:20-slim AS db-builder
+WORKDIR /app/packages/db
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+COPY packages/db/package*.json ./
+RUN npm ci
+COPY packages/db/prisma ./prisma/
+RUN npx prisma generate
+COPY packages/db/src ./src/
+COPY packages/db/tsconfig.json ./
+RUN npx tsc
+
+# Stage 2: Build scrape task on Puppeteer base
+FROM ${BASE_IMAGE}
 WORKDIR /app
 
-# Copy package files
-COPY package*.json tsconfig.json ./
+# Copy db package
+COPY --from=db-builder /app/packages/db /app/packages/db
 
-# Install dependencies (runs as pptruser, not root)
+# Copy package files and install
+COPY pipeline/scrape-task/package*.json pipeline/scrape-task/tsconfig.json ./
 RUN npm ci
 
 # Copy all source files (including subdirectories)
-COPY *.ts ./
-COPY extractors/ ./extractors/
-COPY scraper/ ./scraper/
-COPY storage/ ./storage/
-COPY utils/ ./utils/
+COPY pipeline/scrape-task/*.ts ./
+COPY pipeline/scrape-task/extractors/ ./extractors/
+COPY pipeline/scrape-task/scraper/ ./scraper/
+COPY pipeline/scrape-task/storage/ ./storage/
+COPY pipeline/scrape-task/utils/ ./utils/
 
 RUN npm run build
 
-# Run the task
 CMD ["node", "dist/index.js"]

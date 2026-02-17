@@ -1,4 +1,4 @@
-import { bootstrapDatabaseUrl } from './lib/bootstrap-db';
+import { bootstrapDatabaseUrl } from '@fca/db';
 
 const gracefulShutdown = async (signal: string, prisma: { $disconnect: () => Promise<void> }, logger: { info: (msg: string) => void }): Promise<void> => {
   logger.info(`Received ${signal}. Starting graceful shutdown...`);

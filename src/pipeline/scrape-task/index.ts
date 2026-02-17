@@ -1,5 +1,6 @@
 import puppeteer, { Browser } from 'puppeteer';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { bootstrapDatabaseUrl } from '@fca/db';
 
 import type { JobInput, RawScrapeData, ExtractedScrapeData, ScrapeMetrics } from './types.js';
 import {
@@ -39,6 +40,7 @@ function batchLeadToBusiness(lead: BatchLead): { id: string; place_id: string; b
 }
 
 async function main(): Promise<void> {
+  await bootstrapDatabaseUrl();
   console.log('=== Scrape Task (Cloudscraper with Puppeteer Fallback) ===');
   console.log(`Bucket: ${CAMPAIGN_DATA_BUCKET}`);
   

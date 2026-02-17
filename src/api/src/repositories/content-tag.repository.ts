@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import { prisma } from '@fca/db';
 import type { CreateContentTagInput, UpdateContentTagInput } from '../models/content-tag.model';
 
 export const contentTagRepository = {

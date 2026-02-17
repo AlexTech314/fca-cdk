@@ -1,5 +1,5 @@
-import { prisma } from '../lib/prisma';
-import type { Prisma } from '@prisma/client';
+import { prisma } from '@fca/db';
+import type { Prisma } from '@fca/db';
 import type { TombstoneQuery, CreateTombstoneInput, UpdateTombstoneInput } from '../models/tombstone.model';
 
 export const tombstoneRepository = {

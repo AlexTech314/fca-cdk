@@ -5,6 +5,7 @@
     "fca-cdk": "bin/fca-cdk.js"
   },
   "scripts": {
+    "install:all": "npm install && npm install --prefix src/packages/db && npm install --prefix src/packages/seed && npm install --prefix src/api && npm install --prefix src/lead-gen-spa && npm install --prefix src/flagship-ui/nextjs-web && npm install --prefix src/lambda/bridge && npm install --prefix src/lambda/seed-db && npm install --prefix src/lambda/start-places && npm install --prefix src/lambda/prepare-scrape && npm install --prefix src/lambda/aggregate-scrape && npm install --prefix src/lambda/score-leads && npm install --prefix src/pipeline/places-task && npm install --prefix src/pipeline/scrape-task",
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",

@@ -48,6 +48,8 @@ export class PipelineStack extends cdk.Stack {
       synth: new pipelines.ShellStep('Synth', {
         input: source,
         commands: [
+          // Register QEMU so Docker can build ARM64 images on x86_64 hosts
+          'docker run --rm --privileged multiarch/qemu-user-static --reset -p yes',
           'npm ci',
           'npm run build',
           // Build lead-gen-spa (Vite bakes VITE_* at build time)

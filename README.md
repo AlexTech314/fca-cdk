@@ -188,6 +188,42 @@ npx cdk synth
 npx cdk diff
 ```
 
+### Local UIs → Cloud API
+
+You can run the lead-gen-spa and nextjs-web UIs locally while pointing them at the deployed cloud API. The API CORS already allows localhost origins (5173, 3000, etc.).
+
+**1. Get stack outputs** (after pipeline deploys the Dev stage):
+
+```bash
+aws cloudformation describe-stacks --stack-name Dev-LeadGenWebStack --query 'Stacks[0].Outputs' --output table
+aws cloudformation describe-stacks --stack-name Dev-CognitoStack --query 'Stacks[0].Outputs' --output table
+```
+
+You need:
+- **CloudFront domain** (`DistributionDomainName`) → API base: `https://{domain}/api`
+- **Cognito** `UserPoolId`, `UserPoolClientId`, `CognitoDomainPrefix` → domain: `https://{prefix}.auth.{region}.amazoncognito.com`
+
+**2. lead-gen-spa**
+
+```bash
+cd src/lead-gen-spa
+cp .env.cloud.example .env.local
+# Edit .env.local with your CloudFront domain and Cognito values
+npm run dev
+```
+
+**3. nextjs-web (admin)**
+
+```bash
+cd src/flagship-ui/nextjs-web
+cp .env.cloud.example .env.local
+# Edit .env.local with your CloudFront domain and Cognito values
+# Do NOT set NEXT_PUBLIC_COGNITO_ENDPOINT (only for cognito-local)
+npm run dev
+```
+
+**Cognito callbacks:** The Cognito app client already includes `http://localhost:5173/` for the lead-gen-spa OAuth flow. For nextjs-web (SRP login), no callback URLs are needed.
+
 ## Adding New Resources
 
 Add infrastructure to the appropriate stack in `lib/stacks/` (e.g., `stateful-stack.ts` for S3, `api-stack.ts` for API-related resources):

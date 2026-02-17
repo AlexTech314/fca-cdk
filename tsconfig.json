@@ -32,6 +32,7 @@
     "src/flagship-ui",
     "src/lead-gen-spa",
     "src/pipeline",
-    "src/lambda"
+    "src/lambda",
+    "src/packages"
   ]
 }

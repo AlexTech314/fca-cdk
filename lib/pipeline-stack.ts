@@ -68,13 +68,18 @@ export class PipelineStack extends cdk.Stack {
       dockerEnabledForSelfMutation: true,
 
       // Register QEMU in asset publishing so Docker can cross-build ARM64 images on x86_64
+      // Pull from ECR cache to avoid Docker Hub rate limits (multiarch/qemu-user-static)
       assetPublishingCodeBuildDefaults: {
         buildEnvironment: { privileged: true },
         partialBuildSpec: codebuild.BuildSpec.fromObject({
           phases: {
             install: {
               commands: [
-                'docker run --rm --privileged multiarch/qemu-user-static --reset -p yes',
+                'export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)',
+                'export AWS_REGION=${AWS_REGION:-$AWS_DEFAULT_REGION}',
+                'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com',
+                'docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/docker-hub/multiarch/qemu-user-static:latest',
+                'docker run --rm --privileged $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/docker-hub/multiarch/qemu-user-static:latest --reset -p yes',
               ],
             },
           },

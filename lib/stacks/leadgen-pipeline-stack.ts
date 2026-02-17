@@ -13,6 +13,7 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Construct } from 'constructs';
 import * as path from 'path';
+import { ecrNode20Slim } from '../ecr-images';
 
 export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
@@ -139,10 +140,14 @@ export class LeadGenPipelineStack extends cdk.Stack {
       cpu: 256,
     });
 
+    const node20Slim = ecrNode20Slim(this.account, this.region);
     placesTaskDef.addContainer('places', {
       image: ecs.ContainerImage.fromAsset(
         path.join(__dirname, '../../src'),
-        { file: 'pipeline/places-task/Dockerfile' }
+        {
+          file: 'pipeline/places-task/Dockerfile',
+          buildArgs: { NODE_20_SLIM: node20Slim },
+        }
       ),
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'places',
@@ -173,7 +178,10 @@ export class LeadGenPipelineStack extends cdk.Stack {
     const startPlacesLambda = new lambda.DockerImageFunction(this, 'StartPlaces', {
       code: lambda.DockerImageCode.fromImageAsset(
         path.join(__dirname, '../../src'),
-        { file: 'lambda/start-places/Dockerfile' }
+        {
+          file: 'lambda/start-places/Dockerfile',
+          buildArgs: { NODE_20_SLIM: node20Slim },
+        }
       ),
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
@@ -204,7 +212,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       cpu: 1024,
     });
 
-    // ECR pull-through cache base image (must deploy EcrCache stack first)
+    // ECR pull-through cache base images (must deploy EcrCache stack first)
     const baseImage = `${this.account}.dkr.ecr.${this.region}.amazonaws.com/ghcr/puppeteer/puppeteer:24.0.0`;
 
     scrapeTaskDef.addContainer('scrape', {
@@ -214,6 +222,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
           file: 'pipeline/scrape-task/Dockerfile',
           buildArgs: {
             BASE_IMAGE: baseImage,
+            NODE_20_SLIM: node20Slim,
           },
         }
       ),
@@ -243,7 +252,10 @@ export class LeadGenPipelineStack extends cdk.Stack {
     const prepareScrapeLambda = new lambda.DockerImageFunction(this, 'PrepareScrape', {
       code: lambda.DockerImageCode.fromImageAsset(
         path.join(__dirname, '../../src'),
-        { file: 'lambda/prepare-scrape/Dockerfile' }
+        {
+          file: 'lambda/prepare-scrape/Dockerfile',
+          buildArgs: { NODE_20_SLIM: node20Slim },
+        }
       ),
       timeout: cdk.Duration.minutes(5),
       memorySize: 512,
@@ -272,7 +284,10 @@ export class LeadGenPipelineStack extends cdk.Stack {
     const aggregateScrapeLambda = new lambda.DockerImageFunction(this, 'AggregateScrape', {
       code: lambda.DockerImageCode.fromImageAsset(
         path.join(__dirname, '../../src'),
-        { file: 'lambda/aggregate-scrape/Dockerfile' }
+        {
+          file: 'lambda/aggregate-scrape/Dockerfile',
+          buildArgs: { NODE_20_SLIM: node20Slim },
+        }
       ),
       timeout: cdk.Duration.minutes(5),
       memorySize: 512,
@@ -369,7 +384,10 @@ export class LeadGenPipelineStack extends cdk.Stack {
     const scoringLambda = new lambda.DockerImageFunction(this, 'ScoringLambda', {
       code: lambda.DockerImageCode.fromImageAsset(
         path.join(__dirname, '../../src'),
-        { file: 'lambda/score-leads/Dockerfile' }
+        {
+          file: 'lambda/score-leads/Dockerfile',
+          buildArgs: { NODE_20_SLIM: node20Slim },
+        }
       ),
       timeout: cdk.Duration.minutes(3),
       memorySize: 256,

@@ -1,11 +1,12 @@
 # Build context: src/
 # Use Puppeteer base image with Chromium pre-installed
 # BASE_IMAGE: pass at build time for ECR pull-through cache
-# Default ghcr.io for local builds without --build-arg
+# NODE_20_SLIM: pass at build time for ECR pull-through cache
 ARG BASE_IMAGE=ghcr.io/puppeteer/puppeteer:24.0.0
+ARG NODE_20_SLIM=node:20-slim
 
 # Stage 1: Build shared db package
-FROM node:20-slim AS db-builder
+FROM ${NODE_20_SLIM} AS db-builder
 WORKDIR /app/packages/db
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY packages/db/package*.json ./

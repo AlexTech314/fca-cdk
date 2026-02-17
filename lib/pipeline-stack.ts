@@ -86,7 +86,10 @@ export class PipelineStack extends cdk.Stack {
               'ecr:BatchImportUpstreamImage',
               'ecr:CreateRepository',
             ],
-            resources: [`arn:aws:ecr:${this.region}:${this.account}:repository/docker-hub/*`],
+            resources: [
+              `arn:aws:ecr:${this.region}:${this.account}:repository/docker-hub/*`,
+              `arn:aws:ecr:${this.region}:${this.account}:repository/ghcr/*`,
+            ],
           }),
         ],
         partialBuildSpec: codebuild.BuildSpec.fromObject({
@@ -96,6 +99,7 @@ export class PipelineStack extends cdk.Stack {
                 'export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)',
                 'export AWS_REGION=${AWS_REGION:-$AWS_DEFAULT_REGION}',
                 'aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com',
+                '# Pull from ECR cache (avoids Docker Hub rate limits)',
                 'docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/docker-hub/multiarch/qemu-user-static:latest',
                 'docker run --rm --privileged $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/docker-hub/multiarch/qemu-user-static:latest --reset -p yes',
               ],

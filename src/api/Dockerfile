@@ -1,8 +1,10 @@
 # Build context: src/ (not src/api/)
 # Build db package first, then API
+# NODE_20_SLIM: pass at build time for ECR pull-through cache (default: Docker Hub for local)
+ARG NODE_20_SLIM=node:20-slim
 
 # Stage 1: Build shared db package
-FROM node:20-slim AS db-builder
+FROM ${NODE_20_SLIM} AS db-builder
 WORKDIR /app/packages/db
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY packages/db/package*.json ./
@@ -14,7 +16,7 @@ COPY packages/db/tsconfig.json ./
 RUN npx tsc
 
 # Stage 2: Build API
-FROM node:20-slim AS builder
+FROM ${NODE_20_SLIM} AS builder
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
@@ -32,7 +34,7 @@ COPY api/tsconfig.json ./api/
 RUN cd api && npm run build
 
 # Stage 3: Production image
-FROM node:20-slim AS runner
+FROM ${NODE_20_SLIM} AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

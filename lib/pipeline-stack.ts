@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
+import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 import { Construct } from 'constructs';
 import * as pipelines from 'aws-cdk-lib/pipelines';
 import { FcaStage } from './stages/fca-stage';
@@ -48,8 +49,6 @@ export class PipelineStack extends cdk.Stack {
       synth: new pipelines.ShellStep('Synth', {
         input: source,
         commands: [
-          // Register QEMU so Docker can build ARM64 images on x86_64 hosts
-          'docker run --rm --privileged multiarch/qemu-user-static --reset -p yes',
           'npm ci',
           'npm run build',
           // Build lead-gen-spa (Vite bakes VITE_* at build time)
@@ -65,10 +64,22 @@ export class PipelineStack extends cdk.Stack {
         },
       }),
 
-      // Enable Docker for building container images
-      // Required if your stacks use DockerImageAsset, ECS, Lambda containers, etc.
       dockerEnabledForSynth: true,
       dockerEnabledForSelfMutation: true,
+
+      // Register QEMU in asset publishing so Docker can cross-build ARM64 images on x86_64
+      assetPublishingCodeBuildDefaults: {
+        buildEnvironment: { privileged: true },
+        partialBuildSpec: codebuild.BuildSpec.fromObject({
+          phases: {
+            install: {
+              commands: [
+                'docker run --rm --privileged multiarch/qemu-user-static --reset -p yes',
+              ],
+            },
+          },
+        }),
+      },
     });
 
     // Add the application stage

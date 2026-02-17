@@ -7,7 +7,7 @@ FROM ${NODE_20_SLIM} AS db-builder
 WORKDIR /app/packages/db
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY packages/db/package*.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 COPY packages/db/prisma ./prisma/
 RUN npx prisma generate
 COPY packages/db/src ./src/

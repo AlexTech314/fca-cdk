@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import * as codebuild from 'aws-cdk-lib/aws-codebuild';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import * as pipelines from 'aws-cdk-lib/pipelines';
 import { FcaStage } from './stages/fca-stage';
@@ -71,6 +72,22 @@ export class PipelineStack extends cdk.Stack {
       // Pull from ECR cache to avoid Docker Hub rate limits (multiarch/qemu-user-static)
       assetPublishingCodeBuildDefaults: {
         buildEnvironment: { privileged: true },
+        rolePolicy: [
+          new iam.PolicyStatement({
+            actions: ['ecr:GetAuthorizationToken'],
+            resources: ['*'],
+          }),
+          new iam.PolicyStatement({
+            actions: [
+              'ecr:BatchGetImage',
+              'ecr:GetDownloadUrlForLayer',
+              'ecr:BatchCheckLayerAvailability',
+              'ecr:BatchImportUpstreamImage',
+              'ecr:CreateRepository',
+            ],
+            resources: [`arn:aws:ecr:${this.region}:${this.account}:repository/docker-hub/*`],
+          }),
+        ],
         partialBuildSpec: codebuild.BuildSpec.fromObject({
           phases: {
             install: {

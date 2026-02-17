@@ -18,10 +18,11 @@ RUN npx tsc
 FROM public.ecr.aws/lambda/nodejs:20 AS builder
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-COPY --from=db-builder /app/packages/db /opt/packages/db
+COPY --from=db-builder /app/packages/db /packages/db
 
 COPY lambda/start-places/package*.json ./
-RUN npm ci
+RUN npm ci --install-links --ignore-scripts
+COPY --from=db-builder /app/packages/db/node_modules/.prisma node_modules/.prisma/
 
 COPY lambda/start-places/index.ts ./
 RUN npx tsc --outDir . --esModuleInterop --module commonjs --target es2022 --moduleResolution node --skipLibCheck index.ts

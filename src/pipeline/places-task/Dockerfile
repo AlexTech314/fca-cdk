@@ -23,7 +23,8 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=db-builder /app/packages/db /app/packages/db
 
 COPY pipeline/places-task/package*.json ./pipeline/places-task/
-RUN cd pipeline/places-task && npm ci
+RUN cd pipeline/places-task && npm ci --install-links --ignore-scripts
+COPY --from=db-builder /app/packages/db/node_modules/.prisma pipeline/places-task/node_modules/.prisma/
 
 COPY pipeline/places-task/index.ts ./pipeline/places-task/
 COPY pipeline/places-task/tsconfig.json ./pipeline/places-task/
@@ -37,7 +38,7 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=db-builder /app/packages/db /app/packages/db
 COPY --from=builder /app/pipeline/places-task/dist ./
-COPY --from=builder /app/pipeline/places-task/package*.json ./
-RUN npm ci --omit=dev
+COPY --from=builder /app/pipeline/places-task/node_modules ./node_modules/
+RUN npm prune --omit=dev
 
 CMD ["node", "index.js"]

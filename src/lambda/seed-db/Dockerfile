@@ -20,7 +20,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=db-builder /app/packages/db /app/packages/db
 COPY packages/seed/package*.json ./packages/seed/
-RUN cd packages/seed && npm ci
+RUN cd packages/seed && npm ci --install-links --ignore-scripts
 COPY packages/seed/ ./packages/seed/
 
 # Stage 3: Lambda runtime
@@ -28,14 +28,17 @@ FROM public.ecr.aws/lambda/nodejs:20
 WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Copy db package (for migrations + Prisma client)
-COPY --from=db-builder /app/packages/db /app/packages/db
+# Path must match file: refs in package.json (../../packages/db from /var/task = /packages/db)
+COPY --from=db-builder /app/packages/db /packages/db
 
 # Copy seed package (seed logic + data files)
-COPY --from=seed-builder /app/packages/seed /app/packages/seed
+COPY --from=seed-builder /app/packages/seed /packages/seed
 
 # Install Lambda deps
 COPY lambda/seed-db/package*.json ./
-RUN npm ci
+RUN npm ci --install-links --ignore-scripts
+# Restore pre-generated Prisma client (npm ci installs ungenerated stub)
+COPY --from=db-builder /app/packages/db/node_modules/.prisma node_modules/.prisma/
 
 # Compile handler
 COPY lambda/seed-db/index.ts ./

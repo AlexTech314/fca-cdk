@@ -19,11 +19,12 @@ FROM public.ecr.aws/lambda/nodejs:20 AS builder
 WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Copy db package
-COPY --from=db-builder /app/packages/db /opt/packages/db
+COPY --from=db-builder /app/packages/db /packages/db
 
 # Install Lambda deps
 COPY lambda/score-leads/package*.json ./
-RUN npm ci
+RUN npm ci --install-links --ignore-scripts
+COPY --from=db-builder /app/packages/db/node_modules/.prisma node_modules/.prisma/
 
 # Compile
 COPY lambda/score-leads/index.ts ./

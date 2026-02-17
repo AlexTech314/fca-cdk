@@ -27,7 +27,7 @@ export async function handler(event: SeedEvent): Promise<{ status: string; actio
   if (action === 'migrate' || action === 'reset') {
     console.log('Running prisma migrate deploy...');
     execSync('npx prisma migrate deploy', {
-      cwd: '/app/packages/db',
+      cwd: '/packages/db',
       stdio: 'inherit',
       env: { ...process.env },
     });

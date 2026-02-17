@@ -26,7 +26,8 @@ COPY --from=db-builder /app/packages/db /app/packages/db
 
 # Install API dependencies (resolves @fca/db via file: link)
 COPY api/package*.json ./api/
-RUN cd api && npm ci
+RUN cd api && npm ci --install-links --ignore-scripts
+COPY --from=db-builder /app/packages/db/node_modules/.prisma api/node_modules/.prisma/
 
 # Copy API source and build
 COPY api/src ./api/src/

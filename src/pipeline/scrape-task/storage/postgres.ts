@@ -63,7 +63,7 @@ export async function updateLeadWithScrapeData(
     where: { id: leadId },
     data: {
       webScrapedAt: new Date(),
-      webScrapedData: webScrapedData,
+      webScrapedData: JSON.parse(JSON.stringify(webScrapedData)),
     },
   });
   console.log(`  [Prisma] Updated lead ${leadId} with scrape data`);

@@ -13,7 +13,7 @@ const start = async (): Promise<void> => {
   const { createApp } = await import('./app');
   const { config } = await import('./config');
   const { logger } = await import('./lib/logger');
-  const { prisma } = await import('./lib/prisma');
+  const { prisma } = await import('@fca/db');
 
   const app = createApp();
 

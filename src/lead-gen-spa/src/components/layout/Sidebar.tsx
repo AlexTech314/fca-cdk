@@ -16,8 +16,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getUserInitials } from '@/lib/auth';
-import logo from '@/assets/logo.png';
-
 interface NavItemProps {
   to: string;
   icon: React.ReactNode;
@@ -64,7 +62,7 @@ export function Sidebar() {
       <div className="flex h-full flex-col">
         {/* Logo */}
         <div className="flex h-16 items-center gap-2 border-b px-4">
-          <img src={logo} alt={organizationName} className="h-6 w-auto brightness-0 invert" />
+          <img src="/logo.png" alt={organizationName} className="h-6 w-auto brightness-0 invert" />
           <span className="text-sm font-semibold text-foreground">
             Flatirons Capital
           </span>

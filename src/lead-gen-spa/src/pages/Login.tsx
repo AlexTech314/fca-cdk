@@ -8,8 +8,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertCircle, ArrowLeft, CheckCircle2, Info } from 'lucide-react';
 import { USE_MOCK_AUTH, DEMO_CREDENTIALS } from '@/lib/amplify-config';
-import logo from '@/assets/logo.png';
-
 export default function Login() {
   const { 
     login, 
@@ -420,7 +418,7 @@ export default function Login() {
         {/* Logo */}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-card border p-3">
-            <img src={logo} alt="Flatirons Capital" className="h-full w-full brightness-0 invert" />
+            <img src="/logo.png" alt="Flatirons Capital" className="h-full w-full brightness-0 invert" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Flatirons Capital</h1>
           <p className="mt-2 text-sm text-muted-foreground">

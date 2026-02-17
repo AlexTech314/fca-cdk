@@ -1,23 +1,34 @@
 # FCA CDK Project
 
-AWS CDK TypeScript project with a self-mutating CI/CD pipeline.
+AWS CDK TypeScript project with a self-mutating CI/CD pipeline. Deploys a lead generation platform with RDS PostgreSQL, ECS Fargate API, Cognito auth, SPA + CloudFront, and a scraping/scoring pipeline (Lambda, Step Functions, SQS).
 
 ## Project Structure
 
 ```
 fca-cdk/
 ├── bin/
-│   └── fca-cdk.ts            # App entry point
+│   └── fca-cdk.ts              # App entry point
 ├── lib/
-│   ├── pipeline-stack.ts      # Self-mutating pipeline
+│   ├── pipeline-stack.ts        # Self-mutating pipeline
 │   ├── stages/
-│   │   └── fca-stage.ts       # Application deployment stage
+│   │   └── fca-stage.ts        # Application deployment stage
 │   └── stacks/
-│       ├── ecr-cache-stack.ts # ECR pull-through cache (GHCR + DockerHub)
-│       └── fca-stack.ts       # Application infrastructure
+│       ├── ecr-cache-stack.ts  # ECR pull-through cache (GHCR + DockerHub)
+│       ├── network-stack.ts    # VPC, fck-nat (t4g.nano)
+│       ├── stateful-stack.ts   # RDS PostgreSQL, S3 campaign bucket
+│       ├── leadgen-pipeline-stack.ts  # Lambdas, SQS, Step Functions, Fargate tasks
+│       ├── cognito-stack.ts    # User Pool, App Client, Domain
+│       ├── api-stack.ts        # ECS Fargate API + ALB
+│       ├── leadgen-web-stack.ts      # SPA bucket + CloudFront
+│       └── dns-stack.ts        # Route53 (placeholder)
+├── src/
+│   ├── api/                    # Express API (Prisma, PostgreSQL)
+│   ├── lead-gen-spa/           # Vite + React SPA
+│   ├── flagship-ui/nextjs-web/ # Next.js admin
+│   └── pipeline/               # Lambda handlers, scrape-task
 ├── test/
 │   └── fca-cdk.test.ts        # Unit tests
-└── cdk.json                   # CDK configuration
+└── cdk.json                    # CDK configuration
 ```
 
 ## Prerequisites
@@ -88,6 +99,18 @@ aws secretsmanager create-secret \
 
 > **Note**: The secret names MUST have the `ecr-pullthroughcache/` prefix per AWS requirements.
 
+### 5b. Create Pipeline Secrets (for LeadGenPipeline)
+
+The pipeline expects these secrets (create before first Dev stage deployment):
+
+```bash
+# Google Places API key (for places-task)
+aws secretsmanager create-secret --name fca/GOOGLE_API_KEY --secret-string "YOUR_GOOGLE_API_KEY"
+
+# Claude API key (for scoring Lambda)
+aws secretsmanager create-secret --name fca/CLAUDE_API_KEY --secret-string "YOUR_ANTHROPIC_API_KEY"
+```
+
 ### 6. Deploy ECR Cache Stack (FIRST)
 
 ```bash
@@ -106,7 +129,7 @@ git push origin main
 npx cdk deploy FcaPipelineStack
 ```
 
-After the initial deployment, the pipeline will self-mutate on each push.
+After the initial deployment, the pipeline will self-mutate on each push. The Dev stage deploys 6 stacks in order: Network → Stateful → LeadGenPipeline → Cognito → Api → LeadGenWeb.
 
 ## ECR Pull-Through Cache
 
@@ -128,15 +151,15 @@ The `FcaEcrCache` stack sets up ECR pull-through cache for both GitHub Container
 
 ### Seeding the Cache
 
-Pull an image through ECR to seed the cache:
+Pull an image through ECR to seed the cache (region: `us-east-2`):
 
 ```bash
 # Login to ECR
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin {account}.dkr.ecr.us-east-1.amazonaws.com
+aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin {account}.dkr.ecr.us-east-2.amazonaws.com
 
 # Pull through cache (this caches the image)
-docker pull {account}.dkr.ecr.us-east-1.amazonaws.com/ghcr/org/image:tag
-docker pull {account}.dkr.ecr.us-east-1.amazonaws.com/docker-hub/library/node:20-alpine
+docker pull {account}.dkr.ecr.us-east-2.amazonaws.com/ghcr/org/image:tag
+docker pull {account}.dkr.ecr.us-east-2.amazonaws.com/docker-hub/library/node:20-alpine
 ```
 
 ## Development
@@ -167,12 +190,12 @@ npx cdk diff
 
 ## Adding New Resources
 
-Add infrastructure to `lib/stacks/fca-stack.ts`:
+Add infrastructure to the appropriate stack in `lib/stacks/` (e.g., `stateful-stack.ts` for S3, `api-stack.ts` for API-related resources):
 
 ```typescript
 import * as s3 from 'aws-cdk-lib/aws-s3';
 
-// Inside FcaStack constructor:
+// Inside stack constructor:
 const bucket = new s3.Bucket(this, 'MyBucket', {
   removalPolicy: cdk.RemovalPolicy.DESTROY,
 });
@@ -209,26 +232,69 @@ this.pipeline.addStage(prodStage, {
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     FcaPipelineStack                        │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │                 CodePipeline                          │  │
-│  │  ┌─────────┐  ┌───────┐  ┌────────────┐  ┌─────────┐  │  │
-│  │  │ Source  │→ │ Build │→ │ UpdatePipe │→ │   Dev   │  │  │
-│  │  │ GitHub  │  │ Synth │  │ SelfMutate │  │  Stage  │  │  │
-│  │  └─────────┘  └───────┘  └────────────┘  └─────────┘  │  │
-│  └───────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                                                │
-                                                ▼
-┌─────────────────────────────────────────────────────────────┐
-│                         Dev Stage                           │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │                      FcaStack                         │  │
-│  │              (Your infrastructure here)               │  │
-│  └───────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     FcaPipelineStack                                         │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                 CodePipeline                                          │  │
+│  │  ┌─────────┐  ┌───────┐  ┌────────────┐  ┌─────────────────────────┐  │  │
+│  │  │ Source  │→ │ Build │→ │ UpdatePipe │→ │   Dev Stage (6 stacks)   │  │  │
+│  │  │ GitHub  │  │ Synth │  │ SelfMutate │  │  Network→Stateful→...   │  │  │
+│  │  └─────────┘  └───────┘  └────────────┘  └─────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                                         │
+                                                         ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Dev Stage (us-east-2)                                │
+│  Network → Stateful → LeadGenPipeline → Cognito → Api → LeadGenWeb           │
+│  ┌─────────┐  ┌──────────┐  ┌────────────┐  ┌─────────┐  ┌───────┐  ┌─────┐ │
+│  │ VPC +   │  │ RDS + S3 │  │ Lambdas +  │  │ Cognito │  │ Fargate│  │ SPA │ │
+│  │ fck-nat │  │  bucket  │  │ Step Fns  │  │  Pool   │  │ API+ALB│  │ CF  │ │
+│  └─────────┘  └──────────┘  └────────────┘  └─────────┘  └───────┘  └─────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+## AWS Cost Estimate (per day)
+
+Pricing from AWS Price List API for **us-east-2**. Assumes low/dev traffic (~1K CloudFront requests/day, minimal pipeline runs).
+
+### Always-On Resources (24/7)
+
+| Resource | Config | Unit Price | Daily Cost |
+|----------|--------|------------|------------|
+| **EC2 NAT** (fck-nat) | t4g.nano (ARM64) | $0.0042/hr | **$0.10** |
+| **RDS PostgreSQL** | db.t4g.micro, Single-AZ | $0.016/hr | **$0.38** |
+| **RDS Storage** | 20 GB gp2 | $0.115/GB-mo | **$0.08** |
+| **ECS Fargate API** | 0.25 vCPU, 0.5 GB ARM64 | vCPU $0.03238/hr + Mem $0.00356/hr | **$0.24** |
+| **ALB** | Application LB | $0.0225/hr + $0.008/LCU-hr | **$0.64** |
+| **Secrets Manager** | 5 secrets | $0.40/secret/mo | **$0.07** |
+| **CodePipeline** | 1 active pipeline | $1.00/pipeline-mo | **$0.03** |
+| **ECR Storage** | ~5 GB images | $0.10/GB-mo | **$0.02** |
+| | | **Always-on subtotal** | **$1.56/day** |
+
+### Variable / Event-Driven
+
+| Resource | Estimate | Daily Cost |
+|----------|----------|------------|
+| CloudFront | ~1K req + ~0.5 GB transfer | **$0.04** |
+| CloudWatch Logs | ~100 MB/day ingested | **$0.05** |
+| Lambda | 5 fns, ~100 invocations/day | **< $0.01** |
+| Fargate scrape tasks | ~5 runs × 10 min when active | **$0.04** |
+| Step Functions, SQS, S3, CodeBuild | Minimal usage | **~$0.05** |
+| Cognito | < 50K MAU (free tier) | **$0.00** |
+| | **Variable subtotal** | **~$0.18/day** |
+
+### Totals
+
+| Category | Daily | Monthly (30 days) |
+|----------|-------|-------------------|
+| Always-on | **$1.56** | **$46.80** |
+| Variable | **~$0.18** | **~$5.40** |
+| **Total** | **~$1.74/day** | **~$52.20/mo** |
+
+**Top cost drivers:** ALB (~37%), RDS (~26%), ECS Fargate API (~14%). The fck-nat t4g.nano saves ~$29/mo vs a managed NAT Gateway.
+
+*Excludes: Claude API (Anthropic), Google Places API, data transfer between AZs. Heavy scrape runs (30+ concurrent Fargate tasks) can add $2–5/day.*
 
 ## Security Considerations
 

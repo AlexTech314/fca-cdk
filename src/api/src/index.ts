@@ -1,38 +1,33 @@
-import { createApp } from './app';
-import { config } from './config';
-import { logger } from './lib/logger';
-import { prisma } from './lib/prisma';
+import { bootstrapDatabaseUrl } from './lib/bootstrap-db';
 
-const app = createApp();
-
-const gracefulShutdown = async (signal: string): Promise<void> => {
+const gracefulShutdown = async (signal: string, prisma: { $disconnect: () => Promise<void> }, logger: { info: (msg: string) => void }): Promise<void> => {
   logger.info(`Received ${signal}. Starting graceful shutdown...`);
-
   await prisma.$disconnect();
   logger.info('Database connection closed');
-
   process.exit(0);
 };
 
-// Handle shutdown signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Handle unhandled rejections
-process.on('unhandledRejection', (reason: unknown) => {
-  logger.error({ reason }, 'Unhandled Rejection');
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error: Error) => {
-  logger.fatal({ err: error }, 'Uncaught Exception');
-  process.exit(1);
-});
-
-// Start server
 const start = async (): Promise<void> => {
+  await bootstrapDatabaseUrl();
+
+  const { createApp } = await import('./app');
+  const { config } = await import('./config');
+  const { logger } = await import('./lib/logger');
+  const { prisma } = await import('./lib/prisma');
+
+  const app = createApp();
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM', prisma, logger));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT', prisma, logger));
+  process.on('unhandledRejection', (reason: unknown) => {
+    logger.error({ reason }, 'Unhandled Rejection');
+  });
+  process.on('uncaughtException', (error: Error) => {
+    logger.fatal({ err: error }, 'Uncaught Exception');
+    process.exit(1);
+  });
+
   try {
-    // Test database connection
     await prisma.$connect();
     logger.info('Database connected successfully');
 

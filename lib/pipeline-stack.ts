@@ -48,13 +48,19 @@ export class PipelineStack extends cdk.Stack {
       synth: new pipelines.ShellStep('Synth', {
         input: source,
         commands: [
-          // Install CDK project dependencies and synthesize
-          // (pipeline tasks and lambdas build inside Docker during synth)
           'npm ci',
           'npm run build',
+          // Build lead-gen-spa (Vite bakes VITE_* at build time)
+          'cd src/lead-gen-spa && npm ci && npm run build && cd ../..',
           'npx cdk synth',
         ],
         primaryOutputDirectory: 'cdk.out',
+        env: {
+          VITE_API_BASE_URL: '',
+          VITE_COGNITO_USER_POOL_ID: '',
+          VITE_COGNITO_CLIENT_ID: '',
+          VITE_USE_MOCK_AUTH: 'true',
+        },
       }),
 
       // Enable Docker for building container images

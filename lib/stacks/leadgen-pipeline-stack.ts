@@ -29,6 +29,8 @@ export interface LeadGenPipelineStackProps extends cdk.StackProps {
  * Step Functions state machine, Scoring Lambda.
  */
 export class LeadGenPipelineStack extends cdk.Stack {
+  public readonly startPlacesLambdaArn: string;
+
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
     super(scope, id, props);
 
@@ -188,6 +190,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     placesTaskDef.grantRun(startPlacesLambda);
     databaseSecret.grantRead(startPlacesLambda);
+
+    this.startPlacesLambdaArn = startPlacesLambda.functionArn;
 
     // ============================================================
     // Scrape Fargate Task

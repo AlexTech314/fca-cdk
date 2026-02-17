@@ -59,9 +59,10 @@ export class PipelineStack extends cdk.Stack {
         primaryOutputDirectory: 'cdk.out',
         env: {
           VITE_API_BASE_URL: '',
-          VITE_COGNITO_USER_POOL_ID: '',
-          VITE_COGNITO_CLIENT_ID: '',
-          VITE_USE_MOCK_AUTH: 'true',
+          VITE_COGNITO_USER_POOL_ID: 'us-east-2_HFbzBm1Em',
+          VITE_COGNITO_CLIENT_ID: '62s2usd7nje4loi510m4vc2kr4',
+          VITE_COGNITO_DOMAIN: 'fca-leadgen-dev.auth.us-east-2.amazoncognito.com',
+          VITE_USE_MOCK_AUTH: 'false',
         },
       }),
 

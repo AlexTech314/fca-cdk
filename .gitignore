@@ -1,6 +1,7 @@
 *.js
 !jest.config.js
 *.d.ts
+!src/lead-gen-spa/src/vite-env.d.ts
 node_modules
 .DS_Store
 

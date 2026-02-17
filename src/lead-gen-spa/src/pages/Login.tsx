@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertCircle, ArrowLeft, CheckCircle2, Info } from 'lucide-react';
 import { USE_MOCK_AUTH, DEMO_CREDENTIALS } from '@/lib/amplify-config';
@@ -35,7 +34,7 @@ export default function Login() {
 
   if (authLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-blue-950/50 to-indigo-950/60">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     );
@@ -187,7 +186,12 @@ export default function Login() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full rounded-md px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110 border-0"
+              style={{ background: 'linear-gradient(to right, #1e3a5f, #2d4a6f)' }}
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -222,7 +226,7 @@ export default function Login() {
               <Input
                 id="resetEmail"
                 type="email"
-                placeholder="you@flatironscapital.com"
+                placeholder="you@flatironscap.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -230,7 +234,12 @@ export default function Login() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full rounded-md px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110 border-0"
+              style={{ background: 'linear-gradient(to right, #1e3a5f, #2d4a6f)' }}
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -318,7 +327,12 @@ export default function Login() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full rounded-md px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110 border-0"
+              style={{ background: 'linear-gradient(to right, #1e3a5f, #2d4a6f)' }}
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -358,24 +372,26 @@ export default function Login() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@flatironscapital.com"
+                placeholder="you@flatironscap.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
+                className="rounded-md"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
               <Input
                 id="password"
                 type="password"
+                className="rounded-md"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -384,7 +400,12 @@ export default function Login() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full rounded-md px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110 border-0"
+              style={{ background: 'linear-gradient(to right, #1e3a5f, #2d4a6f)' }}
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -395,73 +416,69 @@ export default function Login() {
               )}
             </Button>
 
-            <Button 
-              type="button" 
-              variant="link" 
-              className="w-full text-muted-foreground"
+            <button
+              type="button"
               onClick={() => {
                 setError('');
                 setSuccess('');
                 startForgotPasswordFlow();
               }}
+              className="w-full text-center text-sm text-muted-foreground transition-colors hover:text-primary"
             >
               Forgot password?
-            </Button>
+            </button>
           </form>
         );
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md animate-fade-in">
-        {/* Logo */}
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-blue-950/50 to-indigo-950/60 p-4">
+      <div className="w-full max-w-sm animate-fade-in">
+        {/* Logo - matches nextjs: 64x64, mt-4 */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-card border p-3">
-            <img src="/logo.png" alt="Flatirons Capital" className="h-full w-full brightness-0 invert" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Flatirons Capital</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Lead Generation Platform
-          </p>
+          <img
+            src="https://d1bjh7dvpwoxii.cloudfront.net/logos/fca-mountain-on-white.png"
+            alt="Flatirons Capital"
+            width={64}
+            height={64}
+            className="mx-auto brightness-0 invert"
+          />
+          <h1 className="mt-4 text-2xl font-bold text-foreground">Flatirons Capital</h1>
         </div>
 
         {/* Demo Credentials Banner */}
         {USE_MOCK_AUTH && authFlow === 'LOGIN' && (
-          <Card className="mb-4 border-primary/30 bg-primary/5">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">Demo Mode</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Use these credentials to sign in:
-                  </p>
-                  <div className="mt-2 p-2 rounded bg-background/50 font-mono text-xs">
-                    <div>Email: <span className="text-primary">{DEMO_CREDENTIALS.email}</span></div>
-                    <div>Password: <span className="text-primary">{DEMO_CREDENTIALS.password}</span></div>
-                  </div>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-2 h-7 text-xs"
-                    onClick={fillDemoCredentials}
-                  >
-                    Fill Demo Credentials
-                  </Button>
+          <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">Demo Mode</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Use these credentials to sign in:
+                </p>
+                <div className="mt-2 p-2 rounded-lg bg-background/50 font-mono text-xs">
+                  <div>Email: <span className="text-primary">{DEMO_CREDENTIALS.email}</span></div>
+                  <div>Password: <span className="text-primary">{DEMO_CREDENTIALS.password}</span></div>
                 </div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2 h-7 text-xs"
+                  onClick={fillDemoCredentials}
+                >
+                  Fill Demo Credentials
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
-        {/* Auth form */}
-        <Card>
-          <CardContent className="p-6">
-            {renderForm()}
-          </CardContent>
-        </Card>
+        {/* Auth form card - matches nextjs: rounded-2xl, p-8, shadow-xl (dark mode) */}
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-xl shadow-black/20">
+          {renderForm()}
+        </div>
 
         {/* Footer */}
         <p className="mt-6 text-center text-xs text-muted-foreground">

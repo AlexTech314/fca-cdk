@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "dependencies": {
     "@fca/db": "file:../../packages/db",
-    "@fca/seed": "file:../../packages/seed"
+    "@fca/seed": "file:../../packages/seed",
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

@@ -2,7 +2,7 @@
   "name": "@fca/seed",
   "version": "1.0.0",
   "private": true,
-  "main": "src/seed.ts",
+  "main": "dist/seed.js",
   "scripts": {
     "seed": "ts-node src/seed.ts",
     "seed:reset": "ts-node src/reset.ts"

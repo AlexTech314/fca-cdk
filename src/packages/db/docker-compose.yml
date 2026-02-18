@@ -15,7 +15,7 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=fca_db
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     shm_size: 128mb
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]

@@ -21,7 +21,10 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=db-builder /app/packages/db /app/packages/db
 COPY packages/seed/package*.json ./packages/seed/
 RUN cd packages/seed && npm ci --install-links --ignore-scripts
+COPY --from=db-builder /app/packages/db/node_modules/@prisma /app/packages/seed/node_modules/@prisma/
+COPY --from=db-builder /app/packages/db/node_modules/.prisma /app/packages/seed/node_modules/.prisma/
 COPY packages/seed/ ./packages/seed/
+RUN cd packages/seed && npx tsc
 
 # Stage 3: Lambda runtime
 FROM public.ecr.aws/lambda/nodejs:20
@@ -37,7 +40,8 @@ COPY --from=seed-builder /app/packages/seed /packages/seed
 # Install Lambda deps
 COPY lambda/seed-db/package*.json ./
 RUN npm ci --install-links --ignore-scripts
-# Restore pre-generated Prisma client (npm ci installs ungenerated stub)
+# Restore Prisma client: package + pre-generated output (npm ci with --ignore-scripts skips prisma generate)
+COPY --from=db-builder /app/packages/db/node_modules/@prisma node_modules/@prisma/
 COPY --from=db-builder /app/packages/db/node_modules/.prisma node_modules/.prisma/
 
 # Compile handler

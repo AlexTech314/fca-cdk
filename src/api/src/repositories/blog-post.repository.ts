@@ -155,6 +155,11 @@ export const blogPostRepository = {
         },
         take: limit,
         orderBy: { transactionYear: 'desc' },
+        include: {
+          tags: { include: { tag: true } },
+          asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
+          pressRelease: { select: { id: true, slug: true, title: true } },
+        },
       }),
       prisma.blogPost.findMany({
         where: {
@@ -167,7 +172,13 @@ export const blogPostRepository = {
       }),
     ]);
 
-    return { tombstones, articles };
+    return {
+      tombstones: tombstones.map((t) => ({
+        ...t,
+        tags: t.tags?.map((bt) => bt.tag) ?? [],
+      })),
+      articles,
+    };
   },
 };
 

@@ -33,10 +33,17 @@ function sortByDeps(dirs) {
   return [...first.filter((d) => dirs.includes(d)), ...rest.sort()];
 }
 
+function hasFileDeps(dir) {
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, dir, 'package.json'), 'utf8'));
+  const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+  return Object.values(allDeps).some((v) => typeof v === 'string' && v.startsWith('file:'));
+}
+
 const dirs = sortByDeps([...new Set(findPackageDirs(srcDir))]);
 console.log('Installing in:', ['(root)', ...dirs].join(', '));
 
 execSync('npm install', { cwd: root, stdio: 'inherit' });
 for (const dir of dirs) {
-  execSync(`npm install --prefix ${dir}`, { cwd: root, stdio: 'inherit' });
+  const flags = hasFileDeps(dir) ? '--install-links --ignore-scripts' : '';
+  execSync(`npm install ${flags} --prefix ${dir}`.trim(), { cwd: root, stdio: 'inherit' });
 }

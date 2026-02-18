@@ -1,3 +1,4 @@
+import * as cr from 'aws-cdk-lib/custom-resources';
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -171,6 +172,42 @@ export class StatefulStack extends cdk.Stack {
         })
       );
     }
+
+    // ============================================================
+    // Custom resource: invoke seed-db Lambda with migrate after deploy
+    // ============================================================
+    const migratePayload = JSON.stringify({ action: 'migrate' });
+    const migrateCustomResource = new cr.AwsCustomResource(this, 'SeedDbMigrate', {
+      onCreate: {
+        service: 'Lambda',
+        action: 'invoke',
+        parameters: {
+          FunctionName: seedLambda.functionName,
+          InvocationType: 'RequestResponse',
+          Payload: migratePayload,
+        },
+        physicalResourceId: cr.PhysicalResourceId.of('SeedDbMigrate'),
+      },
+      onUpdate: {
+        service: 'Lambda',
+        action: 'invoke',
+        parameters: {
+          FunctionName: seedLambda.functionName,
+          InvocationType: 'RequestResponse',
+          Payload: migratePayload,
+        },
+        physicalResourceId: cr.PhysicalResourceId.of('SeedDbMigrate'),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new iam.PolicyStatement({
+          actions: ['lambda:InvokeFunction'],
+          resources: [seedLambda.functionArn],
+        }),
+      ]),
+      timeout: cdk.Duration.minutes(11),
+      installLatestAwsSdk: false,
+    });
+    migrateCustomResource.node.addDependency(seedLambda);
 
     // ============================================================
     // Outputs

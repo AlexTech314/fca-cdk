@@ -33,4 +33,8 @@ export const blogPostService = {
   async getRelated(slug: string) {
     return blogPostRepository.findRelated(slug);
   },
+
+  async getAdjacent(slug: string) {
+    return blogPostRepository.findAdjacent(slug);
+  },
 };

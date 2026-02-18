@@ -64,6 +64,7 @@ model Tombstone {
   @@index([transactionYear])
   @@index([industry])
   @@index([state])
+  @@index([city])
   @@map("tombstones")
 }
 
@@ -88,6 +89,7 @@ model BlogPost {
   tags         BlogPostTag[]
 
   @@index([category, isPublished])
+  @@index([isPublished, publishedAt(sort: Desc)])
   @@map("blog_posts")
 }
 

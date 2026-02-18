@@ -7,14 +7,10 @@ import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
 import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
-import { 
-  getTombstones, 
-  getAllTombstoneTags, 
-  getAllStates, 
-  getAllCities, 
-  getAllTransactionYears,
+import {
+  getTombstones,
+  getTombstoneFilterOptions,
   getPageData,
-  getTagNamesMap,
 } from '@/lib/data';
 
 interface TransactionsMetadata {
@@ -42,15 +38,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function TransactionsPage() {
-  const [pageContent, tombstones, tags, states, cities, years, tagNames] = await Promise.all([
+  const [pageContent, tombstones, filters] = await Promise.all([
     getPageData('transactions'),
     getTombstones(),
-    getAllTombstoneTags(),
-    getAllStates(),
-    getAllCities(),
-    getAllTransactionYears(),
-    getTagNamesMap(),
+    getTombstoneFilterOptions(),
   ]);
+  const tagNames = Object.fromEntries(filters.tags.map((t) => [t.slug, t.name]));
 
   const meta = (pageContent?.metadata || {}) as TransactionsMetadata;
 
@@ -102,10 +95,10 @@ export default async function TransactionsPage() {
           <div className="mt-12">
             <ContentExplorer
               type="transactions"
-              tags={tags}
-              states={states}
-              cities={cities}
-              years={years}
+              tags={filters.tags.map((t) => t.slug)}
+              states={filters.states}
+              cities={filters.cities}
+              years={filters.years}
               tagNames={tagNames}
             />
           </div>

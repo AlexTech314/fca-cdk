@@ -35,7 +35,18 @@ export const blogPostRepository = {
         skip,
         take: limit,
         orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
-        include: {
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          excerpt: true,
+          author: true,
+          category: true,
+          publishedAt: true,
+          isPublished: true,
+          previewToken: true,
+          createdAt: true,
+          updatedAt: true,
           tags: { include: { tag: true } },
           tombstone: { select: { id: true, slug: true, name: true } },
         },
@@ -137,6 +148,62 @@ export const blogPostRepository = {
     return formatBlogPost(post);
   },
 
+  async findAdjacent(slug: string) {
+    const rows = await prisma.$queryRaw<
+      {
+        prev_slug: string | null;
+        prev_title: string | null;
+        prev_date: Date | null;
+        next_slug: string | null;
+        next_title: string | null;
+        next_date: Date | null;
+      }[]
+    >`
+      WITH ordered AS (
+        SELECT
+          slug,
+          title,
+          published_at,
+          category,
+          ROW_NUMBER() OVER w AS rn,
+          LAG(slug) OVER w AS prev_slug,
+          LAG(title) OVER w AS prev_title,
+          LAG(published_at) OVER w AS prev_date,
+          LEAD(slug) OVER w AS next_slug,
+          LEAD(title) OVER w AS next_title,
+          LEAD(published_at) OVER w AS next_date
+        FROM blog_posts
+        WHERE is_published = true
+          AND category = (SELECT category FROM blog_posts WHERE slug = ${slug} LIMIT 1)
+        WINDOW w AS (ORDER BY published_at DESC NULLS LAST, created_at DESC)
+      ),
+      first_row AS (SELECT slug, title, published_at FROM ordered ORDER BY rn ASC LIMIT 1),
+      last_row AS (SELECT slug, title, published_at FROM ordered ORDER BY rn DESC LIMIT 1)
+      SELECT
+        COALESCE(o.prev_slug, l.slug) AS prev_slug,
+        COALESCE(o.prev_title, l.title) AS prev_title,
+        COALESCE(o.prev_date, l.published_at) AS prev_date,
+        COALESCE(o.next_slug, f.slug) AS next_slug,
+        COALESCE(o.next_title, f.title) AS next_title,
+        COALESCE(o.next_date, f.published_at) AS next_date
+      FROM ordered o
+      CROSS JOIN first_row f
+      CROSS JOIN last_row l
+      WHERE o.slug = ${slug}
+    `;
+
+    if (rows.length === 0) return null;
+    const r = rows[0];
+    return {
+      prev: r.prev_slug
+        ? { slug: r.prev_slug, title: r.prev_title!, publishedAt: r.prev_date }
+        : null,
+      next: r.next_slug
+        ? { slug: r.next_slug, title: r.next_title!, publishedAt: r.next_date }
+        : null,
+    };
+  },
+
   async findRelated(slug: string, limit = 5) {
     const post = await prisma.blogPost.findUnique({
       where: { slug },
@@ -166,6 +233,13 @@ export const blogPostRepository = {
           isPublished: true,
           id: { not: post.id },
           tags: { some: { tagId: { in: tagIds } } },
+        },
+        select: {
+          slug: true,
+          title: true,
+          excerpt: true,
+          publishedAt: true,
+          category: true,
         },
         take: limit,
         orderBy: { publishedAt: 'desc' },

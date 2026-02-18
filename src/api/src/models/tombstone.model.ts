@@ -37,6 +37,7 @@ export const tombstoneQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(200).default(20),
   industry: z.string().optional(),
   state: z.string().optional(),
+  city: z.string().optional(),
   year: z.coerce.number().int().optional(),
   tag: z.string().optional(),
   search: z.string().optional(),

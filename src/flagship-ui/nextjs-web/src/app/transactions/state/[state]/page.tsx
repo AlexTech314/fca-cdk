@@ -1,15 +1,11 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
-  getAllStates,
+  getTombstoneFilterOptions,
   getTombstonesByState,
   cityToSlug,
-  getAllTombstoneTags,
-  getAllCities,
-  getAllTransactionYears,
-  getNewsArticlesByTag,
+  getRelatedNewsFromTombstones,
 } from '@/lib/data';
-import type { NewsArticle } from '@/lib/types';
 import { fetchSiteConfig } from '@/lib/utils';
 import {
   getStateName,
@@ -23,8 +19,8 @@ interface PageProps {
 }
 
 export async function generateStaticParams() {
-  const states = await getAllStates();
-  return states.map((state) => ({ state: state.toLowerCase() }));
+  const filters = await getTombstoneFilterOptions();
+  return filters.states.map((state) => ({ state: state.toLowerCase() }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -40,27 +36,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     state.toUpperCase(),
     tombstones.length
   );
-}
-
-async function getRelatedNewsFromTombstones(tombstones: { tags?: string[] }[]) {
-  const uniqueTags = [...new Set(tombstones.flatMap((t) => t.tags || []))];
-  const newsResults = await Promise.all(
-    uniqueTags.map((tag) => getNewsArticlesByTag(tag))
-  );
-  const seenSlugs = new Set<string>();
-  const relatedNews: NewsArticle[] = [];
-  for (const articles of newsResults) {
-    for (const article of articles) {
-      if (!seenSlugs.has(article.slug)) {
-        seenSlugs.add(article.slug);
-        relatedNews.push(article);
-      }
-    }
-  }
-  relatedNews.sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
-  return relatedNews;
 }
 
 export default async function TransactionsByStatePage({ params }: PageProps) {
@@ -90,11 +65,8 @@ export default async function TransactionsByStatePage({ params }: PageProps) {
     ...new Set(tombstones.map((t) => t.city).filter(Boolean)),
   ].sort() as string[];
 
-  const [tags, states, cities, years, relatedNews, config] = await Promise.all([
-    getAllTombstoneTags(),
-    getAllStates(),
-    getAllCities(),
-    getAllTransactionYears(),
+  const [filters, relatedNews, config] = await Promise.all([
+    getTombstoneFilterOptions(),
     getRelatedNewsFromTombstones(tombstones),
     fetchSiteConfig(),
   ]);
@@ -107,10 +79,10 @@ export default async function TransactionsByStatePage({ params }: PageProps) {
       displayName={stateName}
       companyName={config.name}
       tombstones={tombstones}
-      tags={tags}
-      states={states}
-      cities={cities}
-      years={years}
+      tags={filters.tags.map((t) => t.slug)}
+      states={filters.states}
+      cities={filters.cities}
+      years={filters.years}
       relatedNews={relatedNews}
       cityFilter={{
         cities: citiesInState,

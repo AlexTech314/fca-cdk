@@ -4,7 +4,7 @@ import type { TombstoneQuery, CreateTombstoneInput, UpdateTombstoneInput } from 
 
 export const tombstoneRepository = {
   async findMany(query: TombstoneQuery) {
-    const { page, limit, industry, state, year, tag, search, published } = query;
+    const { page, limit, industry, state, city, year, tag, search, published } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.TombstoneWhereInput = {};
@@ -17,6 +17,9 @@ export const tombstoneRepository = {
     }
     if (state) {
       where.state = { equals: state, mode: 'insensitive' };
+    }
+    if (city) {
+      where.city = { equals: city, mode: 'insensitive' };
     }
     if (year) {
       where.transactionYear = year;
@@ -144,6 +147,54 @@ export const tombstoneRepository = {
     return formatTombstone(tombstone);
   },
 
+  async getFilterOptions() {
+    const result = await prisma.$queryRaw<
+      {
+        states: string[];
+        cities: string[];
+        years: number[];
+        tags: unknown;
+      }[]
+    >`
+      SELECT
+        (
+          SELECT COALESCE(ARRAY_AGG(DISTINCT state ORDER BY state), '{}')
+          FROM tombstones
+          WHERE is_published = true AND state IS NOT NULL
+        ) AS states,
+        (
+          SELECT COALESCE(ARRAY_AGG(DISTINCT city ORDER BY city), '{}')
+          FROM tombstones
+          WHERE is_published = true AND city IS NOT NULL
+        ) AS cities,
+        (
+          SELECT COALESCE(ARRAY_AGG(DISTINCT transaction_year ORDER BY transaction_year DESC), '{}')
+          FROM tombstones
+          WHERE is_published = true AND transaction_year IS NOT NULL
+        ) AS years,
+        (
+          SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT('slug', slug, 'name', name) ORDER BY name), '[]'::json)
+          FROM content_tags
+          WHERE category = 'industry'
+        ) AS tags
+    `;
+    const row = result[0];
+    if (!row) {
+      return { states: [], cities: [], years: [], tags: [] };
+    }
+    const tags = Array.isArray(row.tags)
+      ? (row.tags as { slug: string; name: string }[])
+      : typeof row.tags === 'string'
+        ? (JSON.parse(row.tags) as { slug: string; name: string }[])
+        : (row.tags as { slug: string; name: string }[]) ?? [];
+    return {
+      states: row.states ?? [],
+      cities: row.cities ?? [],
+      years: row.years ?? [],
+      tags,
+    };
+  },
+
   async findRelated(slug: string, limit = 5) {
     // Find related news by matching tags
     const tombstone = await prisma.tombstone.findUnique({
@@ -161,6 +212,13 @@ export const tombstoneRepository = {
         tags: { some: { tagId: { in: tagIds } } },
         // Exclude the press release if any
         id: tombstone.pressReleaseId ? { not: tombstone.pressReleaseId } : undefined,
+      },
+      select: {
+        slug: true,
+        title: true,
+        excerpt: true,
+        publishedAt: true,
+        category: true,
       },
       take: limit,
       orderBy: { publishedAt: 'desc' },

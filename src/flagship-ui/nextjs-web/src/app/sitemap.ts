@@ -1,12 +1,9 @@
 import { MetadataRoute } from 'next';
-import { 
+import {
   getTombstones,
-  getAllTombstoneTags,
-  getAllStates,
-  getAllCities,
-  getAllTransactionYears,
+  getTombstoneFilterOptions,
   getAllNewsTags,
-  getNewsArticles, 
+  getNewsArticles,
   getResourceArticles,
   cityToSlug,
 } from '@/lib/data';
@@ -67,7 +64,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Individual transaction pages - use transaction year as lastModified
-  const tombstones = await getTombstones();
+  const [tombstones, filters] = await Promise.all([
+    getTombstones(),
+    getTombstoneFilterOptions(),
+  ]);
   const transactionRoutes = tombstones.map((t) => ({
     url: `${baseUrl}/transactions/${t.slug}`,
     lastModified: parseDate(undefined, t.transactionYear),
@@ -77,8 +77,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Transaction grouping routes - by tag
   // Use the most recent transaction year for that tag
-  const tags = await getAllTombstoneTags();
-  const tagRoutes = await Promise.all(tags.map(async (tag) => {
+  const tagRoutes = await Promise.all(filters.tags.map(async (tagObj) => {
+    const tag = tagObj.slug;
     const tagTombstones = tombstones.filter(t => t.tags.includes(tag));
     const latestYear = Math.max(...tagTombstones.map(t => t.transactionYear || 0));
     return {
@@ -90,8 +90,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Transaction grouping routes - by state
-  const states = await getAllStates();
-  const stateRoutes = await Promise.all(states.map(async (state) => {
+  const stateRoutes = await Promise.all(filters.states.map(async (state) => {
     const stateTombstones = tombstones.filter(t => 
       t.state.toUpperCase().includes(state.toUpperCase())
     );
@@ -105,8 +104,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Transaction grouping routes - by city
-  const cities = await getAllCities();
-  const cityRoutes = cities.map((city) => {
+  const cityRoutes = filters.cities.map((city) => {
     const cityTombstones = tombstones.filter(t => 
       cityToSlug(t.city) === cityToSlug(city)
     );
@@ -120,8 +118,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   // Transaction grouping routes - by year
-  const years = await getAllTransactionYears();
-  const yearRoutes = years.map((year) => ({
+  const yearRoutes = filters.years.map((year) => ({
     url: `${baseUrl}/transactions/year/${year}`,
     lastModified: new Date(year, 11, 31), // Dec 31 of that year
     changeFrequency: 'yearly' as const,

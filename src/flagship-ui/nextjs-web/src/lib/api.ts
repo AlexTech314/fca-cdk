@@ -253,11 +253,19 @@ export async function getSiteConfig(): Promise<ApiSiteConfig | null> {
 // TOMBSTONES
 // ============================================
 
+export interface TombstoneFilterOptions {
+  states: string[];
+  cities: string[];
+  years: number[];
+  tags: { slug: string; name: string }[];
+}
+
 export async function getTombstones(params?: {
   page?: number;
   limit?: number;
   industry?: string;
   state?: string;
+  city?: string;
   year?: number;
   tag?: string;
   search?: string;
@@ -267,12 +275,17 @@ export async function getTombstones(params?: {
   if (params?.limit) query.set('limit', params.limit.toString());
   if (params?.industry) query.set('industry', params.industry);
   if (params?.state) query.set('state', params.state);
+  if (params?.city) query.set('city', params.city);
   if (params?.year) query.set('year', params.year.toString());
   if (params?.tag) query.set('tag', params.tag);
   if (params?.search) query.set('search', params.search);
 
   const queryStr = query.toString();
   return apiFetch<PaginatedResponse<ApiTombstone>>(`/tombstones${queryStr ? `?${queryStr}` : ''}`);
+}
+
+export async function getTombstoneFilters(): Promise<TombstoneFilterOptions> {
+  return apiFetch<TombstoneFilterOptions>('/tombstones/filters');
 }
 
 export async function getTombstoneBySlug(slug: string): Promise<ApiTombstone | null> {
@@ -330,6 +343,20 @@ export async function getRelatedContentForBlogPost(
     );
   } catch {
     return { tombstones: [], articles: [] };
+  }
+}
+
+export async function getAdjacentBlogPosts(slug: string): Promise<{
+  prev: { slug: string; title: string; publishedAt: string | null } | null;
+  next: { slug: string; title: string; publishedAt: string | null } | null;
+} | null> {
+  try {
+    return await apiFetch<{
+      prev: { slug: string; title: string; publishedAt: string | null } | null;
+      next: { slug: string; title: string; publishedAt: string | null } | null;
+    }>(`/blog-posts/${slug}/adjacent`);
+  } catch {
+    return null;
   }
 }
 

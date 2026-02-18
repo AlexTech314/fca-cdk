@@ -9,6 +9,8 @@ import { toAssetUrl } from './utils';
 import {
   getTombstones as apiGetTombstones,
   getTombstoneBySlug as apiGetTombstoneBySlug,
+  getTombstoneFilters,
+  getAdjacentBlogPosts,
   getBlogPosts as apiGetBlogPosts,
   getBlogPostBySlug as apiGetBlogPostBySlug,
   getRelatedNewsForTombstone as apiGetRelatedNews,
@@ -60,10 +62,10 @@ function fromApiBlogPostToNewsArticle(p: ApiBlogPost): NewsArticle {
     title: p.title,
     date: p.publishedAt ? formatDate(new Date(p.publishedAt)) : '',
     author: p.author || undefined,
-    excerpt: p.excerpt || extractExcerpt(p.content),
-    content: p.content,
+    excerpt: p.excerpt || extractExcerpt((p as { content?: string }).content || ''),
+    content: (p as { content?: string }).content ?? '',
     url: undefined,
-    tags: p.tags.map((tag) => tag.slug),
+    tags: (p.tags ?? []).map((tag) => tag.slug),
   };
 }
 
@@ -73,8 +75,8 @@ function fromApiBlogPostToResourceArticle(p: ApiBlogPost): ResourceArticle {
     title: p.title,
     category: p.category || 'Advice',
     author: p.author || undefined,
-    excerpt: p.excerpt || extractExcerpt(p.content),
-    content: p.content,
+    excerpt: p.excerpt || extractExcerpt((p as { content?: string }).content || ''),
+    content: (p as { content?: string }).content ?? '',
   };
 }
 
@@ -169,70 +171,20 @@ export async function getTombstonesByState(state: string): Promise<Tombstone[]> 
 }
 
 /**
- * Get all unique tags from tombstones
+ * Get tombstone filter options (states, cities, years, tags) in a single API call
  */
-export async function getAllTombstoneTags(): Promise<string[]> {
-  const tags = await getAllTags();
-  return tags.filter((t) => t.category === 'industry').map((t) => t.slug);
+export async function getTombstoneFilterOptions() {
+  return getTombstoneFilters();
 }
 
 /**
- * Get all unique states from tombstones
+ * Get tombstones by city. Pass URL slug (e.g. "denver") or display name (e.g. "Denver").
+ * Converts slug to display name for API matching.
  */
-export async function getAllStates(): Promise<string[]> {
-  // Fetch all tombstones and extract unique states
-  const tombstones = await getTombstones();
-  const stateSet = new Set<string>();
-
-  for (const tombstone of tombstones) {
-    if (tombstone.state) {
-      const states = tombstone.state.split(/[&\/,]+/).map((s) => s.trim().toUpperCase());
-      for (const state of states) {
-        if (state.length >= 2) stateSet.add(state);
-      }
-    }
-  }
-
-  return Array.from(stateSet).sort();
-}
-
-/**
- * Get all unique cities from tombstones
- */
-export async function getAllCities(): Promise<string[]> {
-  const tombstones = await getTombstones();
-  const citySet = new Set<string>();
-
-  for (const tombstone of tombstones) {
-    if (tombstone.city) citySet.add(tombstone.city);
-  }
-
-  return Array.from(citySet).sort();
-}
-
-/**
- * Get tombstones by city
- */
-export async function getTombstonesByCity(city: string): Promise<Tombstone[]> {
-  const tombstones = await getTombstones();
-  const citySlug = cityToSlug(city);
-  return tombstones.filter((t) => cityToSlug(t.city) === citySlug);
-}
-
-/**
- * Get all unique transaction years from tombstones
- */
-export async function getAllTransactionYears(): Promise<number[]> {
-  const tombstones = await getTombstones();
-  const yearSet = new Set<number>();
-
-  for (const tombstone of tombstones) {
-    if (tombstone.transactionYear && tombstone.transactionYear > 0) {
-      yearSet.add(tombstone.transactionYear);
-    }
-  }
-
-  return Array.from(yearSet).sort((a, b) => b - a);
+export async function getTombstonesByCity(citySlugOrName: string): Promise<Tombstone[]> {
+  const cityName = citySlugOrName.includes('-') ? slugToCity(citySlugOrName) : citySlugOrName;
+  const response = await apiGetTombstones({ city: cityName, limit: 100 });
+  return response.items.map(fromApiTombstone);
 }
 
 // ============================================
@@ -240,10 +192,10 @@ export async function getAllTransactionYears(): Promise<number[]> {
 // ============================================
 
 /**
- * Get all news articles
+ * Get news articles (optionally limited)
  */
-export async function getNewsArticles(): Promise<NewsArticle[]> {
-  const response = await apiGetBlogPosts({ category: 'news', limit: 100 });
+export async function getNewsArticles(limit = 100): Promise<NewsArticle[]> {
+  const response = await apiGetBlogPosts({ category: 'news', limit });
   return response.items.map(fromApiBlogPostToNewsArticle);
 }
 
@@ -285,10 +237,10 @@ export async function getTagNamesMap(): Promise<Record<string, string>> {
 // ============================================
 
 /**
- * Get all resource articles
+ * Get resource articles (optionally limited)
  */
-export async function getResourceArticles(): Promise<ResourceArticle[]> {
-  const response = await apiGetBlogPosts({ category: 'resource', limit: 100 });
+export async function getResourceArticles(limit = 100): Promise<ResourceArticle[]> {
+  const response = await apiGetBlogPosts({ category: 'resource', limit });
   return response.items.map(fromApiBlogPostToResourceArticle);
 }
 
@@ -332,7 +284,7 @@ export async function getRelatedNewsForTombstone(
       slug: article.slug,
       title: article.title,
       date: article.publishedAt ? formatDate(new Date(article.publishedAt)) : '',
-      excerpt: article.excerpt || extractExcerpt(article.content),
+      excerpt: article.excerpt || extractExcerpt((article as { content?: string }).content || ''),
     }));
 }
 
@@ -342,6 +294,33 @@ export async function getRelatedNewsForTombstone(
 export async function getRelatedTombstonesForNews(article: NewsArticle): Promise<Tombstone[]> {
   const { tombstones } = await getRelatedContentForBlogPost(article.slug);
   return tombstones.slice(0, 6).map(fromApiTombstone);
+}
+
+/**
+ * Get related news articles from tombstones by fetching news for each unique tag.
+ * Deduplicates by slug and sorts by date descending.
+ */
+export async function getRelatedNewsFromTombstones(
+  tombstones: { tags?: string[] }[]
+): Promise<NewsArticle[]> {
+  const uniqueTags = [...new Set(tombstones.flatMap((t) => t.tags || []))];
+  const newsResults = await Promise.all(
+    uniqueTags.map((tag) => getNewsArticlesByTag(tag))
+  );
+  const seenSlugs = new Set<string>();
+  const relatedNews: NewsArticle[] = [];
+  for (const articles of newsResults) {
+    for (const article of articles) {
+      if (!seenSlugs.has(article.slug)) {
+        seenSlugs.add(article.slug);
+        relatedNews.push(article);
+      }
+    }
+  }
+  relatedNews.sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+  return relatedNews;
 }
 
 /**
@@ -359,38 +338,35 @@ export async function getRelatedNewsForNews(article: NewsArticle): Promise<NewsA
       slug: a.slug,
       title: a.title,
       date: a.publishedAt ? formatDate(new Date(a.publishedAt)) : '',
-      excerpt: a.excerpt || extractExcerpt(a.content),
+      excerpt: a.excerpt || extractExcerpt((a as { content?: string }).content || ''),
     }));
 }
 
 /**
- * Get adjacent articles for navigation
+ * Get adjacent articles for navigation (prev/next with wrap-around)
  */
 export async function getAdjacentArticles(
   currentSlug: string
-): Promise<{ prev: NewsArticleSummary; next: NewsArticleSummary }> {
-  const allNews = await getNewsArticles();
-  const currentIndex = allNews.findIndex((a) => a.slug === currentSlug);
-
-  const prevIndex = currentIndex === 0 ? allNews.length - 1 : currentIndex - 1;
-  const nextIndex = currentIndex === allNews.length - 1 ? 0 : currentIndex + 1;
-
-  const prevArticle = allNews[prevIndex];
-  const nextArticle = allNews[nextIndex];
-
+): Promise<{ prev: NewsArticleSummary | null; next: NewsArticleSummary | null }> {
+  const result = await getAdjacentBlogPosts(currentSlug);
+  if (!result) return { prev: null, next: null };
   return {
-    prev: {
-      slug: prevArticle.slug,
-      title: prevArticle.title,
-      date: prevArticle.date,
-      excerpt: prevArticle.excerpt,
-    },
-    next: {
-      slug: nextArticle.slug,
-      title: nextArticle.title,
-      date: nextArticle.date,
-      excerpt: nextArticle.excerpt,
-    },
+    prev: result.prev
+      ? {
+          slug: result.prev.slug,
+          title: result.prev.title,
+          date: result.prev.publishedAt ? formatDate(new Date(result.prev.publishedAt)) : '',
+          excerpt: '',
+        }
+      : null,
+    next: result.next
+      ? {
+          slug: result.next.slug,
+          title: result.next.title,
+          date: result.next.publishedAt ? formatDate(new Date(result.next.publishedAt)) : '',
+          excerpt: '',
+        }
+      : null,
   };
 }
 

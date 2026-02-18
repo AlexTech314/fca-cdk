@@ -44,4 +44,8 @@ export const tombstoneService = {
   async getRelated(slug: string) {
     return tombstoneRepository.findRelated(slug);
   },
+
+  async getFilterOptions() {
+    return tombstoneRepository.getFilterOptions();
+  },
 };

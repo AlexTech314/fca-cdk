@@ -1,11 +1,8 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
-  getAllTombstoneTags,
+  getTombstoneFilterOptions,
   getTombstonesByTag,
-  getAllStates,
-  getAllCities,
-  getAllTransactionYears,
   getNewsArticlesByTag,
 } from '@/lib/data';
 import { fetchSiteConfig } from '@/lib/utils';
@@ -17,8 +14,8 @@ interface PageProps {
 }
 
 export async function generateStaticParams() {
-  const tags = await getAllTombstoneTags();
-  return tags.map((tag) => ({ tag }));
+  const filters = await getTombstoneFilterOptions();
+  return filters.tags.map((t) => ({ tag: t.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -55,11 +52,8 @@ export default async function TransactionsByTagPage({ params }: PageProps) {
     breadcrumbs,
   });
 
-  const [tags, states, cities, years, relatedNews, config] = await Promise.all([
-    getAllTombstoneTags(),
-    getAllStates(),
-    getAllCities(),
-    getAllTransactionYears(),
+  const [filters, relatedNews, config] = await Promise.all([
+    getTombstoneFilterOptions(),
     getNewsArticlesByTag(tag),
     fetchSiteConfig(),
   ]);
@@ -72,10 +66,10 @@ export default async function TransactionsByTagPage({ params }: PageProps) {
       displayName={displayName}
       companyName={config.name}
       tombstones={tombstones}
-      tags={tags}
-      states={states}
-      cities={cities}
-      years={years}
+      tags={filters.tags.map((t) => t.slug)}
+      states={filters.states}
+      cities={filters.cities}
+      years={filters.years}
       relatedNews={relatedNews}
       relatedNewsViewAllHref={`/news/tag/${tag}`}
       relatedNewsViewAllText={`View all ${relatedNews.length} related articles →`}

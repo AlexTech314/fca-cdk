@@ -26,12 +26,31 @@ export const contentTagRepository = {
       include: {
         tombstones: {
           where: { tombstone: { isPublished: true } },
-          include: { tombstone: true },
+          include: {
+            tombstone: {
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
+              },
+            },
+          },
           take: 10,
         },
         blogPosts: {
           where: { blogPost: { isPublished: true } },
-          include: { blogPost: true },
+          include: {
+            blogPost: {
+              select: {
+                slug: true,
+                title: true,
+                excerpt: true,
+                publishedAt: true,
+                category: true,
+              },
+            },
+          },
           take: 10,
         },
       },

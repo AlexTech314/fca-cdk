@@ -59,6 +59,15 @@ router.get('/tombstones', validate(tombstoneQuerySchema, 'query'), async (req, r
   }
 });
 
+router.get('/tombstones/filters', async (_req, res, next) => {
+  try {
+    const filters = await tombstoneService.getFilterOptions();
+    res.json(filters);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/tombstones/:slug', async (req, res, next) => {
   try {
     const tombstone = await tombstoneService.getBySlug(req.params.slug);
@@ -101,6 +110,18 @@ router.get('/blog-posts/:slug', async (req, res, next) => {
       return res.status(404).json({ error: 'Blog post not found' });
     }
     res.json(post);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/blog-posts/:slug/adjacent', async (req, res, next) => {
+  try {
+    const adjacent = await blogPostService.getAdjacent(req.params.slug);
+    if (!adjacent) {
+      return res.status(404).json({ error: 'Blog post not found' });
+    }
+    res.json(adjacent);
   } catch (error) {
     next(error);
   }

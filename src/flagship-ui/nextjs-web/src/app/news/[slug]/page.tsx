@@ -68,14 +68,17 @@ export default async function NewsArticlePage({ params }: PageProps) {
   }
 
   const contentBlocks = parseMarkdownContent(article.content);
-  
-  // Get related content
-  const relatedTombstones = await getRelatedTombstonesForNews(article);
-  const relatedNews = await getRelatedNewsForNews(article);
-  const adjacentArticles = await getAdjacentArticles(slug);
 
-  // Fetch all news tags for ContentExplorer + news page CTA metadata
-  const [newsTags, tagNames, newsPage] = await Promise.all([getAllNewsTags(), getTagNamesMap(), getPageData('news')]);
+  // Parallelize all data fetches after initial article
+  const [relatedTombstones, relatedNews, adjacentArticles, newsTags, tagNames, newsPage] =
+    await Promise.all([
+      getRelatedTombstonesForNews(article),
+      getRelatedNewsForNews(article),
+      getAdjacentArticles(slug),
+      getAllNewsTags(),
+      getTagNamesMap(),
+      getPageData('news'),
+    ]);
   const newsMeta = (newsPage?.metadata || {}) as { ctaTitle?: string; ctaDescription?: string; ctaText?: string };
 
   return (
@@ -144,13 +147,13 @@ export default async function NewsArticlePage({ params }: PageProps) {
                   maxItems={6}
                   columns={3}
                 />
-              ) : (
+              ) : (adjacentArticles.prev || adjacentArticles.next) ? (
                 <>
                   <h2 className="mb-6 text-xl font-bold text-text">
                     More News
                   </h2>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    {/* Previous Article */}
+                    {adjacentArticles.prev && (
                     <Link
                       href={`/news/${adjacentArticles.prev.slug}`}
                       className="group rounded-lg border border-border bg-surface p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/10"
@@ -178,8 +181,8 @@ export default async function NewsArticlePage({ params }: PageProps) {
                         {adjacentArticles.prev.date}
                       </p>
                     </Link>
-
-                    {/* Next Article */}
+                    )}
+                    {adjacentArticles.next && (
                     <Link
                       href={`/news/${adjacentArticles.next.slug}`}
                       className="group rounded-lg border border-border bg-surface p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-black/10"
@@ -207,9 +210,10 @@ export default async function NewsArticlePage({ params }: PageProps) {
                         {adjacentArticles.next.date}
                       </p>
                     </Link>
+                    )}
                   </div>
                 </>
-              )}
+              ) : null}
             </div>
 
             {/* Explore More News */}

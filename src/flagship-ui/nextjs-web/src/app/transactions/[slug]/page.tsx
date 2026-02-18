@@ -6,16 +6,12 @@ import { Container } from '@/components/ui/Container';
 import { CTASection } from '@/components/sections/CTASection';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
 import { RelatedNewsSection } from '@/components/sections/RelatedNewsSection';
-import { 
-  getTombstone, 
-  getTombstones, 
+import {
+  getTombstone,
+  getTombstones,
   findPressReleaseForTombstone,
   getRelatedNewsForTombstone,
-  getAllTombstoneTags,
-  getAllStates,
-  getAllCities,
-  getAllTransactionYears,
-  getTagNamesMap,
+  getTombstoneFilterOptions,
   getPageData,
 } from '@/lib/data';
 import { fetchSiteConfig } from '@/lib/utils';
@@ -78,14 +74,11 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
   );
 
   // Fetch data for ContentExplorer + transactions page CTA metadata
-  const [tags, states, cities, years, tagNames, transactionsPage] = await Promise.all([
-    getAllTombstoneTags(),
-    getAllStates(),
-    getAllCities(),
-    getAllTransactionYears(),
-    getTagNamesMap(),
+  const [filters, transactionsPage] = await Promise.all([
+    getTombstoneFilterOptions(),
     getPageData('transactions'),
   ]);
+  const tagNames = Object.fromEntries(filters.tags.map((t) => [t.slug, t.name]));
   const txMeta = (transactionsPage?.metadata || {}) as { ctaTitle?: string; ctaDescription?: string; ctaText?: string };
 
   return (
@@ -267,10 +260,10 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
             </h2>
             <ContentExplorer
               type="transactions"
-              tags={tags}
-              states={states}
-              cities={cities}
-              years={years}
+              tags={filters.tags.map((t) => t.slug)}
+              states={filters.states}
+              cities={filters.cities}
+              years={filters.years}
               tagNames={tagNames}
             />
           </div>

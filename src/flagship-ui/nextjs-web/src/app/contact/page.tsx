@@ -26,11 +26,11 @@ interface ContactMetadata {
 export default async function ContactPage() {
   const [pageContent, articles, resources] = await Promise.all([
     getPageData('contact'),
-    getNewsArticles(),
-    getResourceArticles(),
+    getNewsArticles(1),
+    getResourceArticles(1),
   ]);
-  const featuredArticle = articles[0];
-  const featuredResource = resources.length > 0 ? resources[0] : null;
+  const featuredArticle = articles[0] ?? null;
+  const featuredResource = resources[0] ?? null;
   const meta = (pageContent?.metadata || {}) as ContactMetadata;
 
   return (

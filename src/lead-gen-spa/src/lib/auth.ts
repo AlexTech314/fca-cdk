@@ -212,7 +212,8 @@ export async function logout(): Promise<void> {
 }
 
 /**
- * Get the ID token for API authorization
+ * Get the access token for API authorization.
+ * The leadgen API expects the Cognito access token (tokenUse: 'access'), not the ID token.
  */
 export async function getIdToken(): Promise<string | null> {
   if (USE_MOCK_AUTH) {
@@ -222,7 +223,7 @@ export async function getIdToken(): Promise<string | null> {
   try {
     const { fetchAuthSession } = await getAmplifyAuth();
     const session = await fetchAuthSession();
-    return session.tokens?.idToken?.toString() || null;
+    return session.tokens?.accessToken?.toString() || null;
   } catch {
     return null;
   }

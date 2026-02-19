@@ -17,6 +17,7 @@
     ]
   },
   "context": {
+    "disableDockerCache": "false",
     "repositoryName": "AlexTech314/fca-cdk",
     "branchName": "main",
     "connectionArn": "arn:aws:codeconnections:us-east-2:166763268311:connection/46950f38-ff02-4ed9-8fac-bb73c3ad33d5",

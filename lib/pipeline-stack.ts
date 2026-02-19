@@ -73,6 +73,9 @@ export class PipelineStack extends cdk.Stack {
       // Pull from ECR cache to avoid Docker Hub rate limits (multiarch/qemu-user-static)
       assetPublishingCodeBuildDefaults: {
         buildEnvironment: { privileged: true },
+        ...(this.node.tryGetContext('disableDockerCache') === 'true'
+          ? {}
+          : { cache: codebuild.Cache.local(codebuild.LocalCacheMode.DOCKER_LAYER) }),
         rolePolicy: [
           new iam.PolicyStatement({
             actions: ['ecr:GetAuthorizationToken'],

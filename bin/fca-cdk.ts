@@ -2,6 +2,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { PipelineStack } from '../lib/pipeline-stack';
 import { EcrCacheStack } from '../lib/stacks/ecr-cache-stack';
+import { DnsStack } from '../lib/stacks/dns-stack';
 
 const app = new cdk.App();
 
@@ -32,6 +33,15 @@ const pipelineConfig = {
 // 4. Seed the cache by pulling an image through ECR
 //
 new EcrCacheStack(app, 'FcaEcrCache', { env });
+
+// ============================================================
+// DNS Stack - Standalone Route 53 hosted zone
+// ============================================================
+//
+// Deploy manually: npx cdk deploy FcaDns
+// Then update your domain registrar's nameservers to the output NS records.
+//
+new DnsStack(app, 'FcaDns', { env });
 
 // ============================================================
 // Pipeline Stack - Deploy SECOND after ECR Cache

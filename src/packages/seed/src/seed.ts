@@ -585,11 +585,13 @@ async function seedBlogPosts(prisma: PrismaClient): Promise<void> {
 
       // Prepend title as H1 to content so it renders as part of the markdown
       const fullContent = `# ${title}\n\n${body}`;
+      const excerpt = body.replace(/\n+/g, ' ').slice(0, 160).trim() + (body.length > 160 ? '...' : '');
 
       const blogPost = await prisma.blogPost.upsert({
         where: { slug },
         update: {
           title,
+          excerpt: excerpt || null,
           content: fullContent,
           author: author || null,
           category: 'news',
@@ -599,6 +601,7 @@ async function seedBlogPosts(prisma: PrismaClient): Promise<void> {
         create: {
           slug,
           title,
+          excerpt: excerpt || null,
           content: fullContent,
           author: author || null,
           category: 'news',
@@ -640,11 +643,13 @@ async function seedBlogPosts(prisma: PrismaClient): Promise<void> {
 
       // Prepend title as H1 to content so it renders as part of the markdown
       const fullContent = `# ${title}\n\n${body}`;
+      const excerpt = body.replace(/\n+/g, ' ').slice(0, 160).trim() + (body.length > 160 ? '...' : '');
 
       const blogPost = await prisma.blogPost.upsert({
         where: { slug },
         update: {
           title,
+          excerpt: excerpt || null,
           content: fullContent,
           author: author || null,
           category: 'resource',
@@ -653,6 +658,7 @@ async function seedBlogPosts(prisma: PrismaClient): Promise<void> {
         create: {
           slug,
           title,
+          excerpt: excerpt || null,
           content: fullContent,
           author: author || null,
           category: 'resource',

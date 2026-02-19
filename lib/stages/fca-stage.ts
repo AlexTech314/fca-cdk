@@ -6,6 +6,7 @@ import { LeadGenPipelineStack } from '../stacks/leadgen-pipeline-stack';
 import { CognitoStack } from '../stacks/cognito-stack';
 import { ApiStack } from '../stacks/api-stack';
 import { LeadGenWebStack } from '../stacks/leadgen-web-stack';
+import { FlagshipWebStack } from '../stacks/flagship-web-stack';
 
 export interface FcaStageProps extends cdk.StageProps {
   // Add stage-specific configuration here
@@ -29,6 +30,7 @@ export class FcaStage extends cdk.Stage {
   public readonly cognitoStack: CognitoStack;
   public readonly apiStack: ApiStack;
   public readonly webStack: LeadGenWebStack;
+  public readonly flagshipWebStack: FlagshipWebStack;
 
   constructor(scope: Construct, id: string, props?: FcaStageProps) {
     super(scope, id, props);
@@ -78,5 +80,17 @@ export class FcaStage extends cdk.Stage {
       apiLoadBalancer: this.apiStack.loadBalancer,
     });
     this.webStack.addDependency(this.apiStack);
+
+    // Stack 7: Flagship Next.js (public + admin Fargate behind CloudFront)
+    this.flagshipWebStack = new FlagshipWebStack(this, 'FlagshipWeb', {
+      vpc: this.networkStack.vpc,
+      apiLoadBalancer: this.apiStack.loadBalancer,
+      apiListener: this.apiStack.listener,
+      apiLoadBalancerDnsName: this.apiStack.loadBalancerDnsName,
+      cognitoUserPoolId: this.cognitoStack.userPool.userPoolId,
+      cognitoClientId: this.cognitoStack.userPoolClient.userPoolClientId,
+    });
+    this.flagshipWebStack.addDependency(this.apiStack);
+    this.flagshipWebStack.addDependency(this.cognitoStack);
   }
 }

@@ -42,7 +42,14 @@ export default function AdminResourceDetailPage() {
 
         if (!match) throw new Error('Resource not found');
 
-        setPost(match);
+        // Fetch full article by ID (list endpoint strips content for perf)
+        const fullRes = await authedApiFetch(`/api/admin/blog-posts/${match.id}`);
+        if (fullRes.ok) {
+          const fullPost = await fullRes.json();
+          setPost(fullPost);
+        } else {
+          setPost(match);
+        }
         setAllTags(tagsRes.ok ? await tagsRes.json() : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load');

@@ -45,7 +45,14 @@ export default function AdminNewsDetailPage() {
 
         if (!match) throw new Error('Article not found');
 
-        setPost(match);
+        // Fetch full article by ID (list endpoint strips content for perf)
+        const fullRes = await authedApiFetch(`/api/admin/blog-posts/${match.id}`);
+        if (fullRes.ok) {
+          const fullPost = await fullRes.json();
+          setPost(fullPost);
+        } else {
+          setPost(match);
+        }
         setAllTags(tagsRes.ok ? await tagsRes.json() : []);
 
         if (tombstonesRes.ok) {

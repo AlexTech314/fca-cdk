@@ -325,7 +325,7 @@ export function BlogPostsTable({ initialPosts, category, detailBasePath }: BlogP
                   {/* Excerpt */}
                   <td className="px-4 py-3">
                     <p className={`text-sm text-text-muted line-clamp-1 ${isDeleted ? 'line-through' : ''}`}>
-                      {post.excerpt || post.content.slice(0, 80) || '--'}
+                      {post.excerpt || (post.content?.slice(0, 80)) || '--'}
                     </p>
                   </td>
 

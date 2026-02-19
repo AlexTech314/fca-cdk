@@ -32,6 +32,7 @@ export interface ApiStackProps extends cdk.StackProps {
 export class ApiStack extends cdk.Stack {
   public readonly loadBalancer: elbv2.IApplicationLoadBalancer;
   public readonly loadBalancerDnsName: string;
+  public readonly listener: elbv2.IApplicationListener;
 
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
@@ -96,6 +97,7 @@ export class ApiStack extends cdk.Stack {
 
     this.loadBalancer = apiService.loadBalancer;
     this.loadBalancerDnsName = apiService.loadBalancer.loadBalancerDnsName;
+    this.listener = apiService.listener;
 
     const scaling = apiService.service.autoScaleTaskCount({ minCapacity: 1, maxCapacity: 10 });
     scaling.scaleOnCpuUtilization('CpuScaling', {

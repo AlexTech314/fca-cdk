@@ -54,6 +54,11 @@ export class FlagshipWebStack extends cdk.Stack {
     // ============================================================
     // Deploy-time Docker builds (supports CDK tokens as build args)
     // ============================================================
+    const publicBuildLogGroup = new logs.LogGroup(this, 'PublicBuildLogGroup', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
     const publicDockerBuilder = new TokenInjectableDockerBuilder(this, 'PublicDockerBuilder', {
       path: path.join(__dirname, '../../src/flagship-ui/nextjs-web'),
       file: 'Dockerfile.public',
@@ -62,8 +67,14 @@ export class FlagshipWebStack extends cdk.Stack {
       },
       vpc,
       subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      buildLogGroup: publicBuildLogGroup,
     });
 
+    const adminBuildLogGroup = new logs.LogGroup(this, 'AdminBuildLogGroup', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+    
     const adminDockerBuilder = new TokenInjectableDockerBuilder(this, 'AdminDockerBuilder', {
       path: path.join(__dirname, '../../src/flagship-ui/nextjs-web'),
       file: 'Dockerfile.admin',
@@ -75,6 +86,7 @@ export class FlagshipWebStack extends cdk.Stack {
       },
       vpc,
       subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      buildLogGroup: adminBuildLogGroup,
     });
 
     // ============================================================

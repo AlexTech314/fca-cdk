@@ -49,6 +49,8 @@ export class ApiStack extends cdk.Stack {
       cognitoClientId,
     } = props;
 
+    const assetsBucket = s3.Bucket.fromBucketName(this, 'AssetsBucket', 'fca-assets-113862367661');
+
     const cluster = new ecs.Cluster(this, 'ApiCluster', { vpc });
 
     const apiLogGroup = new logs.LogGroup(this, 'ApiLogs', {
@@ -82,11 +84,12 @@ export class ApiStack extends cdk.Stack {
           NODE_ENV: 'production',
           DATABASE_HOST: databaseEndpoint,
           CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
+          ASSETS_BUCKET_NAME: assetsBucket.bucketName,
+          CDN_DOMAIN: 'd1bjh7dvpwoxii.cloudfront.net',
           START_PLACES_LAMBDA_ARN: startPlacesLambdaArn,
           COGNITO_USER_POOL_ID: cognitoUserPoolId,
           COGNITO_CLIENT_ID: cognitoClientId,
           AWS_REGION: this.region,
-          // CORS origins: set when deploying nextjs-web; lead-gen-spa is same-origin via CloudFront
         },
         secrets: {
           DATABASE_SECRET_ARN: ecs.Secret.fromSecretsManager(databaseSecret),
@@ -113,6 +116,7 @@ export class ApiStack extends cdk.Stack {
 
     databaseSecret.grantRead(apiService.taskDefinition.taskRole);
     campaignDataBucket.grantReadWrite(apiService.taskDefinition.taskRole);
+    assetsBucket.grantReadWrite(apiService.taskDefinition.taskRole);
     apiService.taskDefinition.taskRole.addToPrincipalPolicy(
       new iam.PolicyStatement({
         actions: ['lambda:InvokeFunction'],

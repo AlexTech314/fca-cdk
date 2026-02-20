@@ -52,7 +52,7 @@ export class FlagshipWebStack extends cdk.Stack {
     const apiUrl = `http://${apiLoadBalancerDnsName}/api`;
     const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
 
-    const publicDockerBuilder = new TokenInjectableDockerBuilder(this, 'PublicDockerBuilder', {
+    const publicDockerBuilder = new TokenInjectableDockerBuilder(this, 'PublicDockerBuilderV2', {
       path: path.join(__dirname, '../../src/flagship-ui/nextjs-web'),
       file: 'Dockerfile.public',
       platform: 'linux/arm64',
@@ -64,7 +64,7 @@ export class FlagshipWebStack extends cdk.Stack {
       subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
     });
 
-    const adminDockerBuilder = new TokenInjectableDockerBuilder(this, 'AdminDockerBuilder', {
+    const adminDockerBuilder = new TokenInjectableDockerBuilder(this, 'AdminDockerBuilderV2', {
       path: path.join(__dirname, '../../src/flagship-ui/nextjs-web'),
       file: 'Dockerfile.admin',
       platform: 'linux/arm64',

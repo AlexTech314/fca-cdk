@@ -13,6 +13,8 @@ export interface SeedCognitoOptions {
   groups: string[];
   endpoint?: string; // e.g. 'http://localhost:9229' for local
   region?: string;
+  /** If true, skip existing users (do not overwrite password or groups) */
+  skipIfExists?: boolean;
 }
 
 export async function seedCognitoUser(opts: SeedCognitoOptions): Promise<void> {
@@ -50,10 +52,17 @@ export async function seedCognitoUser(opts: SeedCognitoOptions): Promise<void> {
       })
     );
   } catch (e: unknown) {
-    if ((e as { name?: string }).name !== 'UsernameExistsException') throw e;
+    if ((e as { name?: string }).name === 'UsernameExistsException') {
+      if (opts.skipIfExists) {
+        console.log(`Cognito: skipping existing user ${opts.email}`);
+        return;
+      }
+    } else {
+      throw e;
+    }
   }
 
-  // Set permanent password
+  // Set permanent password (only for newly created users)
   await client.send(
     new AdminSetUserPasswordCommand({
       UserPoolId: opts.userPoolId,

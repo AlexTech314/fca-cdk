@@ -2,7 +2,7 @@
  * Scoring Trigger Lambda
  *
  * Consumes ScoringQueue (batch 50). Writes batch to S3, creates FargateTask record,
- * runs Scoring Fargate task. maxConcurrency: 1 ensures only one scoring task at a time.
+ * runs Scoring Fargate task. maxConcurrency: 2 (AWS minimum) limits concurrent scoring tasks.
  */
 
 import { SQSEvent, SQSRecord } from 'aws-lambda';

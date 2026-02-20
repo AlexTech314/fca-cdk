@@ -365,7 +365,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       new lambdaEventSources.SqsEventSource(scoringQueue, {
         batchSize: 50,
         maxBatchingWindow: cdk.Duration.seconds(60),
-        maxConcurrency: 1,
+        maxConcurrency: 2, // AWS minimum; keeps scoring throughput low for Claude rate limits
       })
     );
 

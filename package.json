@@ -31,6 +31,6 @@
     "aws-cdk-lib": "^2.236.0",
     "cdk-fck-nat": "^1.6.22",
     "constructs": "^10.0.0",
-    "token-injectable-docker-builder": "^1.10.0"
+    "token-injectable-docker-builder": "^1.11.0"
   }
 }

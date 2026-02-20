@@ -74,39 +74,34 @@ export class EcrCacheStack extends cdk.Stack {
     // ============================================================
     // Registry Policy for Pull-Through Cache Access
     // ============================================================
-    // The CDK Pipeline's asset publishing assumes the bootstrap image-publishing role.
-    // We use a Registry Policy to grant access to ghcr/* and docker-hub/* repos.
-    // Reference: https://garbe.io/blog/2024/04/09/bypass-docker-hub-rate-limits-with-ecr-pullthrough-cache/
+    // Grants any IAM principal in this account permission to trigger
+    // pull-through cache imports. Callers still need standard ECR pull
+    // permissions (BatchGetImage, etc.) on their own IAM role — this
+    // policy only authorizes the registry-level import/create actions.
     
-    // Use CDK's default bootstrap qualifier to construct the role ARN
-    const qualifier = DefaultStackSynthesizer.DEFAULT_QUALIFIER;
-    const imagePublishingRoleArn = `arn:aws:iam::${this.account}:role/cdk-${qualifier}-image-publishing-role-${this.account}-${this.region}`;
-
     new ecr.CfnRegistryPolicy(this, 'PullThroughCacheRegistryPolicy', {
       policyText: {
         Version: '2012-10-17',
         Statement: [
           {
-            Sid: 'AllowPullThroughCacheOperationsGhcr',
+            Sid: 'AllowPullThroughCacheGhcr',
             Effect: 'Allow',
             Principal: {
-              AWS: imagePublishingRoleArn,
+              AWS: `arn:aws:iam::${this.account}:root`,
             },
             Action: [
-              // Registry-level operations for pull-through cache
               'ecr:BatchImportUpstreamImage',
               'ecr:CreateRepository',
             ],
             Resource: `arn:aws:ecr:${this.region}:${this.account}:repository/ghcr/*`,
           },
           {
-            Sid: 'AllowPullThroughCacheOperationsDockerHub',
+            Sid: 'AllowPullThroughCacheDockerHub',
             Effect: 'Allow',
             Principal: {
-              AWS: imagePublishingRoleArn,
+              AWS: `arn:aws:iam::${this.account}:root`,
             },
             Action: [
-              // Registry-level operations for pull-through cache
               'ecr:BatchImportUpstreamImage',
               'ecr:CreateRepository',
             ],
@@ -122,7 +117,7 @@ export class EcrCacheStack extends cdk.Stack {
     // The CDK bootstrap image-publishing role needs IAM permissions to pull
     // from cached repos. assetPublishingCodeBuildDefaults only adds to the
     // CodeBuild service role, but Docker uses the assumed bootstrap role.
-    // Use CfnPolicy to attach directly to the bootstrap role by name.
+    const qualifier = DefaultStackSynthesizer.DEFAULT_QUALIFIER;
     const imagePublishingRoleName = `cdk-${qualifier}-image-publishing-role-${this.account}-${this.region}`;
 
     new iam.CfnPolicy(this, 'EcrPullThroughCachePolicy', {

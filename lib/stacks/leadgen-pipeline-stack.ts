@@ -152,6 +152,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       platform: 'linux/arm64',
       provider,
       buildArgs: { NODE_20_SLIM: node20Slim },
+      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
     });
 
     const placesTaskDef = new ecs.FargateTaskDefinition(this, 'PlacesTaskDef', {
@@ -192,6 +193,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       platform: 'linux/arm64',
       provider,
       buildArgs: { NODE_20_SLIM: node20Slim },
+      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
     });
 
     const startPlacesLogGroup = new logs.LogGroup(this, 'StartPlacesLogs', {
@@ -235,6 +237,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
         BASE_IMAGE: baseImage,
         NODE_20_SLIM: node20Slim,
       },
+      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
     });
 
     const scrapeTaskDef = new ecs.FargateTaskDefinition(this, 'ScrapeTaskDef', {
@@ -272,6 +275,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       platform: 'linux/arm64',
       provider,
       buildArgs: { NODE_20_SLIM: node20Slim },
+      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
     });
 
     const scrapeTriggerLogGroup = new logs.LogGroup(this, 'ScrapeTriggerLogs', {
@@ -319,6 +323,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       platform: 'linux/arm64',
       provider,
       buildArgs: { NODE_20_SLIM: node20Slim },
+      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
     });
 
     const scoringTaskDef = new ecs.FargateTaskDefinition(this, 'ScoringTaskDef', {
@@ -359,6 +364,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       platform: 'linux/arm64',
       provider,
       buildArgs: { NODE_20_SLIM: node20Slim },
+      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
     });
 
     const scoringTriggerLogGroup = new logs.LogGroup(this, 'ScoringTriggerLogs', {

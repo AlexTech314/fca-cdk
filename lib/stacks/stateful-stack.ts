@@ -139,6 +139,7 @@ export class StatefulStack extends cdk.Stack {
       vpc,
       subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       buildArgs: { NODE_20_SLIM: ecrNode20Slim(this.account, this.region) },
+      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
     });
 
     const seedLambdaLogGroup = new logs.LogGroup(this, 'SeedDbLogs', {

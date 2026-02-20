@@ -11,7 +11,7 @@ import * as ecr_assets from 'aws-cdk-lib/aws-ecr-assets';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import { Construct } from 'constructs';
 import * as path from 'path';
-import { ecrNode20Slim, ecrBuildCacheOptions } from '../ecr-images';
+import { ecrNode20Slim } from '../ecr-images';
 
 export interface ApiStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
@@ -25,7 +25,6 @@ export interface ApiStackProps extends cdk.StackProps {
   readonly scoringQueue?: sqs.IQueue;
   readonly cognitoUserPoolId: string;
   readonly cognitoClientId: string;
-  readonly buildCacheRepoUri: string;
 }
 
 /**
@@ -53,10 +52,8 @@ export class ApiStack extends cdk.Stack {
       scoringQueue,
       cognitoUserPoolId,
       cognitoClientId,
-      buildCacheRepoUri,
     } = props;
 
-    const buildCacheOpts = ecrBuildCacheOptions(buildCacheRepoUri);
     const assetsBucket = s3.Bucket.fromBucketName(this, 'AssetsBucket', 'fca-assets-113862367661');
 
     const cluster = new ecs.Cluster(this, 'ApiCluster', { vpc });
@@ -86,7 +83,6 @@ export class ApiStack extends cdk.Stack {
           buildArgs: {
             NODE_20_SLIM: ecrNode20Slim(this.account, this.region),
           },
-          ...buildCacheOpts,
         }),
         containerPort: 3000,
         environment: {

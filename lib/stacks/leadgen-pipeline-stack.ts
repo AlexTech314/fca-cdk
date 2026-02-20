@@ -11,7 +11,7 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Construct } from 'constructs';
 import * as path from 'path';
-import { ecrNode20Slim, ecrBuildCacheOptions } from '../ecr-images';
+import { ecrNode20Slim } from '../ecr-images';
 
 export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
@@ -19,7 +19,6 @@ export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly databaseSecret: secretsmanager.ISecret;
   readonly pipelineSecurityGroup: ec2.ISecurityGroup;
   readonly campaignDataBucket: s3.IBucket;
-  readonly buildCacheRepoUri: string;
 }
 
 /**
@@ -36,8 +35,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
     super(scope, id, props);
 
-    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket, buildCacheRepoUri } = props;
-    const buildCacheOpts = ecrBuildCacheOptions(buildCacheRepoUri);
+    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket } = props;
 
     // Direct RDS connection (no proxy -- saves $21.90/mo, peak ~40 connections vs ~80 limit)
     const databaseEndpoint = database.dbInstanceEndpointAddress;
@@ -105,7 +103,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
     const bridgeLambda = new lambda.DockerImageFunction(this, 'BridgeLambda', {
       code: lambda.DockerImageCode.fromImageAsset(
         path.join(__dirname, '../../src'),
-        { file: 'lambda/bridge/Dockerfile', ...buildCacheOpts }
+        { file: 'lambda/bridge/Dockerfile' }
       ),
       timeout: cdk.Duration.seconds(10),
       memorySize: 128,
@@ -150,7 +148,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
         {
           file: 'pipeline/places-task/Dockerfile',
           buildArgs: { NODE_20_SLIM: node20Slim },
-          ...buildCacheOpts,
         }
       ),
       logging: ecs.LogDrivers.awsLogs({
@@ -185,7 +182,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
         {
           file: 'lambda/start-places/Dockerfile',
           buildArgs: { NODE_20_SLIM: node20Slim },
-          ...buildCacheOpts,
         }
       ),
       timeout: cdk.Duration.seconds(30),
@@ -229,7 +225,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
             BASE_IMAGE: baseImage,
             NODE_20_SLIM: node20Slim,
           },
-          ...buildCacheOpts,
         }
       ),
       logging: ecs.LogDrivers.awsLogs({
@@ -261,7 +256,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
         {
           file: 'lambda/scrape-trigger/Dockerfile',
           buildArgs: { NODE_20_SLIM: node20Slim },
-          ...buildCacheOpts,
         }
       ),
       timeout: cdk.Duration.seconds(60),
@@ -306,7 +300,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
         {
           file: 'pipeline/scoring-task/Dockerfile',
           buildArgs: { NODE_20_SLIM: node20Slim },
-          ...buildCacheOpts,
         }
       ),
       logging: ecs.LogDrivers.awsLogs({
@@ -341,7 +334,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
         {
           file: 'lambda/scoring-trigger/Dockerfile',
           buildArgs: { NODE_20_SLIM: node20Slim },
-          ...buildCacheOpts,
         }
       ),
       timeout: cdk.Duration.seconds(60),

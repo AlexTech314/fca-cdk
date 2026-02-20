@@ -60,8 +60,7 @@ async function main(): Promise<void> {
   }
   
   const taskId = jobInput.taskId ?? jobInput.jobId;
-  const maxPagesPerSite = jobInput.maxPagesPerSite || 10;
-  const enableEarlyExit = true; // Always enable early exit for efficiency
+  const maxPagesPerSite = jobInput.maxPagesPerSite ?? 15;
   
   // Read batch from S3 (scrape-trigger writes { id, place_id, website }[] per batch)
   const batchS3Key = jobInput.batchS3Key;
@@ -104,7 +103,6 @@ async function main(): Promise<void> {
   console.log(`Using concurrency: ${concurrency}`);
   console.log(`Max pages per site: ${maxPagesPerSite}`);
   console.log(`Fast mode (no Puppeteer): ${fastMode}`);
-  console.log(`Early exit enabled: ${enableEarlyExit}`);
   console.log(`Leads to scrape: ${businesses.length}`);
   
   if (businesses.length === 0) {
@@ -159,8 +157,6 @@ async function main(): Promise<void> {
   let totalBytes = 0;
   let cloudscraperCount = 0;
   let puppeteerCount = 0;
-  let earlyExitCount = 0;
-  
   const startTimeTotal = Date.now();
   
   for (let i = 0; i < businesses.length; i += concurrency) {
@@ -179,19 +175,10 @@ async function main(): Promise<void> {
           pagePool,
           domainTracker,
           failureTracker: globalFailureTracker,
-          enableEarlyExit,
-          earlyExitCriteria: {
-            minPages: 3,
-            requireEmail: true,
-            requireTeamMember: false,
-          },
+          enableEarlyExit: false,
         }) as ScrapeWebsiteExtendedResult;
         
-        const { pages, method, cloudscraperCount: siteCloudscraperCount, puppeteerCount: sitePuppeteerCount, earlyExit } = scrapeResult;
-        
-        if (earlyExit) {
-          earlyExitCount++;
-        }
+        const { pages, method, cloudscraperCount: siteCloudscraperCount, puppeteerCount: sitePuppeteerCount } = scrapeResult;
         
         if (pages.length === 0) {
           console.log(`  ✗ No pages scraped for ${business.business_name}`);
@@ -279,8 +266,7 @@ async function main(): Promise<void> {
         cloudscraperCount += siteCloudscraperCount;
         puppeteerCount += sitePuppeteerCount;
         
-        const exitIndicator = earlyExit ? ' [early]' : '';
-        console.log(`  ✓ Scraped ${pages.length} pages${exitIndicator} (cs: ${siteCloudscraperCount}, pp: ${sitePuppeteerCount}), ${extracted.emails.length} emails, ${extracted.team_members.length} team members`);
+        console.log(`  ✓ Scraped ${pages.length} pages (cs: ${siteCloudscraperCount}, pp: ${sitePuppeteerCount}), ${extracted.emails.length} emails, ${extracted.team_members.length} team members`);
         
       } catch (error) {
         failed++;
@@ -307,7 +293,6 @@ async function main(): Promise<void> {
   console.log(`Duration: ${(totalDurationMs / 1000).toFixed(1)}s (${avgTimePerBusiness}ms avg per business)`);
   console.log(`Processed: ${processed}`);
   console.log(`Failed: ${failed}`);
-  console.log(`Early exits: ${earlyExitCount} (${processed > 0 ? Math.round(100 * earlyExitCount / processed) : 0}%)`);
   console.log(`Total pages scraped: ${totalPages}`);
   console.log(`Methods - Cloudscraper: ${cloudscraperCount}, Puppeteer: ${puppeteerCount}`);
   console.log(`Total bytes: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);

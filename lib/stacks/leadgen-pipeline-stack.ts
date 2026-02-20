@@ -47,9 +47,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
     const googleApiKey = secretsmanager.Secret.fromSecretNameV2(
       this, 'GoogleApiKey', 'fca/GOOGLE_API_KEY'
     );
-    const claudeApiKey = secretsmanager.Secret.fromSecretNameV2(
-      this, 'ClaudeApiKey', 'fca/CLAUDE_API_KEY'
-    );
 
     // Pipeline SG and RDS ingress live in StatefulStack to avoid cross-stack SecurityGroupIngress CREATE_FAILED
 
@@ -347,10 +344,16 @@ export class LeadGenPipelineStack extends cdk.Stack {
         DATABASE_HOST: databaseEndpoint,
         AWS_REGION: this.region,
       },
-      secrets: {
-        CLAUDE_API_KEY: ecs.Secret.fromSecretsManager(claudeApiKey),
-      },
     });
+
+    scoringTaskDef.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock:InvokeModel'],
+        resources: [
+          `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-sonnet-4-6`,
+        ],
+      })
+    );
 
     campaignDataBucket.grantRead(scoringTaskDef.taskRole);
     databaseSecret.grantRead(scoringTaskDef.taskRole);

@@ -111,6 +111,54 @@ export const SKIP_PATTERNS: RegExp[] = [
   /\/calendar\//i,
   /\/events\//i,            // often noisy
   /\/rss\/?$/i,
+
+  // E-commerce (not useful for M&A lead data)
+  /\/products?\//i,
+  /\/shop\//i,
+  /\/store\//i,
+  /\/collections?\//i,
+  /\/wishlist/i,
+  /\/compare/i,
+
+  // Date-based archives (duplicate content)
+  /\/20\d{2}\//,
+  /\/archives?\//i,
+
+  // Admin/backend
+  /\/admin\//i,
+  /\/dashboard/i,
+  /\/backend/i,
+
+  // CMS-specific junk
+  /\/node\//i,
+  /\/taxonomy\//i,
+  /\/component\//i,
+
+  // Additional tracking params
+  /[?&]fbclid=/i,
+  /[?&]gclid=/i,
+  /[?&]utm_term=/i,
+  /[?&]utm_content=/i,
+  /[?&]ref=/i,
+  /[?&]source=/i,
+
+  // User/account
+  /\/user\//i,
+  /\/profile\//i,
+  /\/account\//i,
+  /\/settings\//i,
+
+  // Downloads
+  /\/downloads?\//i,
+  /\/files\//i,
+
+  // Misc low-value
+  /\/privacy/i,
+  /\/terms/i,
+  /\/cookie/i,
+  /\/sitemap/i,
+  /\/accessibility/i,
+  /\/disclaimer/i,
 ];
 
 /**
@@ -120,6 +168,11 @@ export const PRIORITY_PATHS = [
   '/about', '/about-us', '/about-us/', '/about/',
   '/contact', '/contact-us', '/contact-us/', '/contact/',
   '/team', '/our-team', '/staff', '/leadership', '/people',
+  '/services', '/our-services', '/what-we-do',
+  '/careers', '/jobs', '/hiring', '/join-us',
+  '/clients', '/testimonials', '/reviews', '/case-studies',
+  '/portfolio', '/our-work', '/projects',
+  '/history', '/our-history', '/our-story', '/story',
   '/news', '/blog', '/press',
 ];
 

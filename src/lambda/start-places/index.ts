@@ -26,7 +26,7 @@ interface StartPlacesInput {
   maxTotalRequests?: number;
 }
 
-export async function handler(event: StartPlacesInput): Promise<{ jobId: string; taskArn?: string }> {
+export async function handler(event: StartPlacesInput): Promise<{ taskId: string; taskArn?: string }> {
   await bootstrapDatabaseUrl();
   console.log('StartPlaces input:', JSON.stringify(event));
 
@@ -35,29 +35,28 @@ export async function handler(event: StartPlacesInput): Promise<{ jobId: string;
     throw new Error('campaignId, campaignRunId, and queriesS3Key are required');
   }
 
+  const task = await prisma.fargateTask.create({
+    data: {
+      type: 'places_search',
+      status: 'running',
+      startedAt: new Date(),
+    },
+  });
+  const taskId = task.id;
+
+  const jobInput = JSON.stringify({
+    taskId,
+    campaignId,
+    campaignRunId,
+    searchesS3Key: queriesS3Key,
+    skipCachedSearches: skipCachedSearches ?? false,
+    maxResultsPerSearch: maxResultsPerSearch ?? 60,
+    maxTotalRequests: maxTotalRequests ?? undefined,
+  });
+
+  let runResult;
   try {
-    const task = await prisma.fargateTask.create({
-      data: {
-        type: 'places_search',
-        status: 'running',
-        startedAt: new Date(),
-      },
-    });
-    const taskId = task.id;
-
-    const jobInput = JSON.stringify({
-      taskId,
-      campaignId,
-      campaignRunId,
-      searchesS3Key: queriesS3Key,
-      skipCachedSearches: skipCachedSearches ?? false,
-      maxResultsPerSearch: maxResultsPerSearch ?? 60,
-      maxTotalRequests: maxTotalRequests ?? undefined,
-    });
-
-    let runResult;
-    try {
-      runResult = await ecsClient.send(
+    runResult = await ecsClient.send(
         new RunTaskCommand({
           cluster: CLUSTER_ARN,
           taskDefinition: PLACES_TASK_DEF_ARN,
@@ -77,7 +76,7 @@ export async function handler(event: StartPlacesInput): Promise<{ jobId: string;
                   { name: 'JOB_INPUT', value: jobInput },
                 ],
               },
-            },
+            ],
           },
         })
       );
@@ -108,8 +107,5 @@ export async function handler(event: StartPlacesInput): Promise<{ jobId: string;
       });
     }
 
-    return { taskId, taskArn };
-  } finally {
-    // Keep Prisma connection alive for warm invocations
-  }
+  return { taskId, taskArn };
 }

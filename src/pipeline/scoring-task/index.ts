@@ -1,20 +1,64 @@
 /**
  * AI Scoring Fargate Task
  *
- * Reads batch of lead IDs from S3, scores each lead using Claude Haiku 4.5,
- * updates Postgres. Sequential processing with 1.5s delay for rate limits.
- * Handles 429 with retry-after.
+ * Reads batch of lead IDs from S3, scores each lead using AWS Bedrock
+ * (Claude Sonnet 4.6), updates Postgres. Sequential processing with 500ms
+ * delay. Handles ThrottlingException with exponential backoff.
  */
 
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { S3Client } from '@aws-sdk/client-s3';
 import { bootstrapDatabaseUrl, prisma } from '@fca/db';
 
 const s3Client = new S3Client({});
+const bedrockClient = new BedrockRuntimeClient({
+  region: process.env.AWS_REGION || 'us-east-2',
+});
 const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
-const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY!;
-const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
-const DELAY_MS = 1500;
+const BEDROCK_MODEL_ID = 'anthropic.claude-sonnet-4-6';
+const DELAY_MS = 500;
+
+const SCORING_PROMPT = `You are an M&A lead qualification analyst for Flatirons Capital Advisors,
+an investment bank specializing in lower middle market transactions
+($5M-$250M enterprise value).
+
+Score this business lead 0-100 based on acquisition potential.
+
+## Scoring Framework
+
+### Google Places Data (high reliability)
+- **Rating & Reviews**: Higher review counts suggest established businesses
+  with meaningful revenue. 100+ reviews = likely $1M+ revenue.
+  Rating quality indicates operational excellence.
+- **Price Level**: Higher price points suggest better margins.
+- **Business Type**: Some industries are more acquirable
+  (services, healthcare, manufacturing > retail, restaurants).
+- **Editorial Summary**: Google's own description -- look for indicators
+  of scale, specialization, or market position.
+- **Review Summary**: Customer sentiment themes.
+
+### Web Scraped Data (if available)
+- **Team & Headcount**: Owner-operator with small team (5-50 employees)
+  is the M&A sweet spot. Named leadership = succession planning opportunity.
+  Look for founder/owner titles.
+- **Founded Year / Years in Business**: 10+ years = mature, stable cash flows.
+  20+ years = likely succession candidate.
+- **Acquisition Signals**: Prior M&A activity (acquired, sold, merged, rebranded)
+  -- indicates deal-ready culture or PE-backed roll-up target.
+- **New Hire Mentions**: Growth signal -- actively hiring suggests expansion.
+- **Social Presence**: LinkedIn presence = B2B orientation (higher value).
+  Multiple social channels = marketing sophistication.
+- **Contact Quality**: Multiple contact methods, dedicated contact page
+  = professional operation.
+- **Services/Portfolio Pages**: Breadth of services indicates diversification.
+
+### Geographic & Market Factors
+- Major metro or growing secondary market = positive.
+- Niche market dominance (evidenced by reviews, specialization) = very positive.
+
+## Lead Data
+`;
 
 interface BatchItem {
   lead_id: string;
@@ -31,70 +75,58 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function scoreLead(leadData: Record<string, unknown>): Promise<ClaudeScoreResult> {
-  const maxRetries = 3;
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLAUDE_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        max_tokens: 500,
-        messages: [
-          {
-            role: 'user',
-            content: `You are an M&A lead qualification analyst for Flatirons Capital Advisors, an investment bank specializing in lower middle market transactions.
+  const backoffMs = [5000, 15000, 45000];
+  const prompt = SCORING_PROMPT + JSON.stringify(leadData, null, 2) + `
 
-Score this business lead on a scale of 0-100 based on its acquisition potential. Consider:
-- Revenue indicators (review count, price level as proxies)
-- Online presence and professionalism
-- Industry fit for M&A transactions
-- Geographic market strength
-- Owner operator characteristics
+Respond with ONLY valid JSON:
+{"score": <0-100>, "notes": "<concise bullet points explaining score>"}`;
 
-Business data:
-${JSON.stringify(leadData, null, 2)}
-
-Respond with ONLY valid JSON in this exact format:
-{"score": <number 0-100>, "notes": "<bullet points explaining score>"}`,
-          },
-        ],
-      }),
-    });
-
-    if (response.status === 429) {
-      const retryAfter = response.headers.get('retry-after');
-      const waitSec = retryAfter ? parseInt(retryAfter, 10) : 60;
-      console.log(`Rate limited, waiting ${waitSec}s before retry (attempt ${attempt + 1}/${maxRetries})`);
-      await sleep(waitSec * 1000);
-      continue;
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Claude API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = (await response.json()) as { content: Array<{ text: string }> };
-    const text = data.content[0]?.text || '';
-
+  for (let attempt = 0; attempt <= backoffMs.length; attempt++) {
     try {
-      return JSON.parse(text);
-    } catch {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) return JSON.parse(jsonMatch[0]);
-      return { score: 50, notes: 'Unable to parse Claude response' };
+      const response = await bedrockClient.send(
+        new InvokeModelCommand({
+          modelId: BEDROCK_MODEL_ID,
+          contentType: 'application/json',
+          accept: 'application/json',
+          body: JSON.stringify({
+            anthropic_version: 'bedrock-2023-05-31',
+            max_tokens: 250,
+            messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+          }),
+        })
+      );
+
+      const decoded = JSON.parse(new TextDecoder().decode(response.body));
+      const text = decoded.content?.[0]?.text || '';
+
+      try {
+        return JSON.parse(text);
+      } catch {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) return JSON.parse(jsonMatch[0]);
+        return { score: 50, notes: 'Unable to parse Bedrock response' };
+      }
+    } catch (err) {
+      const isThrottle =
+        err instanceof Error &&
+        (err.name === 'ThrottlingException' || err.message?.includes('Throttling'));
+      if (isThrottle && attempt < backoffMs.length) {
+        const waitMs = backoffMs[attempt];
+        console.log(
+          `Bedrock throttled, waiting ${waitMs / 1000}s before retry (attempt ${attempt + 1}/${backoffMs.length})`
+        );
+        await sleep(waitMs);
+        continue;
+      }
+      throw err;
     }
   }
-  throw new Error('Max retries exceeded for Claude API');
+  throw new Error('Max retries exceeded for Bedrock');
 }
 
 async function main(): Promise<void> {
   await bootstrapDatabaseUrl();
-  console.log('=== AI Scoring Task (Claude Haiku 4.5) ===');
+  console.log('=== AI Scoring Task (Bedrock Claude Sonnet 4.6) ===');
 
   const jobInputStr = process.env.JOB_INPUT;
   if (!jobInputStr) {
@@ -164,6 +196,8 @@ async function main(): Promise<void> {
         rating: lead.rating,
         review_count: lead.reviewCount,
         price_level: lead.priceLevel,
+        editorial_summary: lead.editorialSummary,
+        review_summary: lead.reviewSummary,
         web_scraped_data: lead.webScrapedData,
       };
 

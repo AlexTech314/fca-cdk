@@ -119,7 +119,13 @@ export async function login(email: string, password: string): Promise<SignInResu
     throw new Error('Invalid email or password');
   }
 
-  const { signIn } = await getAmplifyAuth();
+  const { signIn, signOut } = await getAmplifyAuth();
+  // Clear any existing session first (e.g. stale local Cognito session when pointing to cloud)
+  try {
+    await signOut();
+  } catch {
+    // No session to clear, proceed with sign-in
+  }
   const result = await signIn({ username: email, password });
 
   if (result.isSignedIn) {

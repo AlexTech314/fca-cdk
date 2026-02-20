@@ -17,8 +17,9 @@ import { useState } from 'react';
 
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
-  const { data: campaign, isLoading } = useCampaign(id || '');
-  const { data: runs, isLoading: runsLoading } = useCampaignRuns(id || '');
+  const campaignId = id || '';
+  const { data: campaign, isLoading, isError } = useCampaign(campaignId);
+  const { data: runs, isLoading: runsLoading } = useCampaignRuns(campaignId);
   const startRunMutation = useStartCampaignRun();
   const { canWrite } = useAuth();
   const [showRunDialog, setShowRunDialog] = useState(false);
@@ -48,14 +49,19 @@ export default function CampaignDetail() {
     );
   }
 
-  if (!campaign) {
+  if (!campaign || isError) {
     return (
-      <PageContainer title="Campaign Not Found">
-        <p className="text-muted-foreground">The requested campaign could not be found.</p>
-        <Button asChild className="mt-4">
-          <Link to="/campaigns">Back to Campaigns</Link>
-        </Button>
-      </PageContainer>
+      <>
+        <Header breadcrumbs={[{ label: 'Campaigns', href: '/campaigns' }, { label: 'Not Found' }]} />
+        <PageContainer title="Campaign Not Found">
+          <p className="text-muted-foreground">
+            {isError ? 'Failed to load campaign. Check your connection and try again.' : 'The requested campaign could not be found.'}
+          </p>
+          <Button asChild className="mt-4">
+            <Link to="/campaigns">Back to Campaigns</Link>
+          </Button>
+        </PageContainer>
+      </>
     );
   }
 

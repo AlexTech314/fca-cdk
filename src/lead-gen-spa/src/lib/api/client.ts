@@ -117,7 +117,7 @@ function transformCampaign(raw: any): Campaign {
     id: raw.id,
     name: raw.name,
     description: raw.description || null,
-    queries: raw.searches || raw.queries || [],
+    queries: (raw.searches || raw.queries || []).map((q: any) => typeof q === 'string' ? q : q.textQuery ?? q),
     maxResultsPerSearch: raw.maxResultsPerSearch ?? raw.max_results_per_search ?? 60,
     maxTotalRequests: raw.maxTotalRequests ?? raw.max_total_requests ?? null,
     enableWebScraping: raw.enableWebScraping ?? raw.enable_web_scraping ?? true,

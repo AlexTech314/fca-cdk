@@ -1,6 +1,8 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { PageContainer } from '@/components/layout/PageContainer'
+import { Button } from '@/components/ui/button'
 import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
 import Leads from '@/pages/Leads'
@@ -44,14 +46,22 @@ function AuthenticatedLayout() {
           <Route path="/leads/:id" element={<LeadDetail />} />
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/campaigns/new" element={<CampaignCreate />} />
-          <Route path="/campaigns/:id" element={<CampaignDetail />} />
           <Route path="/campaigns/:id/edit" element={<CampaignCreate />} />
+          <Route path="/campaigns/:id" element={<CampaignDetail />} />
           <Route path="/franchises" element={<Franchises />} />
           <Route path="/franchises/:id" element={<FranchiseDetail />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/export" element={<Export />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={
+            <PageContainer title="Page Not Found">
+              <p className="text-muted-foreground">The page you're looking for doesn't exist.</p>
+              <Button asChild className="mt-4">
+                <Link to="/">Go to Dashboard</Link>
+              </Button>
+            </PageContainer>
+          } />
         </Routes>
       </main>
     </div>

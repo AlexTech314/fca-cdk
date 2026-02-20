@@ -67,6 +67,10 @@ export interface Campaign {
   name: string;
   description: string | null;
   queries: string[];
+  maxResultsPerSearch?: number;
+  maxTotalRequests?: number | null;
+  enableWebScraping?: boolean;
+  enableAiScoring?: boolean;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -178,12 +182,20 @@ export interface CreateCampaignInput {
   name: string;
   description?: string;
   queries: string[];
+  maxResultsPerSearch?: number;
+  maxTotalRequests?: number;
+  enableWebScraping?: boolean;
+  enableAiScoring?: boolean;
 }
 
 export interface UpdateCampaignInput {
   name?: string;
   description?: string;
   queries?: string[];
+  maxResultsPerSearch?: number;
+  maxTotalRequests?: number;
+  enableWebScraping?: boolean;
+  enableAiScoring?: boolean;
 }
 
 export interface InviteUserInput {

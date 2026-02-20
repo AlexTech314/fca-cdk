@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { QueryEditor } from '@/components/campaigns/QueryEditor';
 import { useCampaign, useCreateCampaign, useUpdateCampaign } from '@/hooks/useCampaigns';
 import { useEffect } from 'react';
@@ -16,6 +17,10 @@ const campaignSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
   queries: z.string().min(1, 'At least one query is required'),
+  maxResultsPerSearch: z.number().int().min(1).max(60).optional(),
+  maxTotalRequests: z.number().int().min(1).optional(),
+  enableWebScraping: z.boolean().optional(),
+  enableAiScoring: z.boolean().optional(),
 });
 
 type CampaignFormData = z.infer<typeof campaignSchema>;
@@ -41,6 +46,10 @@ export default function CampaignCreate() {
       name: '',
       description: '',
       queries: '',
+      maxResultsPerSearch: 60,
+      maxTotalRequests: 500,
+      enableWebScraping: true,
+      enableAiScoring: false,
     },
   });
 
@@ -50,6 +59,10 @@ export default function CampaignCreate() {
       setValue('name', campaign.name);
       setValue('description', campaign.description || '');
       setValue('queries', campaign.queries.join('\n'));
+      setValue('maxResultsPerSearch', campaign.maxResultsPerSearch ?? 60);
+      setValue('maxTotalRequests', campaign.maxTotalRequests ?? 500);
+      setValue('enableWebScraping', campaign.enableWebScraping ?? true);
+      setValue('enableAiScoring', campaign.enableAiScoring ?? false);
     }
   }, [campaign, isEditing, setValue]);
 
@@ -66,6 +79,10 @@ export default function CampaignCreate() {
           name: data.name,
           description: data.description,
           queries,
+          maxResultsPerSearch: data.maxResultsPerSearch && !Number.isNaN(data.maxResultsPerSearch) ? data.maxResultsPerSearch : undefined,
+          maxTotalRequests: data.maxTotalRequests && !Number.isNaN(data.maxTotalRequests) ? data.maxTotalRequests : undefined,
+          enableWebScraping: data.enableWebScraping,
+          enableAiScoring: data.enableAiScoring,
         },
       });
       navigate(`/campaigns/${id}`);
@@ -74,6 +91,10 @@ export default function CampaignCreate() {
         name: data.name,
         description: data.description,
         queries,
+        maxResultsPerSearch: data.maxResultsPerSearch && !Number.isNaN(data.maxResultsPerSearch) ? data.maxResultsPerSearch : undefined,
+        maxTotalRequests: data.maxTotalRequests && !Number.isNaN(data.maxTotalRequests) ? data.maxTotalRequests : undefined,
+        enableWebScraping: data.enableWebScraping,
+        enableAiScoring: data.enableAiScoring,
       });
       navigate(`/campaigns/${campaign.id}`);
     }
@@ -131,6 +152,55 @@ export default function CampaignCreate() {
                   placeholder="Brief description of this campaign"
                   {...register('description')}
                 />
+              </div>
+
+              {/* Request Limits */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="maxResultsPerSearch">Max Results Per Query (1-60)</Label>
+                  <Input
+                    id="maxResultsPerSearch"
+                    type="number"
+                    min={1}
+                    max={60}
+                    {...register('maxResultsPerSearch', { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxTotalRequests">Total Request Budget</Label>
+                  <Input
+                    id="maxTotalRequests"
+                    type="number"
+                    min={1}
+                    placeholder="e.g., 500"
+                    {...register('maxTotalRequests', { valueAsNumber: true })}
+                  />
+                </div>
+              </div>
+
+              {/* Pipeline Toggles */}
+              <div className="flex flex-col gap-4 rounded-lg border p-4">
+                <Label>Pipeline Options</Label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="enableWebScraping"
+                    checked={watch('enableWebScraping') ?? true}
+                    onCheckedChange={(checked) => setValue('enableWebScraping', !!checked)}
+                  />
+                  <Label htmlFor="enableWebScraping" className="font-normal cursor-pointer">
+                    Enable Web Scraping — enrich leads by scraping their websites
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="enableAiScoring"
+                    checked={watch('enableAiScoring') ?? false}
+                    onCheckedChange={(checked) => setValue('enableAiScoring', !!checked)}
+                  />
+                  <Label htmlFor="enableAiScoring" className="font-normal cursor-pointer">
+                    Enable AI Scoring — score leads using Claude after scraping
+                  </Label>
+                </div>
               </div>
 
               {/* Queries */}

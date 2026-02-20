@@ -23,13 +23,14 @@ interface StartPlacesInput {
   queriesS3Key: string;
   skipCachedSearches?: boolean;
   maxResultsPerSearch?: number;
+  maxTotalRequests?: number;
 }
 
 export async function handler(event: StartPlacesInput): Promise<{ jobId: string; taskArn?: string }> {
   await bootstrapDatabaseUrl();
   console.log('StartPlaces input:', JSON.stringify(event));
 
-  const { campaignId, campaignRunId, queriesS3Key, skipCachedSearches, maxResultsPerSearch } = event;
+  const { campaignId, campaignRunId, queriesS3Key, skipCachedSearches, maxResultsPerSearch, maxTotalRequests } = event;
   if (!campaignId || !campaignRunId || !queriesS3Key) {
     throw new Error('campaignId, campaignRunId, and queriesS3Key are required');
   }
@@ -52,34 +53,55 @@ export async function handler(event: StartPlacesInput): Promise<{ jobId: string;
       searchesS3Key: queriesS3Key,
       skipCachedSearches: skipCachedSearches ?? false,
       maxResultsPerSearch: maxResultsPerSearch ?? 60,
+      maxTotalRequests: maxTotalRequests ?? undefined,
     });
 
-    const runResult = await ecsClient.send(
-      new RunTaskCommand({
-        cluster: CLUSTER_ARN,
-        taskDefinition: PLACES_TASK_DEF_ARN,
-        launchType: 'FARGATE',
-        networkConfiguration: {
-          awsvpcConfiguration: {
-            subnets: SUBNETS,
-            securityGroups: SECURITY_GROUPS,
-            assignPublicIp: 'DISABLED',
-          },
-        },
-        overrides: {
-          containerOverrides: [
-            {
-              name: 'places',
-              environment: [
-                { name: 'JOB_INPUT', value: jobInput },
-              ],
+    let runResult;
+    try {
+      runResult = await ecsClient.send(
+        new RunTaskCommand({
+          cluster: CLUSTER_ARN,
+          taskDefinition: PLACES_TASK_DEF_ARN,
+          launchType: 'FARGATE',
+          networkConfiguration: {
+            awsvpcConfiguration: {
+              subnets: SUBNETS,
+              securityGroups: SECURITY_GROUPS,
+              assignPublicIp: 'DISABLED',
             },
-          ],
-        },
-      })
-    );
+          },
+          overrides: {
+            containerOverrides: [
+              {
+                name: 'places',
+                environment: [
+                  { name: 'JOB_INPUT', value: jobInput },
+                ],
+              },
+            },
+          },
+        })
+      );
+    } catch (ecsErr) {
+      const msg = ecsErr instanceof Error ? ecsErr.message : String(ecsErr);
+      await prisma.job.update({
+        where: { id: jobId },
+        data: { status: 'failed', completedAt: new Date(), errorMessage: msg },
+      });
+      throw new Error(`ECS RunTask failed: ${msg}`);
+    }
 
     const taskArn = runResult.tasks?.[0]?.taskArn;
+    const failures = runResult.failures ?? [];
+    if (failures.length > 0 && !taskArn) {
+      const msg = failures.map((f) => f.reason ?? 'Unknown').join('; ');
+      await prisma.job.update({
+        where: { id: jobId },
+        data: { status: 'failed', completedAt: new Date(), errorMessage: msg },
+      });
+      throw new Error(`ECS task launch failed: ${msg}`);
+    }
+
     if (taskArn) {
       await prisma.job.update({
         where: { id: jobId },

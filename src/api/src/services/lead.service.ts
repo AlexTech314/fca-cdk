@@ -1,5 +1,10 @@
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { leadRepository } from '../repositories/lead.repository';
+import { campaignRunRepository } from '../repositories/campaign.repository';
 import type { LeadQuery } from '../models/lead.model';
+
+const SCORING_QUEUE_URL = process.env.SCORING_QUEUE_URL || '';
+const sqsClient = new SQSClient({});
 
 export const leadService = {
   async list(query: LeadQuery) {
@@ -15,8 +20,21 @@ export const leadService = {
   },
 
   async qualify(id: string) {
-    // TODO: Call Claude API for real AI qualification
-    // For now, simulate with random score
+    const lead = await leadRepository.findById(id);
+    if (!lead) {
+      throw new Error('Lead not found');
+    }
+
+    if (SCORING_QUEUE_URL) {
+      await sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: SCORING_QUEUE_URL,
+          MessageBody: JSON.stringify({ lead_id: id, place_id: lead.placeId ?? '' }),
+        })
+      );
+      return lead;
+    }
+
     const score = Math.floor(Math.random() * 40) + 60;
     const notes = generateQualificationNotes(score);
     return leadRepository.updateQualification(id, score, notes);
@@ -33,8 +51,10 @@ export const leadService = {
 
   // Dashboard data
   async getStats() {
-    const stats = await leadRepository.getStats();
-    const campaignsRun = 0; // Will be populated from campaign run repository
+    const [stats, campaignsRun] = await Promise.all([
+      leadRepository.getStats(),
+      campaignRunRepository.countCompleted(),
+    ]);
     return {
       totalLeads: stats.totalLeads,
       qualifiedLeads: stats.qualifiedLeads,

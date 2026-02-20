@@ -120,7 +120,8 @@ function normalizeName(name: string): string {
 
 async function searchPlaces(
   textQuery: string,
-  maxResults: number
+  maxResults: number,
+  requestBudget?: { remaining: number }
 ): Promise<PlaceResult[]> {
   const allPlaces: PlaceResult[] = [];
   let pageToken: string | undefined;
@@ -129,6 +130,10 @@ async function searchPlaces(
   const MAX_EMPTY = 3;
 
   do {
+    if (requestBudget && requestBudget.remaining <= 0) {
+      console.log(`Request budget exhausted, stopping pagination for "${textQuery}"`);
+      break;
+    }
     await rateLimit();
 
     const body: Record<string, unknown> = { textQuery, pageSize: 20 };
@@ -149,6 +154,8 @@ async function searchPlaces(
       console.error(`Google Places API error: ${response.status} - ${err.slice(0, 300)}`);
       break;
     }
+
+    if (requestBudget) requestBudget.remaining--;
 
     const data = (await response.json()) as SearchResponse;
     const places = data.places || [];
@@ -210,6 +217,7 @@ async function main() {
     searchesS3Key,
     skipCachedSearches = false,
     maxResultsPerSearch = 60,
+    maxTotalRequests,
   } = jobInput;
 
   if (!campaignId || !searchesS3Key) {
@@ -257,8 +265,15 @@ async function main() {
     let errors = 0;
     const seenPlaceIds = new Set<string>();
     const CACHE_DAYS = 30;
+    const requestBudget = typeof maxTotalRequests === 'number' && maxTotalRequests > 0
+      ? { remaining: maxTotalRequests }
+      : undefined;
 
     for (let i = 0; i < searches.length; i++) {
+      if (requestBudget && requestBudget.remaining <= 0) {
+        console.log(`Request budget exhausted after ${queriesExecuted} queries, stopping`);
+        break;
+      }
       const q = searches[i];
       const textQuery = typeof q === 'string' ? q : q.textQuery;
       const includedType = typeof q === 'object' ? q.includedType : undefined;
@@ -281,7 +296,7 @@ async function main() {
         }
       }
 
-      const places = await searchPlaces(textQuery, maxResultsPerSearch);
+      const places = await searchPlaces(textQuery, maxResultsPerSearch, requestBudget);
       queriesExecuted++;
 
       const searchQuery = await prisma.searchQuery.create({

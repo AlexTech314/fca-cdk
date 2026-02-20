@@ -384,9 +384,54 @@ model Franchise {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   leads       Lead[]
+  scrapedPages FranchiseScrapedPage[]
 
   @@unique([name])
   @@map("franchises")
+}
+
+model ScrapedPage {
+  id             String   @id @default(uuid())
+  url            String
+  domain         String
+  scrapeMethod   String   @map("scrape_method")   // cloudscraper | puppeteer
+  statusCode     Int?     @map("status_code")
+  scrapedAt      DateTime @map("scraped_at")
+  durationMs     Int?     @map("duration_ms")
+  rawS3Key       String?  @map("raw_s3_key")
+  extractedS3Key String?  @map("extracted_s3_key")
+  extractedData  Json?    @map("extracted_data")  // contacts, team, acquisition, history
+
+  leads          LeadScrapedPage[]
+  franchises     FranchiseScrapedPage[]
+
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([domain])
+  @@index([scrapedAt])
+  @@map("scraped_pages")
+}
+
+model LeadScrapedPage {
+  leadId        String     @map("lead_id")
+  lead          Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  scrapedPageId String     @map("scraped_page_id")
+  scrapedPage   ScrapedPage @relation(fields: [scrapedPageId], references: [id], onDelete: Cascade)
+
+  @@id([leadId, scrapedPageId])
+  @@index([scrapedPageId])
+  @@map("lead_scraped_pages")
+}
+
+model FranchiseScrapedPage {
+  franchiseId   String     @map("franchise_id")
+  franchise     Franchise  @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  scrapedPageId String     @map("scraped_page_id")
+  scrapedPage   ScrapedPage @relation(fields: [scrapedPageId], references: [id], onDelete: Cascade)
+
+  @@id([franchiseId, scrapedPageId])
+  @@index([scrapedPageId])
+  @@map("franchise_scraped_pages")
 }
 
 model Job {
@@ -426,6 +471,8 @@ model Lead {
   searchQuery          SearchQuery? @relation(fields: [searchQueryId], references: [id], onDelete: SetNull)
   franchiseId          String?   @map("franchise_id")
   franchise            Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
+
+  scrapedPages         LeadScrapedPage[]
 
   // Business info (from Google Places)
   name                 String
@@ -484,7 +531,10 @@ model Campaign {
   queriesS3Key         String?   @map("queries_s3_key")          // S3 key for searches JSON
   queriesCount         Int       @default(0) @map("queries_count")
   maxResultsPerSearch  Int       @default(60) @map("max_results_per_search")
+  maxTotalRequests     Int?      @map("max_total_requests")      // Total API request budget across all queries
   skipCachedSearches   Boolean   @default(false) @map("skip_cached_searches")
+  enableWebScraping    Boolean   @default(true) @map("enable_web_scraping")
+  enableAiScoring      Boolean   @default(false) @map("enable_ai_scoring")
   createdById          String?   @map("created_by_id")
 
   createdAt            DateTime  @default(now()) @map("created_at")

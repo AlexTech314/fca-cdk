@@ -5,6 +5,7 @@ import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as ecr_assets from 'aws-cdk-lib/aws-ecr-assets';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
@@ -20,6 +21,7 @@ export interface ApiStackProps extends cdk.StackProps {
   readonly campaignDataBucket: s3.IBucket;
   readonly pipelineSecurityGroup: ec2.ISecurityGroup;
   readonly startPlacesLambdaArn: string;
+  readonly scoringQueue?: sqs.IQueue;
   readonly cognitoUserPoolId: string;
   readonly cognitoClientId: string;
 }
@@ -45,6 +47,7 @@ export class ApiStack extends cdk.Stack {
       campaignDataBucket,
       pipelineSecurityGroup,
       startPlacesLambdaArn,
+      scoringQueue,
       cognitoUserPoolId,
       cognitoClientId,
     } = props;
@@ -87,6 +90,7 @@ export class ApiStack extends cdk.Stack {
           ASSETS_BUCKET_NAME: assetsBucket.bucketName,
           CDN_DOMAIN: 'd1bjh7dvpwoxii.cloudfront.net',
           START_PLACES_LAMBDA_ARN: startPlacesLambdaArn,
+          SCORING_QUEUE_URL: scoringQueue?.queueUrl ?? '',
           COGNITO_USER_POOL_ID: cognitoUserPoolId,
           COGNITO_CLIENT_ID: cognitoClientId,
           AWS_REGION: this.region,
@@ -123,6 +127,10 @@ export class ApiStack extends cdk.Stack {
         resources: [startPlacesLambdaArn],
       })
     );
+
+    if (scoringQueue) {
+      scoringQueue.grantSendMessages(apiService.taskDefinition.taskRole);
+    }
 
     apiService.service.connections.allowTo(dbSecurityGroup, ec2.Port.tcp(5432), 'Allow API Fargate to RDS');
 

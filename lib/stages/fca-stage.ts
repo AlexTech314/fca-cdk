@@ -68,6 +68,7 @@ export class FcaStage extends cdk.Stage {
       campaignDataBucket: this.statefulStack.campaignDataBucket,
       pipelineSecurityGroup: this.statefulStack.pipelineSecurityGroup,
       startPlacesLambdaArn: this.pipelineStack.startPlacesLambdaArn,
+      scoringQueue: this.pipelineStack.scoringQueue,
       cognitoUserPoolId: this.cognitoStack.userPool.userPoolId,
       cognitoClientId: this.cognitoStack.userPoolClient.userPoolClientId,
     });

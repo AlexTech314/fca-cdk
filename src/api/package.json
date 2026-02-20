@@ -18,10 +18,11 @@
     "db:studio": "cd ../packages/db && npx prisma studio"
   },
   "dependencies": {
-    "@fca/db": "file:../packages/db",
     "@aws-sdk/client-lambda": "^3.990.0",
     "@aws-sdk/client-s3": "^3.985.0",
+    "@aws-sdk/client-sqs": "^3.994.0",
     "@aws-sdk/s3-request-presigner": "^3.985.0",
+    "@fca/db": "file:../packages/db",
     "aws-jwt-verify": "^5.1.1",
     "cors": "^2.8.5",
     "express": "^4.21.2",

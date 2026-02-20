@@ -10,6 +10,7 @@ import { CampaignRunHistory } from '@/components/campaigns/CampaignRunHistory';
 import { RunCampaignDialog } from '@/components/campaigns/RunCampaignDialog';
 import { useCampaign, useCampaignRuns, useStartCampaignRun } from '@/hooks/useCampaigns';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 import { formatDate, formatNumber } from '@/lib/utils';
 import { Edit, Play, Search } from 'lucide-react';
 import { useState } from 'react';
@@ -59,8 +60,13 @@ export default function CampaignDetail() {
   }
 
   const handleStartRun = async () => {
-    await startRunMutation.mutateAsync(campaign.id);
-    setShowRunDialog(false);
+    try {
+      await startRunMutation.mutateAsync(campaign.id);
+      setShowRunDialog(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to start campaign run';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    }
   };
 
   // Calculate stats from runs

@@ -132,22 +132,38 @@ export const campaignRunService = {
     });
 
     if (!START_PLACES_LAMBDA_ARN) {
+      await campaignRunRepository.updateMetrics(run.id, {
+        status: 'failed',
+        completedAt: new Date(),
+        errorMessages: ['START_PLACES_LAMBDA_ARN not configured'],
+      });
       throw new Error('START_PLACES_LAMBDA_ARN not configured. Deploy the pipeline stack and set the env var.');
     }
 
-    await lambdaClient.send(
-      new InvokeCommand({
-        FunctionName: START_PLACES_LAMBDA_ARN,
-        InvocationType: 'Event',
-        Payload: JSON.stringify({
-          campaignId,
-          campaignRunId: run.id,
-          queriesS3Key: campaign.queriesS3Key,
-          skipCachedSearches: options?.skipCachedSearches ?? campaign.skipCachedSearches,
-          maxResultsPerSearch: options?.maxResultsPerSearch ?? campaign.maxResultsPerSearch,
-        }),
-      })
-    );
+    try {
+      await lambdaClient.send(
+        new InvokeCommand({
+          FunctionName: START_PLACES_LAMBDA_ARN,
+          InvocationType: 'Event',
+          Payload: JSON.stringify({
+            campaignId,
+            campaignRunId: run.id,
+            queriesS3Key: campaign.queriesS3Key,
+            skipCachedSearches: options?.skipCachedSearches ?? campaign.skipCachedSearches,
+            maxResultsPerSearch: options?.maxResultsPerSearch ?? campaign.maxResultsPerSearch,
+            maxTotalRequests: campaign.maxTotalRequests ?? undefined,
+          }),
+        })
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await campaignRunRepository.updateMetrics(run.id, {
+        status: 'failed',
+        completedAt: new Date(),
+        errorMessages: [msg],
+      });
+      throw new Error(`Failed to start pipeline: ${msg}`);
+    }
 
     return run;
   },

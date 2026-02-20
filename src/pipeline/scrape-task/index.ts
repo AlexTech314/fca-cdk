@@ -260,9 +260,10 @@ async function main(): Promise<void> {
           uploadToS3(CAMPAIGN_DATA_BUCKET, extractedS3Key, extractedData),
         ]);
         
-        // Update Postgres lead
+        // Update Postgres: create ScrapedPage, junctions, update lead
         await updateLeadWithScrapeData(
           business.id,
+          business.website_uri!,
           rawS3Key,
           extractedS3Key,
           method,

@@ -31,6 +31,7 @@ export interface LeadGenPipelineStackProps extends cdk.StackProps {
  */
 export class LeadGenPipelineStack extends cdk.Stack {
   public readonly startPlacesLambdaArn: string;
+  public readonly scoringQueue: sqs.IQueue;
 
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
     super(scope, id, props);
@@ -374,6 +375,36 @@ export class LeadGenPipelineStack extends cdk.Stack {
     cdk.Tags.of(stateMachine).add('pipeline-stage', 'scrape');
 
     // ============================================================
+    // Scrape Trigger Lambda (consumes ScrapeQueue, starts Step Functions)
+    // ============================================================
+    const scrapeTriggerLogGroup = new logs.LogGroup(this, 'ScrapeTriggerLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const scrapeTriggerLambda = new lambda.DockerImageFunction(this, 'ScrapeTrigger', {
+      code: lambda.DockerImageCode.fromImageAsset(
+        path.join(__dirname, '../../src'),
+        { file: 'lambda/scrape-trigger/Dockerfile' }
+      ),
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 128,
+      logGroup: scrapeTriggerLogGroup,
+      environment: {
+        STATE_MACHINE_ARN: stateMachine.stateMachineArn,
+      },
+    });
+
+    scrapeTriggerLambda.addEventSource(
+      new lambdaEventSources.SqsEventSource(scrapeQueue, {
+        batchSize: 50,
+        maxBatchingWindow: cdk.Duration.seconds(30),
+      })
+    );
+
+    stateMachine.grantStartExecution(scrapeTriggerLambda);
+
+    // ============================================================
     // Scoring Lambda (consumes SQS, calls Claude)
     // ============================================================
     const scoringLambdaLogGroup = new logs.LogGroup(this, 'ScoringLambdaLogs', {
@@ -420,6 +451,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
       value: scrapeQueue.queueUrl,
       description: 'SQS scrape queue URL',
     });
+
+    this.scoringQueue = scoringQueue;
 
     new cdk.CfnOutput(this, 'ScoringQueueUrl', {
       value: scoringQueue.queueUrl,

@@ -1,7 +1,7 @@
 /**
  * Postgres storage for scrape task.
- * Updates leads with web_scraped_at and web_scraped_data.
- * Updates jobs with scrape metrics in metadata.
+ * Creates ScrapedPage records with Lead/Franchise junctions.
+ * Also updates leads with web_scraped_at and web_scraped_data for backward compatibility.
  */
 
 import { prisma } from '@fca/db';
@@ -14,11 +14,21 @@ export interface BatchLead {
   phone?: string | null;
 }
 
+function extractDomain(url: string): string {
+  try {
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return u.hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
 /**
- * Update a lead with scrape results
+ * Update a lead with scrape results: create ScrapedPage, junctions, and update lead.
  */
 export async function updateLeadWithScrapeData(
   leadId: string,
+  websiteUrl: string,
   rawS3Key: string,
   extractedS3Key: string,
   scrapeMethod: 'cloudscraper' | 'puppeteer',
@@ -27,13 +37,9 @@ export async function updateLeadWithScrapeData(
   durationMs: number,
   extracted: ExtractedData
 ): Promise<void> {
-  const webScrapedData = {
-    rawS3Key,
-    extractedS3Key,
-    scrapeMethod,
-    pagesCount,
-    totalBytes,
-    durationMs,
+  const scrapedAt = new Date();
+  const domain = extractDomain(websiteUrl);
+  const extractedDataJson = {
     contacts: {
       emails: extracted.emails,
       phones: extracted.phones,
@@ -59,14 +65,53 @@ export async function updateLeadWithScrapeData(
     },
   };
 
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { franchiseId: true },
+  });
+
+  const scrapedPage = await prisma.scrapedPage.create({
+    data: {
+      url: websiteUrl,
+      domain,
+      scrapeMethod,
+      statusCode: null,
+      scrapedAt,
+      durationMs,
+      rawS3Key,
+      extractedS3Key,
+      extractedData: extractedDataJson,
+    },
+  });
+
+  await prisma.leadScrapedPage.create({
+    data: { leadId, scrapedPageId: scrapedPage.id },
+  });
+
+  if (lead?.franchiseId) {
+    await prisma.franchiseScrapedPage.create({
+      data: { franchiseId: lead.franchiseId, scrapedPageId: scrapedPage.id },
+    });
+  }
+
+  const webScrapedData = {
+    rawS3Key,
+    extractedS3Key,
+    scrapeMethod,
+    pagesCount,
+    totalBytes,
+    durationMs,
+    ...extractedDataJson,
+  };
+
   await prisma.lead.update({
     where: { id: leadId },
     data: {
-      webScrapedAt: new Date(),
+      webScrapedAt: scrapedAt,
       webScrapedData: JSON.parse(JSON.stringify(webScrapedData)),
     },
   });
-  console.log(`  [Prisma] Updated lead ${leadId} with scrape data`);
+  console.log(`  [Prisma] Created ScrapedPage ${scrapedPage.id}, updated lead ${leadId}`);
 }
 
 /**

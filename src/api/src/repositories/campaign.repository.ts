@@ -38,6 +38,10 @@ export const campaignRepository = {
         description: data.description,
         queriesS3Key: data.queriesS3Key,
         createdById: data.createdById,
+        maxResultsPerSearch: data.maxResultsPerSearch,
+        maxTotalRequests: data.maxTotalRequests,
+        enableWebScraping: data.enableWebScraping,
+        enableAiScoring: data.enableAiScoring,
       },
     });
   },
@@ -48,7 +52,10 @@ export const campaignRepository = {
       queriesS3Key?: string;
       queriesCount?: number;
       maxResultsPerSearch?: number;
+      maxTotalRequests?: number;
       skipCachedSearches?: boolean;
+      enableWebScraping?: boolean;
+      enableAiScoring?: boolean;
     }
   ) {
     const { updateSearches, ...updateData } = data;
@@ -128,5 +135,11 @@ export const campaignRunRepository = {
       timestamp: r.date,
       value: Number(r.count),
     }));
+  },
+
+  async countCompleted(): Promise<number> {
+    return prisma.campaignRun.count({
+      where: { status: 'completed' },
+    });
   },
 };

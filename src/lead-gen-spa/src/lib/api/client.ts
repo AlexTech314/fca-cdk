@@ -115,6 +115,10 @@ function transformCampaign(raw: any): Campaign {
     name: raw.name,
     description: raw.description || null,
     queries: raw.searches || raw.queries || [],
+    maxResultsPerSearch: raw.maxResultsPerSearch ?? raw.max_results_per_search ?? 60,
+    maxTotalRequests: raw.maxTotalRequests ?? raw.max_total_requests ?? null,
+    enableWebScraping: raw.enableWebScraping ?? raw.enable_web_scraping ?? true,
+    enableAiScoring: raw.enableAiScoring ?? raw.enable_ai_scoring ?? false,
     createdById: raw.createdById || raw.created_by_id || '',
     createdAt: raw.createdAt || raw.created_at,
     updatedAt: raw.updatedAt || raw.updated_at,
@@ -286,28 +290,44 @@ export const realApi: LeadGenApi = {
   async createCampaign(data: CreateCampaignInput): Promise<Campaign> {
     const result = await apiClient<{ campaign: any; uploadUrl: string }>('/campaigns', {
       method: 'POST',
-      body: JSON.stringify({ name: data.name, description: data.description }),
+      body: JSON.stringify({
+        name: data.name,
+        description: data.description,
+        maxResultsPerSearch: data.maxResultsPerSearch,
+        maxTotalRequests: data.maxTotalRequests,
+        enableWebScraping: data.enableWebScraping,
+        enableAiScoring: data.enableAiScoring,
+      }),
     });
 
     // Upload queries to S3 via presigned URL
     if (data.queries.length > 0 && result.uploadUrl) {
-      const payload = {
-        searches: data.queries.map((q) => ({ textQuery: q })),
-        count: data.queries.length,
-        uploadedAt: new Date().toISOString(),
-      };
+      try {
+        const payload = {
+          searches: data.queries.map((q) => ({ textQuery: q })),
+          count: data.queries.length,
+          uploadedAt: new Date().toISOString(),
+        };
 
-      await fetch(result.uploadUrl, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-        headers: { 'Content-Type': 'application/json' },
-      });
+        const uploadRes = await fetch(result.uploadUrl, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+          headers: { 'Content-Type': 'application/json' },
+        });
 
-      // Confirm upload
-      await apiClient(`/campaigns/${result.campaign.id}/confirm-upload`, {
-        method: 'POST',
-        body: JSON.stringify({ searchesCount: data.queries.length }),
-      });
+        if (!uploadRes.ok) {
+          throw new Error(`S3 upload failed: ${uploadRes.status} ${uploadRes.statusText}`);
+        }
+
+        // Confirm upload
+        await apiClient(`/campaigns/${result.campaign.id}/confirm-upload`, {
+          method: 'POST',
+          body: JSON.stringify({ searchesCount: data.queries.length }),
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Upload failed';
+        throw new Error(`Campaign created but queries upload failed. Please edit the campaign and retry. ${msg}`);
+      }
     }
 
     return transformCampaign(result.campaign);
@@ -320,28 +340,41 @@ export const realApi: LeadGenApi = {
       body: JSON.stringify({
         name: data.name,
         description: data.description,
+        maxResultsPerSearch: data.maxResultsPerSearch,
+        maxTotalRequests: data.maxTotalRequests,
+        enableWebScraping: data.enableWebScraping,
+        enableAiScoring: data.enableAiScoring,
         updateSearches: hasNewQueries,
       }),
     });
 
     // Upload new queries if provided
     if (hasNewQueries && result.uploadUrl) {
-      const payload = {
-        searches: data.queries!.map((q) => ({ textQuery: q })),
-        count: data.queries!.length,
-        uploadedAt: new Date().toISOString(),
-      };
+      try {
+        const payload = {
+          searches: data.queries!.map((q) => ({ textQuery: q })),
+          count: data.queries!.length,
+          uploadedAt: new Date().toISOString(),
+        };
 
-      await fetch(result.uploadUrl, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-        headers: { 'Content-Type': 'application/json' },
-      });
+        const uploadRes = await fetch(result.uploadUrl, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+          headers: { 'Content-Type': 'application/json' },
+        });
 
-      await apiClient(`/campaigns/${result.campaign.id}/confirm-upload`, {
-        method: 'POST',
-        body: JSON.stringify({ searchesCount: data.queries!.length }),
-      });
+        if (!uploadRes.ok) {
+          throw new Error(`S3 upload failed: ${uploadRes.status} ${uploadRes.statusText}`);
+        }
+
+        await apiClient(`/campaigns/${result.campaign.id}/confirm-upload`, {
+          method: 'POST',
+          body: JSON.stringify({ searchesCount: data.queries!.length }),
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Upload failed';
+        throw new Error(`Campaign updated but queries upload failed. Please retry. ${msg}`);
+      }
     }
 
     return transformCampaign(result.campaign);

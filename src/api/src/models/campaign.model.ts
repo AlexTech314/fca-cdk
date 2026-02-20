@@ -4,12 +4,20 @@ import { z } from 'zod';
 export const createCampaignSchema = z.object({
   name: z.string().min(1, 'Campaign name is required'),
   description: z.string().optional().nullable(),
+  maxResultsPerSearch: z.number().int().min(1).max(60).optional(),
+  maxTotalRequests: z.number().int().min(1).optional(),
+  enableWebScraping: z.boolean().optional(),
+  enableAiScoring: z.boolean().optional(),
 });
 
 // Update campaign input
 export const updateCampaignSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional().nullable(),
+  maxResultsPerSearch: z.number().int().min(1).max(60).optional(),
+  maxTotalRequests: z.number().int().min(1).optional(),
+  enableWebScraping: z.boolean().optional(),
+  enableAiScoring: z.boolean().optional(),
   updateSearches: z.boolean().optional(), // If true, return presigned URL for new searches upload
 });
 

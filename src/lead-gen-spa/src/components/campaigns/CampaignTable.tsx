@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -16,10 +17,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import type { CampaignWithStats } from '@/types';
 import { formatDate, formatNumber } from '@/lib/utils';
 import { MoreHorizontal, Edit, Play, Trash2, Eye } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useStartCampaignRun, useDeleteCampaign } from '@/hooks/useCampaigns';
+import { toast } from '@/hooks/use-toast';
+import { RunCampaignDialog } from './RunCampaignDialog';
 
 interface CampaignTableProps {
   data: CampaignWithStats[];
@@ -28,6 +40,34 @@ interface CampaignTableProps {
 
 export function CampaignTable({ data, isLoading }: CampaignTableProps) {
   const { canWrite } = useAuth();
+  const navigate = useNavigate();
+  const startRunMutation = useStartCampaignRun();
+  const deleteMutation = useDeleteCampaign();
+  const [runDialogCampaign, setRunDialogCampaign] = useState<CampaignWithStats | null>(null);
+  const [deleteDialogCampaign, setDeleteDialogCampaign] = useState<CampaignWithStats | null>(null);
+
+  const handleStartRun = async () => {
+    if (!runDialogCampaign) return;
+    try {
+      await startRunMutation.mutateAsync(runDialogCampaign.id);
+      setRunDialogCampaign(null);
+      navigate(`/campaigns/${runDialogCampaign.id}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to start campaign run';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteDialogCampaign) return;
+    try {
+      await deleteMutation.mutateAsync(deleteDialogCampaign.id);
+      setDeleteDialogCampaign(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete campaign';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -115,11 +155,14 @@ export function CampaignTable({ data, isLoading }: CampaignTableProps) {
                               Edit
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setRunDialogCampaign(campaign)}>
                             <Play className="mr-2 h-4 w-4" />
                             Run Campaign
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => setDeleteDialogCampaign(campaign)}
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
@@ -133,6 +176,39 @@ export function CampaignTable({ data, isLoading }: CampaignTableProps) {
           )}
         </TableBody>
       </Table>
+
+      {runDialogCampaign && (
+        <RunCampaignDialog
+          open={!!runDialogCampaign}
+          onOpenChange={(open) => !open && setRunDialogCampaign(null)}
+          campaign={runDialogCampaign}
+          onConfirm={handleStartRun}
+          isLoading={startRunMutation.isPending}
+        />
+      )}
+
+      <Dialog open={!!deleteDialogCampaign} onOpenChange={(open) => !open && setDeleteDialogCampaign(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Campaign</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deleteDialogCampaign?.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogCampaign(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

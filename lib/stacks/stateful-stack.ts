@@ -106,7 +106,7 @@ export class StatefulStack extends cdk.Stack {
           allowedOrigins: [
             'http://localhost:5173', // lead-gen-spa vite dev
             'http://localhost:5174',
-            // TODO: Add production lead-gen-spa CloudFront origin when DNS is configured
+            'https://d13kdxtwrec818.cloudfront.net', // lead-gen-spa production
           ],
           allowedHeaders: ['*'],
           exposedHeaders: ['ETag', 'Content-Type', 'Content-Length'],

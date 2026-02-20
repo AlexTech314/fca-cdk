@@ -184,7 +184,11 @@ export class StatefulStack extends cdk.Stack {
     // ============================================================
     // Custom resource: invoke seed-db Lambda with migrate after deploy
     // ============================================================
-    const migratePayload = JSON.stringify({ action: 'migrate' });
+    // Include _deployTimestamp so CloudFormation sees a change each deploy and runs onUpdate
+    const migratePayload = JSON.stringify({
+      action: 'migrate',
+      _deployTimestamp: Date.now(),
+    });
     const migrateCustomResource = new cr.AwsCustomResource(this, 'SeedDbMigrate', {
       onCreate: {
         service: 'Lambda',

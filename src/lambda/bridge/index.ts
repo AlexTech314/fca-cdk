@@ -19,12 +19,13 @@ interface TriggerEvent {
   event: 'new_lead' | 'lead_scraped';
   lead_id: string;
   place_id: string;
+  website?: string;
 }
 
 export async function handler(event: TriggerEvent): Promise<{ statusCode: number; body: string }> {
   console.log('Bridge Lambda received:', JSON.stringify(event));
 
-  const { event: eventType, lead_id, place_id } = event;
+  const { event: eventType, lead_id, place_id, website } = event;
 
   if (!eventType || !lead_id) {
     console.error('Invalid event payload:', event);
@@ -37,7 +38,7 @@ export async function handler(event: TriggerEvent): Promise<{ statusCode: number
         // New lead inserted -> send to scrape queue
         await sqsClient.send(new SendMessageCommand({
           QueueUrl: SCRAPE_QUEUE_URL,
-          MessageBody: JSON.stringify({ lead_id, place_id }),
+          MessageBody: JSON.stringify({ lead_id, place_id, website }),
           MessageGroupId: undefined, // Standard queue, no group ID
         }));
         console.log(`Sent lead ${lead_id} to scrape queue`);

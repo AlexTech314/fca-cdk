@@ -1,8 +1,8 @@
 /**
- * Scrape Trigger Lambda
+ * Scoring Trigger Lambda
  *
- * Consumes ScrapeQueue (batch 50). Parses messages into batch of leads,
- * writes batch to S3, creates FargateTask record, runs Scrape Fargate task directly.
+ * Consumes ScoringQueue (batch 50). Writes batch to S3, creates FargateTask record,
+ * runs Scoring Fargate task. maxConcurrency: 1 ensures only one scoring task at a time.
  */
 
 import { SQSEvent, SQSRecord } from 'aws-lambda';
@@ -15,58 +15,48 @@ const ecsClient = new ECSClient({});
 const s3Client = new S3Client({});
 
 const CLUSTER_ARN = process.env.CLUSTER_ARN!;
-const SCRAPE_TASK_DEF_ARN = process.env.SCRAPE_TASK_DEF_ARN!;
+const SCORING_TASK_DEF_ARN = process.env.SCORING_TASK_DEF_ARN!;
 const SUBNETS = (process.env.SUBNETS || '').split(',').filter(Boolean);
 const SECURITY_GROUPS = (process.env.SECURITY_GROUPS || '').split(',').filter(Boolean);
 const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
 
-interface BatchLead {
-  id: string;
+interface BatchItem {
+  lead_id: string;
   place_id: string;
-  website: string;
-  phone?: string | null;
 }
 
 export async function handler(event: SQSEvent): Promise<void> {
   const recordCount = event.Records?.length ?? 0;
-  console.log(`ScrapeTrigger received ${recordCount} message(s) from ScrapeQueue`);
+  console.log(`ScoringTrigger received ${recordCount} message(s) from ScoringQueue`);
 
   if (recordCount === 0) {
     return;
   }
 
-  const batch: BatchLead[] = [];
+  const batch: BatchItem[] = [];
   for (const r of event.Records as SQSRecord[]) {
     try {
       const body = JSON.parse(r.body);
       const leadId = body.lead_id;
       const placeId = body.place_id ?? '';
-      const website = body.website ?? '';
-
       if (!leadId) continue;
-      if (!website || typeof website !== 'string' || website.trim() === '') continue;
-
-      batch.push({
-        id: leadId,
-        place_id: placeId,
-        website: website.trim(),
-      });
+      batch.push({ lead_id: leadId, place_id: placeId });
     } catch {
       // skip malformed messages
     }
   }
 
   if (batch.length === 0) {
-    console.log('No leads with website in batch, skipping');
+    console.log('No valid messages in batch, skipping');
     return;
   }
 
-  console.log(`Processing ${batch.length} leads with websites`);
+  console.log(`Processing ${batch.length} leads for scoring`);
 
   await bootstrapDatabaseUrl();
 
   const batchId = randomUUID();
-  const batchS3Key = `scrape-batches/${batchId}.json`;
+  const batchS3Key = `scoring-batches/${batchId}.json`;
 
   await s3Client.send(
     new PutObjectCommand({
@@ -79,7 +69,7 @@ export async function handler(event: SQSEvent): Promise<void> {
 
   const task = await prisma.fargateTask.create({
     data: {
-      type: 'web_scrape',
+      type: 'ai_scoring',
       status: 'running',
       startedAt: new Date(),
     },
@@ -94,7 +84,7 @@ export async function handler(event: SQSEvent): Promise<void> {
     const runResult = await ecsClient.send(
       new RunTaskCommand({
         cluster: CLUSTER_ARN,
-        taskDefinition: SCRAPE_TASK_DEF_ARN,
+        taskDefinition: SCORING_TASK_DEF_ARN,
         launchType: 'FARGATE',
         networkConfiguration: {
           awsvpcConfiguration: {
@@ -106,7 +96,7 @@ export async function handler(event: SQSEvent): Promise<void> {
         overrides: {
           containerOverrides: [
             {
-              name: 'scrape',
+              name: 'score',
               environment: [{ name: 'JOB_INPUT', value: jobInput }],
             },
           ],
@@ -131,7 +121,7 @@ export async function handler(event: SQSEvent): Promise<void> {
         where: { id: task.id },
         data: { taskArn },
       });
-      console.log(`Started scrape Fargate task ${task.id}, ECS task: ${taskArn}`);
+      console.log(`Started scoring Fargate task ${task.id}, ECS task: ${taskArn}`);
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

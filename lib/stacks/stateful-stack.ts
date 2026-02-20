@@ -1,14 +1,16 @@
 import * as cr from 'aws-cdk-lib/custom-resources';
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import { DefaultStackSynthesizer } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { ecrNode20Slim } from '../ecr-images';
+import { ecrNode20Slim, ecrBuildCacheOptions } from '../ecr-images';
 import * as path from 'path';
 
 export interface StatefulStackProps extends cdk.StackProps {
@@ -31,6 +33,8 @@ export class StatefulStack extends cdk.Stack {
   public readonly dbSecurityGroup: ec2.SecurityGroup;
   /** SG for pipeline Lambdas/Fargate; ingress to RDS is in this stack to avoid cross-stack reference failure */
   public readonly pipelineSecurityGroup: ec2.SecurityGroup;
+  /** ECR repo URI for Docker buildx cache (cacheFrom/cacheTo) */
+  public readonly buildCacheRepoUri: string;
 
   constructor(scope: Construct, id: string, props: StatefulStackProps) {
     super(scope, id, props);
@@ -127,6 +131,27 @@ export class StatefulStack extends cdk.Stack {
     });
 
     // ============================================================
+    // Docker Buildx Cache Repository
+    // ============================================================
+    const buildCacheRepo = new ecr.Repository(this, 'DockerBuildCache', {
+      repositoryName: 'ecr-docker-build-cache',
+      lifecycleRules: [
+        { maxImageCount: 10, description: 'Keep last 10 cache manifests' },
+      ],
+    });
+    this.buildCacheRepoUri = buildCacheRepo.repositoryUri;
+
+    const qualifier = DefaultStackSynthesizer.DEFAULT_QUALIFIER;
+    const imagePublishingRole = iam.Role.fromRoleArn(
+      this,
+      'ImagePublishingRole',
+      `arn:aws:iam::${this.account}:role/cdk-${qualifier}-image-publishing-role-${this.account}-${this.region}`
+    );
+    buildCacheRepo.grantPullPush(imagePublishingRole);
+
+    const buildCacheOpts = ecrBuildCacheOptions(this.buildCacheRepoUri);
+
+    // ============================================================
     // Seed DB Lambda (invoke to wipe/migrate/seed the database)
     // ============================================================
     const seedLambdaLogGroup = new logs.LogGroup(this, 'SeedDbLogs', {
@@ -140,6 +165,7 @@ export class StatefulStack extends cdk.Stack {
         {
           file: 'lambda/seed-db/Dockerfile',
           buildArgs: { NODE_20_SLIM: ecrNode20Slim(this.account, this.region) },
+          ...buildCacheOpts,
         }
       ),
       timeout: cdk.Duration.minutes(10),

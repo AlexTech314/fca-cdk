@@ -11,7 +11,7 @@ import * as ecr_assets from 'aws-cdk-lib/aws-ecr-assets';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import { Construct } from 'constructs';
 import * as path from 'path';
-import { ecrNode20Slim } from '../ecr-images';
+import { ecrNode20Slim, ecrBuildCacheOptions } from '../ecr-images';
 
 export interface ApiStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
@@ -21,9 +21,11 @@ export interface ApiStackProps extends cdk.StackProps {
   readonly campaignDataBucket: s3.IBucket;
   readonly pipelineSecurityGroup: ec2.ISecurityGroup;
   readonly startPlacesLambdaArn: string;
+  readonly pipelineClusterArn: string;
   readonly scoringQueue?: sqs.IQueue;
   readonly cognitoUserPoolId: string;
   readonly cognitoClientId: string;
+  readonly buildCacheRepoUri: string;
 }
 
 /**
@@ -47,11 +49,14 @@ export class ApiStack extends cdk.Stack {
       campaignDataBucket,
       pipelineSecurityGroup,
       startPlacesLambdaArn,
+      pipelineClusterArn,
       scoringQueue,
       cognitoUserPoolId,
       cognitoClientId,
+      buildCacheRepoUri,
     } = props;
 
+    const buildCacheOpts = ecrBuildCacheOptions(buildCacheRepoUri);
     const assetsBucket = s3.Bucket.fromBucketName(this, 'AssetsBucket', 'fca-assets-113862367661');
 
     const cluster = new ecs.Cluster(this, 'ApiCluster', { vpc });
@@ -81,6 +86,7 @@ export class ApiStack extends cdk.Stack {
           buildArgs: {
             NODE_20_SLIM: ecrNode20Slim(this.account, this.region),
           },
+          ...buildCacheOpts,
         }),
         containerPort: 3000,
         environment: {
@@ -90,6 +96,7 @@ export class ApiStack extends cdk.Stack {
           ASSETS_BUCKET_NAME: assetsBucket.bucketName,
           CDN_DOMAIN: 'd1bjh7dvpwoxii.cloudfront.net',
           START_PLACES_LAMBDA_ARN: startPlacesLambdaArn,
+          PIPELINE_CLUSTER_ARN: pipelineClusterArn,
           SCORING_QUEUE_URL: scoringQueue?.queueUrl ?? '',
           COGNITO_USER_POOL_ID: cognitoUserPoolId,
           COGNITO_CLIENT_ID: cognitoClientId,
@@ -131,6 +138,13 @@ export class ApiStack extends cdk.Stack {
     if (scoringQueue) {
       scoringQueue.grantSendMessages(apiService.taskDefinition.taskRole);
     }
+
+    apiService.taskDefinition.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['ecs:StopTask'],
+        resources: ['*'],
+      })
+    );
 
     apiService.service.connections.allowTo(dbSecurityGroup, ec2.Port.tcp(5432), 'Allow API Fargate to RDS');
 

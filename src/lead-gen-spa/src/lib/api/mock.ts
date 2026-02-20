@@ -350,6 +350,38 @@ export const mockApi: LeadGenApi = {
       qualificationsPerMonth: 1000,
     };
   },
+
+  async listTasks(params: { page?: number; limit?: number; type?: string; status?: string }) {
+    await randomDelay();
+    const mockTasks: import('@/types').FargateTask[] = [
+      { id: '1', type: 'places_search', status: 'completed', taskArn: 'arn:aws:ecs:us-east-1:123:task/cluster/abc', startedAt: new Date(Date.now() - 3600000).toISOString(), completedAt: new Date().toISOString(), errorMessage: null, metadata: null, createdAt: new Date(Date.now() - 3600000).toISOString(), updatedAt: new Date().toISOString() },
+      { id: '2', type: 'web_scrape', status: 'running', taskArn: 'arn:aws:ecs:us-east-1:123:task/cluster/def', startedAt: new Date(Date.now() - 120000).toISOString(), completedAt: null, errorMessage: null, metadata: null, createdAt: new Date(Date.now() - 120000).toISOString(), updatedAt: new Date().toISOString() },
+      { id: '3', type: 'ai_scoring', status: 'pending', taskArn: null, startedAt: null, completedAt: null, errorMessage: null, metadata: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+    ];
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 50;
+    let filtered = mockTasks;
+    if (params.type) filtered = filtered.filter(t => t.type === params.type);
+    if (params.status) filtered = filtered.filter(t => t.status === params.status);
+    const total = filtered.length;
+    const start = (page - 1) * limit;
+    const data = filtered.slice(start, start + limit) as import('@/types').FargateTask[];
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  },
+
+  async getTask(id: string) {
+    await randomDelay();
+    const tasks = await this.listTasks({});
+    const task = tasks.data.find(t => t.id === id);
+    if (!task) throw new Error('Task not found');
+    return task;
+  },
+
+  async cancelTask(id: string) {
+    await randomDelay();
+    const task = await this.getTask(id);
+    return { ...task, status: 'cancelled' as const };
+  },
 };
 
 // ===========================================

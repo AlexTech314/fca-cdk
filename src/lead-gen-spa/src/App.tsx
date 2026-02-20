@@ -13,6 +13,7 @@ import FranchiseDetail from '@/pages/FranchiseDetail'
 import Admin from '@/pages/Admin'
 import Export from '@/pages/Export'
 import Settings from '@/pages/Settings'
+import Tasks from '@/pages/Tasks'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -49,6 +50,7 @@ function AuthenticatedLayout() {
           <Route path="/franchises/:id" element={<FranchiseDetail />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/export" element={<Export />} />
+          <Route path="/tasks" element={<Tasks />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

@@ -8,6 +8,7 @@ import {
   Settings, 
   Shield,
   LogOut,
+  ListTodo,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -50,6 +51,7 @@ export function Sidebar() {
     { to: '/campaigns', icon: <Target className="h-4 w-4" />, label: 'Campaigns' },
     { to: '/franchises', icon: <Building2 className="h-4 w-4" />, label: 'Franchises' },
     { to: '/export', icon: <Download className="h-4 w-4" />, label: 'Export' },
+    { to: '/tasks', icon: <ListTodo className="h-4 w-4" />, label: 'Tasks' },
   ];
 
   const secondaryNavItems: NavItemProps[] = [

@@ -4,6 +4,7 @@ import { validate } from '../middleware/validate';
 import { leadService } from '../services/lead.service';
 import { campaignService, campaignRunService } from '../services/campaign.service';
 import { franchiseService } from '../services/franchise.service';
+import { taskService } from '../services/task.service';
 import { userService } from '../services/user.service';
 import {
   leadQuerySchema,
@@ -332,6 +333,58 @@ router.delete('/users/:id', authorize('admin'), async (req, res, next) => {
     await userService.delete(String(req.params.id));
     res.status(204).send();
   } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================
+// TASKS
+// ============================================
+
+router.get('/tasks', async (req, res, next) => {
+  try {
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const limit = req.query.limit ? Number(req.query.limit) : 50;
+    const type = req.query.type as string | undefined;
+    const status = req.query.status as string | undefined;
+    const result = await taskService.list({
+      page,
+      limit,
+      type: type as any,
+      status: status as any,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/tasks/:id', async (req, res, next) => {
+  try {
+    const task = await taskService.getById(String(req.params.id));
+    if (!task) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    res.json(task);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/tasks/:id/cancel', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const task = await taskService.cancel(String(req.params.id));
+    if (!task) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    res.json(task);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('cannot be cancelled')) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
     next(error);
   }
 });

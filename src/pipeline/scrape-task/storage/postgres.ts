@@ -129,17 +129,22 @@ export async function markLeadScrapeFailed(leadId: string): Promise<void> {
 }
 
 /**
- * Update job metrics in Postgres
+ * Update FargateTask status and metrics in Postgres
  */
-export async function updateJobMetrics(
-  jobId: string,
-  metrics: ScrapeMetrics
+export async function updateFargateTask(
+  taskId: string,
+  status: 'completed' | 'failed',
+  metrics?: ScrapeMetrics,
+  errorMessage?: string
 ): Promise<void> {
-  // Use raw query for JSONB merge since Prisma doesn't support this natively
-  await prisma.$executeRaw`
-    UPDATE jobs SET
-      metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ scrape: metrics })}::jsonb,
-      updated_at = NOW()
-    WHERE id = ${jobId}`;
-  console.log(`  [Prisma] Updated job ${jobId} metrics`);
+  await prisma.fargateTask.update({
+    where: { id: taskId },
+    data: {
+      status,
+      completedAt: new Date(),
+      errorMessage: errorMessage ?? null,
+      metadata: metrics ? { scrape: metrics } : undefined,
+    },
+  });
+  console.log(`  [Prisma] Updated FargateTask ${taskId} status: ${status}`);
 }

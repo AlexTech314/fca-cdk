@@ -56,6 +56,7 @@ export class FcaStage extends cdk.Stage {
       databaseSecret: this.statefulStack.databaseSecret,
       pipelineSecurityGroup: this.statefulStack.pipelineSecurityGroup,
       campaignDataBucket: this.statefulStack.campaignDataBucket,
+      buildCacheRepoUri: this.statefulStack.buildCacheRepoUri,
     });
     this.pipelineStack.addDependency(this.statefulStack);
 
@@ -68,9 +69,11 @@ export class FcaStage extends cdk.Stage {
       campaignDataBucket: this.statefulStack.campaignDataBucket,
       pipelineSecurityGroup: this.statefulStack.pipelineSecurityGroup,
       startPlacesLambdaArn: this.pipelineStack.startPlacesLambdaArn,
+      pipelineClusterArn: this.pipelineStack.pipelineClusterArn,
       scoringQueue: this.pipelineStack.scoringQueue,
       cognitoUserPoolId: this.cognitoStack.userPool.userPoolId,
       cognitoClientId: this.cognitoStack.userPoolClient.userPoolClientId,
+      buildCacheRepoUri: this.statefulStack.buildCacheRepoUri,
     });
     this.apiStack.addDependency(this.statefulStack);
     this.apiStack.addDependency(this.pipelineStack);

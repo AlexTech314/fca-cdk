@@ -211,6 +211,7 @@ async function main() {
 
   const jobInput = JSON.parse(process.env.JOB_INPUT || '{}');
   const {
+    taskId,
     jobId,
     campaignId,
     campaignRunId,
@@ -220,15 +221,17 @@ async function main() {
     maxTotalRequests,
   } = jobInput;
 
+  const fargateTaskId = taskId ?? jobId;
+
   if (!campaignId || !searchesS3Key) {
     console.error('campaignId and searchesS3Key required');
     process.exit(1);
   }
 
-  const updateJobStatus = async (status: string, errorMessage?: string) => {
-    if (!jobId) return;
-    await prisma.job.update({
-      where: { id: jobId },
+  const updateTaskStatus = async (status: 'completed' | 'failed', errorMessage?: string) => {
+    if (!fargateTaskId) return;
+    await prisma.fargateTask.update({
+      where: { id: fargateTaskId },
       data: {
         status,
         completedAt: new Date(),
@@ -243,13 +246,13 @@ async function main() {
     );
     const body = await s3Result.Body?.transformToString();
     if (!body) {
-      await updateJobStatus('failed', 'Empty searches file');
+      await updateTaskStatus('failed', 'Empty searches file');
       process.exit(1);
     }
 
     const { searches = [] } = JSON.parse(body) as { searches?: SearchQueryInput[] };
     if (searches.length === 0) {
-      await updateJobStatus('completed');
+      await updateTaskStatus('completed');
       if (campaignRunId) {
         await prisma.campaignRun.update({
           where: { id: campaignRunId },
@@ -386,12 +389,12 @@ async function main() {
       });
     }
 
-    await updateJobStatus('completed');
+    await updateTaskStatus('completed');
     console.log(`Places task complete: ${leadsFound} new, ${duplicatesSkipped} dup, ${errors} errors`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('Places task failed:', err);
-    await updateJobStatus('failed', msg);
+    await updateTaskStatus('failed', msg);
     process.exit(1);
   } finally {
     await prisma.$disconnect();

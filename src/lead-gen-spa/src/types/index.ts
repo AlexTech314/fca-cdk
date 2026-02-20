@@ -93,6 +93,22 @@ export interface CampaignRun {
 
 export type CampaignRunStatus = 'pending' | 'running' | 'completed' | 'failed';
 
+export type FargateTaskType = 'places_search' | 'web_scrape' | 'ai_scoring';
+export type FargateTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface FargateTask {
+  id: string;
+  type: FargateTaskType;
+  status: FargateTaskStatus;
+  taskArn: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  errorMessage: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ===========================================
 // API Query/Response Types
 // ===========================================

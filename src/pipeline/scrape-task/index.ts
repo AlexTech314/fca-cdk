@@ -22,7 +22,7 @@ import { uploadToS3 } from './storage/s3.js';
 import {
   updateLeadWithScrapeData,
   markLeadScrapeFailed,
-  updateJobMetrics,
+  updateFargateTask,
 } from './storage/postgres.js';
 import type { BatchLead } from './storage/postgres.js';
 
@@ -59,11 +59,11 @@ async function main(): Promise<void> {
     console.log('No JOB_INPUT provided, using defaults');
   }
   
-  const jobId = jobInput.jobId;
+  const taskId = jobInput.taskId ?? jobInput.jobId;
   const maxPagesPerSite = jobInput.maxPagesPerSite || 10;
   const enableEarlyExit = true; // Always enable early exit for efficiency
   
-  // Read batch from S3 (prepare-scrape writes { id, place_id, website }[] per batch)
+  // Read batch from S3 (scrape-trigger writes { id, place_id, website }[] per batch)
   const batchS3Key = jobInput.batchS3Key;
   if (!batchS3Key) {
     console.log('No batchS3Key provided. Exiting (distributed mode required).');
@@ -344,17 +344,34 @@ async function main(): Promise<void> {
     total_bytes: totalBytes,
   };
   
-  // Update job metrics (for single-task mode)
-  if (jobId) {
-    await updateJobMetrics(jobId, metrics);
+  // Update FargateTask status (for event-driven mode)
+  if (taskId) {
+    await updateFargateTask(taskId, 'completed', metrics);
   }
   
   // Output metrics for Step Functions aggregation (distributed mode)
-  // This format is parsed by the aggregate-scrape-lambda
+  // This format is used for lead scraped updates
   console.log(`SCRAPE_RESULT:${JSON.stringify(metrics)}`);
 }
 
-main().catch(error => {
+main().catch(async (error) => {
   console.error('Task failed:', error);
+  const jobInputStr = process.env.JOB_INPUT;
+  let taskId: string | undefined;
+  if (jobInputStr) {
+    try {
+      const jobInput = JSON.parse(jobInputStr);
+      taskId = jobInput.taskId ?? jobInput.jobId;
+    } catch {
+      // ignore
+    }
+  }
+  if (taskId) {
+    try {
+      await updateFargateTask(taskId, 'failed', undefined, error instanceof Error ? error.message : String(error));
+    } catch (e) {
+      console.error('Failed to update task status:', e);
+    }
+  }
   process.exit(1);
 });

@@ -7,13 +7,11 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
-import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Construct } from 'constructs';
 import * as path from 'path';
-import { ecrNode20Slim } from '../ecr-images';
+import { ecrNode20Slim, ecrBuildCacheOptions } from '../ecr-images';
 
 export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
@@ -21,6 +19,7 @@ export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly databaseSecret: secretsmanager.ISecret;
   readonly pipelineSecurityGroup: ec2.ISecurityGroup;
   readonly campaignDataBucket: s3.IBucket;
+  readonly buildCacheRepoUri: string;
 }
 
 /**
@@ -32,11 +31,13 @@ export interface LeadGenPipelineStackProps extends cdk.StackProps {
 export class LeadGenPipelineStack extends cdk.Stack {
   public readonly startPlacesLambdaArn: string;
   public readonly scoringQueue: sqs.IQueue;
+  public readonly pipelineClusterArn: string;
 
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
     super(scope, id, props);
 
-    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket } = props;
+    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket, buildCacheRepoUri } = props;
+    const buildCacheOpts = ecrBuildCacheOptions(buildCacheRepoUri);
 
     // Direct RDS connection (no proxy -- saves $21.90/mo, peak ~40 connections vs ~80 limit)
     const databaseEndpoint = database.dbInstanceEndpointAddress;
@@ -57,6 +58,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
     // ECS Cluster
     // ============================================================
     const cluster = new ecs.Cluster(this, 'PipelineCluster', { vpc });
+    this.pipelineClusterArn = cluster.clusterArn;
 
     // ============================================================
     // SQS Queues (with DLQs, encryption, SSL enforcement)
@@ -103,7 +105,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
     const bridgeLambda = new lambda.DockerImageFunction(this, 'BridgeLambda', {
       code: lambda.DockerImageCode.fromImageAsset(
         path.join(__dirname, '../../src'),
-        { file: 'lambda/bridge/Dockerfile' }
+        { file: 'lambda/bridge/Dockerfile', ...buildCacheOpts }
       ),
       timeout: cdk.Duration.seconds(10),
       memorySize: 128,
@@ -148,6 +150,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
         {
           file: 'pipeline/places-task/Dockerfile',
           buildArgs: { NODE_20_SLIM: node20Slim },
+          ...buildCacheOpts,
         }
       ),
       logging: ecs.LogDrivers.awsLogs({
@@ -182,6 +185,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
         {
           file: 'lambda/start-places/Dockerfile',
           buildArgs: { NODE_20_SLIM: node20Slim },
+          ...buildCacheOpts,
         }
       ),
       timeout: cdk.Duration.seconds(30),
@@ -225,6 +229,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
             BASE_IMAGE: baseImage,
             NODE_20_SLIM: node20Slim,
           },
+          ...buildCacheOpts,
         }
       ),
       logging: ecs.LogDrivers.awsLogs({
@@ -243,139 +248,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
     databaseSecret.grantRead(scrapeTaskDef.taskRole);
 
     // ============================================================
-    // Prepare Scrape Lambda
-    // ============================================================
-    const prepareScrapeLogGroup = new logs.LogGroup(this, 'PrepareScrapeLogs', {
-      retention: logs.RetentionDays.ONE_WEEK,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    const prepareScrapeLambda = new lambda.DockerImageFunction(this, 'PrepareScrape', {
-      code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src'),
-        {
-          file: 'lambda/prepare-scrape/Dockerfile',
-          buildArgs: { NODE_20_SLIM: node20Slim },
-        }
-      ),
-      timeout: cdk.Duration.minutes(5),
-      memorySize: 512,
-      logGroup: prepareScrapeLogGroup,
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [pipelineSecurityGroup],
-      environment: {
-        DATABASE_SECRET_ARN: databaseSecret.secretArn,
-        DATABASE_HOST: databaseEndpoint,
-        CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
-      },
-    });
-
-    campaignDataBucket.grantWrite(prepareScrapeLambda);
-    databaseSecret.grantRead(prepareScrapeLambda);
-
-    // ============================================================
-    // Aggregate Scrape Lambda
-    // ============================================================
-    const aggregateScrapeLogGroup = new logs.LogGroup(this, 'AggregateScrapeLogs', {
-      retention: logs.RetentionDays.ONE_WEEK,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    const aggregateScrapeLambda = new lambda.DockerImageFunction(this, 'AggregateScrape', {
-      code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src'),
-        {
-          file: 'lambda/aggregate-scrape/Dockerfile',
-          buildArgs: { NODE_20_SLIM: node20Slim },
-        }
-      ),
-      timeout: cdk.Duration.minutes(5),
-      memorySize: 512,
-      logGroup: aggregateScrapeLogGroup,
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [pipelineSecurityGroup],
-      environment: {
-        DATABASE_SECRET_ARN: databaseSecret.secretArn,
-        DATABASE_HOST: databaseEndpoint,
-        CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
-      },
-    });
-
-    campaignDataBucket.grantRead(aggregateScrapeLambda);
-    databaseSecret.grantRead(aggregateScrapeLambda);
-
-    // ============================================================
-    // Step Functions: Distributed Scrape Workflow
-    // ============================================================
-
-    // Step 1: Prepare (write batch manifest to S3)
-    const prepareScrape = new tasks.LambdaInvoke(this, 'PrepareScrapeStep', {
-      lambdaFunction: prepareScrapeLambda,
-      resultPath: '$.prepareResult',
-    });
-
-    // Step 2: Distributed Map (scrape in parallel)
-    const runScrapeTask = new tasks.EcsRunTask(this, 'RunScrapeTask', {
-      integrationPattern: sfn.IntegrationPattern.RUN_JOB,
-      cluster,
-      taskDefinition: scrapeTaskDef,
-      launchTarget: new tasks.EcsFargateLaunchTarget({
-        platformVersion: ecs.FargatePlatformVersion.LATEST,
-      }),
-      containerOverrides: [{
-        containerDefinition: scrapeTaskDef.defaultContainer!,
-        environment: [
-          { name: 'JOB_INPUT', value: sfn.JsonPath.stringAt('States.JsonToString($)') },
-        ],
-      }],
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [pipelineSecurityGroup],
-      resultPath: sfn.JsonPath.DISCARD,
-    });
-
-    const distributedScrape = new sfn.DistributedMap(this, 'DistributedScrape', {
-      maxConcurrency: 30,
-      mapExecutionType: sfn.StateMachineType.EXPRESS,
-      itemReader: new sfn.S3JsonItemReader({
-        bucketNamePath: sfn.JsonPath.stringAt('$.prepareResult.Payload.bucket'),
-        key: sfn.JsonPath.stringAt('$.prepareResult.Payload.manifestS3Key'),
-      }),
-      resultWriterV2: new sfn.ResultWriterV2({
-        bucket: campaignDataBucket,
-        prefix: 'jobs/scrape-results/',
-      }),
-      toleratedFailurePercentage: 10,
-    });
-
-    distributedScrape.itemProcessor(runScrapeTask);
-
-    // Step 3: Aggregate
-    const aggregateScrape = new tasks.LambdaInvoke(this, 'AggregateScrapeStep', {
-      lambdaFunction: aggregateScrapeLambda,
-      resultPath: '$.scrapeResult',
-    });
-
-    // Chain: Prepare -> Distributed Map -> Aggregate
-    const scrapeWorkflow = prepareScrape
-      .next(distributedScrape)
-      .next(aggregateScrape)
-      .next(new sfn.Succeed(this, 'ScrapeComplete'));
-
-    const stateMachine = new sfn.StateMachine(this, 'ScrapeStateMachine', {
-      definitionBody: sfn.DefinitionBody.fromChainable(scrapeWorkflow),
-      timeout: cdk.Duration.hours(2),
-      tracingEnabled: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    // Tag for cost allocation
-    cdk.Tags.of(stateMachine).add('project', 'fca-leadgen');
-    cdk.Tags.of(stateMachine).add('pipeline-stage', 'scrape');
-
-    // ============================================================
-    // Scrape Trigger Lambda (consumes ScrapeQueue, starts Step Functions)
+    // Scrape Trigger Lambda (consumes ScrapeQueue, runs Fargate directly)
     // ============================================================
     const scrapeTriggerLogGroup = new logs.LogGroup(this, 'ScrapeTriggerLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
@@ -385,13 +258,26 @@ export class LeadGenPipelineStack extends cdk.Stack {
     const scrapeTriggerLambda = new lambda.DockerImageFunction(this, 'ScrapeTrigger', {
       code: lambda.DockerImageCode.fromImageAsset(
         path.join(__dirname, '../../src'),
-        { file: 'lambda/scrape-trigger/Dockerfile' }
+        {
+          file: 'lambda/scrape-trigger/Dockerfile',
+          buildArgs: { NODE_20_SLIM: node20Slim },
+          ...buildCacheOpts,
+        }
       ),
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 128,
+      timeout: cdk.Duration.seconds(60),
+      memorySize: 256,
       logGroup: scrapeTriggerLogGroup,
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [pipelineSecurityGroup],
       environment: {
-        STATE_MACHINE_ARN: stateMachine.stateMachineArn,
+        CLUSTER_ARN: cluster.clusterArn,
+        SCRAPE_TASK_DEF_ARN: scrapeTaskDef.taskDefinitionArn,
+        SUBNETS: vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }).subnetIds.join(','),
+        SECURITY_GROUPS: pipelineSecurityGroup.securityGroupId,
+        CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
       },
     });
 
@@ -402,47 +288,90 @@ export class LeadGenPipelineStack extends cdk.Stack {
       })
     );
 
-    stateMachine.grantStartExecution(scrapeTriggerLambda);
+    scrapeTaskDef.grantRun(scrapeTriggerLambda);
+    campaignDataBucket.grantWrite(scrapeTriggerLambda);
+    databaseSecret.grantRead(scrapeTriggerLambda);
 
     // ============================================================
-    // Scoring Lambda (consumes SQS, calls Claude)
+    // Scoring Fargate Task
     // ============================================================
-    const scoringLambdaLogGroup = new logs.LogGroup(this, 'ScoringLambdaLogs', {
+    const scoringTaskDef = new ecs.FargateTaskDefinition(this, 'ScoringTaskDef', {
+      memoryLimitMiB: 512,
+      cpu: 256,
+    });
+
+    scoringTaskDef.addContainer('score', {
+      image: ecs.ContainerImage.fromAsset(
+        path.join(__dirname, '../../src'),
+        {
+          file: 'pipeline/scoring-task/Dockerfile',
+          buildArgs: { NODE_20_SLIM: node20Slim },
+          ...buildCacheOpts,
+        }
+      ),
+      logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: 'scoring',
+        logRetention: logs.RetentionDays.ONE_WEEK,
+      }),
+      environment: {
+        CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
+        AWS_REGION: this.region,
+      },
+      secrets: {
+        CLAUDE_API_KEY: ecs.Secret.fromSecretsManager(claudeApiKey),
+      },
+    });
+
+    campaignDataBucket.grantRead(scoringTaskDef.taskRole);
+    databaseSecret.grantRead(scoringTaskDef.taskRole);
+
+    // ============================================================
+    // Scoring Trigger Lambda (consumes ScoringQueue, runs Fargate)
+    // ============================================================
+    const scoringTriggerLogGroup = new logs.LogGroup(this, 'ScoringTriggerLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    const scoringLambda = new lambda.DockerImageFunction(this, 'ScoringLambda', {
+    const scoringTriggerLambda = new lambda.DockerImageFunction(this, 'ScoringTrigger', {
       code: lambda.DockerImageCode.fromImageAsset(
         path.join(__dirname, '../../src'),
         {
-          file: 'lambda/score-leads/Dockerfile',
+          file: 'lambda/scoring-trigger/Dockerfile',
           buildArgs: { NODE_20_SLIM: node20Slim },
+          ...buildCacheOpts,
         }
       ),
-      timeout: cdk.Duration.minutes(3),
+      timeout: cdk.Duration.seconds(60),
       memorySize: 256,
-      logGroup: scoringLambdaLogGroup,
+      logGroup: scoringTriggerLogGroup,
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [pipelineSecurityGroup],
       environment: {
+        CLUSTER_ARN: cluster.clusterArn,
+        SCORING_TASK_DEF_ARN: scoringTaskDef.taskDefinitionArn,
+        SUBNETS: vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }).subnetIds.join(','),
+        SECURITY_GROUPS: pipelineSecurityGroup.securityGroupId,
+        CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
         DATABASE_SECRET_ARN: databaseSecret.secretArn,
         DATABASE_HOST: databaseEndpoint,
-        CLAUDE_API_KEY: claudeApiKey.secretValue.unsafeUnwrap(),
       },
-      // No reservedConcurrentExecutions: account must keep ≥10 unreserved; use SQS batch size to limit rate
     });
 
-    // SQS event source (batch of 10)
-    scoringLambda.addEventSource(
+    scoringTriggerLambda.addEventSource(
       new lambdaEventSources.SqsEventSource(scoringQueue, {
-        batchSize: 10,
-        maxBatchingWindow: cdk.Duration.seconds(30),
+        batchSize: 50,
+        maxBatchingWindow: cdk.Duration.seconds(60),
+        maxConcurrency: 1,
       })
     );
 
-    databaseSecret.grantRead(scoringLambda);
+    scoringTaskDef.grantRun(scoringTriggerLambda);
+    campaignDataBucket.grantWrite(scoringTriggerLambda);
+    databaseSecret.grantRead(scoringTriggerLambda);
 
     // ============================================================
     // Outputs
@@ -467,11 +396,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'RdsLambdaRoleArn', {
       value: rdsLambdaRole.roleArn,
       description: 'IAM Role ARN to attach to RDS for Lambda invocation',
-    });
-
-    new cdk.CfnOutput(this, 'StateMachineArn', {
-      value: stateMachine.stateMachineArn,
-      description: 'Step Functions state machine ARN',
     });
 
     new cdk.CfnOutput(this, 'PlacesTaskDefArn', {

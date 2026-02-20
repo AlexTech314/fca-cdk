@@ -26,6 +26,9 @@ import type {
   UsageStats,
   UsageLimits,
   LeadWithCampaign,
+  FargateTask,
+  FargateTaskType,
+  FargateTaskStatus,
 } from '@/types';
 import { getIdToken } from '../auth';
 import { API_BASE_URL } from '../amplify-config';
@@ -148,6 +151,21 @@ function transformCampaignRun(raw: any): CampaignRun {
     duplicatesSkipped: raw.duplicatesSkipped ?? raw.duplicates_skipped ?? 0,
     errors: raw.errors ?? 0,
     errorMessages: raw.errorMessages || raw.error_messages || [],
+  };
+}
+
+function transformFargateTask(raw: any): FargateTask {
+  return {
+    id: raw.id,
+    type: raw.type,
+    status: raw.status,
+    taskArn: raw.taskArn ?? raw.task_arn ?? null,
+    startedAt: raw.startedAt ?? raw.started_at ?? null,
+    completedAt: raw.completedAt ?? raw.completed_at ?? null,
+    errorMessage: raw.errorMessage ?? raw.error_message ?? null,
+    metadata: raw.metadata ?? null,
+    createdAt: raw.createdAt ?? raw.created_at,
+    updatedAt: raw.updatedAt ?? raw.updated_at,
   };
 }
 
@@ -461,5 +479,37 @@ export const realApi: LeadGenApi = {
 
   async getUsageLimits(): Promise<UsageLimits> {
     return apiClient<UsageLimits>('/usage/limits');
+  },
+
+  // ===========================================
+  // Tasks
+  // ===========================================
+
+  async listTasks(params: { page?: number; limit?: number; type?: FargateTaskType; status?: FargateTaskStatus }): Promise<PaginatedResponse<FargateTask>> {
+    const qs = new URLSearchParams();
+    if (params.page) qs.set('page', String(params.page));
+    if (params.limit) qs.set('limit', String(params.limit));
+    if (params.type) qs.set('type', params.type);
+    if (params.status) qs.set('status', params.status);
+    const result = await apiClient<{ data: any[]; total: number; page: number; limit: number; totalPages: number }>(
+      `/tasks?${qs}`
+    );
+    return {
+      data: result.data.map(transformFargateTask),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
+    };
+  },
+
+  async getTask(id: string): Promise<FargateTask> {
+    const raw = await apiClient<any>(`/tasks/${id}`);
+    return transformFargateTask(raw);
+  },
+
+  async cancelTask(id: string): Promise<FargateTask> {
+    const raw = await apiClient<any>(`/tasks/${id}/cancel`, { method: 'POST' });
+    return transformFargateTask(raw);
   },
 };

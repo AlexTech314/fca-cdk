@@ -36,18 +36,17 @@ export async function handler(event: StartPlacesInput): Promise<{ jobId: string;
   }
 
   try {
-    const job = await prisma.job.create({
+    const task = await prisma.fargateTask.create({
       data: {
-        campaignId,
-        campaignRunId,
         type: 'places_search',
         status: 'running',
+        startedAt: new Date(),
       },
     });
-    const jobId = job.id;
+    const taskId = task.id;
 
     const jobInput = JSON.stringify({
-      jobId,
+      taskId,
       campaignId,
       campaignRunId,
       searchesS3Key: queriesS3Key,
@@ -84,8 +83,8 @@ export async function handler(event: StartPlacesInput): Promise<{ jobId: string;
       );
     } catch (ecsErr) {
       const msg = ecsErr instanceof Error ? ecsErr.message : String(ecsErr);
-      await prisma.job.update({
-        where: { id: jobId },
+      await prisma.fargateTask.update({
+        where: { id: taskId },
         data: { status: 'failed', completedAt: new Date(), errorMessage: msg },
       });
       throw new Error(`ECS RunTask failed: ${msg}`);
@@ -95,21 +94,21 @@ export async function handler(event: StartPlacesInput): Promise<{ jobId: string;
     const failures = runResult.failures ?? [];
     if (failures.length > 0 && !taskArn) {
       const msg = failures.map((f) => f.reason ?? 'Unknown').join('; ');
-      await prisma.job.update({
-        where: { id: jobId },
+      await prisma.fargateTask.update({
+        where: { id: taskId },
         data: { status: 'failed', completedAt: new Date(), errorMessage: msg },
       });
       throw new Error(`ECS task launch failed: ${msg}`);
     }
 
     if (taskArn) {
-      await prisma.job.update({
-        where: { id: jobId },
-        data: { externalId: taskArn },
+      await prisma.fargateTask.update({
+        where: { id: taskId },
+        data: { taskArn },
       });
     }
 
-    return { jobId, taskArn };
+    return { taskId, taskArn };
   } finally {
     // Keep Prisma connection alive for warm invocations
   }

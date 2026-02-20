@@ -9,7 +9,8 @@ export interface FilterRule {
 }
 
 export interface JobInput {
-  jobId?: string;
+  jobId?: string;  // deprecated, use taskId
+  taskId?: string;
   runScrape?: boolean;
   maxPagesPerSite?: number;
   concurrency?: number;

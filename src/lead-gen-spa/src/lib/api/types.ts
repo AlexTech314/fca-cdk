@@ -18,6 +18,9 @@ import type {
   UsageStats,
   UsageLimits,
   LeadWithCampaign,
+  FargateTask,
+  FargateTaskType,
+  FargateTaskStatus,
 } from '@/types';
 
 /**
@@ -188,4 +191,23 @@ export interface LeadGenApi {
    * Get usage limits
    */
   getUsageLimits(): Promise<UsageLimits>;
+
+  // ===========================================
+  // Tasks
+  // ===========================================
+
+  /**
+   * List Fargate tasks with optional filters
+   */
+  listTasks(params: { page?: number; limit?: number; type?: FargateTaskType; status?: FargateTaskStatus }): Promise<PaginatedResponse<FargateTask>>;
+
+  /**
+   * Get a single task by ID
+   */
+  getTask(id: string): Promise<FargateTask>;
+
+  /**
+   * Cancel a running task
+   */
+  cancelTask(id: string): Promise<FargateTask>;
 }

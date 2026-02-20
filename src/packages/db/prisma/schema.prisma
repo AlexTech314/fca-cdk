@@ -434,30 +434,37 @@ model FranchiseScrapedPage {
   @@map("franchise_scraped_pages")
 }
 
-model Job {
-  id             String    @id @default(uuid())
-  campaignId     String?   @map("campaign_id")
-  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  campaignRunId  String?   @map("campaign_run_id")
-  campaignRun    CampaignRun? @relation(fields: [campaignRunId], references: [id], onDelete: SetNull)
+enum FargateTaskType {
+  places_search
+  web_scrape
+  ai_scoring
+}
 
-  type           String    // places_search, web_scrape, score_leads, prepare_scrape
-  status         String    @default("pending")  // pending, running, completed, failed
-  startedAt      DateTime? @map("started_at")
-  completedAt    DateTime? @map("completed_at")
-  externalId     String?   @map("external_id")  // ECS task ARN, Step Functions exec ARN, etc.
-  errorMessage   String?   @map("error_message")
+enum FargateTaskStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+model FargateTask {
+  id             String             @id @default(uuid())
+  type           FargateTaskType
+  status         FargateTaskStatus   @default(pending)
+  taskArn        String?             @map("task_arn")
+  startedAt      DateTime?           @map("started_at")
+  completedAt    DateTime?          @map("completed_at")
+  errorMessage   String?             @map("error_message")
   metadata       Json?
 
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
 
-  @@index([campaignId])
-  @@index([campaignRunId])
   @@index([type])
   @@index([status])
   @@index([createdAt])
-  @@map("jobs")
+  @@map("fargate_tasks")
 }
 
 model Lead {
@@ -543,7 +550,6 @@ model Campaign {
   leads                Lead[]
   runs                 CampaignRun[]
   searchQueries        SearchQuery[]
-  jobs                 Job[]
 
   @@index([createdAt])
   @@map("campaigns")
@@ -569,7 +575,6 @@ model CampaignRun {
 
   leads                Lead[]
   searchQueries        SearchQuery[]
-  jobs                 Job[]
 
   @@index([campaignId])
   @@index([status])

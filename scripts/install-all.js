@@ -2,6 +2,11 @@
 /**
  * Install dependencies in root and all packages under src/.
  * Discovers package.json files automatically so new packages are never missed.
+ * Includes all packages that build into Docker images (lambdas, pipeline tasks, api).
+ *
+ * Usage:
+ *   node scripts/install-all.js        # Full install (root + all packages)
+ *   node scripts/install-all.js --skip-root   # Skip root (e.g. when run from postinstall)
  */
 const fs = require('fs');
 const path = require('path');
@@ -9,6 +14,7 @@ const { execSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
 const srcDir = path.join(root, 'src');
+const skipRoot = process.argv.includes('--skip-root');
 
 function findPackageDirs(dir, results = []) {
   if (!fs.existsSync(dir)) return results;
@@ -26,7 +32,7 @@ function findPackageDirs(dir, results = []) {
   return results;
 }
 
-// Dependency order: packages/db and packages/seed first (others depend on them)
+// Dependency order: db and seed first, then packages that depend on them (api, lambdas, pipeline tasks)
 function sortByDeps(dirs) {
   const first = ['src/packages/db', 'src/packages/seed'];
   const rest = dirs.filter((d) => !first.includes(d));
@@ -40,9 +46,11 @@ function hasFileDeps(dir) {
 }
 
 const dirs = sortByDeps([...new Set(findPackageDirs(srcDir))]);
-console.log('Installing in:', ['(root)', ...dirs].join(', '));
+console.log('Installing in:', [skipRoot ? '(root skipped)' : '(root)', ...dirs].join(', '));
 
-execSync('npm install', { cwd: root, stdio: 'inherit' });
+if (!skipRoot) {
+  execSync('npm install', { cwd: root, stdio: 'inherit' });
+}
 for (const dir of dirs) {
   const flags = hasFileDeps(dir) ? '--install-links --ignore-scripts' : '';
   execSync(`npm install ${flags} --prefix ${dir}`.trim(), { cwd: root, stdio: 'inherit' });

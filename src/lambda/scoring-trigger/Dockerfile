@@ -1,5 +1,4 @@
 # Build context: src/
-# NODE_20_SLIM: pass at build time for ECR pull-through cache
 ARG NODE_20_SLIM=node:20-slim
 
 # Stage 1: Build shared db package
@@ -20,11 +19,11 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 
 COPY --from=db-builder /app/packages/db /packages/db
 
-COPY lambda/prepare-scrape/package*.json ./
+COPY lambda/scoring-trigger/package*.json ./
 RUN npm ci --install-links --ignore-scripts
 COPY --from=db-builder /app/packages/db/node_modules/.prisma node_modules/.prisma/
 
-COPY lambda/prepare-scrape/index.ts ./
+COPY lambda/scoring-trigger/index.ts ./
 RUN npx tsc --outDir . --esModuleInterop --module commonjs --target es2022 --moduleResolution node --skipLibCheck index.ts
 
 RUN npm prune --omit=dev

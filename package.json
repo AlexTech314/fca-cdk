@@ -6,7 +6,8 @@
   },
   "scripts": {
     "install:all": "node scripts/install-all.js",
-    "audit:fix:all": "npm audit fix --prefix src/packages/db && npm audit fix --prefix src/packages/seed && npm audit fix --prefix src/api && npm audit fix --prefix src/lead-gen-spa && npm audit fix --prefix src/flagship-ui/nextjs-web && npm audit fix --prefix src/lambda/bridge && npm audit fix --prefix src/lambda/seed-db && npm audit fix --prefix src/lambda/start-places && npm audit fix --prefix src/lambda/prepare-scrape && npm audit fix --prefix src/lambda/aggregate-scrape && npm audit fix --prefix src/lambda/score-leads && npm audit fix --prefix src/pipeline/places-task && npm audit fix --prefix src/pipeline/scrape-task",
+    "postinstall": "node scripts/install-all.js --skip-root",
+    "audit:fix:all": "npm audit fix --prefix src/packages/db && npm audit fix --prefix src/packages/seed && npm audit fix --prefix src/api && npm audit fix --prefix src/lead-gen-spa && npm audit fix --prefix src/flagship-ui/nextjs-web && npm audit fix --prefix src/lambda/bridge && npm audit fix --prefix src/lambda/seed-db && npm audit fix --prefix src/lambda/start-places && npm audit fix --prefix src/lambda/scrape-trigger && npm audit fix --prefix src/lambda/scoring-trigger && npm audit fix --prefix src/pipeline/places-task && npm audit fix --prefix src/pipeline/scrape-task && npm audit fix --prefix src/pipeline/scoring-task",
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",

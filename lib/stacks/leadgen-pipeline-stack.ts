@@ -11,6 +11,7 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Construct } from 'constructs';
 import * as path from 'path';
+import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } from 'token-injectable-docker-builder';
 import { ecrNode20Slim } from '../ecr-images';
 
 export interface LeadGenPipelineStackProps extends cdk.StackProps {
@@ -92,19 +93,28 @@ export class LeadGenPipelineStack extends cdk.Stack {
       deadLetterQueue: { queue: scoringDlq, maxReceiveCount: 3 },
     });
 
+    const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
+    const node20Slim = ecrNode20Slim(this.account, this.region);
+    const baseImage = `${this.account}.dkr.ecr.${this.region}.amazonaws.com/ghcr/puppeteer/puppeteer:24.0.0`;
+
     // ============================================================
     // Bridge Lambda (PG trigger -> SQS)
     // ============================================================
+    const bridgeImage = new TokenInjectableDockerBuilder(this, 'BridgeImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'lambda/bridge/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+    });
+
     const bridgeLambdaLogGroup = new logs.LogGroup(this, 'BridgeLambdaLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const bridgeLambda = new lambda.DockerImageFunction(this, 'BridgeLambda', {
-      code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src'),
-        { file: 'lambda/bridge/Dockerfile' }
-      ),
+      code: bridgeImage.dockerImageCode,
+      architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(10),
       memorySize: 128,
       logGroup: bridgeLambdaLogGroup,
@@ -136,20 +146,25 @@ export class LeadGenPipelineStack extends cdk.Stack {
     // ============================================================
     // Places Ingestion Fargate Task
     // ============================================================
+    const placesImage = new TokenInjectableDockerBuilder(this, 'PlacesImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'pipeline/places-task/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+      buildArgs: { NODE_20_SLIM: node20Slim },
+    });
+
     const placesTaskDef = new ecs.FargateTaskDefinition(this, 'PlacesTaskDef', {
       memoryLimitMiB: 512,
       cpu: 256,
+      runtimePlatform: {
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+      },
     });
 
-    const node20Slim = ecrNode20Slim(this.account, this.region);
     placesTaskDef.addContainer('places', {
-      image: ecs.ContainerImage.fromAsset(
-        path.join(__dirname, '../../src'),
-        {
-          file: 'pipeline/places-task/Dockerfile',
-          buildArgs: { NODE_20_SLIM: node20Slim },
-        }
-      ),
+      image: placesImage.containerImage,
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'places',
         logRetention: logs.RetentionDays.ONE_WEEK,
@@ -171,19 +186,22 @@ export class LeadGenPipelineStack extends cdk.Stack {
     // ============================================================
     // Start Places Lambda (invoked by API when campaign run starts)
     // ============================================================
+    const startPlacesImage = new TokenInjectableDockerBuilder(this, 'StartPlacesImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'lambda/start-places/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+      buildArgs: { NODE_20_SLIM: node20Slim },
+    });
+
     const startPlacesLogGroup = new logs.LogGroup(this, 'StartPlacesLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const startPlacesLambda = new lambda.DockerImageFunction(this, 'StartPlaces', {
-      code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src'),
-        {
-          file: 'lambda/start-places/Dockerfile',
-          buildArgs: { NODE_20_SLIM: node20Slim },
-        }
-      ),
+      code: startPlacesImage.dockerImageCode,
+      architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       logGroup: startPlacesLogGroup,
@@ -206,27 +224,30 @@ export class LeadGenPipelineStack extends cdk.Stack {
     this.startPlacesLambdaArn = startPlacesLambda.functionArn;
 
     // ============================================================
-    // Scrape Fargate Task
+    // Scrape Fargate Task (x86 - Puppeteer/Chromium)
     // ============================================================
+    const scrapeImage = new TokenInjectableDockerBuilder(this, 'ScrapeImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'pipeline/scrape-task/Dockerfile',
+      platform: 'linux/amd64',
+      provider,
+      buildArgs: {
+        BASE_IMAGE: baseImage,
+        NODE_20_SLIM: node20Slim,
+      },
+    });
+
     const scrapeTaskDef = new ecs.FargateTaskDefinition(this, 'ScrapeTaskDef', {
       memoryLimitMiB: 4096,
       cpu: 1024,
+      runtimePlatform: {
+        cpuArchitecture: ecs.CpuArchitecture.X86_64,
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+      },
     });
 
-    // ECR pull-through cache base images (must deploy EcrCache stack first)
-    const baseImage = `${this.account}.dkr.ecr.${this.region}.amazonaws.com/ghcr/puppeteer/puppeteer:24.0.0`;
-
     scrapeTaskDef.addContainer('scrape', {
-      image: ecs.ContainerImage.fromAsset(
-        path.join(__dirname, '../../src'),
-        {
-          file: 'pipeline/scrape-task/Dockerfile',
-          buildArgs: {
-            BASE_IMAGE: baseImage,
-            NODE_20_SLIM: node20Slim,
-          },
-        }
-      ),
+      image: scrapeImage.containerImage,
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'scrape',
         logRetention: logs.RetentionDays.ONE_WEEK,
@@ -245,19 +266,22 @@ export class LeadGenPipelineStack extends cdk.Stack {
     // ============================================================
     // Scrape Trigger Lambda (consumes ScrapeQueue, runs Fargate directly)
     // ============================================================
+    const scrapeTriggerImage = new TokenInjectableDockerBuilder(this, 'ScrapeTriggerImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'lambda/scrape-trigger/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+      buildArgs: { NODE_20_SLIM: node20Slim },
+    });
+
     const scrapeTriggerLogGroup = new logs.LogGroup(this, 'ScrapeTriggerLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const scrapeTriggerLambda = new lambda.DockerImageFunction(this, 'ScrapeTrigger', {
-      code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src'),
-        {
-          file: 'lambda/scrape-trigger/Dockerfile',
-          buildArgs: { NODE_20_SLIM: node20Slim },
-        }
-      ),
+      code: scrapeTriggerImage.dockerImageCode,
+      architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(60),
       memorySize: 256,
       logGroup: scrapeTriggerLogGroup,
@@ -289,19 +313,25 @@ export class LeadGenPipelineStack extends cdk.Stack {
     // ============================================================
     // Scoring Fargate Task
     // ============================================================
+    const scoringImage = new TokenInjectableDockerBuilder(this, 'ScoringImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'pipeline/scoring-task/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+      buildArgs: { NODE_20_SLIM: node20Slim },
+    });
+
     const scoringTaskDef = new ecs.FargateTaskDefinition(this, 'ScoringTaskDef', {
       memoryLimitMiB: 512,
       cpu: 256,
+      runtimePlatform: {
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+      },
     });
 
     scoringTaskDef.addContainer('score', {
-      image: ecs.ContainerImage.fromAsset(
-        path.join(__dirname, '../../src'),
-        {
-          file: 'pipeline/scoring-task/Dockerfile',
-          buildArgs: { NODE_20_SLIM: node20Slim },
-        }
-      ),
+      image: scoringImage.containerImage,
       logging: ecs.LogDrivers.awsLogs({
         streamPrefix: 'scoring',
         logRetention: logs.RetentionDays.ONE_WEEK,
@@ -323,19 +353,22 @@ export class LeadGenPipelineStack extends cdk.Stack {
     // ============================================================
     // Scoring Trigger Lambda (consumes ScoringQueue, runs Fargate)
     // ============================================================
+    const scoringTriggerImage = new TokenInjectableDockerBuilder(this, 'ScoringTriggerImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'lambda/scoring-trigger/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+      buildArgs: { NODE_20_SLIM: node20Slim },
+    });
+
     const scoringTriggerLogGroup = new logs.LogGroup(this, 'ScoringTriggerLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const scoringTriggerLambda = new lambda.DockerImageFunction(this, 'ScoringTrigger', {
-      code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src'),
-        {
-          file: 'lambda/scoring-trigger/Dockerfile',
-          buildArgs: { NODE_20_SLIM: node20Slim },
-        }
-      ),
+      code: scoringTriggerImage.dockerImageCode,
+      architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.seconds(60),
       memorySize: 256,
       logGroup: scoringTriggerLogGroup,

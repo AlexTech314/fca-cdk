@@ -80,7 +80,7 @@ export async function updateLeadWithScrapeData(
       durationMs,
       rawS3Key,
       extractedS3Key,
-      extractedData: extractedDataJson,
+      extractedData: JSON.parse(JSON.stringify(extractedDataJson)),
     },
   });
 
@@ -143,7 +143,7 @@ export async function updateFargateTask(
       status,
       completedAt: new Date(),
       errorMessage: errorMessage ?? null,
-      metadata: metrics ? { scrape: metrics } : undefined,
+      metadata: metrics ? JSON.parse(JSON.stringify({ scrape: metrics })) : undefined,
     },
   });
   console.log(`  [Prisma] Updated FargateTask ${taskId} status: ${status}`);

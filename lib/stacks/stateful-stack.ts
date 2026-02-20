@@ -8,8 +8,9 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
-import { ecrNode20Slim } from '../ecr-images';
 import * as path from 'path';
+import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } from 'token-injectable-docker-builder';
+import { ecrNode20Slim } from '../ecr-images';
 
 export interface StatefulStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
@@ -129,19 +130,25 @@ export class StatefulStack extends cdk.Stack {
     // ============================================================
     // Seed DB Lambda (invoke to wipe/migrate/seed the database)
     // ============================================================
+    const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
+    const seedDbImage = new TokenInjectableDockerBuilder(this, 'SeedDbImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'lambda/seed-db/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+      vpc,
+      subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      buildArgs: { NODE_20_SLIM: ecrNode20Slim(this.account, this.region) },
+    });
+
     const seedLambdaLogGroup = new logs.LogGroup(this, 'SeedDbLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     const seedLambda = new lambda.DockerImageFunction(this, 'SeedDbLambda', {
-      code: lambda.DockerImageCode.fromImageAsset(
-        path.join(__dirname, '../../src'),
-        {
-          file: 'lambda/seed-db/Dockerfile',
-          buildArgs: { NODE_20_SLIM: ecrNode20Slim(this.account, this.region) },
-        }
-      ),
+      code: seedDbImage.dockerImageCode,
+      architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.minutes(10),
       memorySize: 512,
       logGroup: seedLambdaLogGroup,

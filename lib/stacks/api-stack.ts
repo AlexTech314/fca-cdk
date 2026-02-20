@@ -7,10 +7,10 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import * as ecr_assets from 'aws-cdk-lib/aws-ecr-assets';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import { Construct } from 'constructs';
 import * as path from 'path';
+import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } from 'token-injectable-docker-builder';
 import { ecrNode20Slim } from '../ecr-images';
 
 export interface ApiStackProps extends cdk.StackProps {
@@ -58,6 +58,15 @@ export class ApiStack extends cdk.Stack {
 
     const cluster = new ecs.Cluster(this, 'ApiCluster', { vpc });
 
+    const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
+    const apiImage = new TokenInjectableDockerBuilder(this, 'ApiImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'api/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+      buildArgs: { NODE_20_SLIM: ecrNode20Slim(this.account, this.region) },
+    });
+
     const apiLogGroup = new logs.LogGroup(this, 'ApiLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -77,13 +86,7 @@ export class ApiStack extends cdk.Stack {
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
       },
       taskImageOptions: {
-        image: ecs.ContainerImage.fromAsset(path.join(__dirname, '../../src'), {
-          file: 'api/Dockerfile',
-          platform: ecr_assets.Platform.LINUX_ARM64,
-          buildArgs: {
-            NODE_20_SLIM: ecrNode20Slim(this.account, this.region),
-          },
-        }),
+        image: apiImage.containerImage,
         containerPort: 3000,
         environment: {
           NODE_ENV: 'production',

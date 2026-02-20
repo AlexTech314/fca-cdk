@@ -7,7 +7,7 @@ import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 import * as path from 'path';
-import { TokenInjectableDockerBuilder } from 'token-injectable-docker-builder';
+import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } from 'token-injectable-docker-builder';
 
 export interface FlagshipWebStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
@@ -50,20 +50,25 @@ export class FlagshipWebStack extends cdk.Stack {
     } = props;
 
     const apiUrl = `http://${apiLoadBalancerDnsName}/api`;
+    const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
 
     const publicDockerBuilder = new TokenInjectableDockerBuilder(this, 'PublicDockerBuilder', {
       path: path.join(__dirname, '../../src/flagship-ui/nextjs-web'),
       file: 'Dockerfile.public',
+      platform: 'linux/arm64',
+      provider,
       buildArgs: {
         API_URL: apiUrl,
       },
       vpc,
       subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
     });
-    
+
     const adminDockerBuilder = new TokenInjectableDockerBuilder(this, 'AdminDockerBuilder', {
       path: path.join(__dirname, '../../src/flagship-ui/nextjs-web'),
       file: 'Dockerfile.admin',
+      platform: 'linux/arm64',
+      provider,
       buildArgs: {
         API_URL: apiUrl,
         NEXT_PUBLIC_COGNITO_USER_POOL_ID: cognitoUserPoolId,
@@ -143,7 +148,7 @@ export class FlagshipWebStack extends cdk.Stack {
       cpu: 256,
       memoryLimitMiB: 512,
       runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.X86_64,
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
       },
     });
@@ -190,7 +195,7 @@ export class FlagshipWebStack extends cdk.Stack {
       cpu: 256,
       memoryLimitMiB: 512,
       runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.X86_64,
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
       },
     });

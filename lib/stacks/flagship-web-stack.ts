@@ -87,9 +87,14 @@ export class FlagshipWebStack extends cdk.Stack {
       port: 3000,
       protocol: elbv2.ApplicationProtocol.HTTP,
       targetType: elbv2.TargetType.IP,
+      deregistrationDelay: cdk.Duration.seconds(30),
       healthCheck: {
-        path: '/',
+        path: '/api/health',
         healthyHttpCodes: '200',
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(10),
+        healthyThresholdCount: 2,
+        unhealthyThresholdCount: 3,
       },
     });
 
@@ -98,9 +103,14 @@ export class FlagshipWebStack extends cdk.Stack {
       port: 3000,
       protocol: elbv2.ApplicationProtocol.HTTP,
       targetType: elbv2.TargetType.IP,
+      deregistrationDelay: cdk.Duration.seconds(30),
       healthCheck: {
-        path: '/admin',
-        healthyHttpCodes: '200,302',
+        path: '/api/health',
+        healthyHttpCodes: '200',
+        interval: cdk.Duration.seconds(30),
+        timeout: cdk.Duration.seconds(10),
+        healthyThresholdCount: 2,
+        unhealthyThresholdCount: 3,
       },
     });
 
@@ -160,6 +170,13 @@ export class FlagshipWebStack extends cdk.Stack {
     publicService.node.addDependency(publicDockerBuilder);
     publicService.attachToApplicationTargetGroup(publicTargetGroup);
     publicService.connections.allowFrom(apiLoadBalancer, ec2.Port.tcp(3000), 'Allow ALB to public Next.js');
+
+    const publicScaling = publicService.autoScaleTaskCount({ minCapacity: 1, maxCapacity: 4 });
+    publicScaling.scaleOnCpuUtilization('PublicCpuScaling', {
+      targetUtilizationPercent: 70,
+      scaleInCooldown: cdk.Duration.seconds(120),
+      scaleOutCooldown: cdk.Duration.seconds(60),
+    });
 
     // ============================================================
     // Admin Fargate Service

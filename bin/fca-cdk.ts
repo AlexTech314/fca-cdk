@@ -6,18 +6,9 @@ import { DnsStack } from '../lib/stacks/dns-stack';
 
 const app = new cdk.App();
 
-// Environment configuration
 const env = {
-  account: '166763268311',
-  region: 'us-east-2',
-};
-
-// Pipeline configuration from cdk.json context
-const pipelineConfig = {
-  repositoryName: app.node.getContext('repositoryName'),
-  branchName: app.node.getContext('branchName'),
-  connectionArn: app.node.getContext('connectionArn'),
-  notificationEmails: app.node.tryGetContext('pipelineNotificationEmails') as string[] | undefined,
+  account: app.node.getContext('account') as string,
+  region: app.node.getContext('region') as string,
 };
 
 // ============================================================
@@ -42,7 +33,10 @@ new EcrCacheStack(app, 'FcaEcrCache', { env });
 // Deploy manually: npx cdk deploy FcaDns
 // Then update your domain registrar's nameservers to the output NS records.
 //
-new DnsStack(app, 'FcaDns', { env });
+new DnsStack(app, 'FcaDns', {
+  env,
+  domainName: app.node.getContext('domainName') as string,
+});
 
 // ============================================================
 // Pipeline Stack - Deploy SECOND after ECR Cache
@@ -54,9 +48,12 @@ new DnsStack(app, 'FcaDns', { env });
 // 3. ECR Cache must be deployed
 //
 new PipelineStack(app, 'FcaPipelineStack', {
-  repositoryName: pipelineConfig.repositoryName,
-  branchName: pipelineConfig.branchName,
-  connectionArn: pipelineConfig.connectionArn,
+  repositoryName: app.node.getContext('repositoryName') as string,
+  branchName: app.node.getContext('branchName') as string,
+  connectionArn: app.node.getContext('connectionArn') as string,
+  viteCognitoUserPoolId: app.node.getContext('viteCognitoUserPoolId') as string,
+  viteCognitoClientId: app.node.getContext('viteCognitoClientId') as string,
+  viteCognitoDomain: app.node.getContext('viteCognitoDomain') as string,
   env,
   tags: {
     Project: 'fca',

@@ -12,7 +12,7 @@ import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } from 'token-injectable-docker-builder';
-import { ecrNode20Slim } from '../ecr-images';
+import { ecrNodeSlim } from '../ecr-images';
 
 export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
@@ -91,7 +91,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
     });
 
     const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
-    const node20Slim = ecrNode20Slim(this.account, this.region);
+    const node20Slim = ecrNodeSlim(this.account, this.region);
     const baseImage = `${this.account}.dkr.ecr.${this.region}.amazonaws.com/ghcr/puppeteer/puppeteer:24.0.0`;
 
     // ============================================================

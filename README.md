@@ -81,19 +81,6 @@ Update `cdk.json` context values:
 }
 ```
 
-After deploying, subscribe to pipeline notifications manually (the topic ARN is in the `PipelineNotificationsTopicArn` stack output):
-
-```bash
-aws sns subscribe \
-  --topic-arn <PipelineNotificationsTopicArn> \
-  --protocol email \
-  --notification-endpoint you@example.com
-```
-
-> **Note:** Subscriptions are managed outside CDK intentionally. CloudFormation replacing a subscription resource on every deploy would deactivate confirmed email addresses.
-
-To receive email notifications when the pipeline succeeds or fails, add your email(s) to `pipelineNotificationEmails`. Each address will receive a one-time SNS confirmation email—click "Confirm subscription" to activate.
-
 Or pass them via CLI:
 
 ```bash

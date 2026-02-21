@@ -10,7 +10,7 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } from 'token-injectable-docker-builder';
-import { ecrNode20Slim } from '../ecr-images';
+import { ecrNodeSlim } from '../ecr-images';
 
 export interface StatefulStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
@@ -138,7 +138,7 @@ export class StatefulStack extends cdk.Stack {
       provider,
       vpc,
       subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      buildArgs: { NODE_20_SLIM: ecrNode20Slim(this.account, this.region) },
+      buildArgs: { NODE_20_SLIM: ecrNodeSlim(this.account, this.region) },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
     });
 

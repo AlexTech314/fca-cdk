@@ -1,8 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as targets from 'aws-cdk-lib/aws-events-targets';
 import { Construct } from 'constructs';
 import * as pipelines from 'aws-cdk-lib/pipelines';
 import { FcaStage } from './stages/fca-stage';
@@ -24,6 +22,14 @@ export interface PipelineStackProps extends cdk.StackProps {
    */
   readonly connectionArn: string;
 
+  /** Cognito User Pool ID for the lead-gen SPA (baked into Vite at synth time) */
+  readonly viteCognitoUserPoolId: string;
+
+  /** Cognito App Client ID for the lead-gen SPA */
+  readonly viteCognitoClientId: string;
+
+  /** Cognito hosted UI domain for the lead-gen SPA */
+  readonly viteCognitoDomain: string;
 }
 
 export class PipelineStack extends cdk.Stack {
@@ -62,9 +68,9 @@ export class PipelineStack extends cdk.Stack {
         primaryOutputDirectory: 'cdk.out',
         env: {
           VITE_API_BASE_URL: '',
-          VITE_COGNITO_USER_POOL_ID: 'us-east-2_HFbzBm1Em',
-          VITE_COGNITO_CLIENT_ID: '62s2usd7nje4loi510m4vc2kr4',
-          VITE_COGNITO_DOMAIN: 'fca-leadgen-dev.auth.us-east-2.amazoncognito.com',
+          VITE_COGNITO_USER_POOL_ID: props.viteCognitoUserPoolId,
+          VITE_COGNITO_CLIENT_ID: props.viteCognitoClientId,
+          VITE_COGNITO_DOMAIN: props.viteCognitoDomain,
           VITE_USE_MOCK_AUTH: 'false',
         },
       }),
@@ -124,24 +130,6 @@ export class PipelineStack extends cdk.Stack {
       // Add pre/post deployment steps if needed
       // pre: [],
       // post: [],
-    });
-
-    // Email notifications for pipeline success/failure.
-    // The SNS topic is managed here; email subscriptions are managed manually (outside CDK)
-    // to avoid CloudFormation replacing them on every deploy and deactivating confirmed addresses.
-    // To subscribe: aws sns subscribe --topic-arn <TopicArn output> --protocol email --notification-endpoint your@email.com
-    this.pipeline.buildPipeline();
-    const topic = new sns.Topic(this, 'PipelineNotifications', {
-      topicName: 'fca-pipeline-notifications',
-      displayName: 'FCA Pipeline Notifications',
-    });
-    const rule = this.pipeline.pipeline.onStateChange('PipelineStateChange', {
-      target: new targets.SnsTopic(topic),
-    });
-    rule.addEventPattern({ detail: { state: ['SUCCEEDED', 'FAILED'] } });
-    new cdk.CfnOutput(this, 'PipelineNotificationsTopicArn', {
-      value: topic.topicArn,
-      description: 'Subscribe emails manually: aws sns subscribe --topic-arn <arn> --protocol email --notification-endpoint you@example.com',
     });
   }
 }

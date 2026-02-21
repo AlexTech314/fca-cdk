@@ -17,10 +17,16 @@
     ]
   },
   "context": {
+    "account": "166763268311",
+    "region": "us-east-2",
+    "domainName": "flatironscap.com",
     "disableDockerCache": "false",
     "repositoryName": "AlexTech314/fca-cdk",
     "branchName": "main",
     "connectionArn": "arn:aws:codeconnections:us-east-2:166763268311:connection/46950f38-ff02-4ed9-8fac-bb73c3ad33d5",
+    "viteCognitoUserPoolId": "us-east-2_HFbzBm1Em",
+    "viteCognitoClientId": "62s2usd7nje4loi510m4vc2kr4",
+    "viteCognitoDomain": "fca-leadgen-dev.auth.us-east-2.amazoncognito.com",
     "@aws-cdk/aws-signer:signingProfileNamePassedToCfn": true,
     "@aws-cdk/aws-ecs-patterns:secGroupsDisablesImplicitOpenListener": true,
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,

@@ -11,7 +11,7 @@ import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } from 'token-injectable-docker-builder';
-import { ecrNode20Slim } from '../ecr-images';
+import { ecrNodeSlim } from '../ecr-images';
 
 export interface ApiStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
@@ -64,7 +64,7 @@ export class ApiStack extends cdk.Stack {
       file: 'api/Dockerfile',
       platform: 'linux/arm64',
       provider,
-      buildArgs: { NODE_20_SLIM: ecrNode20Slim(this.account, this.region) },
+      buildArgs: { NODE_20_SLIM: ecrNodeSlim(this.account, this.region) },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
     });
 

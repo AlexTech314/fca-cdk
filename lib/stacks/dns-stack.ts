@@ -2,8 +2,12 @@ import * as cdk from 'aws-cdk-lib';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import { Construct } from 'constructs';
 
+export interface DnsStackProps extends cdk.StackProps {
+  readonly domainName: string;
+}
+
 /**
- * DNS Stack for flatironscap.com
+ * DNS Stack
  *
  * Creates the Route 53 hosted zone. After deployment, update the domain
  * registrar's nameservers to the NS records output by this stack.
@@ -14,16 +18,16 @@ import { Construct } from 'constructs';
 export class DnsStack extends cdk.Stack {
   public readonly hostedZone: route53.IHostedZone;
 
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: DnsStackProps) {
     super(scope, id, props);
 
     this.hostedZone = new route53.HostedZone(this, 'HostedZone', {
-      zoneName: 'flatironscap.com',
+      zoneName: props.domainName,
     });
 
     new cdk.CfnOutput(this, 'HostedZoneId', {
       value: this.hostedZone.hostedZoneId,
-      description: 'Route 53 Hosted Zone ID for flatironscap.com',
+      description: `Route 53 Hosted Zone ID for ${props.domainName}`,
     });
 
     new cdk.CfnOutput(this, 'NameServers', {

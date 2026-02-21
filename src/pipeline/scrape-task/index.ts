@@ -1,6 +1,7 @@
 import puppeteer, { Browser } from 'puppeteer';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { bootstrapDatabaseUrl } from '@fca/db';
+import { PrismaClient } from '@prisma/client';
 
 import type { JobInput, RawScrapeData, ExtractedScrapeData, ScrapeMetrics } from './types.js';
 import {
@@ -41,6 +42,7 @@ function batchLeadToBusiness(lead: BatchLead): { id: string; place_id: string; b
 
 async function main(): Promise<void> {
   await bootstrapDatabaseUrl();
+  const prisma = new PrismaClient();
   console.log('=== Scrape Task (Cloudscraper with Puppeteer Fallback) ===');
   console.log(`Bucket: ${CAMPAIGN_DATA_BUCKET}`);
   
@@ -182,7 +184,7 @@ async function main(): Promise<void> {
         
         if (pages.length === 0) {
           console.log(`  ✗ No pages scraped for ${business.business_name}`);
-          await markLeadScrapeFailed(business.id);
+          await markLeadScrapeFailed(prisma, business.id);
           failed++;
           return;
         }
@@ -249,6 +251,7 @@ async function main(): Promise<void> {
         
         // Update Postgres: create ScrapedPage, junctions, update lead
         await updateLeadWithScrapeData(
+          prisma,
           business.id,
           business.website_uri!,
           rawS3Key,
@@ -331,7 +334,7 @@ async function main(): Promise<void> {
   
   // Update FargateTask status (for event-driven mode)
   if (taskId) {
-    await updateFargateTask(taskId, 'completed', metrics);
+    await updateFargateTask(prisma, taskId, 'completed', metrics);
   }
   
   // Output metrics for Step Functions aggregation (distributed mode)
@@ -353,7 +356,7 @@ main().catch(async (error) => {
   }
   if (taskId) {
     try {
-      await updateFargateTask(taskId, 'failed', undefined, error instanceof Error ? error.message : String(error));
+      await updateFargateTask(prisma, taskId, 'failed', undefined, error instanceof Error ? error.message : String(error));
     } catch (e) {
       console.error('Failed to update task status:', e);
     }

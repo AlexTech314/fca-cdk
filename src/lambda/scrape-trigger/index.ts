@@ -8,8 +8,18 @@
 import { SQSEvent, SQSRecord } from 'aws-lambda';
 import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { bootstrapDatabaseUrl, prisma } from '@fca/db';
+import { bootstrapDatabaseUrl } from '@fca/db';
+import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
+
+let _prisma: PrismaClient | undefined;
+async function getDb(): Promise<PrismaClient> {
+  if (!_prisma) {
+    await bootstrapDatabaseUrl();
+    _prisma = new PrismaClient();
+  }
+  return _prisma;
+}
 
 const ecsClient = new ECSClient({});
 const s3Client = new S3Client({});
@@ -63,7 +73,7 @@ export async function handler(event: SQSEvent): Promise<void> {
 
   console.log(`Processing ${batch.length} leads with websites`);
 
-  await bootstrapDatabaseUrl();
+  const prisma = await getDb();
 
   const batchId = randomUUID();
   const batchS3Key = `scrape-batches/${batchId}.json`;

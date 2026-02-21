@@ -9,7 +9,8 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { S3Client } from '@aws-sdk/client-s3';
-import { bootstrapDatabaseUrl, prisma } from '@fca/db';
+import { bootstrapDatabaseUrl } from '@fca/db';
+import { PrismaClient } from '@prisma/client';
 
 const s3Client = new S3Client({});
 const bedrockClient = new BedrockRuntimeClient({
@@ -126,6 +127,7 @@ Respond with ONLY valid JSON:
 
 async function main(): Promise<void> {
   await bootstrapDatabaseUrl();
+  const prisma = new PrismaClient();
   console.log('=== AI Scoring Task (Bedrock Claude Sonnet 4.6) ===');
 
   const jobInputStr = process.env.JOB_INPUT;

@@ -14,7 +14,8 @@
  */
 
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import { bootstrapDatabaseUrl, prisma } from '@fca/db';
+import { bootstrapDatabaseUrl } from '@fca/db';
+import { PrismaClient } from '@prisma/client';
 
 const s3Client = new S3Client({});
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY!;
@@ -179,6 +180,7 @@ async function searchPlaces(
 }
 
 async function ensureFranchiseAndLink(
+  prisma: PrismaClient,
   name: string,
   nameNormalized: string,
 ): Promise<string | null> {
@@ -208,6 +210,7 @@ async function ensureFranchiseAndLink(
 
 async function main() {
   await bootstrapDatabaseUrl();
+  const prisma = new PrismaClient();
 
   const jobInput = JSON.parse(process.env.JOB_INPUT || '{}');
   const {
@@ -328,7 +331,7 @@ async function main() {
 
         let franchiseId: string | null = null;
         try {
-          franchiseId = await ensureFranchiseAndLink(name, nameNormalized);
+          franchiseId = await ensureFranchiseAndLink(prisma, name, nameNormalized);
         } catch (e) {
           console.warn(`Franchise link failed for ${place.id}:`, e);
         }

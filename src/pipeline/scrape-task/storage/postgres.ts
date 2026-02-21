@@ -4,7 +4,7 @@
  * Also updates leads with web_scraped_at and web_scraped_data for backward compatibility.
  */
 
-import { prisma } from '@fca/db';
+import type { PrismaClient } from '@prisma/client';
 import type { ExtractedData, ScrapeMetrics } from '../types.js';
 
 export interface BatchLead {
@@ -27,6 +27,7 @@ function extractDomain(url: string): string {
  * Update a lead with scrape results: create ScrapedPage, junctions, and update lead.
  */
 export async function updateLeadWithScrapeData(
+  prisma: PrismaClient,
   leadId: string,
   websiteUrl: string,
   rawS3Key: string,
@@ -117,7 +118,7 @@ export async function updateLeadWithScrapeData(
 /**
  * Mark a lead as failed to scrape
  */
-export async function markLeadScrapeFailed(leadId: string): Promise<void> {
+export async function markLeadScrapeFailed(prisma: PrismaClient, leadId: string): Promise<void> {
   await prisma.lead.update({
     where: { id: leadId },
     data: {
@@ -132,6 +133,7 @@ export async function markLeadScrapeFailed(leadId: string): Promise<void> {
  * Update FargateTask status and metrics in Postgres
  */
 export async function updateFargateTask(
+  prisma: PrismaClient,
   taskId: string,
   status: 'completed' | 'failed',
   metrics?: ScrapeMetrics,

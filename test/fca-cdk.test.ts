@@ -12,6 +12,9 @@ describe('PipelineStack', () => {
     stack = new PipelineStack(app, 'TestPipelineStack', {
       repositoryName: 'test-owner/test-repo',
       connectionArn: 'arn:aws:codestar-connections:us-east-1:123456789012:connection/test-connection',
+      viteCognitoUserPoolId: 'us-east-1_test',
+      viteCognitoClientId: 'test-client-id',
+      viteCognitoDomain: 'test.auth.us-east-1.amazoncognito.com',
       env: {
         account: '123456789012',
         region: 'us-east-1',

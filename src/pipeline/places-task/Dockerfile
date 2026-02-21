@@ -29,6 +29,7 @@ COPY --from=db-builder /app/packages/db/node_modules/.prisma pipeline/places-tas
 COPY pipeline/places-task/index.ts ./pipeline/places-task/
 COPY pipeline/places-task/tsconfig.json ./pipeline/places-task/
 RUN cd pipeline/places-task && npx tsc --outDir dist --esModuleInterop --module commonjs --target es2022 --moduleResolution node --skipLibCheck index.ts
+RUN cd pipeline/places-task && npm prune --omit=dev
 
 # Stage 3: Production
 FROM ${NODE_20_SLIM}
@@ -36,10 +37,9 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-COPY --from=db-builder /app/packages/db /app/packages/db
 COPY --from=builder /app/pipeline/places-task/dist ./
 COPY --from=builder /app/pipeline/places-task/node_modules ./node_modules/
-COPY --from=builder /app/pipeline/places-task/package*.json ./
-RUN npm prune --omit=dev
+# npm prune replaces @fca/db with a broken symlink; overwrite with the real package
+COPY --from=db-builder /app/packages/db /app/node_modules/@fca/db
 
 CMD ["node", "index.js"]

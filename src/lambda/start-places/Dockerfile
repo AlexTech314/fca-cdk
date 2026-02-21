@@ -1,6 +1,6 @@
 # Build context: src/
 # NODE_20_SLIM: pass at build time for ECR pull-through cache
-ARG NODE_20_SLIM=node:20-slim
+ARG NODE_20_SLIM=node:24-slim
 
 # Stage 1: Build shared db package
 FROM ${NODE_20_SLIM} AS db-builder
@@ -15,7 +15,7 @@ COPY packages/db/tsconfig.json ./
 RUN npx tsc
 
 # Stage 2: Build Lambda
-FROM public.ecr.aws/lambda/nodejs:20 AS builder
+FROM public.ecr.aws/lambda/nodejs:24 AS builder
 WORKDIR ${LAMBDA_TASK_ROOT}
 
 COPY --from=db-builder /app/packages/db /packages/db

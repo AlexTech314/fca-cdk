@@ -3,7 +3,7 @@
 # BASE_IMAGE: pass at build time for ECR pull-through cache
 # NODE_20_SLIM: pass at build time for ECR pull-through cache
 ARG BASE_IMAGE=ghcr.io/puppeteer/puppeteer:24.0.0
-ARG NODE_20_SLIM=node:20-slim
+ARG NODE_20_SLIM=node:24-slim
 
 # Stage 1: Build shared db package
 FROM ${NODE_20_SLIM} AS db-builder

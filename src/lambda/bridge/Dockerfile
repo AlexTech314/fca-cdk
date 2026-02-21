@@ -1,5 +1,5 @@
 # Build context: src/
-FROM public.ecr.aws/lambda/nodejs:20
+FROM public.ecr.aws/lambda/nodejs:24
 
 COPY lambda/bridge/package*.json ./
 RUN npm ci

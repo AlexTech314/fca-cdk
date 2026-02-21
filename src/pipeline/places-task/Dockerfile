@@ -1,6 +1,6 @@
 # Build context: src/
 # NODE_20_SLIM: pass at build time for ECR pull-through cache
-ARG NODE_20_SLIM=node:20-slim
+ARG NODE_20_SLIM=node:24-slim
 
 # Stage 1: Build shared db package
 FROM ${NODE_20_SLIM} AS db-builder
@@ -39,6 +39,7 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=db-builder /app/packages/db /app/packages/db
 COPY --from=builder /app/pipeline/places-task/dist ./
 COPY --from=builder /app/pipeline/places-task/node_modules ./node_modules/
+COPY --from=builder /app/pipeline/places-task/package*.json ./
 RUN npm prune --omit=dev
 
 CMD ["node", "index.js"]

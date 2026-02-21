@@ -1,5 +1,5 @@
 # Build context: src/
-ARG NODE_20_SLIM=node:20-slim
+ARG NODE_20_SLIM=node:24-slim
 
 # Stage 1: Build shared db package
 FROM ${NODE_20_SLIM} AS db-builder

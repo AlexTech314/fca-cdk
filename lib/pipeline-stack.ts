@@ -140,6 +140,7 @@ export class PipelineStack extends cdk.Stack {
     if (emails?.length) {
       this.pipeline.buildPipeline();
       const topic = new sns.Topic(this, 'PipelineNotifications', {
+        topicName: 'fca-pipeline-notifications',
         displayName: 'FCA Pipeline Notifications',
       });
       for (const email of emails) {

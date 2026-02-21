@@ -54,8 +54,8 @@ export class EcrCacheStack extends cdk.Stack {
     // Images from docker.io will be cached at:
     // {account}.dkr.ecr.{region}.amazonaws.com/docker-hub/...
     //
-    // Example: node:20-alpine becomes
-    // {account}.dkr.ecr.{region}.amazonaws.com/docker-hub/library/node:20-alpine
+    // Example: node:24-alpine becomes
+    // {account}.dkr.ecr.{region}.amazonaws.com/docker-hub/library/node:24-alpine
     //
     // Note: Official images use "library/" prefix (e.g., library/node, library/python)
 

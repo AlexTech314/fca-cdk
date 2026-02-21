@@ -191,7 +191,7 @@ The `FcaEcrCache` stack sets up ECR pull-through cache for both GitHub Container
 | Original Image | Cached Image |
 |---------------|--------------|
 | `ghcr.io/org/image:tag` | `{account}.dkr.ecr.{region}.amazonaws.com/ghcr/org/image:tag` |
-| `node:20-alpine` | `{account}.dkr.ecr.{region}.amazonaws.com/docker-hub/library/node:20-alpine` |
+| `node:24-alpine` | `{account}.dkr.ecr.{region}.amazonaws.com/docker-hub/library/node:24-alpine` |
 | `nginx:latest` | `{account}.dkr.ecr.{region}.amazonaws.com/docker-hub/library/nginx:latest` |
 
 > **Note**: Official Docker Hub images use the `library/` prefix.
@@ -206,7 +206,7 @@ aws ecr get-login-password --region us-east-2 | docker login --username AWS --pa
 
 # Pull through cache (this caches the image)
 docker pull {account}.dkr.ecr.us-east-2.amazonaws.com/ghcr/org/image:tag
-docker pull {account}.dkr.ecr.us-east-2.amazonaws.com/docker-hub/library/node:20-alpine
+docker pull {account}.dkr.ecr.us-east-2.amazonaws.com/docker-hub/library/node:24-alpine
 ```
 
 ## Development

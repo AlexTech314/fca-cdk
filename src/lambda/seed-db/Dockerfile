@@ -1,6 +1,6 @@
 # Build context: src/
 # NODE_20_SLIM: pass at build time for ECR pull-through cache
-ARG NODE_20_SLIM=node:20-slim
+ARG NODE_20_SLIM=node:24-slim
 
 # Stage 1: Build lean db package (schema, migrations, client)
 FROM ${NODE_20_SLIM} AS db-builder
@@ -27,7 +27,7 @@ COPY packages/seed/ ./packages/seed/
 RUN cd packages/seed && npx tsc
 
 # Stage 3: Lambda runtime
-FROM public.ecr.aws/lambda/nodejs:20
+FROM public.ecr.aws/lambda/nodejs:24
 WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Copy db package (for migrations + Prisma client)

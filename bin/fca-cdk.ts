@@ -57,7 +57,6 @@ new PipelineStack(app, 'FcaPipelineStack', {
   repositoryName: pipelineConfig.repositoryName,
   branchName: pipelineConfig.branchName,
   connectionArn: pipelineConfig.connectionArn,
-  notificationEmails: pipelineConfig.notificationEmails,
   env,
   tags: {
     Project: 'fca',

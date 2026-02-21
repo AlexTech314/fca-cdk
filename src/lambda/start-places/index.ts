@@ -8,7 +8,8 @@
  */
 
 import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
-import { bootstrapDatabaseUrl, prisma } from '@fca/db';
+import { bootstrapDatabaseUrl } from '@fca/db';
+import { PrismaClient } from '@prisma/client';
 
 const ecsClient = new ECSClient({});
 
@@ -28,35 +29,37 @@ interface StartPlacesInput {
 
 export async function handler(event: StartPlacesInput): Promise<{ taskId: string; taskArn?: string }> {
   await bootstrapDatabaseUrl();
-  console.log('StartPlaces input:', JSON.stringify(event));
-
-  const { campaignId, campaignRunId, queriesS3Key, skipCachedSearches, maxResultsPerSearch, maxTotalRequests } = event;
-  if (!campaignId || !campaignRunId || !queriesS3Key) {
-    throw new Error('campaignId, campaignRunId, and queriesS3Key are required');
-  }
-
-  const task = await prisma.fargateTask.create({
-    data: {
-      type: 'places_search',
-      status: 'running',
-      startedAt: new Date(),
-    },
-  });
-  const taskId = task.id;
-
-  const jobInput = JSON.stringify({
-    taskId,
-    campaignId,
-    campaignRunId,
-    searchesS3Key: queriesS3Key,
-    skipCachedSearches: skipCachedSearches ?? false,
-    maxResultsPerSearch: maxResultsPerSearch ?? 60,
-    maxTotalRequests: maxTotalRequests ?? undefined,
-  });
-
-  let runResult;
+  const prisma = new PrismaClient();
   try {
-    runResult = await ecsClient.send(
+    console.log('StartPlaces input:', JSON.stringify(event));
+
+    const { campaignId, campaignRunId, queriesS3Key, skipCachedSearches, maxResultsPerSearch, maxTotalRequests } = event;
+    if (!campaignId || !campaignRunId || !queriesS3Key) {
+      throw new Error('campaignId, campaignRunId, and queriesS3Key are required');
+    }
+
+    const task = await prisma.fargateTask.create({
+      data: {
+        type: 'places_search',
+        status: 'running',
+        startedAt: new Date(),
+      },
+    });
+    const taskId = task.id;
+
+    const jobInput = JSON.stringify({
+      taskId,
+      campaignId,
+      campaignRunId,
+      searchesS3Key: queriesS3Key,
+      skipCachedSearches: skipCachedSearches ?? false,
+      maxResultsPerSearch: maxResultsPerSearch ?? 60,
+      maxTotalRequests: maxTotalRequests ?? undefined,
+    });
+
+    let runResult;
+    try {
+      runResult = await ecsClient.send(
         new RunTaskCommand({
           cluster: CLUSTER_ARN,
           taskDefinition: PLACES_TASK_DEF_ARN,
@@ -107,5 +110,8 @@ export async function handler(event: StartPlacesInput): Promise<{ taskId: string
       });
     }
 
-  return { taskId, taskArn };
+    return { taskId, taskArn };
+  } finally {
+    await prisma.$disconnect();
+  }
 }

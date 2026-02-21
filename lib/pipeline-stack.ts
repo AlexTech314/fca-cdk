@@ -2,7 +2,6 @@ import * as cdk from 'aws-cdk-lib';
 import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as sns from 'aws-cdk-lib/aws-sns';
-import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import { Construct } from 'constructs';
 import * as pipelines from 'aws-cdk-lib/pipelines';
@@ -25,12 +24,6 @@ export interface PipelineStackProps extends cdk.StackProps {
    */
   readonly connectionArn: string;
 
-  /**
-   * Email addresses to notify when the pipeline succeeds or fails.
-   * Can also be set via cdk.json context: "pipelineNotificationEmails"
-   * @default - no notifications
-   */
-  readonly notificationEmails?: string[];
 }
 
 export class PipelineStack extends cdk.Stack {
@@ -133,23 +126,22 @@ export class PipelineStack extends cdk.Stack {
       // post: [],
     });
 
-    // Email notifications for pipeline success/failure (EventBridge - more reliable than CodeStar Notifications)
-    const emails =
-      props.notificationEmails ??
-      (this.node.tryGetContext('pipelineNotificationEmails') as string[] | undefined);
-    if (emails?.length) {
-      this.pipeline.buildPipeline();
-      const topic = new sns.Topic(this, 'PipelineNotifications', {
-        topicName: 'fca-pipeline-notifications',
-        displayName: 'FCA Pipeline Notifications',
-      });
-      for (const email of emails) {
-        topic.addSubscription(new subscriptions.EmailSubscription(email));
-      }
-      const rule = this.pipeline.pipeline.onStateChange('PipelineStateChange', {
-        target: new targets.SnsTopic(topic),
-      });
-      rule.addEventPattern({ detail: { state: ['SUCCEEDED', 'FAILED'] } });
-    }
+    // Email notifications for pipeline success/failure.
+    // The SNS topic is managed here; email subscriptions are managed manually (outside CDK)
+    // to avoid CloudFormation replacing them on every deploy and deactivating confirmed addresses.
+    // To subscribe: aws sns subscribe --topic-arn <TopicArn output> --protocol email --notification-endpoint your@email.com
+    this.pipeline.buildPipeline();
+    const topic = new sns.Topic(this, 'PipelineNotifications', {
+      topicName: 'fca-pipeline-notifications',
+      displayName: 'FCA Pipeline Notifications',
+    });
+    const rule = this.pipeline.pipeline.onStateChange('PipelineStateChange', {
+      target: new targets.SnsTopic(topic),
+    });
+    rule.addEventPattern({ detail: { state: ['SUCCEEDED', 'FAILED'] } });
+    new cdk.CfnOutput(this, 'PipelineNotificationsTopicArn', {
+      value: topic.topicArn,
+      description: 'Subscribe emails manually: aws sns subscribe --topic-arn <arn> --protocol email --notification-endpoint you@example.com',
+    });
   }
 }

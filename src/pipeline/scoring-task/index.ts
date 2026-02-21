@@ -12,6 +12,8 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { bootstrapDatabaseUrl } from '@fca/db';
 import { PrismaClient } from '@prisma/client';
 
+let prisma: PrismaClient | undefined;
+
 const s3Client = new S3Client({});
 const bedrockClient = new BedrockRuntimeClient({
   region: process.env.AWS_REGION || 'us-east-2',
@@ -127,7 +129,8 @@ Respond with ONLY valid JSON:
 
 async function main(): Promise<void> {
   await bootstrapDatabaseUrl();
-  const prisma = new PrismaClient();
+  const db = new PrismaClient();
+  prisma = db;
   console.log('=== AI Scoring Task (Bedrock Claude Sonnet 4.6) ===');
 
   const jobInputStr = process.env.JOB_INPUT;
@@ -154,7 +157,7 @@ async function main(): Promise<void> {
     batch = JSON.parse(body) as BatchItem[];
   } catch (err) {
     console.error('Failed to read batch from S3:', err);
-    await prisma.fargateTask.update({
+    await db.fargateTask.update({
       where: { id: taskId },
       data: {
         status: 'failed',
@@ -176,7 +179,7 @@ async function main(): Promise<void> {
     if (i > 0) await sleep(DELAY_MS);
 
     try {
-      const lead = await prisma.lead.findUnique({ where: { id: lead_id } });
+      const lead = await db.lead.findUnique({ where: { id: lead_id } });
       if (!lead) {
         console.warn(`Lead ${lead_id} not found, skipping`);
         skipped++;
@@ -204,7 +207,7 @@ async function main(): Promise<void> {
       };
 
       const result = await scoreLead(leadData);
-      await prisma.lead.update({
+      await db.lead.update({
         where: { id: lead_id },
         data: {
           qualificationScore: result.score,
@@ -220,7 +223,7 @@ async function main(): Promise<void> {
     }
   }
 
-  await prisma.fargateTask.update({
+  await db.fargateTask.update({
     where: { id: taskId },
     data: {
       status: 'completed',
@@ -244,7 +247,7 @@ main().catch(async (err) => {
       // ignore
     }
   }
-  if (taskId) {
+  if (taskId && prisma) {
     try {
       await prisma.fargateTask.update({
         where: { id: taskId },

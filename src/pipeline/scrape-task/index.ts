@@ -3,6 +3,8 @@ import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { bootstrapDatabaseUrl } from '@fca/db';
 import { PrismaClient } from '@prisma/client';
 
+let prisma: PrismaClient | undefined;
+
 import type { JobInput, RawScrapeData, ExtractedScrapeData, ScrapeMetrics } from './types.js';
 import {
   CAMPAIGN_DATA_BUCKET,
@@ -42,7 +44,8 @@ function batchLeadToBusiness(lead: BatchLead): { id: string; place_id: string; b
 
 async function main(): Promise<void> {
   await bootstrapDatabaseUrl();
-  const prisma = new PrismaClient();
+  const db = new PrismaClient();
+  prisma = db;
   console.log('=== Scrape Task (Cloudscraper with Puppeteer Fallback) ===');
   console.log(`Bucket: ${CAMPAIGN_DATA_BUCKET}`);
   
@@ -184,7 +187,7 @@ async function main(): Promise<void> {
         
         if (pages.length === 0) {
           console.log(`  ✗ No pages scraped for ${business.business_name}`);
-          await markLeadScrapeFailed(prisma, business.id);
+          await markLeadScrapeFailed(db, business.id);
           failed++;
           return;
         }
@@ -251,7 +254,7 @@ async function main(): Promise<void> {
         
         // Update Postgres: create ScrapedPage, junctions, update lead
         await updateLeadWithScrapeData(
-          prisma,
+          db,
           business.id,
           business.website_uri!,
           rawS3Key,
@@ -334,7 +337,7 @@ async function main(): Promise<void> {
   
   // Update FargateTask status (for event-driven mode)
   if (taskId) {
-    await updateFargateTask(prisma, taskId, 'completed', metrics);
+    await updateFargateTask(db, taskId, 'completed', metrics);
   }
   
   // Output metrics for Step Functions aggregation (distributed mode)
@@ -354,7 +357,7 @@ main().catch(async (error) => {
       // ignore
     }
   }
-  if (taskId) {
+  if (taskId && prisma) {
     try {
       await updateFargateTask(prisma, taskId, 'failed', undefined, error instanceof Error ? error.message : String(error));
     } catch (e) {

@@ -17,6 +17,7 @@ const pipelineConfig = {
   repositoryName: app.node.getContext('repositoryName'),
   branchName: app.node.getContext('branchName'),
   connectionArn: app.node.getContext('connectionArn'),
+  notificationEmails: app.node.tryGetContext('pipelineNotificationEmails') as string[] | undefined,
 };
 
 // ============================================================
@@ -56,6 +57,7 @@ new PipelineStack(app, 'FcaPipelineStack', {
   repositoryName: pipelineConfig.repositoryName,
   branchName: pipelineConfig.branchName,
   connectionArn: pipelineConfig.connectionArn,
+  notificationEmails: pipelineConfig.notificationEmails,
   env,
   tags: {
     Project: 'fca',

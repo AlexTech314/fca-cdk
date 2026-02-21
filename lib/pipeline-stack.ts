@@ -1,6 +1,9 @@
 import * as cdk from 'aws-cdk-lib';
 import * as codebuild from 'aws-cdk-lib/aws-codebuild';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 import { Construct } from 'constructs';
 import * as pipelines from 'aws-cdk-lib/pipelines';
 import { FcaStage } from './stages/fca-stage';
@@ -21,6 +24,13 @@ export interface PipelineStackProps extends cdk.StackProps {
    * The ARN of the CodeStar connection for GitHub
    */
   readonly connectionArn: string;
+
+  /**
+   * Email addresses to notify when the pipeline succeeds or fails.
+   * Can also be set via cdk.json context: "pipelineNotificationEmails"
+   * @default - no notifications
+   */
+  readonly notificationEmails?: string[];
 }
 
 export class PipelineStack extends cdk.Stack {
@@ -122,5 +132,23 @@ export class PipelineStack extends cdk.Stack {
       // pre: [],
       // post: [],
     });
+
+    // Email notifications for pipeline success/failure (EventBridge - more reliable than CodeStar Notifications)
+    const emails =
+      props.notificationEmails ??
+      (this.node.tryGetContext('pipelineNotificationEmails') as string[] | undefined);
+    if (emails?.length) {
+      this.pipeline.buildPipeline();
+      const topic = new sns.Topic(this, 'PipelineNotifications', {
+        displayName: 'FCA Pipeline Notifications',
+      });
+      for (const email of emails) {
+        topic.addSubscription(new subscriptions.EmailSubscription(email));
+      }
+      const rule = this.pipeline.pipeline.onStateChange('PipelineStateChange', {
+        target: new targets.SnsTopic(topic),
+      });
+      rule.addEventPattern({ detail: { state: ['SUCCEEDED', 'FAILED'] } });
+    }
   }
 }

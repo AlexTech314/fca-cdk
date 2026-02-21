@@ -76,10 +76,13 @@ Update `cdk.json` context values:
   "context": {
     "repositoryName": "your-org/fca-cdk",
     "branchName": "main",
-    "connectionArn": "arn:aws:codestar-connections:REGION:ACCOUNT:connection/CONNECTION_ID"
+    "connectionArn": "arn:aws:codestar-connections:REGION:ACCOUNT:connection/CONNECTION_ID",
+    "pipelineNotificationEmails": ["you@example.com"]
   }
 }
 ```
+
+To receive email notifications when the pipeline succeeds or fails, add your email(s) to `pipelineNotificationEmails`. Each address will receive a one-time SNS confirmation email—click "Confirm subscription" to activate.
 
 Or pass them via CLI:
 

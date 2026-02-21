@@ -5,7 +5,8 @@
   "dependencies": {
     "@aws-sdk/client-ecs": "^3.500.0",
     "@aws-sdk/client-s3": "^3.500.0",
-    "@fca/db": "file:../../packages/db"
+    "@fca/db": "file:../../packages/db",
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.0",

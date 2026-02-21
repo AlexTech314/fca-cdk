@@ -38,5 +38,7 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=db-builder /app/packages/db /app/packages/db
 COPY --from=builder /app/pipeline/scoring-task/dist ./dist/
 COPY --from=builder /app/pipeline/scoring-task/node_modules ./node_modules/
+COPY --from=db-builder /app/packages/db/node_modules/@prisma /app/node_modules/@prisma
+COPY --from=db-builder /app/packages/db/node_modules/.prisma /app/node_modules/.prisma
 
 CMD ["node", "dist/index.js"]

@@ -16,6 +16,7 @@
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { bootstrapDatabaseUrl } from '@fca/db';
 import { PrismaClient } from '@prisma/client';
+import * as fs from 'fs';
 
 const s3Client = new S3Client({});
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY!;
@@ -244,10 +245,17 @@ async function main() {
   };
 
   try {
-    const s3Result = await s3Client.send(
-      new GetObjectCommand({ Bucket: CAMPAIGN_DATA_BUCKET, Key: searchesS3Key })
-    );
-    const body = await s3Result.Body?.transformToString();
+    let body: string | undefined;
+    const localFile = process.env.SEARCHES_FILE;
+    if (localFile) {
+      console.log(`Reading searches from local file: ${localFile}`);
+      body = fs.readFileSync(localFile, 'utf-8');
+    } else {
+      const s3Result = await s3Client.send(
+        new GetObjectCommand({ Bucket: CAMPAIGN_DATA_BUCKET, Key: searchesS3Key })
+      );
+      body = await s3Result.Body?.transformToString();
+    }
     if (!body) {
       await updateTaskStatus('failed', 'Empty searches file');
       process.exit(1);

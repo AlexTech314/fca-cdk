@@ -41,5 +41,7 @@ COPY --from=builder /app/pipeline/places-task/dist ./
 COPY --from=builder /app/pipeline/places-task/node_modules ./node_modules/
 # npm prune replaces @fca/db with a broken symlink; overwrite with the real package
 COPY --from=db-builder /app/packages/db /app/node_modules/@fca/db
+COPY --from=db-builder /app/packages/db/node_modules/@prisma /app/node_modules/@prisma
+COPY --from=db-builder /app/packages/db/node_modules/.prisma /app/node_modules/.prisma
 
 CMD ["node", "index.js"]

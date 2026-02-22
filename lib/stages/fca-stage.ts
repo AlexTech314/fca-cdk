@@ -15,13 +15,14 @@ export interface FcaStageProps extends cdk.StageProps {
 /**
  * The FCA application stage.
  *
- * Deploys 6 stacks in order:
+ * Deploys 7 stacks in order:
  * 1. NetworkStack - Shared VPC with fck-nat
- * 2. StatefulStack - RDS, S3 (depends on VPC)
- * 3. LeadGenPipelineStack - SQS, Lambdas, Fargate tasks, Step Functions (depends on VPC + Stateful)
- * 4. CognitoStack - User Pool, App Client, Domain, Groups (no dependencies)
- * 5. ApiStack - Fargate API + ALB (shared by lead-gen-spa, nextjs-web)
- * 6. LeadGenWebStack - SPA + CloudFront (depends on ApiStack)
+ * 2. CognitoStack - User Pool, App Client, Domain, Groups
+ * 3. StatefulStack - RDS, S3, seed-db Lambda (depends on VPC, Cognito)
+ * 4. LeadGenPipelineStack - SQS, Bridge Lambda, Fargate tasks (depends on Stateful)
+ * 5. ApiStack - Fargate API + ALB (depends on Stateful, Pipeline, Cognito)
+ * 6. LeadGenWebStack - SPA + CloudFront (depends on Api)
+ * 7. FlagshipWebStack - Next.js public + admin (depends on Api, Cognito)
  */
 export class FcaStage extends cdk.Stage {
   public readonly networkStack: NetworkStack;
@@ -49,15 +50,14 @@ export class FcaStage extends cdk.Stage {
     this.statefulStack.addDependency(this.networkStack);
     this.statefulStack.addDependency(this.cognitoStack);
 
-    // Stack 4: Lead generation pipeline (compute, queues, step functions)
+    // Stack 4: Lead generation pipeline (queues, Bridge Lambda, Fargate tasks)
     this.pipelineStack = new LeadGenPipelineStack(this, 'LeadGenPipeline', {
       vpc: this.networkStack.vpc,
       database: this.statefulStack.database,
       databaseSecret: this.statefulStack.databaseSecret,
       pipelineSecurityGroup: this.statefulStack.pipelineSecurityGroup,
       campaignDataBucket: this.statefulStack.campaignDataBucket,
-      scrapeQueue: this.statefulStack.scrapeQueue,
-      scoringQueue: this.statefulStack.scoringQueue,
+      seedLambda: this.statefulStack.seedLambda,
     });
     this.pipelineStack.addDependency(this.statefulStack);
 

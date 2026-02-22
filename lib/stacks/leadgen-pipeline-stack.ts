@@ -1,3 +1,4 @@
+import * as cr from 'aws-cdk-lib/custom-resources';
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
@@ -20,8 +21,8 @@ export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly databaseSecret: secretsmanager.ISecret;
   readonly pipelineSecurityGroup: ec2.ISecurityGroup;
   readonly campaignDataBucket: s3.IBucket;
-  readonly scrapeQueue: sqs.IQueue;
-  readonly scoringQueue: sqs.IQueue;
+  /** Seed DB Lambda (for configure-bridge after deploy) */
+  readonly seedLambda: lambda.IFunction;
 }
 
 /**
@@ -38,7 +39,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
     super(scope, id, props);
 
-    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket, scrapeQueue, scoringQueue } = props;
+    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket, seedLambda } = props;
 
     // Direct RDS connection (no proxy -- saves $21.90/mo, peak ~40 connections vs ~80 limit)
     const databaseEndpoint = database.dbInstanceEndpointAddress;
@@ -58,9 +59,119 @@ export class LeadGenPipelineStack extends cdk.Stack {
     const cluster = new ecs.Cluster(this, 'PipelineCluster', { vpc });
     this.pipelineClusterArn = cluster.clusterArn;
 
+    // ============================================================
+    // SQS Queues (with DLQs, encryption, SSL enforcement)
+    // ============================================================
+    const scrapeDlq = new sqs.Queue(this, 'ScrapeDlq', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
+    const scrapeQueue = new sqs.Queue(this, 'ScrapeQueue', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      visibilityTimeout: cdk.Duration.minutes(15),
+      deadLetterQueue: { queue: scrapeDlq, maxReceiveCount: 3 },
+    });
+
+    const scoringDlq = new sqs.Queue(this, 'ScoringDlq', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
+    const scoringQueue = new sqs.Queue(this, 'ScoringQueue', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      visibilityTimeout: cdk.Duration.minutes(5),
+      deadLetterQueue: { queue: scoringDlq, maxReceiveCount: 3 },
+    });
+
     const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
     const node20Slim = ecrNodeSlim(this.account, this.region);
     const baseImage = `${this.account}.dkr.ecr.${this.region}.amazonaws.com/ghcr/puppeteer/puppeteer:24.0.0`;
+
+    // ============================================================
+    // Bridge Lambda (PG trigger -> SQS)
+    // ============================================================
+    const bridgeImage = new TokenInjectableDockerBuilder(this, 'BridgeImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'lambda/bridge/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+      retainBuildLogs: true,
+    });
+
+    const bridgeLambdaLogGroup = new logs.LogGroup(this, 'BridgeLambdaLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const bridgeLambda = new lambda.DockerImageFunction(this, 'BridgeLambda', {
+      code: bridgeImage.dockerImageCode,
+      architecture: lambda.Architecture.ARM_64,
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 128,
+      logGroup: bridgeLambdaLogGroup,
+      environment: {
+        SCRAPE_QUEUE_URL: scrapeQueue.queueUrl,
+        SCORING_QUEUE_URL: scoringQueue.queueUrl,
+      },
+    });
+
+    scrapeQueue.grantSendMessages(bridgeLambda);
+    scoringQueue.grantSendMessages(bridgeLambda);
+
+    // ============================================================
+    // IAM Role for RDS to invoke Bridge Lambda
+    // ============================================================
+    const rdsLambdaRole = new iam.Role(this, 'RdsLambdaRole', {
+      assumedBy: new iam.ServicePrincipal('rds.amazonaws.com'),
+      description: 'Allow RDS to invoke Bridge Lambda via aws_lambda extension',
+    });
+
+    bridgeLambda.grantInvoke(rdsLambdaRole);
+
+    // ============================================================
+    // Configure Bridge Lambda ARN in RDS (for PG triggers)
+    // ============================================================
+    const configureBridgePayload = JSON.stringify({
+      action: 'configure-bridge',
+      bridgeLambdaArn: bridgeLambda.functionArn,
+      awsRegion: this.region,
+    });
+    const configureBridgeResource = new cr.AwsCustomResource(this, 'ConfigureBridgeLambda', {
+      onCreate: {
+        service: 'Lambda',
+        action: 'invoke',
+        parameters: {
+          FunctionName: seedLambda.functionName,
+          InvocationType: 'RequestResponse',
+          Payload: configureBridgePayload,
+        },
+        physicalResourceId: cr.PhysicalResourceId.of('ConfigureBridgeLambda'),
+      },
+      onUpdate: {
+        service: 'Lambda',
+        action: 'invoke',
+        parameters: {
+          FunctionName: seedLambda.functionName,
+          InvocationType: 'RequestResponse',
+          Payload: configureBridgePayload,
+        },
+        physicalResourceId: cr.PhysicalResourceId.of('ConfigureBridgeLambda'),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new iam.PolicyStatement({
+          actions: ['lambda:InvokeFunction'],
+          resources: [seedLambda.functionArn],
+        }),
+      ]),
+      timeout: cdk.Duration.minutes(2),
+      installLatestAwsSdk: false,
+    });
+    configureBridgeResource.node.addDependency(bridgeLambda);
 
     // ============================================================
     // Places Ingestion Fargate Task
@@ -327,7 +438,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       new lambdaEventSources.SqsEventSource(scoringQueue, {
         batchSize: 50,
         maxBatchingWindow: cdk.Duration.seconds(60),
-        maxConcurrency: 2, // AWS minimum; keeps scoring throughput low for Claude rate limits
+        maxConcurrency: 2,
       })
     );
 
@@ -340,6 +451,26 @@ export class LeadGenPipelineStack extends cdk.Stack {
     // ============================================================
     // Outputs
     // ============================================================
+    new cdk.CfnOutput(this, 'ScrapeQueueUrl', {
+      value: scrapeQueue.queueUrl,
+      description: 'SQS scrape queue URL',
+    });
+
+    new cdk.CfnOutput(this, 'ScoringQueueUrl', {
+      value: scoringQueue.queueUrl,
+      description: 'SQS scoring queue URL',
+    });
+
+    new cdk.CfnOutput(this, 'BridgeLambdaArn', {
+      value: bridgeLambda.functionArn,
+      description: 'Bridge Lambda ARN (for RDS trigger configuration)',
+    });
+
+    new cdk.CfnOutput(this, 'RdsLambdaRoleArn', {
+      value: rdsLambdaRole.roleArn,
+      description: 'IAM Role ARN to attach to RDS for Lambda invocation',
+    });
+
     new cdk.CfnOutput(this, 'PlacesTaskDefArn', {
       value: placesTaskDef.taskDefinitionArn,
       description: 'Places Fargate task definition ARN',

@@ -141,7 +141,6 @@ export class StatefulStack extends cdk.Stack {
       buildArgs: { NODE_20_SLIM: ecrNodeSlim(this.account, this.region) },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
       retainBuildLogs: true,
-      retainBuildLogs: true,
     });
 
     const seedLambdaLogGroup = new logs.LogGroup(this, 'SeedDbLogs', {
@@ -234,7 +233,24 @@ export class StatefulStack extends cdk.Stack {
     });
 
     bastion.instance.addUserData(
-      'dnf install -y postgresql16',
+      'dnf install -y postgresql16 jq',
+      // Write a helper script that fetches creds and connects
+      `cat > /usr/local/bin/dbconnect << 'SCRIPT'
+#!/bin/bash
+SECRET_ARN="${this.databaseSecret.secretArn}"
+REGION="${this.region}"
+SECRET=$(aws secretsmanager get-secret-value --secret-id "$SECRET_ARN" --region "$REGION" --query SecretString --output text)
+export PGHOST=$(echo "$SECRET" | jq -r .host)
+export PGPORT=$(echo "$SECRET" | jq -r .port)
+export PGUSER=$(echo "$SECRET" | jq -r .username)
+export PGPASSWORD=$(echo "$SECRET" | jq -r .password)
+export PGDATABASE=$(echo "$SECRET" | jq -r .dbname)
+echo "Connecting to $PGDATABASE at $PGHOST:$PGPORT as $PGUSER..."
+exec psql
+SCRIPT`,
+      'chmod +x /usr/local/bin/dbconnect',
+      // Auto-connect on interactive SSM sessions
+      'echo \'[ -t 0 ] && echo "Type \\"dbconnect\\" to connect to the database." \' >> /etc/profile.d/dbconnect.sh',
     );
 
     this.dbSecurityGroup.addIngressRule(

@@ -128,15 +128,17 @@ export async function handler(event: SeedEvent): Promise<{ status: string; actio
     console.log('=== CONFIGURE BRIDGE START ===');
     const prisma = new PrismaClient({ log: ['warn', 'error'] });
     try {
-      const sanitizedArn = bridgeLambdaArn.replace(/'/g, "''");
-      const sanitizedRegion = awsRegion.replace(/'/g, "''");
       await prisma.$executeRawUnsafe(
-        `ALTER ROLE CURRENT_USER SET app.bridge_lambda_arn = '${sanitizedArn}'`
+        `INSERT INTO _bridge_config (key, value) VALUES ('bridge_lambda_arn', $1)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+        bridgeLambdaArn
       );
       await prisma.$executeRawUnsafe(
-        `ALTER ROLE CURRENT_USER SET app.aws_region = '${sanitizedRegion}'`
+        `INSERT INTO _bridge_config (key, value) VALUES ('aws_region', $1)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+        awsRegion
       );
-      console.log(`Set app.bridge_lambda_arn and app.aws_region for fca_db`);
+      console.log(`Set bridge_lambda_arn and aws_region in _bridge_config table`);
     } finally {
       await prisma.$disconnect();
     }

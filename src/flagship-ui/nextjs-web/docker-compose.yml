@@ -2,7 +2,8 @@
 #
 # Usage:
 #   docker compose up                    - Start both public and admin containers
-#   docker compose up web                - Start public container only
+#   docker compose up web                - Start public container only (local API)
+#   docker compose up web-cloud          - Start public container (cloud API, real testing)
 #   docker compose up web-admin          - Start admin container only
 #   docker compose up web-dev            - Start public dev server with hot reload
 #   docker compose up web-admin-dev      - Start admin dev server with hot reload
@@ -16,7 +17,7 @@
 services:
   # ── Production ──────────────────────────────────────
 
-  # Public site (no admin routes) -- port 3002
+  # Public site (no admin routes) -- port 3002, local API
   web:
     build:
       context: .
@@ -25,6 +26,19 @@ services:
       - "3002:3000"
     env_file:
       - .env.public
+    restart: unless-stopped
+
+  # Public site (cloud API) -- port 3004, uses deployed API for real testing
+  web-cloud:
+    build:
+      context: .
+      dockerfile: Dockerfile.public
+      args:
+        API_URL: http://Dev-Ap-ApiSe-0EaQwoxmKzGE-1411434687.us-east-2.elb.amazonaws.com/api
+    ports:
+      - "3004:3000"
+    env_file:
+      - .env.public.cloud
     restart: unless-stopped
 
   # Admin site (no public routes) -- port 3003

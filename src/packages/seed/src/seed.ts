@@ -24,6 +24,7 @@ const log = {
 const SEED_DATA_DIR = path.resolve(__dirname, '../data');
 const TOMBSTONES_CSV = path.join(SEED_DATA_DIR, 'tombstones.csv');
 const USCITIES_CSV = path.join(SEED_DATA_DIR, 'uscities.csv');
+const INDUSTRY_TAGS_CSV = path.join(SEED_DATA_DIR, 'industry-tags.csv');
 const NEWS_DIR = path.join(SEED_DATA_DIR, 'news');
 const ARTICLES_DIR = path.join(SEED_DATA_DIR, 'articles');
 
@@ -432,26 +433,97 @@ async function seedSiteConfig(prisma: PrismaClient): Promise<void> {
 }
 
 const INDUSTRY_NAMES = [
-  'Window and Door Materials', 'Pool & Spa Service', 'Auto Repair',
-  'Electrical Contractor', 'Plumbing & HVAC', 'Concierge Doctor',
-  'Petroleum & Lubricant Distributor', 'Residential Roofing', 'Residential HVAC',
-  'HVAC', 'Auto Body Repair', 'Environmental Consulting', 'Fire & Life Safety',
-  'Electrical Supply', 'Lawn Service', 'IT Consulting',
-  'Wholesale Consumer Products', 'Commercial Refrigeration', 'Reclamation Services',
-  'Travel Agency', 'Comercial Window Cleaning / Elevator Modernization',
-  'Telecommunications', 'Geomembrane Liners', 'Advertising Agency',
-  'Tank Construction', 'Oil & Gas Equipment Rental', 'Trucking Company',
-  'BPO Services', 'Seismic Services', 'Custom Cabinets',
-  'Audio Video Equipment', 'Designer Handbags', 'Waste Management',
-  'Precision Machining', 'Drilling Rig Equipment Manufacturer', 'Oil Well Equipment',
-  'DME', 'Well Logging', 'Licensed Accessories', 'Truck Stop & Café',
-  'Retail Pharmacy', 'Promotional Products & Print Services',
-  'Kitchen Cabinets & Appliances', 'Copy Service & Printers', 'Pipe Casing',
-  'Retail Ski Apparel', 'Online Travel Agency', 'Aerospace',
-  'Trailer Rentals', 'Engineering Firm', 'Online Learning Solutions',
-  'Safety Equipment & Clothing', 'Manufacturer of Perforating Guns',
-  'Home Services', 'Commercial Services',
+  'Advertising & Marketing',
+  'Aerospace & Defense',
+  'Auto Repair',
+  'Business Services',
+  'Collision & Auto Body',
+  'Construction & Building',
+  'Distribution',
+  'Electrical Services',
+  'Engineering',
+  'Environmental Services',
+  'Fire & Life Safety',
+  'Healthcare',
+  'HVAC',
+  'IT & Technology',
+  'Manufacturing',
+  'Oil & Gas',
+  'Petroleum & Lubricants',
+  'Plumbing',
+  'Pool & Spa',
+  'Refrigeration',
+  'Residential Services',
+  'Retail / Wholesale',
+  'Roofing',
+  'Transportation & Logistics',
+  'Travel & Hospitality',
 ];
+
+/**
+ * Load multi-industry tag mappings from industry-tags.csv (source of truth).
+ * Returns a map: normalized seller name → array of canonical industry names.
+ */
+function loadIndustryTagMap(): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  if (!fs.existsSync(INDUSTRY_TAGS_CSV)) {
+    log.info('  [warn] industry-tags.csv not found, falling back to single-industry linking');
+    return map;
+  }
+  const content = fs.readFileSync(INDUSTRY_TAGS_CSV, 'utf-8');
+  const lines = content.split('\n');
+
+  for (const line of lines) {
+    const cols = line.split(',');
+    const client = cols[0]?.trim();
+    if (!client) continue;
+    // Industry Tags column is index 10 (col K), may span multiple comma-separated cols
+    const rawTags = cols.slice(10).join(',').trim();
+    if (!rawTags) continue;
+    const tags = rawTags
+      .split(',')
+      .map((t) => t.trim().replace(/\s+/g, ' '))
+      .filter(Boolean);
+    if (tags.length === 0) continue;
+    // Skip header-like rows
+    if (client === 'Client' || client === 'Flatirons Capital Advisors' || client === 'Tombstones') continue;
+
+    const normalizedTags = tags.map((tag) => normalizeIndustryTag(tag)).filter(Boolean) as string[];
+    if (normalizedTags.length > 0) {
+      map.set(normalizeClientName(client), normalizedTags);
+    }
+  }
+
+  return map;
+}
+
+function normalizeClientName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/** Normalize an industry tag from the CSV (handles typos and variations) */
+function normalizeIndustryTag(tag: string): string | null {
+  const t = tag.trim();
+  if (!t) return null;
+
+  const lower = t.toLowerCase();
+  const fixes: Record<string, string> = {
+    'construction': 'Construction & Building',
+    'construciton & building': 'Construction & Building',
+    'petroleum & lubricates': 'Petroleum & Lubricants',
+    'business service': 'Business Services',
+    'transportation & logistic': 'Transportation & Logistics',
+    'oil &gas': 'Oil & Gas',
+    'distribution': 'Distribution',
+  };
+  if (fixes[lower]) return fixes[lower];
+
+  // Match against canonical names (case-insensitive)
+  const match = INDUSTRY_NAMES.find((n) => n.toLowerCase() === lower);
+  if (match) return match;
+
+  return null;
+}
 
 const DEAL_TYPE_NAMES = [
   'Acquisition', 'Private Equity', 'Platform Add-On', 'Recapitalization',
@@ -459,6 +531,18 @@ const DEAL_TYPE_NAMES = [
 
 async function seedIndustries(prisma: PrismaClient): Promise<void> {
   log.info('Seeding industries...');
+
+  const canonicalSlugs = new Set(INDUSTRY_NAMES.map((n) => generateSlug(n)));
+  const toDelete = await prisma.industry.findMany({
+    where: { slug: { notIn: [...canonicalSlugs] } },
+    select: { id: true },
+  });
+  if (toDelete.length > 0) {
+    await prisma.tombstoneIndustry.deleteMany({ where: { industryId: { in: toDelete.map((i) => i.id) } } });
+    await prisma.blogPostIndustry.deleteMany({ where: { industryId: { in: toDelete.map((i) => i.id) } } });
+    await prisma.industry.deleteMany({ where: { id: { in: toDelete.map((i) => i.id) } } });
+    log.info(`  Removed ${toDelete.length} obsolete industries`);
+  }
 
   for (const name of INDUSTRY_NAMES) {
     const slug = generateSlug(name);
@@ -633,6 +717,9 @@ async function seedTombstones(prisma: PrismaClient): Promise<void> {
   const tombstoneImages = loadTombstoneImages();
   log.info(`  Loaded ${Object.keys(tombstoneImages).length} tombstone image mappings`);
 
+  const industryTagMap = loadIndustryTagMap();
+  log.info(`  Loaded ${industryTagMap.size} industry tag mappings`);
+
   const content = fs.readFileSync(TOMBSTONES_CSV, 'utf-8');
   const rows = parseCSV(content);
 
@@ -676,17 +763,20 @@ async function seedTombstones(prisma: PrismaClient): Promise<void> {
       },
     });
 
-    // Link industry via junction table
-    const industryName = row.industry?.trim();
-    if (industryName) {
-      const industrySlug = generateSlug(industryName);
-      const industry = await prisma.industry.findUnique({ where: { slug: industrySlug } });
-      if (industry) {
-        await prisma.tombstoneIndustry.upsert({
-          where: { tombstoneId_industryId: { tombstoneId: tombstone.id, industryId: industry.id } },
-          update: {},
-          create: { tombstoneId: tombstone.id, industryId: industry.id },
-        });
+    // Link industries via junction table (multi-tag from industry-tags.csv)
+    const clientKey = normalizeClientName(name);
+    const industryTags = industryTagMap.get(clientKey);
+    if (industryTags && industryTags.length > 0) {
+      for (const tag of industryTags) {
+        const industrySlug = generateSlug(tag);
+        const industry = await prisma.industry.findUnique({ where: { slug: industrySlug } });
+        if (industry) {
+          await prisma.tombstoneIndustry.upsert({
+            where: { tombstoneId_industryId: { tombstoneId: tombstone.id, industryId: industry.id } },
+            update: {},
+            create: { tombstoneId: tombstone.id, industryId: industry.id },
+          });
+        }
       }
     }
 

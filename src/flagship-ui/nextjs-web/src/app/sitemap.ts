@@ -79,7 +79,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const industryRoutes = await Promise.all(filters.industries.map(async (ind) => {
     const slug = ind.slug;
     const indTombstones = tombstones.filter(t => t.industries.some(i => i.slug === slug));
-    const latestYear = Math.max(...indTombstones.map(t => t.transactionYear || 0));
+    const latestYear = Math.max(0, ...indTombstones.map(t => t.transactionYear || 0));
     return {
       url: `${baseUrl}/transactions/industry/${slug}`,
       lastModified: latestYear ? new Date(latestYear, 11, 31) : now,

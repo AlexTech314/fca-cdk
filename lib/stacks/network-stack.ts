@@ -66,6 +66,15 @@ export class NetworkStack extends cdk.Stack {
       service: ec2.GatewayVpcEndpointAwsService.S3,
     });
 
+    // Lambda Interface Endpoint (for RDS aws_lambda extension in isolated subnets)
+    // See: https://docs.aws.amazon.com/lambda/latest/dg/configuration-vpc-endpoints.html
+    // Service: com.amazonaws.<region>.lambda — enables Invoke API from private subnets without NAT
+    this.vpc.addInterfaceEndpoint('LambdaEndpoint', {
+      service: ec2.InterfaceVpcEndpointAwsService.LAMBDA,
+      subnets: { subnets: this.vpc.isolatedSubnets },
+      privateDnsEnabled: true, // Resolve lambda.<region>.amazonaws.com to endpoint (recommended per AWS docs)
+    });
+
     // ============================================================
     // Outputs
     // ============================================================

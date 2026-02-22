@@ -495,6 +495,7 @@ const INDUSTRY_KEYWORDS: { pattern: RegExp; industryName: string }[] = [
 /**
  * Load multi-industry tag mappings from industry-tags.csv (source of truth).
  * Returns a map: normalized seller name → array of canonical industry names.
+ * Uses parseCSV to correctly handle quoted fields (e.g. "Fire & Life Safety, Construction & Building").
  */
 function loadIndustryTagMap(): Map<string, string[]> {
   const map = new Map<string, string[]>();
@@ -504,20 +505,22 @@ function loadIndustryTagMap(): Map<string, string[]> {
   }
   const content = fs.readFileSync(INDUSTRY_TAGS_CSV, 'utf-8');
   const lines = content.split('\n');
+  const headerIndex = lines.findIndex((line) => line.trim().startsWith('Client'));
+  if (headerIndex === -1) return map;
 
-  for (const line of lines) {
-    const cols = line.split(',');
-    const client = cols[0]?.trim();
+  const csvContent = lines.slice(headerIndex).join('\n');
+  const rows = parseCSV(csvContent);
+
+  for (const row of rows) {
+    const client = (row['Client'] ?? row['Client '] ?? '').trim();
     if (!client) continue;
-    // Industry Tags column is index 10 (col K), may span multiple comma-separated cols
-    const rawTags = cols.slice(10).join(',').trim();
+    const rawTags = (row['Industry Tags'] ?? row['Industry Tags '] ?? '').trim();
     if (!rawTags) continue;
     const tags = rawTags
       .split(',')
       .map((t) => t.trim().replace(/\s+/g, ' '))
       .filter(Boolean);
     if (tags.length === 0) continue;
-    // Skip header-like rows
     if (client === 'Client' || client === 'Flatirons Capital Advisors' || client === 'Tombstones') continue;
 
     const normalizedTags = tags.map((tag) => normalizeIndustryTag(tag)).filter(Boolean) as string[];
@@ -542,6 +545,7 @@ function normalizeIndustryTag(tag: string): string | null {
   const fixes: Record<string, string> = {
     'construction': 'Construction & Building',
     'construciton & building': 'Construction & Building',
+    'fire & life safety': 'Fire & Life Safety',
     'petroleum & lubricates': 'Petroleum & Lubricants',
     'business service': 'Business Services',
     'transportation & logistic': 'Transportation & Logistics',
@@ -795,9 +799,13 @@ async function seedTombstones(prisma: PrismaClient): Promise<void> {
       },
     });
 
-    // Link industries via junction table (multi-tag from industry-tags.csv)
+    // Link industries via junction table (multi-tag from industry-tags.csv, fallback to tombstones.csv industry)
     const clientKey = normalizeClientName(name);
-    const industryTags = industryTagMap.get(clientKey);
+    let industryTags = industryTagMap.get(clientKey);
+    if (!industryTags?.length && row.industry?.trim()) {
+      const fromTombstone = normalizeIndustryTag(row.industry.trim());
+      if (fromTombstone) industryTags = [fromTombstone];
+    }
     if (industryTags && industryTags.length > 0) {
       for (const tag of industryTags) {
         const industrySlug = generateSlug(tag);

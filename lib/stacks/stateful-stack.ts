@@ -94,6 +94,7 @@ export class StatefulStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       parameters: {
         'shared_preload_libraries': 'pg_stat_statements',
+        'rds.custom_dns_resolution': '1',
       },
     });
 

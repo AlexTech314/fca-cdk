@@ -65,8 +65,8 @@ export function Sidebar() {
         {/* Logo */}
         <div className="flex h-16 items-center gap-2 border-b px-4">
           <img src="/logo.png" alt={organizationName} className="h-6 w-auto brightness-0 invert" />
-          <span className="text-sm font-semibold text-foreground">
-            Flatirons Capital
+          <span className="text-xs font-semibold text-foreground">
+            Flatirons Capital Advisors
           </span>
         </div>
 

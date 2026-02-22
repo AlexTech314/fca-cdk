@@ -37,7 +37,8 @@ router.get('/dashboard/leads-over-time', async (req, res, next) => {
   try {
     const startDate = String(req.query.startDate || new Date(Date.now() - 7 * 86400000).toISOString());
     const endDate = String(req.query.endDate || new Date().toISOString());
-    const data = await leadService.getLeadsOverTime(startDate, endDate);
+    const granularity = req.query.granularity === 'hour' ? 'hour' as const : 'day' as const;
+    const data = await leadService.getLeadsOverTime(startDate, endDate, granularity);
     res.json(data);
   } catch (error) {
     next(error);

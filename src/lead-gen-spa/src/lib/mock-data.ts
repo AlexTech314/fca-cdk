@@ -62,7 +62,7 @@ const businessSuffixes = [
 
 export const mockOrganization: Organization = {
   id: 'org-1',
-  name: 'Flatirons Capital',
+  name: 'Flatirons Capital Advisors',
   usageLimitLeads: 10000,
   usageLimitExports: 100,
   createdAt: '2024-01-01T00:00:00.000Z',

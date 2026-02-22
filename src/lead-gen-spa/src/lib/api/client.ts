@@ -204,6 +204,7 @@ export const realApi: LeadGenApi = {
     const qs = new URLSearchParams({
       startDate: params.startDate,
       endDate: params.endDate,
+      granularity: params.granularity,
     });
     return apiClient<TimeSeriesData[]>(`/dashboard/leads-over-time?${qs}`);
   },

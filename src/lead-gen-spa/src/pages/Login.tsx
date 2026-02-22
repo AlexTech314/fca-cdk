@@ -439,12 +439,12 @@ export default function Login() {
         <div className="mb-8 text-center">
           <img
             src="https://d1bjh7dvpwoxii.cloudfront.net/logos/fca-mountain-on-white.png"
-            alt="Flatirons Capital"
+            alt="Flatirons Capital Advisors"
             width={64}
             height={64}
             className="mx-auto brightness-0 invert"
           />
-          <h1 className="mt-4 text-2xl font-bold text-foreground">Flatirons Capital</h1>
+          <h1 className="mt-4 text-2xl font-bold text-foreground">Flatirons Capital Advisors</h1>
         </div>
 
         {/* Demo Credentials Banner */}

@@ -63,8 +63,8 @@ export const leadService = {
     };
   },
 
-  async getLeadsOverTime(startDate: string, endDate: string) {
-    return leadRepository.getLeadsOverTime(new Date(startDate), new Date(endDate));
+  async getLeadsOverTime(startDate: string, endDate: string, granularity: 'hour' | 'day' = 'day') {
+    return leadRepository.getLeadsOverTime(new Date(startDate), new Date(endDate), granularity);
   },
 
   async getBusinessTypeDistribution() {

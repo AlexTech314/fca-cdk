@@ -124,17 +124,17 @@ export const leadRepository = {
     }));
   },
 
-  async getLeadsOverTime(startDate: Date, endDate: Date) {
-    // Group leads by day
-    const results = await prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
-      SELECT DATE(created_at) as date, COUNT(*) as count
+  async getLeadsOverTime(startDate: Date, endDate: Date, granularity: 'hour' | 'day' = 'day') {
+    const trunc = granularity === 'hour' ? 'hour' : 'day';
+    const results = await prisma.$queryRaw<Array<{ bucket: Date; count: bigint }>>`
+      SELECT DATE_TRUNC(${trunc}, created_at) as bucket, COUNT(*) as count
       FROM leads
       WHERE created_at >= ${startDate} AND created_at <= ${endDate}
-      GROUP BY DATE(created_at)
-      ORDER BY date ASC
+      GROUP BY bucket
+      ORDER BY bucket ASC
     `;
     return results.map((r) => ({
-      timestamp: r.date,
+      timestamp: r.bucket instanceof Date ? r.bucket.toISOString() : String(r.bucket),
       value: Number(r.count),
     }));
   },

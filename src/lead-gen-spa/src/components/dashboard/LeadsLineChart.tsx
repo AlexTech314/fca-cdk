@@ -20,23 +20,27 @@ export function LeadsLineChart({ dateRange }: LeadsLineChartProps) {
   const params = useMemo(() => {
     const now = new Date();
     const start = new Date(now);
+    let granularity: 'hour' | 'day' | 'week';
     
     switch (dateRange) {
       case '24h':
         start.setHours(start.getHours() - 24);
+        granularity = 'hour';
         break;
       case '7d':
         start.setDate(start.getDate() - 7);
+        granularity = 'hour';
         break;
       case '30d':
         start.setDate(start.getDate() - 30);
+        granularity = 'day';
         break;
     }
     
     return {
       startDate: start.toISOString(),
       endDate: now.toISOString(),
-      granularity: 'hour' as const,
+      granularity,
     };
   }, [dateRange]);
 
@@ -45,20 +49,28 @@ export function LeadsLineChart({ dateRange }: LeadsLineChartProps) {
   const chartData = useMemo(() => {
     if (!data) return [];
     
-    // Aggregate by day for 7d and 30d views
-    if (dateRange === '7d' || dateRange === '30d') {
-      const byDay: Record<string, number> = {};
-      data.forEach(point => {
-        const day = new Date(point.timestamp).toLocaleDateString('en-US', { 
+    if (dateRange === '30d') {
+      return data.map(point => ({
+        name: new Date(point.timestamp).toLocaleDateString('en-US', { 
           month: 'short', 
-          day: 'numeric' 
-        });
-        byDay[day] = (byDay[day] || 0) + point.value;
-      });
-      return Object.entries(byDay).map(([name, value]) => ({ name, value }));
+          day: 'numeric',
+        }),
+        value: point.value,
+      }));
+    }
+
+    if (dateRange === '7d') {
+      return data.map(point => ({
+        name: new Date(point.timestamp).toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric',
+          hour: 'numeric',
+          hour12: true,
+        }),
+        value: point.value,
+      }));
     }
     
-    // Hourly for 24h
     return data.map(point => ({
       name: new Date(point.timestamp).toLocaleTimeString('en-US', { 
         hour: 'numeric',

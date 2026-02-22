@@ -72,7 +72,14 @@ export class NetworkStack extends cdk.Stack {
     this.vpc.addInterfaceEndpoint('LambdaEndpoint', {
       service: ec2.InterfaceVpcEndpointAwsService.LAMBDA,
       subnets: { subnets: this.vpc.isolatedSubnets },
-      privateDnsEnabled: true, // Resolve lambda.<region>.amazonaws.com to endpoint (recommended per AWS docs)
+      privateDnsEnabled: true,
+    });
+
+    // STS Interface Endpoint (RDS needs STS to obtain IAM role credentials for aws_lambda extension)
+    this.vpc.addInterfaceEndpoint('StsEndpoint', {
+      service: ec2.InterfaceVpcEndpointAwsService.STS,
+      subnets: { subnets: this.vpc.isolatedSubnets },
+      privateDnsEnabled: true,
     });
 
     // ============================================================

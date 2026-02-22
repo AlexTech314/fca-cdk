@@ -23,6 +23,8 @@ export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly campaignDataBucket: s3.IBucket;
   /** Seed DB Lambda (for configure-bridge after deploy) */
   readonly seedLambda: lambda.IFunction;
+  /** IAM role for RDS to invoke Lambda (created in StatefulStack, associated with RDS instance) */
+  readonly rdsLambdaRole: iam.IRole;
 }
 
 /**
@@ -39,7 +41,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
     super(scope, id, props);
 
-    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket, seedLambda } = props;
+    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket, seedLambda, rdsLambdaRole } = props;
 
     // Direct RDS connection (no proxy -- saves $21.90/mo, peak ~40 connections vs ~80 limit)
     const databaseEndpoint = database.dbInstanceEndpointAddress;
@@ -126,11 +128,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
     // ============================================================
     // IAM Role for RDS to invoke Bridge Lambda
     // ============================================================
-    const rdsLambdaRole = new iam.Role(this, 'RdsLambdaRole', {
-      assumedBy: new iam.ServicePrincipal('rds.amazonaws.com'),
-      description: 'Allow RDS to invoke Bridge Lambda via aws_lambda extension',
-    });
-
     bridgeLambda.grantInvoke(rdsLambdaRole);
 
     // ============================================================
@@ -465,11 +462,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'BridgeLambdaArn', {
       value: bridgeLambda.functionArn,
       description: 'Bridge Lambda ARN (for RDS trigger configuration)',
-    });
-
-    new cdk.CfnOutput(this, 'RdsLambdaRoleArn', {
-      value: rdsLambdaRole.roleArn,
-      description: 'IAM Role ARN to attach to RDS for Lambda invocation',
     });
 
     new cdk.CfnOutput(this, 'PlacesTaskDefArn', {

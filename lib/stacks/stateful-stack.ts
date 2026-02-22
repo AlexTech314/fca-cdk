@@ -34,6 +34,8 @@ export class StatefulStack extends cdk.Stack {
   public readonly pipelineSecurityGroup: ec2.SecurityGroup;
   /** Seed DB Lambda (migrate, seed, configure-bridge) */
   public readonly seedLambda: lambda.IFunction;
+  /** IAM role for RDS to invoke Lambda via aws_lambda extension */
+  public readonly rdsLambdaRole: iam.Role;
 
   constructor(scope: Construct, id: string, props: StatefulStackProps) {
     super(scope, id, props);
@@ -89,6 +91,22 @@ export class StatefulStack extends cdk.Stack {
     });
 
     this.databaseSecret = this.database.secret!;
+
+    // ============================================================
+    // IAM Role for RDS aws_lambda extension (must be associated here where DatabaseInstance is created)
+    // ============================================================
+    this.rdsLambdaRole = new iam.Role(this, 'RdsLambdaRole', {
+      assumedBy: new iam.ServicePrincipal('rds.amazonaws.com'),
+      description: 'Allow RDS to invoke Lambda via aws_lambda extension',
+    });
+
+    const cfnDbInstance = this.database.node.defaultChild as rds.CfnDBInstance;
+    cfnDbInstance.associatedRoles = [
+      {
+        roleArn: this.rdsLambdaRole.roleArn,
+        featureName: 'Lambda',
+      },
+    ];
 
     // ============================================================
     // S3 Bucket for Campaign Data

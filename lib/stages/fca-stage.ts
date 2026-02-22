@@ -58,6 +58,7 @@ export class FcaStage extends cdk.Stage {
       pipelineSecurityGroup: this.statefulStack.pipelineSecurityGroup,
       campaignDataBucket: this.statefulStack.campaignDataBucket,
       seedLambda: this.statefulStack.seedLambda,
+      rdsLambdaRole: this.statefulStack.rdsLambdaRole,
     });
     this.pipelineStack.addDependency(this.statefulStack);
 

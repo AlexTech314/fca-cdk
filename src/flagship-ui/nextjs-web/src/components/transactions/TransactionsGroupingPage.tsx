@@ -162,28 +162,6 @@ export function TransactionsGroupingPage({
             </div>
           )}
 
-          {/* Year Navigation */}
-          {yearNav && (
-            <div className="mb-8 flex flex-wrap gap-2">
-              <span className="mr-2 text-sm font-medium text-text-muted">
-                Browse by year:
-              </span>
-              {yearNav.allYears.map((y) => (
-                <Link
-                  key={y}
-                  href={`/transactions/year/${y}`}
-                  className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
-                    y === yearNav.currentYear
-                      ? 'border-primary bg-primary !text-white'
-                      : 'border-border bg-white text-text hover:border-primary hover:text-primary'
-                  }`}
-                >
-                  {y}
-                </Link>
-              ))}
-            </div>
-          )}
-
           {/* City filter (state page) */}
           {cityFilter && cityFilter.cities.length > 1 && (
             <div className="mb-8">

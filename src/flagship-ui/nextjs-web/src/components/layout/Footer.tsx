@@ -26,7 +26,7 @@ export async function Footer() {
                 className="h-8 w-auto brightness-0 invert"
               />
               <span className="text-lg font-semibold">
-                {config.name.split(' ').slice(0, 2).join(' ')}
+                {config.name}
               </span>
             </Link>
             <p className="mt-4 text-sm text-gray-300">

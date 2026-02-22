@@ -22,7 +22,7 @@ export async function Header() {
             />
             <div className="hidden sm:block">
               <span className="text-lg font-semibold text-primary md:text-xl">
-                {config.name.split(' ').slice(0, 2).join(' ')}
+                {config.name}
               </span>
               <span className="hidden text-xs text-text-muted md:block">
                 {config.tagline}

@@ -84,9 +84,9 @@ export function ContentExplorer({
 }: ContentExplorerProps) {
   const [activeTab, setActiveTab] = useState<TabType>('industry');
 
-  // For news, we only show industry tags
+  // For news, we only show industry tags. Year tab removed from nav (paths/sitemap kept).
   const availableTabs: TabType[] = type === 'transactions' 
-    ? ['industry', 'state', 'city', 'year']
+    ? ['industry', 'state', 'city']
     : ['industry'];
 
   const basePath = type === 'transactions' ? '/transactions' : '/news';
@@ -157,7 +157,7 @@ export function ContentExplorer({
           Explore {type === 'transactions' ? 'Transactions' : 'News'}
         </h3>
         <p className="text-sm text-text-muted">
-          Browse by {type === 'transactions' ? 'industry, location, or year' : 'topic'}
+          Browse by {type === 'transactions' ? 'industry or location' : 'topic'}
         </p>
       </div>
 

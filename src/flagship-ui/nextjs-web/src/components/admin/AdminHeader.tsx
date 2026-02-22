@@ -24,7 +24,7 @@ export function AdminHeader() {
             />
             <div className="hidden items-center gap-2 sm:flex">
               <span className="text-sm font-semibold text-white">
-                Flatirons Capital
+                Flatirons Capital Advisors
               </span>
               <span className="text-xs text-white/50">|</span>
               <span className="text-xs font-medium text-white/80">

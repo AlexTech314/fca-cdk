@@ -21,7 +21,7 @@ interface PageProps {
 
 export async function generateStaticParams() {
   const filters = await getTombstoneFilterOptions();
-  return filters.cities.map((city) => ({ city: cityToSlug(city) }));
+  return filters.cities.map((c) => ({ city: cityToSlug(c.name) }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: 'City Not Found' };
   }
 
-  const stateCode = tombstones[0]?.state || undefined;
+  const stateCode = tombstones[0]?.locationStates[0]?.id || undefined;
   return generateGroupingMetadata('city', city, tombstones.length, {
     state: stateCode,
   });
@@ -47,7 +47,7 @@ export default async function TransactionsByCityPage({ params }: PageProps) {
   }
 
   const cityName = slugToCity(city);
-  const stateCode = tombstones[0]?.state || '';
+  const stateCode = tombstones[0]?.locationStates[0]?.id || '';
   const stateName = getStateName(stateCode);
   const displayName = stateCode ? `${cityName}, ${stateName}` : cityName;
 
@@ -82,7 +82,7 @@ export default async function TransactionsByCityPage({ params }: PageProps) {
       displayName={displayName}
       companyName={config.name}
       tombstones={tombstones}
-      tags={filters.tags.map((t) => t.slug)}
+      industries={filters.industries}
       states={filters.states}
       cities={filters.cities}
       years={filters.years}

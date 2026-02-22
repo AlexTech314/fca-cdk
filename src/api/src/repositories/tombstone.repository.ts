@@ -2,9 +2,18 @@ import { prisma } from '@fca/db';
 import type { Prisma } from '@fca/db';
 import type { TombstoneQuery, CreateTombstoneInput, UpdateTombstoneInput } from '../models/tombstone.model';
 
+const tombstoneInclude = {
+  industries: { include: { industry: true } },
+  dealTypes: { include: { dealType: true } },
+  asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
+  pressRelease: { select: { id: true, slug: true, title: true } },
+  locationStates: { include: { state: true } },
+  locationCities: { include: { city: { include: { state: true } } } },
+} as const;
+
 export const tombstoneRepository = {
   async findMany(query: TombstoneQuery) {
-    const { page, limit, industry, state, city, year, tag, search, published } = query;
+    const { page, limit, industry, state, city, year, search, published } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.TombstoneWhereInput = {};
@@ -13,25 +22,20 @@ export const tombstoneRepository = {
       where.isPublished = published;
     }
     if (industry) {
-      where.industry = { contains: industry, mode: 'insensitive' };
+      where.industries = { some: { industry: { slug: industry } } };
     }
     if (state) {
-      where.state = { equals: state, mode: 'insensitive' };
+      where.locationStates = { some: { stateId: { equals: state, mode: 'insensitive' } } };
     }
     if (city) {
-      where.city = { equals: city, mode: 'insensitive' };
+      where.locationCities = { some: { city: { name: { equals: city, mode: 'insensitive' } } } };
     }
     if (year) {
       where.transactionYear = year;
     }
-    if (tag) {
-      where.tags = { some: { tag: { slug: tag } } };
-    }
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
-        { industry: { contains: search, mode: 'insensitive' } },
-        { city: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -41,11 +45,7 @@ export const tombstoneRepository = {
         skip,
         take: limit,
         orderBy: [{ transactionYear: 'desc' }, { sortOrder: 'asc' }],
-        include: {
-          tags: { include: { tag: true } },
-          asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
-          pressRelease: { select: { id: true, slug: true, title: true } },
-        },
+        include: tombstoneInclude,
       }),
       prisma.tombstone.count({ where }),
     ]);
@@ -62,11 +62,7 @@ export const tombstoneRepository = {
   async findBySlug(slug: string) {
     const tombstone = await prisma.tombstone.findUnique({
       where: { slug },
-      include: {
-        tags: { include: { tag: true } },
-        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
-        pressRelease: { select: { id: true, slug: true, title: true } },
-      },
+      include: tombstoneInclude,
     });
     return tombstone ? formatTombstone(tombstone) : null;
   },
@@ -74,45 +70,48 @@ export const tombstoneRepository = {
   async findById(id: string) {
     const tombstone = await prisma.tombstone.findUnique({
       where: { id },
-      include: {
-        tags: { include: { tag: true } },
-        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
-        pressRelease: { select: { id: true, slug: true, title: true } },
-      },
+      include: tombstoneInclude,
     });
     return tombstone ? formatTombstone(tombstone) : null;
   },
 
   async create(data: CreateTombstoneInput) {
-    const { tagIds, ...tombstoneData } = data;
+    const { industryIds, dealTypeIds, ...tombstoneData } = data;
 
     const tombstone = await prisma.tombstone.create({
       data: {
         ...tombstoneData,
         slug: data.slug || generateSlug(data.name),
-        tags: tagIds
-          ? { create: tagIds.map((tagId) => ({ tagId })) }
+        industries: industryIds
+          ? { create: industryIds.map((industryId) => ({ industryId })) }
+          : undefined,
+        dealTypes: dealTypeIds
+          ? { create: dealTypeIds.map((dealTypeId) => ({ dealTypeId })) }
           : undefined,
       },
-      include: {
-        tags: { include: { tag: true } },
-        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
-        pressRelease: { select: { id: true, slug: true, title: true } },
-      },
+      include: tombstoneInclude,
     });
 
     return formatTombstone(tombstone);
   },
 
   async update(id: string, data: UpdateTombstoneInput) {
-    const { tagIds, ...tombstoneData } = data;
+    const { industryIds, dealTypeIds, ...tombstoneData } = data;
 
-    // If tagIds provided, update tag relations
-    if (tagIds !== undefined) {
-      await prisma.tombstoneTag.deleteMany({ where: { tombstoneId: id } });
-      if (tagIds.length > 0) {
-        await prisma.tombstoneTag.createMany({
-          data: tagIds.map((tagId) => ({ tombstoneId: id, tagId })),
+    if (industryIds !== undefined) {
+      await prisma.tombstoneIndustry.deleteMany({ where: { tombstoneId: id } });
+      if (industryIds.length > 0) {
+        await prisma.tombstoneIndustry.createMany({
+          data: industryIds.map((industryId) => ({ tombstoneId: id, industryId })),
+        });
+      }
+    }
+
+    if (dealTypeIds !== undefined) {
+      await prisma.tombstoneDealType.deleteMany({ where: { tombstoneId: id } });
+      if (dealTypeIds.length > 0) {
+        await prisma.tombstoneDealType.createMany({
+          data: dealTypeIds.map((dealTypeId) => ({ tombstoneId: id, dealTypeId })),
         });
       }
     }
@@ -120,11 +119,7 @@ export const tombstoneRepository = {
     const tombstone = await prisma.tombstone.update({
       where: { id },
       data: tombstoneData,
-      include: {
-        tags: { include: { tag: true } },
-        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
-        pressRelease: { select: { id: true, slug: true, title: true } },
-      },
+      include: tombstoneInclude,
     });
 
     return formatTombstone(tombstone);
@@ -138,78 +133,63 @@ export const tombstoneRepository = {
     const tombstone = await prisma.tombstone.update({
       where: { id },
       data: { pressReleaseId },
-      include: {
-        tags: { include: { tag: true } },
-        asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
-        pressRelease: { select: { id: true, slug: true, title: true } },
-      },
+      include: tombstoneInclude,
     });
     return formatTombstone(tombstone);
   },
 
   async getFilterOptions() {
-    const result = await prisma.$queryRaw<
-      {
-        states: string[];
-        cities: string[];
-        years: number[];
-        tags: unknown;
-      }[]
-    >`
-      SELECT
-        (
-          SELECT COALESCE(ARRAY_AGG(DISTINCT state ORDER BY state), '{}')
-          FROM tombstones
-          WHERE is_published = true AND state IS NOT NULL
-        ) AS states,
-        (
-          SELECT COALESCE(ARRAY_AGG(DISTINCT city ORDER BY city), '{}')
-          FROM tombstones
-          WHERE is_published = true AND city IS NOT NULL
-        ) AS cities,
-        (
-          SELECT COALESCE(ARRAY_AGG(DISTINCT transaction_year ORDER BY transaction_year DESC), '{}')
-          FROM tombstones
-          WHERE is_published = true AND transaction_year IS NOT NULL
-        ) AS years,
-        (
-          SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT('slug', slug, 'name', name) ORDER BY name), '[]'::json)
-          FROM content_tags
-          WHERE category = 'industry'
-        ) AS tags
-    `;
-    const row = result[0];
-    if (!row) {
-      return { states: [], cities: [], years: [], tags: [] };
-    }
-    const tags = Array.isArray(row.tags)
-      ? (row.tags as { slug: string; name: string }[])
-      : typeof row.tags === 'string'
-        ? (JSON.parse(row.tags) as { slug: string; name: string }[])
-        : (row.tags as { slug: string; name: string }[]) ?? [];
+    const [stateResults, cityResults, yearResults, industries] = await Promise.all([
+      prisma.tombstoneState.findMany({
+        where: { tombstone: { isPublished: true } },
+        select: { state: { select: { id: true, name: true } } },
+        distinct: ['stateId'],
+      }),
+      prisma.tombstoneCity.findMany({
+        where: { tombstone: { isPublished: true } },
+        select: { city: { select: { id: true, name: true, stateId: true } } },
+        distinct: ['cityId'],
+      }),
+      prisma.tombstone.findMany({
+        where: { isPublished: true, transactionYear: { not: null } },
+        select: { transactionYear: true },
+        distinct: ['transactionYear'],
+        orderBy: { transactionYear: 'desc' },
+      }),
+      prisma.industry.findMany({
+        select: { id: true, slug: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+
     return {
-      states: row.states ?? [],
-      cities: row.cities ?? [],
-      years: row.years ?? [],
-      tags,
+      states: stateResults
+        .map((r) => r.state)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      cities: cityResults
+        .map((r) => r.city)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      years: yearResults
+        .map((r) => r.transactionYear!)
+        .filter((y): y is number => y !== null),
+      industries,
     };
   },
 
   async findRelated(slug: string, limit = 5) {
-    // Find related news by matching tags
     const tombstone = await prisma.tombstone.findUnique({
       where: { slug },
-      include: { tags: true },
+      include: { industries: true },
     });
 
     if (!tombstone) return [];
 
-    const tagIds = tombstone.tags.map((t) => t.tagId);
+    const industryIds = tombstone.industries.map((ti) => ti.industryId);
 
     const relatedPosts = await prisma.blogPost.findMany({
       where: {
         isPublished: true,
-        tags: { some: { tagId: { in: tagIds } } },
+        industries: { some: { industryId: { in: industryIds } } },
         // Exclude the press release if any
         id: tombstone.pressReleaseId ? { not: tombstone.pressReleaseId } : undefined,
       },
@@ -238,6 +218,14 @@ function generateSlug(name: string): string {
 function formatTombstone(tombstone: any) {
   return {
     ...tombstone,
-    tags: tombstone.tags?.map((t: any) => t.tag) || [],
+    industries: tombstone.industries?.map((ti: any) => ti.industry) || [],
+    dealTypes: tombstone.dealTypes?.map((td: any) => td.dealType) || [],
+    locationStates: tombstone.locationStates?.map((s: any) => s.state) || [],
+    locationCities: tombstone.locationCities?.map((c: any) => ({
+      id: c.city.id,
+      name: c.city.name,
+      stateId: c.city.stateId,
+      stateName: c.city.state?.name,
+    })) || [],
   };
 }

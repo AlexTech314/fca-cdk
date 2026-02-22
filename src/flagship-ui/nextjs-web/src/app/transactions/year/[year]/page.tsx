@@ -73,7 +73,7 @@ export default async function TransactionsByYearPage({ params }: PageProps) {
       displayName={`${year} Transactions`}
       companyName={config.name}
       tombstones={tombstones}
-      tags={filters.tags.map((t) => t.slug)}
+      industries={filters.industries}
       states={filters.states}
       cities={filters.cities}
       years={allYears}

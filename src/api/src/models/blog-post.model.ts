@@ -14,8 +14,8 @@ const blogPostBase = {
 // Create blog post input
 export const createBlogPostSchema = z.object({
   ...blogPostBase,
-  slug: z.string().optional(), // Auto-generated if not provided
-  tagIds: z.array(z.string()).optional(),
+  slug: z.string().optional(),
+  industryIds: z.array(z.string()).optional(),
 });
 
 // Update blog post input
@@ -23,7 +23,7 @@ export const updateBlogPostSchema = z.object({
   ...blogPostBase,
   title: z.string().min(1).optional(),
   content: z.string().min(1).optional(),
-  tagIds: z.array(z.string()).optional(),
+  industryIds: z.array(z.string()).optional(),
 }).partial();
 
 // Blog post list query params
@@ -31,7 +31,7 @@ export const blogPostQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(200).default(20),
   category: z.string().optional(),
-  tag: z.string().optional(),
+  industry: z.string().optional(),
   search: z.string().optional(),
   published: z.coerce.boolean().optional(),
   author: z.string().optional(),
@@ -51,11 +51,10 @@ export const blogPostResponseSchema = z.object({
   previewToken: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
-  tags: z.array(z.object({
+  industries: z.array(z.object({
     id: z.string(),
     name: z.string(),
     slug: z.string(),
-    category: z.string().nullable(),
   })).optional(),
   tombstone: z.object({
     id: z.string(),

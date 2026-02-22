@@ -2,7 +2,7 @@
  * Database Seed Script
  *
  * Seeds the database with:
- * - ContentTag taxonomy
+ * - Industries and DealTypes
  * - Assets (S3 file registry for tombstone images, awards, hero, OG)
  * - Tombstones from CSV (linked to Asset records via assetId FK)
  * - BlogPosts from markdown files (news + articles)
@@ -13,7 +13,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
-import { TAG_TAXONOMY, matchContentToTags } from '@fca/db';
 
 // Seed logger -- wraps console for eslint compliance
 const log = {
@@ -24,6 +23,7 @@ const log = {
 // Seed data lives in ../data/ relative to this file
 const SEED_DATA_DIR = path.resolve(__dirname, '../data');
 const TOMBSTONES_CSV = path.join(SEED_DATA_DIR, 'tombstones.csv');
+const USCITIES_CSV = path.join(SEED_DATA_DIR, 'uscities.csv');
 const NEWS_DIR = path.join(SEED_DATA_DIR, 'news');
 const ARTICLES_DIR = path.join(SEED_DATA_DIR, 'articles');
 
@@ -40,7 +40,7 @@ function generateSlug(name: string): string {
 
 function parseCSV(content: string): Record<string, string>[] {
   const lines = content.trim().split('\n');
-  const headers = lines[0].split(',').map((h) => h.trim());
+  const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
 
   const rows: Record<string, string>[] = [];
   let currentRow: string[] = [];
@@ -79,6 +79,28 @@ function parseCSV(content: string): Record<string, string>[] {
   }
 
   return rows;
+}
+
+/** Normalize tombstone CSV row to canonical keys (handles Seller/Industry vs seller/industry). */
+function normalizeTombstoneRow(row: Record<string, string>): Record<string, string> {
+  const keyMap: Record<string, string> = {
+    Seller: 'seller',
+    Buyer_PE_Firm: 'buyer_pe_firm',
+    Platform: 'buyer_platform',
+    Industry: 'industry',
+    Keywords: 'keywords',
+    Year: 'transaction_year',
+    City: 'city',
+    State: 'state',
+    Press_Release: 'has_press_release',
+    Press_Release_Title: 'press_release_link',
+  };
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(row)) {
+    const canonical = keyMap[k] ?? k.toLowerCase();
+    out[canonical] = v;
+  }
+  return out;
 }
 
 interface MarkdownMetadata {
@@ -289,6 +311,61 @@ function parseDate(dateStr: string | undefined): Date | null {
 // SEED FUNCTIONS
 // ============================================
 
+async function seedStatesAndCities(prisma: PrismaClient): Promise<void> {
+  log.info('Seeding states and cities from uscities.csv...');
+
+  const content = fs.readFileSync(USCITIES_CSV, 'utf-8');
+  const rows = parseCSV(content);
+
+  const stateMap = new Map<string, string>();
+  for (const row of rows) {
+    const stateId = row.state_id?.trim();
+    const stateName = row.state_name?.trim();
+    if (stateId && stateName) stateMap.set(stateId, stateName);
+  }
+
+  for (const [id, name] of stateMap) {
+    await prisma.state.upsert({
+      where: { id },
+      update: { name },
+      create: { id, name },
+    });
+  }
+  log.info(`  Seeded ${stateMap.size} states`);
+
+  const seen = new Set<string>();
+  const dedupedRows = rows.filter((row) => {
+    if (!row.id || !row.city_ascii || !row.state_id) return false;
+    const key = `${row.city_ascii.trim()}|${row.state_id.trim()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const BATCH_SIZE = 500;
+  let cityCount = 0;
+  for (let i = 0; i < dedupedRows.length; i += BATCH_SIZE) {
+    const batch = dedupedRows.slice(i, i + BATCH_SIZE);
+    const operations = batch.map((row) => {
+      const id = parseInt(row.id, 10);
+      const name = row.city_ascii.trim();
+      const stateId = row.state_id.trim();
+      const county = row.county_name?.trim() || null;
+      const lat = row.lat ? parseFloat(row.lat) : null;
+      const lng = row.lng ? parseFloat(row.lng) : null;
+      const population = row.population ? parseInt(row.population, 10) : null;
+      return prisma.city.upsert({
+        where: { name_stateId: { name, stateId } },
+        update: { county, lat, lng, population },
+        create: { id, name, stateId, county, lat, lng, population },
+      });
+    });
+    await prisma.$transaction(operations);
+    cityCount += operations.length;
+  }
+  log.info(`  Seeded ${cityCount} cities`);
+}
+
 async function seedSiteConfig(prisma: PrismaClient): Promise<void> {
   log.info('Seeding site config...');
 
@@ -354,29 +431,60 @@ async function seedSiteConfig(prisma: PrismaClient): Promise<void> {
   log.info('  Seeded site config');
 }
 
-async function seedContentTags(prisma: PrismaClient): Promise<void> {
-  log.info('Seeding content tags...');
+const INDUSTRY_NAMES = [
+  'Window and Door Materials', 'Pool & Spa Service', 'Auto Repair',
+  'Electrical Contractor', 'Plumbing & HVAC', 'Concierge Doctor',
+  'Petroleum & Lubricant Distributor', 'Residential Roofing', 'Residential HVAC',
+  'HVAC', 'Auto Body Repair', 'Environmental Consulting', 'Fire & Life Safety',
+  'Electrical Supply', 'Lawn Service', 'IT Consulting',
+  'Wholesale Consumer Products', 'Commercial Refrigeration', 'Reclamation Services',
+  'Travel Agency', 'Comercial Window Cleaning / Elevator Modernization',
+  'Telecommunications', 'Geomembrane Liners', 'Advertising Agency',
+  'Tank Construction', 'Oil & Gas Equipment Rental', 'Trucking Company',
+  'BPO Services', 'Seismic Services', 'Custom Cabinets',
+  'Audio Video Equipment', 'Designer Handbags', 'Waste Management',
+  'Precision Machining', 'Drilling Rig Equipment Manufacturer', 'Oil Well Equipment',
+  'DME', 'Well Logging', 'Licensed Accessories', 'Truck Stop & Café',
+  'Retail Pharmacy', 'Promotional Products & Print Services',
+  'Kitchen Cabinets & Appliances', 'Copy Service & Printers', 'Pipe Casing',
+  'Retail Ski Apparel', 'Online Travel Agency', 'Aerospace',
+  'Trailer Rentals', 'Engineering Firm', 'Online Learning Solutions',
+  'Safety Equipment & Clothing', 'Manufacturer of Perforating Guns',
+  'Home Services', 'Commercial Services',
+];
 
-  for (const tag of TAG_TAXONOMY) {
-    await prisma.contentTag.upsert({
-      where: { slug: tag.slug },
-      update: {
-        name: tag.name,
-        category: tag.category,
-        description: tag.description,
-        keywords: tag.keywords,
-      },
-      create: {
-        slug: tag.slug,
-        name: tag.name,
-        category: tag.category,
-        description: tag.description,
-        keywords: tag.keywords,
-      },
+const DEAL_TYPE_NAMES = [
+  'Acquisition', 'Private Equity', 'Platform Add-On', 'Recapitalization',
+];
+
+async function seedIndustries(prisma: PrismaClient): Promise<void> {
+  log.info('Seeding industries...');
+
+  for (const name of INDUSTRY_NAMES) {
+    const slug = generateSlug(name);
+    await prisma.industry.upsert({
+      where: { slug },
+      update: { name },
+      create: { name, slug },
     });
   }
 
-  log.info(`  Seeded ${TAG_TAXONOMY.length} content tags`);
+  log.info(`  Seeded ${INDUSTRY_NAMES.length} industries`);
+}
+
+async function seedDealTypes(prisma: PrismaClient): Promise<void> {
+  log.info('Seeding deal types...');
+
+  for (const name of DEAL_TYPE_NAMES) {
+    const slug = generateSlug(name);
+    await prisma.dealType.upsert({
+      where: { slug },
+      update: { name },
+      create: { name, slug },
+    });
+  }
+
+  log.info(`  Seeded ${DEAL_TYPE_NAMES.length} deal types`);
 }
 
 async function seedAssets(prisma: PrismaClient): Promise<void> {
@@ -469,7 +577,40 @@ async function seedAssets(prisma: PrismaClient): Promise<void> {
   });
   count++;
 
-  // 4. Seed OG image asset
+  // 4. Seed Flatirons hero/background images
+  const flatironsHeroImages = [
+    { s3Key: 'hero/02d5857.jpg', title: 'Flatirons Hero 1' },
+    { s3Key: 'hero/061011-Flatirons-048.jpg', title: 'Flatirons Autumn' },
+    { s3Key: 'hero/070527-Front Range-079-22x30-PK.jpg', title: 'Front Range Panorama' },
+    { s3Key: 'hero/090419-Flatirons-016-18.jpg', title: 'Flatirons Spring' },
+    { s3Key: 'hero/090524-Flatirons-042-046-orton.jpg', title: 'Flatirons Orton Effect' },
+    { s3Key: 'hero/090524-Flatirons-069-1-22x30-PK.jpg', title: 'Flatirons Panoramic' },
+    { s3Key: 'hero/090524-Flatirons-087-091.jpg', title: 'Flatirons Composite' },
+    { s3Key: 'hero/130830-Flatirons-024_HDR.jpg', title: 'Flatirons HDR' },
+    { s3Key: 'hero/Boulder Colorado.png', title: 'Boulder Colorado' },
+    { s3Key: 'hero/Flatirons_Winter_Sunrise_edit_2.jpg', title: 'Flatirons Winter Sunrise' },
+    { s3Key: 'hero/ws_White_Winter_Scenery_1366x768.jpg', title: 'White Winter Scenery' },
+  ];
+
+  for (const img of flatironsHeroImages) {
+    const fileName = img.s3Key.split('/').pop() || img.s3Key;
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const fileType = ext === 'png' ? 'image/png' : 'image/jpeg';
+    await prisma.asset.upsert({
+      where: { s3Key: img.s3Key },
+      update: {},
+      create: {
+        fileName,
+        s3Key: img.s3Key,
+        fileType,
+        category: 'photo',
+        title: img.title,
+      },
+    });
+    count++;
+  }
+
+  // 5. Seed OG image asset
   await prisma.asset.upsert({
     where: { s3Key: 'meta/og-image.jpg' },
     update: {},
@@ -496,7 +637,8 @@ async function seedTombstones(prisma: PrismaClient): Promise<void> {
   const rows = parseCSV(content);
 
   let count = 0;
-  for (const row of rows) {
+  for (const rawRow of rows) {
+    const row = normalizeTombstoneRow(rawRow);
     const name = row.seller?.trim();
     if (!name) {continue;}
 
@@ -513,47 +655,63 @@ async function seedTombstones(prisma: PrismaClient): Promise<void> {
       assetId = asset?.id || null;
     }
 
-    // Match industry based on keywords
-    const industryText = `${row.industry || ''} ${row.keywords || ''}`;
-    const matchedTags = matchContentToTags(industryText);
-
     const tombstone = await prisma.tombstone.upsert({
       where: { slug },
       update: {
         name,
         assetId,
-        industry: row.industry || null,
         buyerPeFirm: row.buyer_pe_firm || null,
         buyerPlatform: row.buyer_platform || null,
         transactionYear,
-        city: row.city || null,
-        state: row.state || null,
         isPublished: true,
       },
       create: {
         name,
         slug,
         assetId,
-        industry: row.industry || null,
         buyerPeFirm: row.buyer_pe_firm || null,
         buyerPlatform: row.buyer_platform || null,
         transactionYear,
-        city: row.city || null,
-        state: row.state || null,
         isPublished: true,
       },
     });
 
-    // Link tags
-    for (const tagSlug of matchedTags.slice(0, 5)) {
-      const tag = await prisma.contentTag.findUnique({ where: { slug: tagSlug } });
-      if (tag) {
-        await prisma.tombstoneTag.upsert({
-          where: {
-            tombstoneId_tagId: { tombstoneId: tombstone.id, tagId: tag.id },
-          },
+    // Link industry via junction table
+    const industryName = row.industry?.trim();
+    if (industryName) {
+      const industrySlug = generateSlug(industryName);
+      const industry = await prisma.industry.findUnique({ where: { slug: industrySlug } });
+      if (industry) {
+        await prisma.tombstoneIndustry.upsert({
+          where: { tombstoneId_industryId: { tombstoneId: tombstone.id, industryId: industry.id } },
           update: {},
-          create: { tombstoneId: tombstone.id, tagId: tag.id },
+          create: { tombstoneId: tombstone.id, industryId: industry.id },
+        });
+      }
+    }
+
+    // Link location (state + city) via junction tables
+    const stateCode = row.state?.trim();
+    if (stateCode) {
+      const state = await prisma.state.findUnique({ where: { id: stateCode } });
+      if (state) {
+        await prisma.tombstoneState.upsert({
+          where: { tombstoneId_stateId: { tombstoneId: tombstone.id, stateId: state.id } },
+          update: {},
+          create: { tombstoneId: tombstone.id, stateId: state.id },
+        });
+      }
+    }
+    const cityName = row.city?.trim();
+    if (cityName && stateCode) {
+      const city = await prisma.city.findUnique({
+        where: { name_stateId: { name: cityName, stateId: stateCode } },
+      });
+      if (city) {
+        await prisma.tombstoneCity.upsert({
+          where: { tombstoneId_cityId: { tombstoneId: tombstone.id, cityId: city.id } },
+          update: {},
+          create: { tombstoneId: tombstone.id, cityId: city.id },
         });
       }
     }
@@ -610,19 +768,18 @@ async function seedBlogPosts(prisma: PrismaClient): Promise<void> {
         },
       });
 
-      // Match tags based on content
-      const matchedTags = matchContentToTags(`${title} ${body}`);
-      for (const tagSlug of matchedTags.slice(0, 5)) {
-        const tag = await prisma.contentTag.findUnique({ where: { slug: tagSlug } });
-        if (tag) {
-          await prisma.blogPostTag.upsert({
-            where: {
-              blogPostId_tagId: { blogPostId: blogPost.id, tagId: tag.id },
-            },
-            update: {},
-            create: { blogPostId: blogPost.id, tagId: tag.id },
-          });
-        }
+      // Match industries based on content keywords
+      const allIndustries = await prisma.industry.findMany();
+      const lowerContent = `${title} ${body}`.toLowerCase();
+      const matched = allIndustries.filter((ind) =>
+        lowerContent.includes(ind.name.toLowerCase())
+      ).slice(0, 5);
+      for (const ind of matched) {
+        await prisma.blogPostIndustry.upsert({
+          where: { blogPostId_industryId: { blogPostId: blogPost.id, industryId: ind.id } },
+          update: {},
+          create: { blogPostId: blogPost.id, industryId: ind.id },
+        });
       }
 
       newsCount++;
@@ -666,19 +823,18 @@ async function seedBlogPosts(prisma: PrismaClient): Promise<void> {
         },
       });
 
-      // Match tags
-      const matchedTags = matchContentToTags(`${title} ${body}`);
-      for (const tagSlug of matchedTags.slice(0, 5)) {
-        const tag = await prisma.contentTag.findUnique({ where: { slug: tagSlug } });
-        if (tag) {
-          await prisma.blogPostTag.upsert({
-            where: {
-              blogPostId_tagId: { blogPostId: blogPost.id, tagId: tag.id },
-            },
-            update: {},
-            create: { blogPostId: blogPost.id, tagId: tag.id },
-          });
-        }
+      // Match industries based on content keywords
+      const allIndustriesForArticle = await prisma.industry.findMany();
+      const lowerArticleContent = `${title} ${body}`.toLowerCase();
+      const matchedIndustries = allIndustriesForArticle.filter((ind) =>
+        lowerArticleContent.includes(ind.name.toLowerCase())
+      ).slice(0, 5);
+      for (const ind of matchedIndustries) {
+        await prisma.blogPostIndustry.upsert({
+          where: { blogPostId_industryId: { blogPostId: blogPost.id, industryId: ind.id } },
+          update: {},
+          create: { blogPostId: blogPost.id, industryId: ind.id },
+        });
       }
 
       articlesCount++;
@@ -1138,7 +1294,7 @@ async function seedPageContent(prisma: PrismaClient): Promise<void> {
         metaDescription: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm specializing in lower middle-market transactions. Over 200 completed transactions.',
         subtitle: 'Middle Market M&A Advisory',
         description: 'Flatirons Capital Advisors is a North American mergers and acquisitions advisory firm focused on privately-held, lower middle-market companies.',
-        heroImage: 'https://d1bjh7dvpwoxii.cloudfront.net/hero/flatironsherowinter.webp',
+        heroImage: 'https://d1bjh7dvpwoxii.cloudfront.net/hero/ws_White_Winter_Scenery_1366x768.jpg',
         ctaText: 'Start a Conversation',
         ctaHref: '/contact',
         secondaryCtaText: 'View Transactions',
@@ -1407,8 +1563,10 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
   log.info('Starting database seed...\n');
 
   try {
+    await seedStatesAndCities(prisma);
     await seedSiteConfig(prisma);
-    await seedContentTags(prisma);
+    await seedIndustries(prisma);
+    await seedDealTypes(prisma);
     await seedAssets(prisma);
     await seedTombstones(prisma);
     await seedBlogPosts(prisma);
@@ -1431,11 +1589,21 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
 
 export async function wipeSeed(prisma: PrismaClient): Promise<void> {
   log.info('Wiping seed data...');
-  await prisma.tombstoneTag.deleteMany();
-  await prisma.blogPostTag.deleteMany();
+  await prisma.tombstoneIndustry.deleteMany();
+  await prisma.tombstoneDealType.deleteMany();
+  await prisma.blogPostIndustry.deleteMany();
+  await prisma.tombstoneCity.deleteMany();
+  await prisma.tombstoneState.deleteMany();
+  await prisma.blogPostCity.deleteMany();
+  await prisma.blogPostState.deleteMany();
+  await prisma.campaignCity.deleteMany();
+  await prisma.campaignState.deleteMany();
+  await prisma.franchiseCity.deleteMany();
+  await prisma.franchiseState.deleteMany();
   await prisma.tombstone.deleteMany();
   await prisma.blogPost.deleteMany();
-  await prisma.contentTag.deleteMany();
+  await prisma.industry.deleteMany();
+  await prisma.dealType.deleteMany();
   await prisma.pageContent.deleteMany();
   await prisma.teamMember.deleteMany();
   await prisma.communityService.deleteMany();

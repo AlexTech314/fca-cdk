@@ -4,7 +4,7 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { NewsGrid } from '@/components/sections/NewsGrid';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
-import { getNewsArticles, getAllNewsTags, getPageData, getTagNamesMap } from '@/lib/data';
+import { getNewsArticles, getAllNewsIndustries, getPageData } from '@/lib/data';
 import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
 
 interface NewsMetadata {
@@ -29,11 +29,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function NewsPage() {
-  const [pageContent, articles, tags, tagNames] = await Promise.all([
+  const [pageContent, articles, industries] = await Promise.all([
     getPageData('news'),
     getNewsArticles(),
-    getAllNewsTags(),
-    getTagNamesMap(),
+    getAllNewsIndustries(),
   ]);
 
   const meta = (pageContent?.metadata || {}) as NewsMetadata;
@@ -59,8 +58,7 @@ export default async function NewsPage() {
           <div className="mt-12">
             <ContentExplorer
               type="news"
-              tags={tags}
-              tagNames={tagNames}
+              industries={industries}
             />
           </div>
         </Container>

@@ -10,7 +10,7 @@ import '@blocknote/mantine/style.css';
 
 import { useUnsavedChanges } from './UnsavedChangesContext';
 import { EditableInlineField } from './EditableInlineField';
-import { TagPicker } from './TagPicker';
+import { IndustryPicker } from './IndustryPicker';
 import { AssetPickerModal } from './AssetPickerModal';
 import { createAssetImage } from './blocks/AssetImageBlock';
 import { createAssetFile } from './blocks/AssetFileBlock';
@@ -21,7 +21,7 @@ import { toAssetUrl } from '@/lib/utils';
 // Types
 // ============================================
 
-interface Tag {
+interface Industry {
   id: string;
   name: string;
   slug: string;
@@ -44,14 +44,14 @@ interface BlogPost {
   category: string | null;
   publishedAt: string | null;
   isPublished: boolean;
-  tags: Tag[];
+  industries: Industry[];
   tombstone?: { id: string; slug: string; name: string } | null;
 }
 
 interface ArticleEditorProps {
   post: BlogPost;
   category: 'news' | 'resource';
-  allTags: Tag[];
+  allIndustries: Industry[];
   allTombstones?: Tombstone[];
   backHref: string;
   backLabel: string;
@@ -108,7 +108,7 @@ const transparentTheme: Theme = {
 export function ArticleEditor({
   post: initialPost,
   category,
-  allTags,
+  allIndustries,
   allTombstones,
   backHref,
   backLabel,
@@ -213,7 +213,7 @@ export function ArticleEditor({
           author: post.author,
           publishedAt: post.publishedAt,
           isPublished: post.isPublished,
-          tagIds: post.tags.map((t) => t.id),
+          industryIds: post.industries.map((i) => i.id),
         }),
       });
 
@@ -466,13 +466,13 @@ export function ArticleEditor({
               </button>
             </div>
 
-            {/* Tags */}
+            {/* Industries */}
             <div className="mb-4">
-              <label className="mb-2 block text-xs font-medium text-text-muted">Tags</label>
-              <TagPicker
-                selectedTags={post.tags}
-                allTags={allTags}
-                onChange={(tags) => setPost((prev) => ({ ...prev, tags }))}
+              <label className="mb-2 block text-xs font-medium text-text-muted">Industries</label>
+              <IndustryPicker
+                selectedIndustries={post.industries}
+                allIndustries={allIndustries}
+                onChange={(industries) => setPost((prev) => ({ ...prev, industries }))}
               />
             </div>
 

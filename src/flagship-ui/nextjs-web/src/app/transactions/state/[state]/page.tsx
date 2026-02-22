@@ -20,7 +20,7 @@ interface PageProps {
 
 export async function generateStaticParams() {
   const filters = await getTombstoneFilterOptions();
-  return filters.states.map((state) => ({ state: state.toLowerCase() }));
+  return filters.states.map((s) => ({ state: s.id.toLowerCase() }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -62,8 +62,10 @@ export default async function TransactionsByStatePage({ params }: PageProps) {
   });
 
   const citiesInState = [
-    ...new Set(tombstones.map((t) => t.city).filter(Boolean)),
-  ].sort() as string[];
+    ...new Set(tombstones.flatMap((t) =>
+      t.locationCities.map((c) => c.name)
+    )),
+  ].sort();
 
   const [filters, relatedNews, config] = await Promise.all([
     getTombstoneFilterOptions(),
@@ -79,7 +81,7 @@ export default async function TransactionsByStatePage({ params }: PageProps) {
       displayName={stateName}
       companyName={config.name}
       tombstones={tombstones}
-      tags={filters.tags.map((t) => t.slug)}
+      industries={filters.industries}
       states={filters.states}
       cities={filters.cities}
       years={filters.years}

@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import {
   getTombstones,
   getTombstoneFilterOptions,
-  getAllNewsTags,
+  getAllNewsIndustries,
   getNewsArticles,
   getResourceArticles,
   cityToSlug,
@@ -75,14 +75,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  // Transaction grouping routes - by tag
-  // Use the most recent transaction year for that tag
-  const tagRoutes = await Promise.all(filters.tags.map(async (tagObj) => {
-    const tag = tagObj.slug;
-    const tagTombstones = tombstones.filter(t => t.tags.includes(tag));
-    const latestYear = Math.max(...tagTombstones.map(t => t.transactionYear || 0));
+  // Transaction grouping routes - by industry
+  const industryRoutes = await Promise.all(filters.industries.map(async (ind) => {
+    const slug = ind.slug;
+    const indTombstones = tombstones.filter(t => t.industries.some(i => i.slug === slug));
+    const latestYear = Math.max(...indTombstones.map(t => t.transactionYear || 0));
     return {
-      url: `${baseUrl}/transactions/tag/${tag}`,
+      url: `${baseUrl}/transactions/industry/${slug}`,
       lastModified: latestYear ? new Date(latestYear, 11, 31) : now,
       changeFrequency: 'monthly' as const,
       priority: 0.6,
@@ -90,27 +89,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Transaction grouping routes - by state
-  const stateRoutes = await Promise.all(filters.states.map(async (state) => {
-    const stateTombstones = tombstones.filter(t => 
-      t.state.toUpperCase().includes(state.toUpperCase())
+  const stateRoutes = filters.states.map((state) => {
+    const stateTombstones = tombstones.filter(t =>
+      t.locationStates.some(s => s.id.toUpperCase() === state.id.toUpperCase())
     );
-    const latestYear = Math.max(...stateTombstones.map(t => t.transactionYear || 0));
+    const latestYear = Math.max(0, ...stateTombstones.map(t => t.transactionYear || 0));
     return {
-      url: `${baseUrl}/transactions/state/${state.toLowerCase()}`,
+      url: `${baseUrl}/transactions/state/${state.id.toLowerCase()}`,
       lastModified: latestYear ? new Date(latestYear, 11, 31) : now,
       changeFrequency: 'monthly' as const,
       priority: 0.6,
     };
-  }));
+  });
 
   // Transaction grouping routes - by city
   const cityRoutes = filters.cities.map((city) => {
-    const cityTombstones = tombstones.filter(t => 
-      cityToSlug(t.city) === cityToSlug(city)
+    const cityTombstones = tombstones.filter(t =>
+      t.locationCities.some(c => c.id === city.id)
     );
-    const latestYear = Math.max(...cityTombstones.map(t => t.transactionYear || 0));
+    const latestYear = Math.max(0, ...cityTombstones.map(t => t.transactionYear || 0));
     return {
-      url: `${baseUrl}/transactions/city/${cityToSlug(city)}`,
+      url: `${baseUrl}/transactions/city/${cityToSlug(city.name)}`,
       lastModified: latestYear ? new Date(latestYear, 11, 31) : now,
       changeFrequency: 'monthly' as const,
       priority: 0.5,
@@ -134,14 +133,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  // News grouping routes - by tag
-  // Use the most recent article date for that tag
-  const newsTags = await getAllNewsTags();
-  const newsTagRoutes = newsTags.map((tag) => {
-    const tagArticles = newsArticles.filter(a => a.tags.includes(tag));
-    const dates = tagArticles.map(a => parseDate(a.date));
+  // News grouping routes - by industry
+  const newsIndustries = await getAllNewsIndustries();
+  const newsIndustryRoutes = newsIndustries.map((ind) => {
+    const slug = ind.slug;
+    const indArticles = newsArticles.filter(a => a.industries.some(i => i.slug === slug));
+    const dates = indArticles.map(a => parseDate(a.date));
     return {
-      url: `${baseUrl}/news/tag/${tag}`,
+      url: `${baseUrl}/news/industry/${slug}`,
       lastModified: getMostRecentDate(dates),
       changeFrequency: 'weekly' as const,
       priority: 0.5,
@@ -160,12 +159,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...staticRoutes,
     ...transactionRoutes,
-    ...tagRoutes,
+    ...industryRoutes,
     ...stateRoutes,
     ...cityRoutes,
     ...yearRoutes,
     ...newsRoutes,
-    ...newsTagRoutes,
+    ...newsIndustryRoutes,
     ...resourceRoutes,
   ];
 }

@@ -8,7 +8,18 @@ import type { Tombstone } from '@/lib/types';
 import type { NewsArticle } from '@/lib/types';
 import type { BreadcrumbItem } from '@/lib/seo';
 
-export type TransactionFilterType = 'year' | 'tag' | 'state' | 'city';
+export type TransactionFilterType = 'year' | 'industry' | 'state' | 'city';
+
+interface LocationState {
+  id: string;
+  name: string;
+}
+
+interface LocationCity {
+  id: number;
+  name: string;
+  stateId: string;
+}
 
 export interface TransactionsGroupingPageProps {
   schema: string;
@@ -17,9 +28,9 @@ export interface TransactionsGroupingPageProps {
   displayName: string;
   companyName?: string;
   tombstones: Tombstone[];
-  tags: string[];
-  states: string[];
-  cities: string[];
+  industries: { id: string; name: string; slug: string }[];
+  states: LocationState[];
+  cities: LocationCity[];
   years: number[];
   relatedNews?: NewsArticle[];
   relatedNewsViewAllHref?: string;
@@ -52,7 +63,7 @@ function getHeaderContent(
         title: `${value} Completed Transactions`,
         description: `Review ${count} M&A transaction${plural} completed in ${value}.`,
       };
-    case 'tag':
+    case 'industry':
       return {
         subtitle: 'Transactions by Industry',
         title: `${displayName} M&A Transactions`,
@@ -86,7 +97,7 @@ export function TransactionsGroupingPage({
   displayName,
   companyName = 'Flatirons Capital Advisors',
   tombstones,
-  tags,
+  industries,
   states,
   cities,
   years,
@@ -269,7 +280,7 @@ export function TransactionsGroupingPage({
           <div className="mt-12">
             <ContentExplorer
               type="transactions"
-              tags={tags}
+              industries={industries}
               states={states}
               cities={cities}
               years={years}

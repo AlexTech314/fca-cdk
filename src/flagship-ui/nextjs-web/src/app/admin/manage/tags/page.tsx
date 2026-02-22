@@ -1,7 +1,7 @@
-export default function AdminContentTagsPage() {
+export default function AdminIndustriesPage() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <p className="text-2xl font-semibold text-primary">Content Tags</p>
+      <p className="text-2xl font-semibold text-primary">Industries</p>
     </div>
   );
 }

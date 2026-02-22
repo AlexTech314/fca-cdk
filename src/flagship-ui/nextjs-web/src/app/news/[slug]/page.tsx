@@ -11,8 +11,7 @@ import {
   getRelatedNewsForNews,
   getAdjacentArticles,
   parseMarkdownContent,
-  getAllNewsTags,
-  getTagNamesMap,
+  getAllNewsIndustries,
   getPageData,
 } from '@/lib/data';
 import { MarkdownContent } from '@/components/common/MarkdownContent';
@@ -70,13 +69,12 @@ export default async function NewsArticlePage({ params }: PageProps) {
   const contentBlocks = parseMarkdownContent(article.content);
 
   // Parallelize all data fetches after initial article
-  const [relatedTombstones, relatedNews, adjacentArticles, newsTags, tagNames, newsPage] =
+  const [relatedTombstones, relatedNews, adjacentArticles, newsIndustries, newsPage] =
     await Promise.all([
       getRelatedTombstonesForNews(article),
       getRelatedNewsForNews(article),
       getAdjacentArticles(slug),
-      getAllNewsTags(),
-      getTagNamesMap(),
+      getAllNewsIndustries(),
       getPageData('news'),
     ]);
   const newsMeta = (newsPage?.metadata || {}) as { ctaTitle?: string; ctaDescription?: string; ctaText?: string };
@@ -221,7 +219,7 @@ export default async function NewsArticlePage({ params }: PageProps) {
               <h2 className="mb-6 text-xl font-bold text-text">
                 Explore More News
               </h2>
-              <ContentExplorer type="news" tags={newsTags} tagNames={tagNames} />
+              <ContentExplorer type="news" industries={newsIndustries} />
             </div>
 
             {/* Back link */}

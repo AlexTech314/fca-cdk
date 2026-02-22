@@ -15,8 +15,8 @@ import {
   getBlogPostBySlug as apiGetBlogPostBySlug,
   getRelatedNewsForTombstone as apiGetRelatedNews,
   getRelatedContentForBlogPost,
-  getAllTags,
-  getTagBySlug,
+  getAllIndustries,
+  getIndustryBySlug,
   getPageContent,
   getTeamMembers,
   getCommunityServices,
@@ -40,19 +40,22 @@ import {
 // ============================================
 
 function fromApiTombstone(t: ApiTombstone): Tombstone {
+  const locationStates = (t.locationStates ?? []).map((s) => ({ id: s.id, name: s.name }));
+  const locationCities = (t.locationCities ?? []).map((c) => ({
+    id: c.id, name: c.name, stateId: c.stateId, stateName: c.stateName,
+  }));
   return {
     slug: t.slug,
     seller: t.name,
     buyerPeFirm: t.buyerPeFirm,
     buyerPlatform: t.buyerPlatform,
-    industry: t.industry || '',
+    industries: (t.industries ?? []).map((i) => ({ id: i.id, name: i.name, slug: i.slug })),
     transactionYear: t.transactionYear || 0,
-    city: t.city || '',
-    state: t.state || '',
+    locationStates,
+    locationCities,
     hasPressRelease: !!t.pressRelease,
     pressReleaseSlug: t.pressRelease?.slug || null,
     imagePath: t.asset?.s3Key ? toAssetUrl(t.asset.s3Key) : undefined,
-    tags: (t.tags ?? []).map((tag) => tag.slug),
   };
 }
 
@@ -65,7 +68,7 @@ function fromApiBlogPostToNewsArticle(p: ApiBlogPost): NewsArticle {
     excerpt: p.excerpt || extractExcerpt((p as { content?: string }).content || ''),
     content: (p as { content?: string }).content ?? '',
     url: undefined,
-    tags: (p.tags ?? []).map((tag) => tag.slug),
+    industries: (p.industries ?? []).map((i) => ({ id: i.id, name: i.name, slug: i.slug })),
   };
 }
 
@@ -139,10 +142,10 @@ export async function getTombstone(slug: string): Promise<Tombstone | null> {
 }
 
 /**
- * Get tombstones filtered by industry
+ * Get tombstones filtered by industry slug
  */
-export async function getTombstonesByIndustry(industry: string): Promise<Tombstone[]> {
-  const response = await apiGetTombstones({ industry, limit: 100 });
+export async function getTombstonesByIndustry(slug: string): Promise<Tombstone[]> {
+  const response = await apiGetTombstones({ industry: slug, limit: 100 });
   return response.items.map(fromApiTombstone);
 }
 
@@ -154,13 +157,6 @@ export async function getTombstonesByYear(year: number): Promise<Tombstone[]> {
   return response.items.map(fromApiTombstone);
 }
 
-/**
- * Get tombstones by tag
- */
-export async function getTombstonesByTag(tag: string): Promise<Tombstone[]> {
-  const response = await apiGetTombstones({ tag, limit: 100 });
-  return response.items.map(fromApiTombstone);
-}
 
 /**
  * Get tombstones by state
@@ -209,27 +205,26 @@ export async function getNewsArticle(slug: string): Promise<NewsArticle | null> 
 }
 
 /**
- * Get news articles by tag
+ * Get news articles by industry slug
  */
-export async function getNewsArticlesByTag(tag: string): Promise<NewsArticle[]> {
-  const response = await apiGetBlogPosts({ category: 'news', tag, limit: 100 });
+export async function getNewsArticlesByIndustry(slug: string): Promise<NewsArticle[]> {
+  const response = await apiGetBlogPosts({ category: 'news', industry: slug, limit: 100 });
   return response.items.map(fromApiBlogPostToNewsArticle);
 }
 
 /**
- * Get all unique tags from news articles
+ * Get all industries for news filtering
  */
-export async function getAllNewsTags(): Promise<string[]> {
-  const tags = await getAllTags();
-  return tags.map((t) => t.slug);
+export async function getAllNewsIndustries(): Promise<{ id: string; name: string; slug: string }[]> {
+  return getAllIndustries();
 }
 
 /**
- * Get a map of tag slug -> display name for use in client components
+ * Get a map of industry slug -> display name for use in client components
  */
-export async function getTagNamesMap(): Promise<Record<string, string>> {
-  const tags = await getAllTags();
-  return Object.fromEntries(tags.map((t) => [t.slug, t.name]));
+export async function getIndustryNamesMap(): Promise<Record<string, string>> {
+  const industries = await getAllIndustries();
+  return Object.fromEntries(industries.map((i) => [i.slug, i.name]));
 }
 
 // ============================================
@@ -297,15 +292,15 @@ export async function getRelatedTombstonesForNews(article: NewsArticle): Promise
 }
 
 /**
- * Get related news articles from tombstones by fetching news for each unique tag.
+ * Get related news articles from tombstones by fetching news for each unique industry.
  * Deduplicates by slug and sorts by date descending.
  */
 export async function getRelatedNewsFromTombstones(
-  tombstones: { tags?: string[] }[]
+  tombstones: { industries?: { id: string; name: string; slug: string }[] }[]
 ): Promise<NewsArticle[]> {
-  const uniqueTags = [...new Set(tombstones.flatMap((t) => t.tags || []))];
+  const uniqueSlugs = [...new Set(tombstones.flatMap((t) => (t.industries || []).map((i) => i.slug)))];
   const newsResults = await Promise.all(
-    uniqueTags.map((tag) => getNewsArticlesByTag(tag))
+    uniqueSlugs.map((slug) => getNewsArticlesByIndustry(slug))
   );
   const seenSlugs = new Set<string>();
   const relatedNews: NewsArticle[] = [];

@@ -16,7 +16,7 @@ interface BlogPost {
   category: string | null;
   publishedAt: string | null;
   isPublished: boolean;
-  tags: { id: string; name: string; slug: string }[];
+  industries: { id: string; name: string; slug: string }[];
 }
 
 interface BlogPostsTableProps {
@@ -190,7 +190,7 @@ export function BlogPostsTable({ initialPosts, category, detailBasePath }: BlogP
         category,
         publishedAt: null,
         isPublished: false,
-        tags: [],
+        industries: [],
       },
       ...prev,
     ]);

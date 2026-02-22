@@ -3,11 +3,8 @@ import { z } from 'zod';
 // Lead filters (for server-side filtering)
 export const leadFiltersSchema = z.object({
   name: z.string().optional(),
-  city: z.string().optional(),
-  states: z.preprocess(
-    (v) => (typeof v === 'string' ? v.split(',') : v),
-    z.array(z.string()).optional()
-  ),
+  cityId: z.coerce.number().int().optional(),
+  stateId: z.string().optional(),
   businessTypes: z.preprocess(
     (v) => (typeof v === 'string' ? v.split(',') : v),
     z.array(z.string()).optional()
@@ -36,11 +33,8 @@ export const leadQuerySchema = z.object({
   order: z.enum(['asc', 'desc']).default('desc'),
   // Filters are passed as individual query params
   name: z.string().optional(),
-  city: z.string().optional(),
-  states: z.preprocess(
-    (v) => (typeof v === 'string' ? v.split(',') : v),
-    z.array(z.string()).optional()
-  ),
+  cityId: z.coerce.number().int().optional(),
+  stateId: z.string().optional(),
   businessTypes: z.preprocess(
     (v) => (typeof v === 'string' ? v.split(',') : v),
     z.array(z.string()).optional()

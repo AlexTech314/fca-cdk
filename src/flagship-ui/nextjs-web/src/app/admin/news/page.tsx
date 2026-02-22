@@ -14,7 +14,7 @@ interface PageData { title: string; content: string; metadata: Record<string, st
 interface BlogPost {
   id: string; slug: string; title: string; excerpt: string | null; content: string;
   author: string | null; category: string | null; publishedAt: string | null;
-  isPublished: boolean; tags: { id: string; name: string; slug: string }[];
+  isPublished: boolean; industries: { id: string; name: string; slug: string }[];
 }
 
 type ViewMode = 'grid' | 'table';

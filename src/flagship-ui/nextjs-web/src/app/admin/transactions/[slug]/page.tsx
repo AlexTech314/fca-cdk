@@ -6,13 +6,13 @@ import { useParams } from 'next/navigation';
 import { useUnsavedChanges } from '@/components/admin/UnsavedChangesContext';
 import { AssetPickerModal } from '@/components/admin/AssetPickerModal';
 import { EditableInlineField } from '@/components/admin/EditableInlineField';
-import { TagPicker } from '@/components/admin/TagPicker';
+import { IndustryPicker } from '@/components/admin/IndustryPicker';
 import { toAssetUrl } from '@/lib/utils';
 import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
-interface Tag {
+interface Industry {
   id: string;
   name: string;
   slug: string;
@@ -37,11 +37,9 @@ interface Tombstone {
   buyerPeFirm: string | null;
   buyerPlatform: string | null;
   transactionYear: number | null;
-  city: string | null;
-  state: string | null;
   isPublished: boolean;
   previewToken: string;
-  tags: Tag[];
+  industries: Industry[];
   pressRelease?: { id: string; slug: string; title: string } | null;
 }
 
@@ -52,7 +50,7 @@ export default function AdminTransactionDetailPage() {
 
   const [tombstone, setTombstone] = useState<Tombstone | null>(null);
   const [original, setOriginal] = useState<Tombstone | null>(null);
-  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [allIndustries, setAllIndustries] = useState<Industry[]>([]);
   const [allPosts, setAllPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +73,7 @@ export default function AdminTransactionDetailPage() {
       try {
         // Fetch all tombstones (admin route includes unpublished) and find by slug
         const tombRes = await authedApiFetch('/api/admin/tombstones?limit=200');
-        const tagsRes = await fetch(`${API_URL}/tags`);
+        const industriesRes = await fetch(`${API_URL}/industries`);
         const postsRes = await fetch(`${API_URL}/blog-posts?category=news&limit=100`);
 
         if (!tombRes.ok) throw new Error('Failed to fetch transaction');
@@ -94,7 +92,7 @@ export default function AdminTransactionDetailPage() {
 
         setTombstone(resolved);
         setOriginal(JSON.parse(JSON.stringify(resolved)));
-        setAllTags(tagsRes.ok ? await tagsRes.json() : []);
+        setAllIndustries(industriesRes.ok ? await industriesRes.json() : []);
 
         if (postsRes.ok) {
           const postData = await postsRes.json();
@@ -133,10 +131,8 @@ export default function AdminTransactionDetailPage() {
           buyerPeFirm: tombstone.buyerPeFirm,
           buyerPlatform: tombstone.buyerPlatform,
           transactionYear: tombstone.transactionYear,
-          city: tombstone.city,
-          state: tombstone.state,
           isPublished: tombstone.isPublished,
-          tagIds: tombstone.tags.map((t) => t.id),
+          industryIds: tombstone.industries.map((i) => i.id),
         }),
       });
       if (!res.ok) throw new Error('Failed to save');
@@ -394,37 +390,15 @@ export default function AdminTransactionDetailPage() {
                   placeholder="Year..."
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-text-muted">City</label>
-                <EditableInlineField
-                  value={tombstone.city || ''}
-                  onChangeValue={(v) => updateField('city', v || null)}
-                  originalValue={original?.city || ''}
-                  as="p"
-                  className="text-sm text-text"
-                  placeholder="City..."
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-text-muted">State</label>
-                <EditableInlineField
-                  value={tombstone.state || ''}
-                  onChangeValue={(v) => updateField('state', v || null)}
-                  originalValue={original?.state || ''}
-                  as="p"
-                  className="text-sm text-text"
-                  placeholder="State..."
-                />
-              </div>
             </div>
 
-            {/* Tags */}
+            {/* Industries */}
             <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-muted">Tags</label>
-              <TagPicker
-                selectedTags={tombstone.tags}
-                allTags={allTags}
-                onChange={(tags) => setTombstone((prev) => prev ? { ...prev, tags } : prev)}
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-text-muted">Industries</label>
+              <IndustryPicker
+                selectedIndustries={tombstone.industries}
+                allIndustries={allIndustries}
+                onChange={(industries) => setTombstone((prev) => prev ? { ...prev, industries } : prev)}
               />
             </div>
 

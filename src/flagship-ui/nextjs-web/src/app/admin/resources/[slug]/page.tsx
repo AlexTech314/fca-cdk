@@ -8,11 +8,11 @@ import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
-interface Tag { id: string; name: string; slug: string; category?: string | null; }
+interface Industry { id: string; name: string; slug: string; category?: string | null; }
 interface BlogPost {
   id: string; slug: string; title: string; excerpt: string | null; content: string;
   author: string | null; category: string | null; publishedAt: string | null;
-  isPublished: boolean; tags: Tag[];
+  isPublished: boolean; industries: Industry[];
   tombstone?: { id: string; slug: string; name: string } | null;
 }
 
@@ -22,16 +22,16 @@ export default function AdminResourceDetailPage() {
   const { requestNavigation } = useUnsavedChanges();
 
   const [post, setPost] = useState<BlogPost | null>(null);
-  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [allIndustries, setAllIndustries] = useState<Industry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [postsRes, tagsRes] = await Promise.all([
+        const [postsRes, industriesRes] = await Promise.all([
           authedApiFetch('/api/admin/blog-posts?category=resource&limit=200'),
-          fetch(`${API_URL}/tags`),
+          fetch(`${API_URL}/industries`),
         ]);
 
         if (!postsRes.ok) throw new Error('Failed to fetch resources');
@@ -50,7 +50,7 @@ export default function AdminResourceDetailPage() {
         } else {
           setPost(match);
         }
-        setAllTags(tagsRes.ok ? await tagsRes.json() : []);
+        setAllIndustries(industriesRes.ok ? await industriesRes.json() : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load');
       } finally {
@@ -91,7 +91,7 @@ export default function AdminResourceDetailPage() {
     <ArticleEditor
       post={post}
       category="resource"
-      allTags={allTags}
+      allIndustries={allIndustries}
       backHref="/admin/resources"
       backLabel="Back to Resources"
     />

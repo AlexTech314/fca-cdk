@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { fetchSiteConfig, toAssetUrl } from './utils';
-import { getTagBySlug } from './api';
+import { getIndustryBySlug } from './api';
 
 /**
  * State code to full name mapping
@@ -67,32 +67,31 @@ export function getStateName(stateCode: string): string {
 }
 
 /**
- * Format tag slug for display (capitalize words)
+ * Format slug for display (capitalize words)
  */
-export function formatTagName(tag: string): string {
-  return tag.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+export function formatSlug(slug: string): string {
+  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
 /**
- * Get tag display name from API, with slug-based fallback
+ * Get industry display name from API, with slug-based fallback
  */
-export async function getTagDisplayName(slug: string): Promise<string> {
-  const tag = await getTagBySlug(slug);
-  return tag?.name || formatTagName(slug);
+export async function getIndustryDisplayName(slug: string): Promise<string> {
+  const industry = await getIndustryBySlug(slug);
+  return industry?.name || formatSlug(slug);
 }
 
 /**
- * Get tag description from API
+ * Get industry description (industries don't have descriptions)
  */
-export async function getTagDescription(slug: string): Promise<string | null> {
-  const tag = await getTagBySlug(slug);
-  return tag?.description || null;
+export async function getIndustryDescription(): Promise<string | null> {
+  return null;
 }
 
 /**
  * Grouping page types
  */
-export type GroupingType = 'tag' | 'state' | 'city' | 'year' | 'news-tag';
+export type GroupingType = 'industry' | 'state' | 'city' | 'year' | 'news-industry';
 
 /**
  * Generate SEO-optimized metadata for grouping pages
@@ -109,17 +108,15 @@ export async function generateGroupingMetadata(
   let description: string;
   let canonicalPath: string;
 
-  // Fetch tag data from API if needed
-  const tagData = (type === 'tag' || type === 'news-tag') ? await getTagBySlug(value) : null;
-  const tagName = tagData?.name || formatTagName(value);
+  // Fetch industry data from API if needed
+  const industryData = (type === 'industry' || type === 'news-industry') ? await getIndustryBySlug(value) : null;
+  const industryName = industryData?.name || formatSlug(value);
 
   switch (type) {
-    case 'tag':
-      title = `${tagName} M&A Transactions (${count} Deals)`;
-      description = tagData?.description 
-        ? tagData.description.slice(0, 155) + '...'
-        : `Browse ${count} completed ${tagName.toLowerCase()} M&A transactions. ${config.name} specializes in lower middle-market mergers and acquisitions.`;
-      canonicalPath = `/transactions/tag/${value}`;
+    case 'industry':
+      title = `${industryName} M&A Transactions (${count} Deals)`;
+      description = `Browse ${count} completed ${industryName.toLowerCase()} M&A transactions. ${config.name} specializes in lower middle-market mergers and acquisitions.`;
+      canonicalPath = `/transactions/industry/${value}`;
       break;
 
     case 'state':
@@ -130,7 +127,7 @@ export async function generateGroupingMetadata(
       break;
 
     case 'city':
-      const cityDisplay = formatTagName(value);
+      const cityDisplay = formatSlug(value);
       const stateDisplay = additionalContext?.state ? `, ${getStateName(additionalContext.state)}` : '';
       title = `${cityDisplay}${stateDisplay} M&A Deals`;
       description = `View ${count} completed M&A transactions in ${cityDisplay}${stateDisplay}. Expert sell-side and buy-side advisory from ${config.name}.`;
@@ -143,12 +140,10 @@ export async function generateGroupingMetadata(
       canonicalPath = `/transactions/year/${value}`;
       break;
 
-    case 'news-tag':
-      title = `${tagName} News & Insights (${count} Articles)`;
-      description = tagData?.description 
-        ? tagData.description.slice(0, 155) + '...'
-        : `Read ${count} news articles and insights about ${tagName.toLowerCase()} from ${config.name}, a leading M&A advisory firm.`;
-      canonicalPath = `/news/tag/${value}`;
+    case 'news-industry':
+      title = `${industryName} News & Insights (${count} Articles)`;
+      description = `Read ${count} news articles and insights about ${industryName.toLowerCase()} from ${config.name}, a leading M&A advisory firm.`;
+      canonicalPath = `/news/industry/${value}`;
       break;
 
     default:
@@ -255,8 +250,8 @@ export async function generateGroupingPageSchema(params: {
   let description: string;
   
   switch (type) {
-    case 'tag':
-      url = `/transactions/tag/${value}`;
+    case 'industry':
+      url = `/transactions/industry/${value}`;
       description = `${displayName} M&A transactions from ${(await fetchSiteConfig()).name}`;
       break;
     case 'state':
@@ -271,8 +266,8 @@ export async function generateGroupingPageSchema(params: {
       url = `/transactions/year/${value}`;
       description = `M&A transactions completed in ${value}`;
       break;
-    case 'news-tag':
-      url = `/news/tag/${value}`;
+    case 'news-industry':
+      url = `/news/industry/${value}`;
       description = `${displayName} news and insights`;
       break;
     default:

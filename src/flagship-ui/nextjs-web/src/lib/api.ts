@@ -93,6 +93,18 @@ export interface ApiSiteConfig {
   updatedAt: string;
 }
 
+export interface ApiLocationState {
+  id: string;
+  name: string;
+}
+
+export interface ApiLocationCity {
+  id: number;
+  name: string;
+  stateId: string;
+  stateName?: string;
+}
+
 export interface ApiTombstone {
   id: string;
   name: string;
@@ -109,14 +121,15 @@ export interface ApiTombstone {
   buyerPeFirm: string | null;
   buyerPlatform: string | null;
   transactionYear: number | null;
-  city: string | null;
-  state: string | null;
+  locationStates: ApiLocationState[];
+  locationCities: ApiLocationCity[];
   sortOrder: number;
   isPublished: boolean;
   previewToken: string;
   createdAt: string;
   updatedAt: string;
-  tags: ApiContentTag[];
+  industries: { id: string; name: string; slug: string }[];
+  dealTypes: { id: string; name: string; slug: string }[];
   pressRelease?: {
     id: string;
     slug: string;
@@ -137,20 +150,12 @@ export interface ApiBlogPost {
   previewToken: string;
   createdAt: string;
   updatedAt: string;
-  tags: ApiContentTag[];
+  industries: { id: string; name: string; slug: string }[];
   tombstone?: {
     id: string;
     slug: string;
     name: string;
   } | null;
-}
-
-export interface ApiContentTag {
-  id: string;
-  name: string;
-  slug: string;
-  category: string | null;
-  description: string | null;
 }
 
 export interface ApiPageContent {
@@ -254,10 +259,10 @@ export async function getSiteConfig(): Promise<ApiSiteConfig | null> {
 // ============================================
 
 export interface TombstoneFilterOptions {
-  states: string[];
-  cities: string[];
+  states: ApiLocationState[];
+  cities: ApiLocationCity[];
   years: number[];
-  tags: { slug: string; name: string }[];
+  industries: { id: string; slug: string; name: string }[];
 }
 
 export async function getTombstones(params?: {
@@ -267,7 +272,6 @@ export async function getTombstones(params?: {
   state?: string;
   city?: string;
   year?: number;
-  tag?: string;
   search?: string;
 }): Promise<PaginatedResponse<ApiTombstone>> {
   const query = new URLSearchParams();
@@ -277,7 +281,6 @@ export async function getTombstones(params?: {
   if (params?.state) query.set('state', params.state);
   if (params?.city) query.set('city', params.city);
   if (params?.year) query.set('year', params.year.toString());
-  if (params?.tag) query.set('tag', params.tag);
   if (params?.search) query.set('search', params.search);
 
   const queryStr = query.toString();
@@ -312,14 +315,14 @@ export async function getBlogPosts(params?: {
   page?: number;
   limit?: number;
   category?: string;
-  tag?: string;
+  industry?: string;
   search?: string;
 }): Promise<PaginatedResponse<ApiBlogPost>> {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
   if (params?.category) query.set('category', params.category);
-  if (params?.tag) query.set('tag', params.tag);
+  if (params?.industry) query.set('industry', params.industry);
   if (params?.search) query.set('search', params.search);
 
   const queryStr = query.toString();
@@ -361,19 +364,19 @@ export async function getAdjacentBlogPosts(slug: string): Promise<{
 }
 
 // ============================================
-// CONTENT TAGS
+// INDUSTRIES
 // ============================================
 
-export async function getAllTags(): Promise<ApiContentTag[]> {
-  return apiFetch<ApiContentTag[]>('/tags');
+export async function getAllIndustries(): Promise<{ id: string; name: string; slug: string }[]> {
+  return apiFetch<{ id: string; name: string; slug: string }[]>('/industries');
 }
 
-export async function getTagBySlug(
+export async function getIndustryBySlug(
   slug: string
-): Promise<(ApiContentTag & { tombstones: ApiTombstone[]; blogPosts: ApiBlogPost[] }) | null> {
+): Promise<{ id: string; name: string; slug: string } | null> {
   try {
-    return await apiFetch<ApiContentTag & { tombstones: ApiTombstone[]; blogPosts: ApiBlogPost[] }>(
-      `/tags/${slug}`
+    return await apiFetch<{ id: string; name: string; slug: string }>(
+      `/industries/${slug}`
     );
   } catch {
     return null;

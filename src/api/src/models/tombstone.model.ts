@@ -4,13 +4,10 @@ import { z } from 'zod';
 const tombstoneBase = {
   name: z.string().min(1, 'Name is required'),
   assetId: z.string().uuid().optional().nullable(),
-  industry: z.string().optional().nullable(),
   role: z.string().optional().nullable(),
   buyerPeFirm: z.string().optional().nullable(),
   buyerPlatform: z.string().optional().nullable(),
   transactionYear: z.number().int().optional().nullable(),
-  city: z.string().optional().nullable(),
-  state: z.string().optional().nullable(),
   sortOrder: z.number().int().default(0),
   isPublished: z.boolean().default(true),
 };
@@ -18,8 +15,9 @@ const tombstoneBase = {
 // Create tombstone input
 export const createTombstoneSchema = z.object({
   ...tombstoneBase,
-  slug: z.string().optional(), // Auto-generated if not provided
-  tagIds: z.array(z.string()).optional(),
+  slug: z.string().optional(),
+  industryIds: z.array(z.string()).optional(),
+  dealTypeIds: z.array(z.string()).optional(),
   pressReleaseId: z.string().uuid().optional().nullable(),
 });
 
@@ -27,7 +25,8 @@ export const createTombstoneSchema = z.object({
 export const updateTombstoneSchema = z.object({
   ...tombstoneBase,
   name: z.string().min(1).optional(),
-  tagIds: z.array(z.string()).optional(),
+  industryIds: z.array(z.string()).optional(),
+  dealTypeIds: z.array(z.string()).optional(),
   pressReleaseId: z.string().uuid().optional().nullable(),
 }).partial();
 
@@ -39,7 +38,6 @@ export const tombstoneQuerySchema = z.object({
   state: z.string().optional(),
   city: z.string().optional(),
   year: z.coerce.number().int().optional(),
-  tag: z.string().optional(),
   search: z.string().optional(),
   published: z.coerce.boolean().optional(),
 });
@@ -50,24 +48,25 @@ export const tombstoneResponseSchema = z.object({
   name: z.string(),
   slug: z.string(),
   assetId: z.string().uuid().nullable(),
-  industry: z.string().nullable(),
   role: z.string().nullable(),
   buyerPeFirm: z.string().nullable(),
   buyerPlatform: z.string().nullable(),
   transactionYear: z.number().nullable(),
-  city: z.string().nullable(),
-  state: z.string().nullable(),
   sortOrder: z.number(),
   isPublished: z.boolean(),
   previewToken: z.string(),
   pressReleaseId: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
-  tags: z.array(z.object({
+  industries: z.array(z.object({
     id: z.string(),
     name: z.string(),
     slug: z.string(),
-    category: z.string().nullable(),
+  })).optional(),
+  dealTypes: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    slug: z.string(),
   })).optional(),
   asset: z.object({
     id: z.string(),

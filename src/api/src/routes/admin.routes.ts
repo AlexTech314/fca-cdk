@@ -3,7 +3,6 @@ import { authenticate, authorize } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { tombstoneService } from '../services/tombstone.service';
 import { blogPostService } from '../services/blog-post.service';
-import { contentTagService } from '../services/content-tag.service';
 import { pageContentService } from '../services/page-content.service';
 import { subscriberService } from '../services/subscriber.service';
 import { sellerIntakeService } from '../services/seller-intake.service';
@@ -26,8 +25,6 @@ import {
   createBlogPostSchema,
   updateBlogPostSchema,
   blogPostQuerySchema,
-  createContentTagSchema,
-  updateContentTagSchema,
   updatePageContentSchema,
   subscriberQuerySchema,
   updateSellerIntakeSchema,
@@ -227,46 +224,6 @@ router.post('/blog-posts/:id/publish', authorize('readwrite', 'admin'), async (r
     const { publish = true } = req.body;
     const post = await blogPostService.publish(p(req, 'id'), publish);
     res.json(post);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ============================================
-// CONTENT TAGS
-// ============================================
-
-router.get('/tags', async (_req, res, next) => {
-  try {
-    const tags = await contentTagService.list();
-    res.json(tags);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.post('/tags', authorize('admin'), validate(createContentTagSchema), async (req, res, next) => {
-  try {
-    const tag = await contentTagService.create(req.body);
-    res.status(201).json(tag);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.put('/tags/:id', authorize('admin'), validate(updateContentTagSchema), async (req, res, next) => {
-  try {
-    const tag = await contentTagService.update(p(req, 'id'), req.body);
-    res.json(tag);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.delete('/tags/:id', authorize('admin'), async (req, res, next) => {
-  try {
-    await contentTagService.delete(p(req, 'id'));
-    res.status(204).send();
   } catch (error) {
     next(error);
   }

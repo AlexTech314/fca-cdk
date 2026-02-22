@@ -14,11 +14,17 @@ export interface TeamMember {
   email?: string;
 }
 
-// Content Tag - for related content discovery
-export interface ContentTag {
-  slug: string;
+// Location types
+export interface LocationState {
+  id: string;                        // State code (e.g., "CO")
+  name: string;                      // Full name (e.g., "Colorado")
+}
+
+export interface LocationCity {
+  id: number;
   name: string;
-  category?: string;                 // Optional grouping (e.g., "industry", "service-type")
+  stateId: string;
+  stateName?: string;
 }
 
 // Tombstone - Full transaction record
@@ -27,20 +33,19 @@ export interface Tombstone {
   seller: string;                    // Company/Seller name
   buyerPeFirm: string | null;        // PE firm (e.g., "O2 Capital")
   buyerPlatform: string | null;      // Platform company (e.g., "Straightaway Tire & Auto")
-  industry: string;                  // Industry category
+  industries: { id: string; name: string; slug: string }[];
   transactionYear: number;           // Year of deal (e.g., 2025)
-  city: string;                      // City location
-  state: string;                     // State code (e.g., "CO", "TX")
+  locationStates: LocationState[];   // All associated states
+  locationCities: LocationCity[];    // All associated cities
   hasPressRelease: boolean;          // Whether there's a related news article
   pressReleaseSlug: string | null;   // Slug of the press release article (1-to-1)
   imagePath?: string;                // Path to tombstone image (from tombstones.ts mapping)
-  tags: string[];                    // Array of tag slugs for related content discovery
 }
 
 // Tombstone with full press release and related news (for detail pages)
 export interface TombstoneWithRelated extends Tombstone {
   pressRelease: NewsArticle | null;  // The 1-to-1 press release
-  relatedNews: NewsArticleSummary[]; // Other related articles (by matching tags)
+  relatedNews: NewsArticleSummary[]; // Other related articles (by matching industries)
 }
 
 // Summary types for linked items
@@ -54,7 +59,7 @@ export interface NewsArticleSummary {
 export interface TombstoneSummary {
   slug: string;
   seller: string;
-  industry: string;
+  industries: { id: string; name: string; slug: string }[];
   transactionYear: number;
 }
 
@@ -67,13 +72,13 @@ export interface NewsArticle {
   content: string;
   author?: string;
   url?: string;                      // Original source URL
-  tags: string[];                    // Array of tag slugs for related content discovery
+  industries: { id: string; name: string; slug: string }[];
 }
 
 // News Article with related content (for detail pages)
 export interface NewsArticleWithRelated extends NewsArticle {
-  relatedTombstones: TombstoneSummary[];  // Tombstones with matching tags
-  relatedNews: NewsArticleSummary[];      // Other articles with matching tags
+  relatedTombstones: TombstoneSummary[];  // Tombstones with matching industries
+  relatedNews: NewsArticleSummary[];      // Other articles with matching industries
 }
 
 // Resource Articles

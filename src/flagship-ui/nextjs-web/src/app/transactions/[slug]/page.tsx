@@ -40,7 +40,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const description = `${tombstone.seller} - ${tombstone.industry} transaction completed in ${tombstone.transactionYear}. ${tombstone.buyerPeFirm ? `Acquired by ${tombstone.buyerPlatform || tombstone.buyerPeFirm}.` : ''}`;
+  const industryLabel = tombstone.industries.map((i) => i.name).join(', ') || 'M&A';
+  const description = `${tombstone.seller} - ${industryLabel} transaction completed in ${tombstone.transactionYear}. ${tombstone.buyerPeFirm ? `Acquired by ${tombstone.buyerPlatform || tombstone.buyerPeFirm}.` : ''}`;
 
   return {
     title: `${tombstone.seller} | Transaction`,
@@ -78,7 +79,6 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
     getTombstoneFilterOptions(),
     getPageData('transactions'),
   ]);
-  const tagNames = Object.fromEntries(filters.tags.map((t) => [t.slug, t.name]));
   const txMeta = (transactionsPage?.metadata || {}) as { ctaTitle?: string; ctaDescription?: string; ctaText?: string };
 
   return (
@@ -142,7 +142,7 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
                   {tombstone.seller}
                 </h1>
                 <p className="text-lg text-text-muted">
-                  {tombstone.industry}
+                  {tombstone.industries.map((i) => i.name).join(', ')}
                 </p>
               </header>
 
@@ -170,13 +170,13 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
                   </div>
                 )}
 
-                {(tombstone.city || tombstone.state) && (
+                {(tombstone.locationCities.length > 0 || tombstone.locationStates.length > 0) && (
                   <div className="rounded-lg border border-border bg-surface p-4">
                     <p className="mb-1 text-xs font-medium uppercase tracking-wider text-text-light">
-                      Location
+                      {tombstone.locationCities.length > 1 || tombstone.locationStates.length > 1 ? 'Locations' : 'Location'}
                     </p>
                     <p className="font-semibold text-text">
-                      {[tombstone.city, tombstone.state].filter(Boolean).join(', ')}
+                      {tombstone.locationCities.map((c) => `${c.name}, ${c.stateId}`).join(' / ')}
                     </p>
                   </div>
                 )}
@@ -191,19 +191,19 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* Tags */}
-              {tombstone.tags.length > 0 && (
+              {/* Industries */}
+              {tombstone.industries.length > 0 && (
                 <div className="mb-8">
                   <p className="mb-3 text-xs font-medium uppercase tracking-wider text-text-light">
                     Industry Focus
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {tombstone.tags.map((tag, idx) => (
+                    {tombstone.industries.map((ind) => (
                       <span
-                        key={idx}
+                        key={ind.id}
                         className="rounded-full bg-primary/10 px-3 py-1 text-sm text-primary"
                       >
-                        {tag.replace(/-/g, ' ')}
+                        {ind.name}
                       </span>
                     ))}
                   </div>
@@ -260,11 +260,10 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
             </h2>
             <ContentExplorer
               type="transactions"
-              tags={filters.tags.map((t) => t.slug)}
+              industries={filters.industries}
               states={filters.states}
               cities={filters.cities}
               years={filters.years}
-              tagNames={tagNames}
             />
           </div>
 

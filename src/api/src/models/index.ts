@@ -2,7 +2,6 @@
 export * from './user.model';
 export * from './tombstone.model';
 export * from './blog-post.model';
-export * from './content-tag.model';
 export * from './page-content.model';
 export * from './subscriber.model';
 export * from './seller-intake.model';

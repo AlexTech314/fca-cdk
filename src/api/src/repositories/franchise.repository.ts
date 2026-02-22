@@ -15,7 +15,7 @@ export const franchiseRepository = {
       where: { id },
       include: {
         leads: {
-          orderBy: { state: 'asc' },
+          orderBy: { name: 'asc' },
           include: {
             campaign: { select: { id: true, name: true } },
           },

@@ -32,7 +32,7 @@ interface Tombstone {
   city: string | null;
   state: string | null;
   isPublished: boolean;
-  tags: { id: string; name: string; slug: string }[];
+  industries: { id: string; name: string; slug: string }[];
 }
 
 type ViewMode = 'grid' | 'table';

@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { tombstoneService } from '../services/tombstone.service';
 import { blogPostService } from '../services/blog-post.service';
-import { contentTagService } from '../services/content-tag.service';
 import { pageContentService } from '../services/page-content.service';
 import { subscriberService } from '../services/subscriber.service';
 import { sellerIntakeService } from '../services/seller-intake.service';
 import { analyticsService } from '../services/analytics.service';
+import { locationService } from '../services/location.service';
 import {
   siteConfigService,
   teamMemberService,
@@ -137,25 +137,24 @@ router.get('/blog-posts/:slug/related', async (req, res, next) => {
 });
 
 // ============================================
-// CONTENT TAGS
+// INDUSTRIES
 // ============================================
 
-router.get('/tags', async (_req, res, next) => {
+router.get('/industries', async (_req, res, next) => {
   try {
-    const tags = await contentTagService.list();
-    res.json(tags);
+    const { prisma } = require('@fca/db');
+    const industries = await prisma.industry.findMany({ orderBy: { name: 'asc' } });
+    res.json(industries);
   } catch (error) {
     next(error);
   }
 });
 
-router.get('/tags/:slug', async (req, res, next) => {
+router.get('/deal-types', async (_req, res, next) => {
   try {
-    const tag = await contentTagService.getBySlugWithContent(req.params.slug);
-    if (!tag) {
-      return res.status(404).json({ error: 'Tag not found' });
-    }
-    res.json(tag);
+    const { prisma } = require('@fca/db');
+    const dealTypes = await prisma.dealType.findMany({ orderBy: { name: 'asc' } });
+    res.json(dealTypes);
   } catch (error) {
     next(error);
   }
@@ -269,6 +268,43 @@ router.get('/awards', async (_req, res, next) => {
   try {
     const awards = await awardService.list(true);
     res.json(awards);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================
+// LOCATIONS (typeahead search)
+// ============================================
+
+router.get('/locations/search', async (req, res, next) => {
+  try {
+    const q = (req.query.q as string || '').trim();
+    const type = (req.query.type as 'city' | 'state' | 'both') || 'both';
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 10, 50);
+    if (!q) {
+      return res.json({ cities: [], states: [] });
+    }
+    const result = await locationService.search(q, type, limit);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/locations/states', async (_req, res, next) => {
+  try {
+    const states = await locationService.getAllStates();
+    res.json(states);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/locations/states/:stateId/cities', async (req, res, next) => {
+  try {
+    const cities = await locationService.getCitiesByState(req.params.stateId.toUpperCase());
+    res.json(cities);
   } catch (error) {
     next(error);
   }

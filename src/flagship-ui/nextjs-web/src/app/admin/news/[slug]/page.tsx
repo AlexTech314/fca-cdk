@@ -8,12 +8,12 @@ import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
-interface Tag { id: string; name: string; slug: string; category?: string | null; }
+interface Industry { id: string; name: string; slug: string; category?: string | null; }
 interface Tombstone { id: string; name: string; slug: string; }
 interface BlogPost {
   id: string; slug: string; title: string; excerpt: string | null; content: string;
   author: string | null; category: string | null; publishedAt: string | null;
-  isPublished: boolean; tags: Tag[];
+  isPublished: boolean; industries: Industry[];
   tombstone?: { id: string; slug: string; name: string } | null;
 }
 
@@ -23,7 +23,7 @@ export default function AdminNewsDetailPage() {
   const { requestNavigation } = useUnsavedChanges();
 
   const [post, setPost] = useState<BlogPost | null>(null);
-  const [allTags, setAllTags] = useState<Tag[]>([]);
+  const [allIndustries, setAllIndustries] = useState<Industry[]>([]);
   const [allTombstones, setAllTombstones] = useState<Tombstone[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,9 +31,9 @@ export default function AdminNewsDetailPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [postsRes, tagsRes, tombstonesRes] = await Promise.all([
+        const [postsRes, industriesRes, tombstonesRes] = await Promise.all([
           authedApiFetch('/api/admin/blog-posts?category=news&limit=200'),
-          fetch(`${API_URL}/tags`),
+          fetch(`${API_URL}/industries`),
           fetch(`${API_URL}/tombstones?limit=200`),
         ]);
 
@@ -53,7 +53,7 @@ export default function AdminNewsDetailPage() {
         } else {
           setPost(match);
         }
-        setAllTags(tagsRes.ok ? await tagsRes.json() : []);
+        setAllIndustries(industriesRes.ok ? await industriesRes.json() : []);
 
         if (tombstonesRes.ok) {
           const tombData = await tombstonesRes.json();
@@ -101,7 +101,7 @@ export default function AdminNewsDetailPage() {
     <ArticleEditor
       post={post}
       category="news"
-      allTags={allTags}
+      allIndustries={allIndustries}
       allTombstones={allTombstones}
       backHref="/admin/news"
       backLabel="Back to News"

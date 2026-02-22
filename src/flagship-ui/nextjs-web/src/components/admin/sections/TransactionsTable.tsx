@@ -19,10 +19,8 @@ interface Tombstone {
   buyerPeFirm: string | null;
   buyerPlatform: string | null;
   transactionYear: number | null;
-  city: string | null;
-  state: string | null;
   isPublished: boolean;
-  tags: { id: string; name: string; slug: string }[];
+  industries: { id: string; name: string; slug: string }[];
 }
 
 interface TransactionsTableProps {
@@ -65,8 +63,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
       curr.buyerPeFirm !== orig.buyerPeFirm ||
       curr.buyerPlatform !== orig.buyerPlatform ||
       (curr.transactionYear ?? null) !== (orig.transactionYear ?? null) ||
-      curr.city !== orig.city ||
-      curr.state !== orig.state ||
       curr.isPublished !== orig.isPublished
     );
   };
@@ -113,8 +109,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
           buyerPeFirm: item.buyerPeFirm,
           buyerPlatform: item.buyerPlatform,
           transactionYear: item.transactionYear,
-          city: item.city,
-          state: item.state,
           isPublished: item.isPublished,
         }),
       });
@@ -135,8 +129,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
             buyerPeFirm: c.buyerPeFirm,
             buyerPlatform: c.buyerPlatform,
             transactionYear: c.transactionYear,
-            city: c.city,
-            state: c.state,
           }),
         });
         if (!res.ok) throw new Error('Failed to update transaction');
@@ -218,10 +210,8 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
         buyerPeFirm: null,
         buyerPlatform: null,
         transactionYear: null,
-        city: null,
-        state: null,
         isPublished: false,
-        tags: [],
+        industries: [],
       },
       ...prev,
     ]);
@@ -252,9 +242,7 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
       t.name.toLowerCase().includes(q) ||
       (t.industry || '').toLowerCase().includes(q) ||
       (t.buyerPeFirm || '').toLowerCase().includes(q) ||
-      (t.buyerPlatform || '').toLowerCase().includes(q) ||
-      (t.city || '').toLowerCase().includes(q) ||
-      (t.state || '').toLowerCase().includes(q)
+      (t.buyerPlatform || '').toLowerCase().includes(q)
     );
   });
 
@@ -306,8 +294,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
               <th className="px-3 py-3">PE Firm</th>
               <th className="px-3 py-3">Platform</th>
               <th className="px-3 py-3 w-16">Year</th>
-              <th className="px-3 py-3">City</th>
-              <th className="px-3 py-3 w-14">State</th>
               <th className="px-3 py-3 w-14 text-center">Live</th>
               <th className="px-3 py-3 w-10"></th>
               <th className="px-3 py-3 w-20"></th>
@@ -394,32 +380,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
                       value={item.transactionYear?.toString() || ''}
                       onChangeValue={(v) => updateField(item.id, 'transactionYear', v ? parseInt(v, 10) || null : null)}
                       originalValue={orig?.transactionYear?.toString() || ''}
-                      as="span"
-                      className="text-sm text-text-muted"
-                      placeholder="--"
-                      disabled={isDeleted}
-                    />
-                  </td>
-
-                  {/* City */}
-                  <td className="px-3 py-2">
-                    <EditableInlineField
-                      value={item.city || ''}
-                      onChangeValue={(v) => updateField(item.id, 'city', v || null)}
-                      originalValue={orig?.city || ''}
-                      as="span"
-                      className="text-sm text-text-muted"
-                      placeholder="--"
-                      disabled={isDeleted}
-                    />
-                  </td>
-
-                  {/* State */}
-                  <td className="px-3 py-2">
-                    <EditableInlineField
-                      value={item.state || ''}
-                      onChangeValue={(v) => updateField(item.id, 'state', v || null)}
-                      originalValue={orig?.state || ''}
                       as="span"
                       className="text-sm text-text-muted"
                       placeholder="--"

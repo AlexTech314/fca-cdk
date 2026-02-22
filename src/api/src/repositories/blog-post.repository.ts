@@ -4,7 +4,7 @@ import type { BlogPostQuery, CreateBlogPostInput, UpdateBlogPostInput } from '..
 
 export const blogPostRepository = {
   async findMany(query: BlogPostQuery) {
-    const { page, limit, category, tag, search, published, author } = query;
+    const { page, limit, category, industry, search, published, author } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.BlogPostWhereInput = {};
@@ -18,8 +18,8 @@ export const blogPostRepository = {
     if (author) {
       where.author = { contains: author, mode: 'insensitive' };
     }
-    if (tag) {
-      where.tags = { some: { tag: { slug: tag } } };
+    if (industry) {
+      where.industries = { some: { industry: { slug: industry } } };
     }
     if (search) {
       where.OR = [
@@ -47,7 +47,7 @@ export const blogPostRepository = {
           previewToken: true,
           createdAt: true,
           updatedAt: true,
-          tags: { include: { tag: true } },
+          industries: { include: { industry: true } },
           tombstone: { select: { id: true, slug: true, name: true } },
         },
       }),
@@ -67,7 +67,7 @@ export const blogPostRepository = {
     const post = await prisma.blogPost.findUnique({
       where: { slug },
       include: {
-        tags: { include: { tag: true } },
+        industries: { include: { industry: true } },
         tombstone: { select: { id: true, slug: true, name: true } },
       },
     });
@@ -78,7 +78,7 @@ export const blogPostRepository = {
     const post = await prisma.blogPost.findUnique({
       where: { id },
       include: {
-        tags: { include: { tag: true } },
+        industries: { include: { industry: true } },
         tombstone: { select: { id: true, slug: true, name: true } },
       },
     });
@@ -86,18 +86,18 @@ export const blogPostRepository = {
   },
 
   async create(data: CreateBlogPostInput) {
-    const { tagIds, ...postData } = data;
+    const { industryIds, ...postData } = data;
 
     const post = await prisma.blogPost.create({
       data: {
         ...postData,
         slug: data.slug || generateSlug(data.title),
-        tags: tagIds
-          ? { create: tagIds.map((tagId) => ({ tagId })) }
+        industries: industryIds
+          ? { create: industryIds.map((industryId) => ({ industryId })) }
           : undefined,
       },
       include: {
-        tags: { include: { tag: true } },
+        industries: { include: { industry: true } },
         tombstone: { select: { id: true, slug: true, name: true } },
       },
     });
@@ -106,13 +106,13 @@ export const blogPostRepository = {
   },
 
   async update(id: string, data: UpdateBlogPostInput) {
-    const { tagIds, ...postData } = data;
+    const { industryIds, ...postData } = data;
 
-    if (tagIds !== undefined) {
-      await prisma.blogPostTag.deleteMany({ where: { blogPostId: id } });
-      if (tagIds.length > 0) {
-        await prisma.blogPostTag.createMany({
-          data: tagIds.map((tagId) => ({ blogPostId: id, tagId })),
+    if (industryIds !== undefined) {
+      await prisma.blogPostIndustry.deleteMany({ where: { blogPostId: id } });
+      if (industryIds.length > 0) {
+        await prisma.blogPostIndustry.createMany({
+          data: industryIds.map((industryId) => ({ blogPostId: id, industryId })),
         });
       }
     }
@@ -121,7 +121,7 @@ export const blogPostRepository = {
       where: { id },
       data: postData,
       include: {
-        tags: { include: { tag: true } },
+        industries: { include: { industry: true } },
         tombstone: { select: { id: true, slug: true, name: true } },
       },
     });
@@ -141,7 +141,7 @@ export const blogPostRepository = {
         publishedAt: publish ? new Date() : null,
       },
       include: {
-        tags: { include: { tag: true } },
+        industries: { include: { industry: true } },
         tombstone: { select: { id: true, slug: true, name: true } },
       },
     });
@@ -207,23 +207,23 @@ export const blogPostRepository = {
   async findRelated(slug: string, limit = 5) {
     const post = await prisma.blogPost.findUnique({
       where: { slug },
-      include: { tags: true },
+      include: { industries: true },
     });
 
     if (!post) return { tombstones: [], articles: [] };
 
-    const tagIds = post.tags.map((t) => t.tagId);
+    const industryIds = post.industries.map((i) => i.industryId);
 
     const [tombstones, articles] = await Promise.all([
       prisma.tombstone.findMany({
         where: {
           isPublished: true,
-          tags: { some: { tagId: { in: tagIds } } },
+          industries: { some: { industryId: { in: industryIds } } },
         },
         take: limit,
         orderBy: { transactionYear: 'desc' },
         include: {
-          tags: { include: { tag: true } },
+          industries: { include: { industry: true } },
           asset: { select: { id: true, s3Key: true, fileName: true, fileType: true } },
           pressRelease: { select: { id: true, slug: true, title: true } },
         },
@@ -232,7 +232,7 @@ export const blogPostRepository = {
         where: {
           isPublished: true,
           id: { not: post.id },
-          tags: { some: { tagId: { in: tagIds } } },
+          industries: { some: { industryId: { in: industryIds } } },
         },
         select: {
           slug: true,
@@ -249,7 +249,7 @@ export const blogPostRepository = {
     return {
       tombstones: tombstones.map((t) => ({
         ...t,
-        tags: t.tags?.map((bt) => bt.tag) ?? [],
+        industries: t.industries?.map((ti) => ti.industry) ?? [],
       })),
       articles,
     };
@@ -266,6 +266,6 @@ function generateSlug(title: string): string {
 function formatBlogPost(post: any) {
   return {
     ...post,
-    tags: post.tags?.map((t: any) => t.tag) || [],
+    industries: post.industries?.map((i: any) => i.industry) || [],
   };
 }

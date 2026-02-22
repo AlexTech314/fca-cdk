@@ -43,8 +43,6 @@ export default async function TransactionsPage() {
     getTombstones(),
     getTombstoneFilterOptions(),
   ]);
-  const tagNames = Object.fromEntries(filters.tags.map((t) => [t.slug, t.name]));
-
   const meta = (pageContent?.metadata || {}) as TransactionsMetadata;
 
   return (
@@ -95,11 +93,10 @@ export default async function TransactionsPage() {
           <div className="mt-12">
             <ContentExplorer
               type="transactions"
-              tags={filters.tags.map((t) => t.slug)}
+              industries={filters.industries}
               states={filters.states}
               cities={filters.cities}
               years={filters.years}
-              tagNames={tagNames}
             />
           </div>
         </Container>

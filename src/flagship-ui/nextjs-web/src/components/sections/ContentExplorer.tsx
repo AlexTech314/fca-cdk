@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { stateNames } from '@/lib/seo';
-
 /**
  * Convert city name to URL-friendly slug (client-safe version)
  */
@@ -14,14 +12,29 @@ function cityToSlug(city: string): string {
     .replace(/^-|-$/g, '');
 }
 
+interface LocationState {
+  id: string;
+  name: string;
+}
+
+interface LocationCity {
+  id: number;
+  name: string;
+  stateId: string;
+}
+
+interface Industry {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface ContentExplorerProps {
   type: 'transactions' | 'news';
-  tags: string[];
-  states?: string[];
-  cities?: string[];
+  industries: Industry[];
+  states?: LocationState[];
+  cities?: LocationCity[];
   years?: number[];
-  /** Map of tag slug -> display name, provided by server component */
-  tagNames?: Record<string, string>;
 }
 
 type TabType = 'industry' | 'state' | 'city' | 'year';
@@ -62,20 +75,12 @@ const TAB_CONFIG = {
   },
 };
 
-/**
- * Format tag slug for display (capitalize words) - client-safe fallback
- */
-function formatTagSlug(slug: string): string {
-  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
-
 export function ContentExplorer({
   type,
-  tags,
+  industries,
   states = [],
   cities = [],
   years = [],
-  tagNames = {},
 }: ContentExplorerProps) {
   const [activeTab, setActiveTab] = useState<TabType>('industry');
 
@@ -93,9 +98,9 @@ export function ContentExplorer({
       case 'industry':
         return (
           <>
-            {tags.map((tag) => (
-              <Link key={tag} href={`${basePath}/tag/${tag}`} className={linkClass}>
-                {tagNames[tag] || formatTagSlug(tag)}
+            {industries.map((ind) => (
+              <Link key={ind.slug} href={`${basePath}/industry/${ind.slug}`} className={linkClass}>
+                {ind.name}
               </Link>
             ))}
           </>
@@ -105,8 +110,8 @@ export function ContentExplorer({
         return (
           <>
             {states.map((state) => (
-              <Link key={state} href={`${basePath}/state/${state.toLowerCase()}`} className={linkClass}>
-                {stateNames[state.toUpperCase()] || state}
+              <Link key={state.id} href={`${basePath}/state/${state.id.toLowerCase()}`} className={linkClass}>
+                {state.name}
               </Link>
             ))}
           </>
@@ -116,8 +121,8 @@ export function ContentExplorer({
         return (
           <>
             {cities.map((city) => (
-              <Link key={city} href={`${basePath}/city/${cityToSlug(city)}`} className={linkClass}>
-                {city}
+              <Link key={city.id} href={`${basePath}/city/${cityToSlug(city.name)}`} className={linkClass}>
+                {city.name}
               </Link>
             ))}
           </>

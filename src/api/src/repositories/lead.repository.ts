@@ -6,8 +6,6 @@ import type { LeadQuery } from '../models/lead.model';
 const sortFieldMap: Record<string, string> = {
   createdAt: 'createdAt',
   name: 'name',
-  city: 'city',
-  state: 'state',
   rating: 'rating',
   qualificationScore: 'qualificationScore',
   businessType: 'businessType',
@@ -93,15 +91,14 @@ export const leadRepository = {
   },
 
   async getDistinctStates() {
-    const results = await prisma.lead.groupBy({
-      by: ['state'],
-      _count: { id: true },
-      where: { state: { not: null } },
-      orderBy: { _count: { id: 'desc' } },
+    const results = await prisma.lead.findMany({
+      where: { locationStateId: { not: null } },
+      select: { locationState: { select: { id: true, name: true } } },
+      distinct: ['locationStateId'],
     });
     return results.map((r) => ({
-      name: r.state!,
-      value: r._count.id,
+      name: r.locationState!.name,
+      value: r.locationState!.id,
     }));
   },
 
@@ -137,11 +134,11 @@ function buildWhereClause(
   if (filters.name) {
     where.name = { contains: filters.name, mode: 'insensitive' };
   }
-  if (filters.city) {
-    where.city = { contains: filters.city, mode: 'insensitive' };
+  if (filters.cityId) {
+    where.locationCityId = filters.cityId;
   }
-  if (filters.states?.length) {
-    where.state = { in: filters.states };
+  if (filters.stateId) {
+    where.locationStateId = filters.stateId;
   }
   if (filters.businessTypes?.length) {
     where.businessType = { in: filters.businessTypes };

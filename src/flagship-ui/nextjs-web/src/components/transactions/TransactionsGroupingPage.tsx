@@ -262,6 +262,7 @@ export function TransactionsGroupingPage({
               states={states}
               cities={cities}
               years={years}
+              initialTab={['industry', 'state', 'city'].includes(filter.type) ? filter.type : undefined}
             />
           </div>
         </Container>

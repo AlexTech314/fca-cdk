@@ -461,6 +461,38 @@ const INDUSTRY_NAMES = [
 ];
 
 /**
+ * Keywords that map to industries for content-based tagging.
+ * Order matters: more specific matches first (e.g. "auto body" before "auto").
+ */
+const INDUSTRY_KEYWORDS: { pattern: RegExp; industryName: string }[] = [
+  { pattern: /\b(collision|auto\s*body|collision\s*repair)\b/i, industryName: 'Collision & Auto Body' },
+  { pattern: /\b(auto\s*repair|automotive\s*repair)\b/i, industryName: 'Auto Repair' },
+  { pattern: /\b(plumbing|plumber)\b/i, industryName: 'Plumbing' },
+  { pattern: /\bhvac\b/i, industryName: 'HVAC' },
+  { pattern: /\b(fire\s*(&|and)\s*life\s*safety|fire\s*sprinkler|fire\s*protection|fire\s*equipment)\b/i, industryName: 'Fire & Life Safety' },
+  { pattern: /\b(petroleum|lubricant|lube\s*oil)\b/i, industryName: 'Petroleum & Lubricants' },
+  { pattern: /\b(roofing|roofer)\b/i, industryName: 'Roofing' },
+  { pattern: /\b(environmental\s*consulting|environmental\s*services|reclamation|wetland)\b/i, industryName: 'Environmental Services' },
+  { pattern: /\b(electrical\s*(contractor|supply|service)|electrician)\b/i, industryName: 'Electrical Services' },
+  { pattern: /\b(healthcare|concierge\s*doctor|medical)\b/i, industryName: 'Healthcare' },
+  { pattern: /\b(distribution|distributor)\b/i, industryName: 'Distribution' },
+  { pattern: /\b(construction|building|contractor)\b/i, industryName: 'Construction & Building' },
+  { pattern: /\b(pool\s*(&|and)\s*spa|pool\s*service)\b/i, industryName: 'Pool & Spa' },
+  { pattern: /\b(it\s*(&|and)\s*technology|software|technology|msp|it\s*consulting)\b/i, industryName: 'IT & Technology' },
+  { pattern: /\b(oil\s*(&|and)\s*gas)\b/i, industryName: 'Oil & Gas' },
+  { pattern: /\b(manufacturing)\b/i, industryName: 'Manufacturing' },
+  { pattern: /\b(transportation|logistics)\b/i, industryName: 'Transportation & Logistics' },
+  { pattern: /\b(retail|wholesale)\b/i, industryName: 'Retail / Wholesale' },
+  { pattern: /\b(refrigeration)\b/i, industryName: 'Refrigeration' },
+  { pattern: /\b(residential\s*(service|hvac|roofing))\b/i, industryName: 'Residential Services' },
+  { pattern: /\b(engineering)\b/i, industryName: 'Engineering' },
+  { pattern: /\b(business\s*services)\b/i, industryName: 'Business Services' },
+  { pattern: /\b(advertising|marketing)\b/i, industryName: 'Advertising & Marketing' },
+  { pattern: /\b(aerospace|defense)\b/i, industryName: 'Aerospace & Defense' },
+  { pattern: /\b(travel|hospitality)\b/i, industryName: 'Travel & Hospitality' },
+];
+
+/**
  * Load multi-industry tag mappings from industry-tags.csv (source of truth).
  * Returns a map: normalized seller name → array of canonical industry names.
  */
@@ -812,6 +844,71 @@ async function seedTombstones(prisma: PrismaClient): Promise<void> {
   log.info(`  Seeded ${count} tombstones`);
 }
 
+/**
+ * Tag a blog post with industries, states, and cities based on content analysis.
+ * Used as fallback when the post has no linked tombstone.
+ */
+async function tagBlogPostFromContent(prisma: PrismaClient, blogPostId: string, content: string): Promise<void> {
+  const industries = await prisma.industry.findMany();
+  const industryByName = new Map(industries.map((i) => [i.name.toLowerCase(), i]));
+
+  // Industry: keyword matching + exact name match
+  const matchedIndustryNames = new Set<string>();
+  for (const { pattern, industryName } of INDUSTRY_KEYWORDS) {
+    if (pattern.test(content)) matchedIndustryNames.add(industryName);
+  }
+  for (const ind of industries) {
+    if (content.toLowerCase().includes(ind.name.toLowerCase())) matchedIndustryNames.add(ind.name);
+  }
+  for (const name of matchedIndustryNames) {
+    const industry = industryByName.get(name.toLowerCase());
+    if (industry) {
+      await prisma.blogPostIndustry.upsert({
+        where: { blogPostId_industryId: { blogPostId, industryId: industry.id } },
+        update: {},
+        create: { blogPostId, industryId: industry.id },
+      });
+    }
+  }
+
+  // State: match state names and abbreviations
+  const states = await prisma.state.findMany();
+  for (const state of states) {
+    const nameMatch = new RegExp(`\\b${state.name}\\b`, 'i');
+    const abbrMatch = new RegExp(`\\b${state.id}\\b`, 'i');
+    if (nameMatch.test(content) || abbrMatch.test(content)) {
+      await prisma.blogPostState.upsert({
+        where: { blogPostId_stateId: { blogPostId, stateId: state.id } },
+        update: {},
+        create: { blogPostId, stateId: state.id },
+      });
+    }
+  }
+
+  // City: match "CityName, ST" or "CityName, StateName" (state context required to avoid ambiguity)
+  // Use cities that appear in tombstones (most relevant) + major metros (pop > 50k)
+  const tombstoneCityIds = await prisma.tombstoneCity.findMany({ select: { cityId: true } });
+  const tombstoneCityIdSet = new Set(tombstoneCityIds.map((t) => t.cityId));
+  const majorCities = await prisma.city.findMany({
+    where: { OR: [{ id: { in: [...tombstoneCityIdSet] } }, { population: { gt: 50000 } }] },
+    include: { state: true },
+  });
+  const cities = majorCities;
+  for (const city of cities) {
+    const cityEscaped = city.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const stateNameEscaped = city.state.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const withStateAbbr = new RegExp(`${cityEscaped}\\s*[,;]\\s*${city.stateId}\\b`, 'i');
+    const withStateName = new RegExp(`${cityEscaped}\\s*[,;]\\s*${stateNameEscaped}\\b`, 'i');
+    if (withStateAbbr.test(content) || withStateName.test(content)) {
+      await prisma.blogPostCity.upsert({
+        where: { blogPostId_cityId: { blogPostId, cityId: city.id } },
+        update: {},
+        create: { blogPostId, cityId: city.id },
+      });
+    }
+  }
+}
+
 async function seedBlogPosts(prisma: PrismaClient): Promise<void> {
   log.info('Seeding blog posts from markdown...');
 
@@ -858,19 +955,8 @@ async function seedBlogPosts(prisma: PrismaClient): Promise<void> {
         },
       });
 
-      // Match industries based on content keywords
-      const allIndustries = await prisma.industry.findMany();
-      const lowerContent = `${title} ${body}`.toLowerCase();
-      const matched = allIndustries.filter((ind) =>
-        lowerContent.includes(ind.name.toLowerCase())
-      ).slice(0, 5);
-      for (const ind of matched) {
-        await prisma.blogPostIndustry.upsert({
-          where: { blogPostId_industryId: { blogPostId: blogPost.id, industryId: ind.id } },
-          update: {},
-          create: { blogPostId: blogPost.id, industryId: ind.id },
-        });
-      }
+      // Tag industries, states, cities from content (fallback when no tombstone link)
+      await tagBlogPostFromContent(prisma, blogPost.id, `${title} ${body}`);
 
       newsCount++;
     }
@@ -913,19 +999,7 @@ async function seedBlogPosts(prisma: PrismaClient): Promise<void> {
         },
       });
 
-      // Match industries based on content keywords
-      const allIndustriesForArticle = await prisma.industry.findMany();
-      const lowerArticleContent = `${title} ${body}`.toLowerCase();
-      const matchedIndustries = allIndustriesForArticle.filter((ind) =>
-        lowerArticleContent.includes(ind.name.toLowerCase())
-      ).slice(0, 5);
-      for (const ind of matchedIndustries) {
-        await prisma.blogPostIndustry.upsert({
-          where: { blogPostId_industryId: { blogPostId: blogPost.id, industryId: ind.id } },
-          update: {},
-          create: { blogPostId: blogPost.id, industryId: ind.id },
-        });
-      }
+      await tagBlogPostFromContent(prisma, blogPost.id, `${title} ${body}`);
 
       articlesCount++;
     }
@@ -975,6 +1049,52 @@ async function linkPressReleases(prisma: PrismaClient): Promise<void> {
   }
 
   log.info(`  Linked ${linkedCount} press releases to tombstones`);
+}
+
+/**
+ * Copy industry, state, and city tags from tombstones to their linked press release blog posts.
+ * Tombstone data is the source of truth for transaction-related news.
+ */
+async function linkBlogPostTagsFromTombstones(prisma: PrismaClient): Promise<void> {
+  log.info('Copying tombstone tags to press release blog posts...');
+
+  const tombstonesWithPress = await prisma.tombstone.findMany({
+    where: { pressReleaseId: { not: null } },
+    include: {
+      industries: { include: { industry: true } },
+      locationStates: { include: { state: true } },
+      locationCities: { include: { city: true } },
+    },
+  });
+
+  let count = 0;
+  for (const t of tombstonesWithPress) {
+    const blogPostId = t.pressReleaseId!;
+
+    // Replace blog post tags with tombstone's (tombstone is source of truth)
+    await prisma.blogPostIndustry.deleteMany({ where: { blogPostId } });
+    await prisma.blogPostState.deleteMany({ where: { blogPostId } });
+    await prisma.blogPostCity.deleteMany({ where: { blogPostId } });
+
+    for (const ti of t.industries) {
+      await prisma.blogPostIndustry.create({
+        data: { blogPostId, industryId: ti.industryId },
+      });
+    }
+    for (const ts of t.locationStates) {
+      await prisma.blogPostState.create({
+        data: { blogPostId, stateId: ts.stateId },
+      });
+    }
+    for (const tc of t.locationCities) {
+      await prisma.blogPostCity.create({
+        data: { blogPostId, cityId: tc.cityId },
+      });
+    }
+    count++;
+  }
+
+  log.info(`  Tagged ${count} press releases from tombstones`);
 }
 
 async function seedTeamMembers(prisma: PrismaClient): Promise<void> {
@@ -1661,6 +1781,7 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
     await seedTombstones(prisma);
     await seedBlogPosts(prisma);
     await linkPressReleases(prisma);
+    await linkBlogPostTagsFromTombstones(prisma);
     await seedTeamMembers(prisma);
     await seedCommunityServices(prisma);
     await seedFAQs(prisma);

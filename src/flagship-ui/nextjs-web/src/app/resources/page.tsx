@@ -5,7 +5,7 @@ import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
 import { CTASection } from '@/components/sections/CTASection';
 import { getResourceArticles, getPageData } from '@/lib/data';
-import { fetchSiteConfig, pageMetadata } from '@/lib/utils';
+import { fetchSiteConfig, pageMetadata, stripMarkdown } from '@/lib/utils';
 
 interface ResourcesMetadata {
   metaDescription?: string;
@@ -62,10 +62,7 @@ export default async function ResourcesPage() {
                 href={`/resources/${article.slug}`}
                 className="group rounded-xl border border-border bg-white p-6 transition-all hover:shadow-card-hover md:p-8"
               >
-                <div className="mb-3 flex items-center gap-3">
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                    {article.category}
-                  </span>
+                <div className="mb-3">
                   <span className="text-sm text-text-muted">
                     By {article.author}
                   </span>
@@ -73,7 +70,9 @@ export default async function ResourcesPage() {
                 <h2 className="mb-3 text-xl font-semibold text-text group-hover:text-primary">
                   {article.title}
                 </h2>
-                <p className="text-text-muted line-clamp-3">{article.excerpt}</p>
+                <p className="text-text-muted line-clamp-3">
+                  {article.excerpt ? stripMarkdown(article.excerpt) : ''}
+                </p>
                 <div className="mt-4">
                   <span className="inline-flex items-center gap-1 text-sm font-medium text-secondary group-hover:text-primary">
                     Read Article

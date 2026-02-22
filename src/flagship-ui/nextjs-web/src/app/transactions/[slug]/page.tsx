@@ -14,7 +14,7 @@ import {
   getTombstoneFilterOptions,
   getPageData,
 } from '@/lib/data';
-import { fetchSiteConfig } from '@/lib/utils';
+import { fetchSiteConfig, stripMarkdown } from '@/lib/utils';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -227,7 +227,7 @@ export default async function TombstoneDetailPage({ params }: PageProps) {
                   {pressRelease.title}
                 </h3>
                 <p className="text-text-muted line-clamp-3">
-                  {pressRelease.excerpt}
+                  {pressRelease.excerpt ? stripMarkdown(pressRelease.excerpt) : ''}
                 </p>
                 <span className="mt-4 inline-flex items-center gap-1 text-sm text-primary">
                   Read full article

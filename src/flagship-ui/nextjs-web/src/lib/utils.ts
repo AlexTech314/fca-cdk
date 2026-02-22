@@ -52,6 +52,24 @@ export function emailHref(email: string): string {
 }
 
 /**
+ * Strip markdown syntax from text for plain display (e.g. excerpts)
+ */
+export function stripMarkdown(text: string): string {
+  return text
+    .replace(/#{1,6}\s+/g, '') // headers (anywhere in text)
+    .replace(/\*\*(.+?)\*\*/g, '$1') // bold
+    .replace(/\*(.+?)\*/g, '$1') // italic
+    .replace(/__(.+?)__/g, '$1') // bold alt
+    .replace(/_(.+?)_/g, '$1') // italic alt
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
+    .replace(/^[-*]\s+/gm, '') // list bullets
+    .replace(/^\d+\.\s+/gm, '') // numbered lists
+    .replace(/---+/g, ' ') // horizontal rules
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Truncate text to a specified length
  */
 export function truncate(text: string, length: number): string {

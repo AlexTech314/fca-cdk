@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 /**
  * Convert city name to URL-friendly slug (client-safe version)
@@ -31,10 +31,12 @@ interface Industry {
 
 interface ContentExplorerProps {
   type: 'transactions' | 'news';
-  industries: Industry[];
+  industries?: Industry[];
   states?: LocationState[];
   cities?: LocationCity[];
   years?: number[];
+  /** Tab to show based on current page (e.g. 'state' when on /transactions/state/co). Persisted to localStorage when user navigates. */
+  initialTab?: TabType;
 }
 
 type TabType = 'industry' | 'state' | 'city' | 'year';
@@ -75,19 +77,56 @@ const TAB_CONFIG = {
   },
 };
 
+const STORAGE_KEY_PREFIX = 'content-explorer-tab-';
+
+function getStoredTab(type: 'transactions' | 'news', availableTabs: TabType[]): TabType | null {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${type}`);
+  if (stored && availableTabs.includes(stored as TabType)) return stored as TabType;
+  return null;
+}
+
 export function ContentExplorer({
   type,
-  industries,
+  industries = [],
   states = [],
   cities = [],
   years = [],
+  initialTab,
 }: ContentExplorerProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('industry');
-
   // For news, we only show industry tags. Year tab removed from nav (paths/sitemap kept).
-  const availableTabs: TabType[] = type === 'transactions' 
+  const availableTabs: TabType[] = type === 'transactions'
     ? ['industry', 'state', 'city']
     : ['industry'];
+
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    if (initialTab && availableTabs.includes(initialTab)) return initialTab;
+    return getStoredTab(type, availableTabs) ?? 'industry';
+  });
+
+  // Sync with initialTab (page context) and persist; restore from localStorage when no initialTab
+  // Use single string dep to avoid "dependency array changed size" error across different parent renders
+  const effectKey = `${type}:${initialTab ?? ''}`;
+  useEffect(() => {
+    if (initialTab && availableTabs.includes(initialTab)) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`${STORAGE_KEY_PREFIX}${type}`, initialTab);
+      }
+      queueMicrotask(() => setActiveTab(initialTab));
+    } else if (typeof window !== 'undefined') {
+      const stored = getStoredTab(type, availableTabs);
+      if (stored) queueMicrotask(() => setActiveTab(stored));
+    }
+    // effectKey encodes type + initialTab; availableTabs derived from type
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional stable deps
+  }, [effectKey]);
+
+  const handleTabClick = (tab: TabType) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}${type}`, tab);
+    }
+  };
 
   const basePath = type === 'transactions' ? '/transactions' : '/news';
 
@@ -167,7 +206,7 @@ export function ContentExplorer({
           {availableTabs.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabClick(tab)}
               className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
                 activeTab === tab
                   ? 'bg-white text-primary shadow-sm'

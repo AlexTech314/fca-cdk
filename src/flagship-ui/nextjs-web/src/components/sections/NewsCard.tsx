@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { NewsArticleSummary } from '@/lib/types';
+import { stripMarkdown } from '@/lib/utils';
 
 interface NewsCardProps {
   article: NewsArticleSummary;
@@ -37,7 +38,7 @@ export function NewsCard({ article, compact = false }: NewsCardProps) {
               : 'text-sm text-text-muted line-clamp-3'
           }
         >
-          {article.excerpt}
+          {stripMarkdown(article.excerpt)}
         </p>
       )}
       <div className={compact ? 'mt-3' : 'mt-4'}>

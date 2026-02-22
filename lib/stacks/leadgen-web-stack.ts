@@ -7,6 +7,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
+import * as crypto from 'crypto';
 import * as path from 'path';
 
 export interface LeadGenWebStackProps extends cdk.StackProps {
@@ -67,11 +68,13 @@ export class LeadGenWebStack extends cdk.Stack {
       ],
     });
 
-    const invalidationTrigger = `${deploySpa.deployedBucket.bucketName}-${deploySpa.node.addr}`;
+    // CallerReference must be 1-64 chars; bucket name + addr can exceed that
+    const triggerRaw = `${deploySpa.deployedBucket.bucketName}-${deploySpa.node.addr}`;
+    const invalidationTrigger = crypto.createHash('md5').update(triggerRaw).digest('hex');
     const invalidationParams = () => ({
       DistributionId: distribution.distributionId,
       InvalidationBatch: {
-        CallerReference: `invalidate-leadgen-${invalidationTrigger}`,
+        CallerReference: `inv-leadgen-${invalidationTrigger}`,
         Paths: { Quantity: 1, Items: ['/*'] },
       },
     });
@@ -80,13 +83,13 @@ export class LeadGenWebStack extends cdk.Stack {
         service: 'CloudFront',
         action: 'createInvalidation',
         parameters: invalidationParams(),
-        physicalResourceId: cr.PhysicalResourceId.of(`invalidate-leadgen-${invalidationTrigger}`),
+        physicalResourceId: cr.PhysicalResourceId.of(`inv-leadgen-${invalidationTrigger}`),
       },
       onUpdate: {
         service: 'CloudFront',
         action: 'createInvalidation',
         parameters: invalidationParams(),
-        physicalResourceId: cr.PhysicalResourceId.of(`invalidate-leadgen-${invalidationTrigger}`),
+        physicalResourceId: cr.PhysicalResourceId.of(`inv-leadgen-${invalidationTrigger}`),
       },
       policy: cr.AwsCustomResourcePolicy.fromStatements([
         new iam.PolicyStatement({

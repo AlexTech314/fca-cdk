@@ -8,6 +8,7 @@ import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
+import * as crypto from 'crypto';
 import * as path from 'path';
 import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } from 'token-injectable-docker-builder';
 
@@ -313,11 +314,13 @@ export class FlagshipWebStack extends cdk.Stack {
     // ============================================================
     // CloudFront invalidation on deploy
     // ============================================================
-    const invalidationTrigger = `${publicTaskDef.taskDefinitionArn}-${adminTaskDef.taskDefinitionArn}`;
+    // CallerReference must be 1-64 chars; ARNs are too long, so use a hash
+    const triggerRaw = `${publicTaskDef.taskDefinitionArn}-${adminTaskDef.taskDefinitionArn}`;
+    const invalidationTrigger = crypto.createHash('md5').update(triggerRaw).digest('hex');
     const invalidationParams = (distId: string, label: string) => ({
       DistributionId: distId,
       InvalidationBatch: {
-        CallerReference: `invalidate-${label}-${invalidationTrigger}`,
+        CallerReference: `inv-${label}-${invalidationTrigger}`,
         Paths: { Quantity: 1, Items: ['/*'] },
       },
     });
@@ -327,13 +330,13 @@ export class FlagshipWebStack extends cdk.Stack {
           service: 'CloudFront',
           action: 'createInvalidation',
           parameters: invalidationParams(distId, label),
-          physicalResourceId: cr.PhysicalResourceId.of(`invalidate-${label}-${invalidationTrigger}`),
+          physicalResourceId: cr.PhysicalResourceId.of(`inv-${label}-${invalidationTrigger}`),
         },
         onUpdate: {
           service: 'CloudFront',
           action: 'createInvalidation',
           parameters: invalidationParams(distId, label),
-          physicalResourceId: cr.PhysicalResourceId.of(`invalidate-${label}-${invalidationTrigger}`),
+          physicalResourceId: cr.PhysicalResourceId.of(`inv-${label}-${invalidationTrigger}`),
         },
         policy: cr.AwsCustomResourcePolicy.fromStatements([
           new iam.PolicyStatement({

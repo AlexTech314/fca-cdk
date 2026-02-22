@@ -1,7 +1,9 @@
+import * as cr from 'aws-cdk-lib/custom-resources';
 import * as cdk from 'aws-cdk-lib';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
@@ -54,7 +56,7 @@ export class LeadGenWebStack extends cdk.Stack {
       ],
     });
 
-    new s3deploy.BucketDeployment(this, 'DeploySpa', {
+    const deploySpa = new s3deploy.BucketDeployment(this, 'DeploySpa', {
       sources: [s3deploy.Source.asset(path.join(__dirname, '../../src/lead-gen-spa/dist'))],
       destinationBucket: spaBucket,
       distribution,
@@ -64,6 +66,36 @@ export class LeadGenWebStack extends cdk.Stack {
         s3deploy.CacheControl.maxAge(cdk.Duration.hours(1)),
       ],
     });
+
+    const invalidationTrigger = `${deploySpa.deployedBucket.bucketName}-${deploySpa.node.addr}`;
+    const invalidationParams = () => ({
+      DistributionId: distribution.distributionId,
+      InvalidationBatch: {
+        CallerReference: `invalidate-leadgen-${invalidationTrigger}`,
+        Paths: { Quantity: 1, Items: ['/*'] },
+      },
+    });
+    const invalidateLeadGen = new cr.AwsCustomResource(this, 'InvalidateLeadGen', {
+      onCreate: {
+        service: 'CloudFront',
+        action: 'createInvalidation',
+        parameters: invalidationParams(),
+        physicalResourceId: cr.PhysicalResourceId.of(`invalidate-leadgen-${invalidationTrigger}`),
+      },
+      onUpdate: {
+        service: 'CloudFront',
+        action: 'createInvalidation',
+        parameters: invalidationParams(),
+        physicalResourceId: cr.PhysicalResourceId.of(`invalidate-leadgen-${invalidationTrigger}`),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new iam.PolicyStatement({
+          actions: ['cloudfront:CreateInvalidation'],
+          resources: cr.AwsCustomResourcePolicy.ANY_RESOURCE,
+        }),
+      ]),
+    });
+    invalidateLeadGen.node.addDependency(deploySpa);
 
     new cdk.CfnOutput(this, 'DistributionDomainName', {
       value: distribution.distributionDomainName,

@@ -1,5 +1,7 @@
+import * as cr from 'aws-cdk-lib/custom-resources';
 import * as cdk from 'aws-cdk-lib';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
@@ -307,6 +309,41 @@ export class FlagshipWebStack extends cdk.Stack {
         },
       },
     });
+
+    // ============================================================
+    // CloudFront invalidation on deploy
+    // ============================================================
+    const invalidationTrigger = `${publicTaskDef.taskDefinitionArn}-${adminTaskDef.taskDefinitionArn}`;
+    const invalidationParams = (distId: string, label: string) => ({
+      DistributionId: distId,
+      InvalidationBatch: {
+        CallerReference: `invalidate-${label}-${invalidationTrigger}`,
+        Paths: { Quantity: 1, Items: ['/*'] },
+      },
+    });
+    const createInvalidation = (distId: string, label: string) =>
+      new cr.AwsCustomResource(this, `Invalidate${label}`, {
+        onCreate: {
+          service: 'CloudFront',
+          action: 'createInvalidation',
+          parameters: invalidationParams(distId, label),
+          physicalResourceId: cr.PhysicalResourceId.of(`invalidate-${label}-${invalidationTrigger}`),
+        },
+        onUpdate: {
+          service: 'CloudFront',
+          action: 'createInvalidation',
+          parameters: invalidationParams(distId, label),
+          physicalResourceId: cr.PhysicalResourceId.of(`invalidate-${label}-${invalidationTrigger}`),
+        },
+        policy: cr.AwsCustomResourcePolicy.fromStatements([
+          new iam.PolicyStatement({
+            actions: ['cloudfront:CreateInvalidation'],
+            resources: ['*'],
+          }),
+        ]),
+      });
+    createInvalidation(publicDistribution.distributionId, 'Public').node.addDependency(publicDistribution);
+    createInvalidation(adminDistribution.distributionId, 'Admin').node.addDependency(adminDistribution);
 
     // ============================================================
     // Outputs

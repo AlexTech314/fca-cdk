@@ -131,10 +131,10 @@ export async function handler(event: SeedEvent): Promise<{ status: string; actio
       const sanitizedArn = bridgeLambdaArn.replace(/'/g, "''");
       const sanitizedRegion = awsRegion.replace(/'/g, "''");
       await prisma.$executeRawUnsafe(
-        `ALTER DATABASE fca_db SET app.bridge_lambda_arn = '${sanitizedArn}'`
+        `ALTER ROLE CURRENT_USER SET app.bridge_lambda_arn = '${sanitizedArn}'`
       );
       await prisma.$executeRawUnsafe(
-        `ALTER DATABASE fca_db SET app.aws_region = '${sanitizedRegion}'`
+        `ALTER ROLE CURRENT_USER SET app.aws_region = '${sanitizedRegion}'`
       );
       console.log(`Set app.bridge_lambda_arn and app.aws_region for fca_db`);
     } finally {

@@ -23,8 +23,6 @@ export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly campaignDataBucket: s3.IBucket;
   /** Seed DB Lambda (for configure-bridge after deploy) */
   readonly seedLambda: lambda.IFunction;
-  /** IAM role for RDS to invoke Lambda (created in StatefulStack, associated with RDS instance) */
-  readonly rdsLambdaRole: iam.IRole;
 }
 
 /**
@@ -41,7 +39,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
     super(scope, id, props);
 
-    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket, seedLambda, rdsLambdaRole } = props;
+    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket, seedLambda } = props;
 
     // Direct RDS connection (no proxy -- saves $21.90/mo, peak ~40 connections vs ~80 limit)
     const databaseEndpoint = database.dbInstanceEndpointAddress;
@@ -124,11 +122,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     scrapeQueue.grantSendMessages(bridgeLambda);
     scoringQueue.grantSendMessages(bridgeLambda);
-
-    // ============================================================
-    // IAM Role for RDS to invoke Bridge Lambda
-    // ============================================================
-    bridgeLambda.grantInvoke(rdsLambdaRole);
 
     // ============================================================
     // Configure Bridge Lambda ARN in RDS (for PG triggers)

@@ -108,6 +108,13 @@ export class StatefulStack extends cdk.Stack {
       },
     ];
 
+    this.rdsLambdaRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['lambda:InvokeFunction'],
+        resources: [`arn:aws:lambda:${this.region}:${this.account}:function:*`],
+      })
+    );
+
     // ============================================================
     // S3 Bucket for Campaign Data
     // ============================================================

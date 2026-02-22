@@ -65,6 +65,13 @@ export class StatefulStack extends cdk.Stack {
       'Pipeline to RDS'
     );
 
+    // Allow RDS to reach Lambda VPC endpoint (for aws_lambda extension)
+    this.dbSecurityGroup.addEgressRule(
+      ec2.Peer.ipv4(vpc.vpcCidrBlock),
+      ec2.Port.tcp(443),
+      'Lambda VPC endpoint'
+    );
+
     // ============================================================
     // RDS PostgreSQL Instance (credentials auto-created in Secrets Manager)
     // ============================================================

@@ -141,6 +141,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       bridgeLambdaArn: bridgeLambda.functionArn,
       awsRegion: this.region,
     });
+    const configureBridgeSalt = Date.now().toString();
     const configureBridgeResource = new cr.AwsCustomResource(this, 'ConfigureBridgeLambda', {
       onCreate: {
         service: 'Lambda',
@@ -150,7 +151,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
           InvocationType: 'RequestResponse',
           Payload: configureBridgePayload,
         },
-        physicalResourceId: cr.PhysicalResourceId.of('ConfigureBridgeLambda'),
+        physicalResourceId: cr.PhysicalResourceId.of(`ConfigureBridgeLambda-${configureBridgeSalt}`),
       },
       onUpdate: {
         service: 'Lambda',
@@ -160,7 +161,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
           InvocationType: 'RequestResponse',
           Payload: configureBridgePayload,
         },
-        physicalResourceId: cr.PhysicalResourceId.of('ConfigureBridgeLambda'),
+        physicalResourceId: cr.PhysicalResourceId.of(`CBL-${configureBridgeSalt}`),
       },
       policy: cr.AwsCustomResourcePolicy.fromStatements([
         new iam.PolicyStatement({

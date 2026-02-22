@@ -141,6 +141,7 @@ export class StatefulStack extends cdk.Stack {
       buildArgs: { NODE_20_SLIM: ecrNodeSlim(this.account, this.region) },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
       retainBuildLogs: true,
+      retainBuildLogs: true,
     });
 
     const seedLambdaLogGroup = new logs.LogGroup(this, 'SeedDbLogs', {

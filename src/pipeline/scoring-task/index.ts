@@ -179,7 +179,13 @@ async function main(): Promise<void> {
     if (i > 0) await sleep(DELAY_MS);
 
     try {
-      const lead = await db.lead.findUnique({ where: { id: lead_id } });
+      const lead = await db.lead.findUnique({
+        where: { id: lead_id },
+        include: {
+          locationCity: { select: { name: true } },
+          locationState: { select: { name: true } },
+        },
+      });
       if (!lead) {
         console.warn(`Lead ${lead_id} not found, skipping`);
         skipped++;
@@ -194,8 +200,8 @@ async function main(): Promise<void> {
       const leadData = {
         name: lead.name,
         business_type: lead.businessType,
-        city: lead.city,
-        state: lead.state,
+        city: lead.locationCity?.name ?? null,
+        state: lead.locationState?.name ?? lead.locationStateId ?? null,
         phone: lead.phone,
         website: lead.website,
         rating: lead.rating,

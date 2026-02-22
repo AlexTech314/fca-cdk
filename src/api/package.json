@@ -18,6 +18,7 @@
     "db:studio": "cd ../packages/db && npx prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "@aws-sdk/client-ecs": "^3.994.0",
     "@aws-sdk/client-lambda": "^3.990.0",
     "@aws-sdk/client-s3": "^3.985.0",

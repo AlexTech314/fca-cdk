@@ -126,10 +126,41 @@ export const mockApi: LeadGenApi = {
     }
     
     const campaign = campaigns.find(c => c.id === lead.campaignId);
+    const mockExtracted = getMockExtractedForLead(id);
+    const mockRuns = getMockScrapeRunsForLead(id);
     
     return {
       ...lead,
       campaign,
+      leadEmails: mockExtracted.emails,
+      leadPhones: mockExtracted.phones,
+      leadSocialProfiles: mockExtracted.socialProfiles,
+      leadTeamMembers: mockExtracted.teamMembers,
+      leadAcquisitionSignals: mockExtracted.acquisitionSignals,
+      scrapeRuns: mockRuns,
+    };
+  },
+
+  async getLeadScrapeRuns(leadId: string) {
+    await randomDelay();
+    return getMockScrapeRunsForLead(leadId);
+  },
+
+  async getScrapeRunTree(runId: string) {
+    await randomDelay();
+    const run = getMockScrapeRunById(runId);
+    return run ?? null;
+  },
+
+  async getLeadProvenance(leadId: string) {
+    await randomDelay();
+    const extracted = getMockExtractedForLead(leadId);
+    return {
+      emails: extracted.emails.map(e => ({ value: e.value, sourcePageId: e.sourcePageId, sourceRunId: e.sourceRunId, sourcePage: e.sourcePage })),
+      phones: extracted.phones.map(p => ({ value: p.value, sourcePageId: p.sourcePageId, sourceRunId: p.sourceRunId, sourcePage: p.sourcePage })),
+      socialProfiles: extracted.socialProfiles.map(s => ({ platform: s.platform, url: s.url, sourcePageId: s.sourcePageId, sourceRunId: s.sourceRunId, sourcePage: s.sourcePage })),
+      teamMembers: extracted.teamMembers.map(t => ({ name: t.name, title: t.title, sourceUrl: t.sourceUrl, sourcePageId: t.sourcePageId, sourceRunId: t.sourceRunId, sourcePage: t.sourcePage })),
+      acquisitionSignals: extracted.acquisitionSignals.map(a => ({ signalType: a.signalType, text: a.text, dateMentioned: a.dateMentioned, sourcePageId: a.sourcePageId, sourceRunId: a.sourceRunId, sourcePage: a.sourcePage })),
     };
   },
 
@@ -399,6 +430,43 @@ export const mockApi: LeadGenApi = {
 // Helper Functions
 // ===========================================
 
+function getMockExtractedForLead(leadId: string) {
+  const lead = leads.find(l => l.id === leadId);
+  const pageId = `page-${leadId}`;
+  const runId = `run-${leadId}`;
+  const sourcePage = { id: pageId, url: lead?.website ?? 'https://example.com' };
+  return {
+    emails: lead?.website ? [{ id: `email-${leadId}`, value: `contact@${lead.website?.replace(/^https?:\/\//, '').split('/')[0]}`, sourcePageId: pageId, sourceRunId: runId, sourcePage }] : [],
+    phones: lead?.phone ? [{ id: `phone-${leadId}`, value: lead.phone, sourcePageId: pageId, sourceRunId: runId, sourcePage }] : [],
+    socialProfiles: [] as any[],
+    teamMembers: [] as any[],
+    acquisitionSignals: (lead as any)?.hasAcquisitionSignal ? [{ id: `acq-${leadId}`, signalType: 'acquisition', text: 'Mentioned acquisition', dateMentioned: null, sourcePageId: pageId, sourceRunId: runId, sourcePage }] : [],
+  };
+}
+
+function getMockScrapeRunsForLead(leadId: string): import('@/types').ScrapeRun[] {
+  const lead = leads.find(l => l.id === leadId);
+  if (!lead?.website) return [];
+  const runId = `run-${leadId}`;
+  const rootPage = { id: `page-${leadId}`, url: lead.website, parentScrapedPageId: null, depth: 0, scrapedAt: lead.webScrapedAt ?? lead.updatedAt, statusCode: 200, scrapeMethod: 'cloudscraper', parentScrapedPage: null };
+  return [{
+    id: runId,
+    leadId,
+    rootUrl: lead.website,
+    status: 'completed',
+    startedAt: lead.webScrapedAt ?? lead.createdAt,
+    completedAt: lead.webScrapedAt ?? lead.updatedAt,
+    methodSummary: 'cloudscraper',
+    scrapedPages: [rootPage],
+  }];
+}
+
+function getMockScrapeRunById(runId: string): import('@/types').ScrapeRun | null {
+  const leadId = runId.replace('run-', '');
+  const runs = getMockScrapeRunsForLead(leadId);
+  return runs.find(r => r.id === runId) ?? null;
+}
+
 function applyFilters(leads: Lead[], filters: LeadFilters): Lead[] {
   let filtered = [...leads];
   
@@ -446,6 +514,38 @@ function applyFilters(leads: Lead[], filters: LeadFilters): Lead[] {
   if (filters.hasPhone !== undefined) {
     filtered = filtered.filter(l => filters.hasPhone ? l.phone !== null : l.phone === null);
   }
+
+  if (filters.foundedYearMin !== undefined) {
+    filtered = filtered.filter(l => l.foundedYear != null && l.foundedYear >= filters.foundedYearMin!);
+  }
+  if (filters.foundedYearMax !== undefined) {
+    filtered = filtered.filter(l => l.foundedYear != null && l.foundedYear <= filters.foundedYearMax!);
+  }
+  if (filters.yearsInBusinessMin !== undefined) {
+    filtered = filtered.filter(l => l.yearsInBusiness != null && l.yearsInBusiness >= filters.yearsInBusinessMin!);
+  }
+  if (filters.yearsInBusinessMax !== undefined) {
+    filtered = filtered.filter(l => l.yearsInBusiness != null && l.yearsInBusiness <= filters.yearsInBusinessMax!);
+  }
+  if (filters.headcountEstimateMin !== undefined) {
+    filtered = filtered.filter(l => l.headcountEstimate != null && l.headcountEstimate >= filters.headcountEstimateMin!);
+  }
+  if (filters.headcountEstimateMax !== undefined) {
+    filtered = filtered.filter(l => l.headcountEstimate != null && l.headcountEstimate <= filters.headcountEstimateMax!);
+  }
+  if (filters.hasAcquisitionSignal !== undefined) {
+    filtered = filtered.filter(l => (l.hasAcquisitionSignal ?? false) === filters.hasAcquisitionSignal);
+  }
+  if (filters.hasExtractedEmail === true) {
+    filtered = filtered.filter(l => (l as any).leadEmails?.length > 0 || l.website);
+  } else if (filters.hasExtractedEmail === false) {
+    filtered = filtered.filter(l => !((l as any).leadEmails?.length) && !l.website);
+  }
+  if (filters.hasExtractedPhone === true) {
+    filtered = filtered.filter(l => (l as any).leadPhones?.length > 0 || l.phone);
+  } else if (filters.hasExtractedPhone === false) {
+    filtered = filtered.filter(l => !((l as any).leadPhones?.length) && !l.phone);
+  }
   
   return filtered;
 }
@@ -475,6 +575,22 @@ function sortLeads(leads: Lead[], sort: string, order: 'asc' | 'desc'): Lead[] {
       case 'qualificationScore':
         aVal = a.qualificationScore || 0;
         bVal = b.qualificationScore || 0;
+        break;
+      case 'foundedYear':
+        aVal = a.foundedYear ?? 0;
+        bVal = b.foundedYear ?? 0;
+        break;
+      case 'yearsInBusiness':
+        aVal = a.yearsInBusiness ?? 0;
+        bVal = b.yearsInBusiness ?? 0;
+        break;
+      case 'headcountEstimate':
+        aVal = a.headcountEstimate ?? 0;
+        bVal = b.headcountEstimate ?? 0;
+        break;
+      case 'webScrapedAt':
+        aVal = a.webScrapedAt ? new Date(a.webScrapedAt).getTime() : 0;
+        bVal = b.webScrapedAt ? new Date(b.webScrapedAt).getTime() : 0;
         break;
       case 'createdAt':
       default:

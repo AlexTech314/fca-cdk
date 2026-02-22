@@ -414,6 +414,8 @@ function generateLeads(): Lead[] {
     const score = randomScore();
     const qualifiedAt = score !== null ? randomDate(new Date('2025-01-01'), new Date()) : null;
     
+    const hasWebsite = Math.random() > 0.2;
+    const webScrapedAt = hasWebsite && Math.random() > 0.3 ? randomDate(new Date('2024-08-01'), new Date()) : null;
     leads.push({
       id: `lead-${i + 1}`,
       placeId: generatePlaceId(),
@@ -425,7 +427,7 @@ function generateLeads(): Lead[] {
       state,
       zipCode: String(Math.floor(Math.random() * 90000) + 10000),
       phone: Math.random() > 0.15 ? `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}` : null,
-      website: Math.random() > 0.2 ? `https://www.${prefix.toLowerCase()}${businessType.toLowerCase().replace(' ', '')}.com` : null,
+      website: hasWebsite ? `https://www.${prefix.toLowerCase()}${businessType.toLowerCase().replace(' ', '')}.com` : null,
       rating: randomRating(),
       reviewCount: Math.floor(Math.random() * 200) + 5,
       priceLevel: Math.random() > 0.5 ? Math.floor(Math.random() * 3) + 1 : null,
@@ -435,6 +437,13 @@ function generateLeads(): Lead[] {
       qualifiedAt,
       source: 'google_maps',
       franchiseId: null,
+      foundedYear: webScrapedAt && Math.random() > 0.5 ? 1995 + Math.floor(Math.random() * 25) : null,
+      yearsInBusiness: webScrapedAt && Math.random() > 0.5 ? Math.floor(Math.random() * 20) + 1 : null,
+      headcountEstimate: webScrapedAt && Math.random() > 0.6 ? Math.floor(Math.random() * 100) + 5 : null,
+      hasAcquisitionSignal: webScrapedAt ? Math.random() > 0.7 : false,
+      acquisitionSummary: null,
+      contactPageUrl: webScrapedAt && Math.random() > 0.5 ? '/contact' : null,
+      webScrapedAt,
       createdAt: randomDate(new Date('2024-06-01'), new Date()),
       updatedAt: randomDate(new Date('2024-06-01'), new Date()),
     });

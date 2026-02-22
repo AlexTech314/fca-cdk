@@ -111,6 +111,13 @@ function transformLead(raw: any): Lead {
     franchiseId: raw.franchiseId ?? raw.franchise_id ?? null,
     franchise: raw.franchise ? transformFranchise(raw.franchise) : null,
     campaign: raw.campaign ? { id: raw.campaign.id, name: raw.campaign.name } : null,
+    foundedYear: raw.foundedYear ?? raw.founded_year ?? null,
+    yearsInBusiness: raw.yearsInBusiness ?? raw.years_in_business ?? null,
+    headcountEstimate: raw.headcountEstimate ?? raw.headcount_estimate ?? null,
+    hasAcquisitionSignal: raw.hasAcquisitionSignal ?? raw.has_acquisition_signal ?? null,
+    acquisitionSummary: raw.acquisitionSummary ?? raw.acquisition_summary ?? null,
+    contactPageUrl: raw.contactPageUrl ?? raw.contact_page_url ?? null,
+    webScrapedAt: raw.webScrapedAt ?? raw.web_scraped_at ?? null,
     createdAt: raw.createdAt || raw.created_at,
     updatedAt: raw.updatedAt || raw.updated_at,
   };
@@ -254,6 +261,15 @@ export const realApi: LeadGenApi = {
     if (filters.hasWebsite !== undefined) qs.set('hasWebsite', String(filters.hasWebsite));
     if (filters.hasPhone !== undefined) qs.set('hasPhone', String(filters.hasPhone));
     if (filters.franchiseId) qs.set('franchiseId', filters.franchiseId);
+    if (filters.foundedYearMin !== undefined) qs.set('foundedYearMin', String(filters.foundedYearMin));
+    if (filters.foundedYearMax !== undefined) qs.set('foundedYearMax', String(filters.foundedYearMax));
+    if (filters.yearsInBusinessMin !== undefined) qs.set('yearsInBusinessMin', String(filters.yearsInBusinessMin));
+    if (filters.yearsInBusinessMax !== undefined) qs.set('yearsInBusinessMax', String(filters.yearsInBusinessMax));
+    if (filters.headcountEstimateMin !== undefined) qs.set('headcountEstimateMin', String(filters.headcountEstimateMin));
+    if (filters.headcountEstimateMax !== undefined) qs.set('headcountEstimateMax', String(filters.headcountEstimateMax));
+    if (filters.hasAcquisitionSignal !== undefined) qs.set('hasAcquisitionSignal', String(filters.hasAcquisitionSignal));
+    if (filters.hasExtractedEmail !== undefined) qs.set('hasExtractedEmail', String(filters.hasExtractedEmail));
+    if (filters.hasExtractedPhone !== undefined) qs.set('hasExtractedPhone', String(filters.hasExtractedPhone));
 
     const result = await apiClient<{ data: any[]; total: number; page: number; limit: number; totalPages: number }>(
       `/leads?${qs}`
@@ -270,7 +286,26 @@ export const realApi: LeadGenApi = {
 
   async getLead(id: string): Promise<LeadWithCampaign> {
     const raw = await apiClient<any>(`/leads/${id}`);
-    return transformLead(raw) as LeadWithCampaign;
+    const lead = transformLead(raw) as LeadWithCampaign;
+    lead.leadEmails = raw.leadEmails ?? [];
+    lead.leadPhones = raw.leadPhones ?? [];
+    lead.leadSocialProfiles = raw.leadSocialProfiles ?? [];
+    lead.leadTeamMembers = raw.leadTeamMembers ?? [];
+    lead.leadAcquisitionSignals = raw.leadAcquisitionSignals ?? [];
+    lead.scrapeRuns = raw.scrapeRuns ?? [];
+    return lead;
+  },
+
+  async getLeadScrapeRuns(leadId: string) {
+    return apiClient<any[]>(`/leads/${leadId}/scrape-runs`);
+  },
+
+  async getScrapeRunTree(runId: string) {
+    return apiClient<any>(`/scrape-runs/${runId}/tree`);
+  },
+
+  async getLeadProvenance(leadId: string) {
+    return apiClient<any>(`/leads/${leadId}/provenance`);
   },
 
   async getLeadCount(params: LeadQueryParams): Promise<number> {
@@ -282,6 +317,15 @@ export const realApi: LeadGenApi = {
     if (filters.businessTypes?.length) qs.set('businessTypes', filters.businessTypes.join(','));
     if (filters.campaignId) qs.set('campaignId', filters.campaignId);
     if (filters.franchiseId) qs.set('franchiseId', filters.franchiseId);
+    if (filters.foundedYearMin !== undefined) qs.set('foundedYearMin', String(filters.foundedYearMin));
+    if (filters.foundedYearMax !== undefined) qs.set('foundedYearMax', String(filters.foundedYearMax));
+    if (filters.yearsInBusinessMin !== undefined) qs.set('yearsInBusinessMin', String(filters.yearsInBusinessMin));
+    if (filters.yearsInBusinessMax !== undefined) qs.set('yearsInBusinessMax', String(filters.yearsInBusinessMax));
+    if (filters.headcountEstimateMin !== undefined) qs.set('headcountEstimateMin', String(filters.headcountEstimateMin));
+    if (filters.headcountEstimateMax !== undefined) qs.set('headcountEstimateMax', String(filters.headcountEstimateMax));
+    if (filters.hasAcquisitionSignal !== undefined) qs.set('hasAcquisitionSignal', String(filters.hasAcquisitionSignal));
+    if (filters.hasExtractedEmail !== undefined) qs.set('hasExtractedEmail', String(filters.hasExtractedEmail));
+    if (filters.hasExtractedPhone !== undefined) qs.set('hasExtractedPhone', String(filters.hasExtractedPhone));
 
     const result = await apiClient<{ count: number }>(`/leads/count?${qs}`);
     return result.count;

@@ -72,8 +72,92 @@ export interface Lead {
   franchiseId: string | null;
   franchise?: Franchise | null;
   campaign?: { id: string; name: string } | null;
+  /** Scrape-derived scalar fields */
+  foundedYear?: number | null;
+  yearsInBusiness?: number | null;
+  headcountEstimate?: number | null;
+  hasAcquisitionSignal?: boolean | null;
+  acquisitionSummary?: string | null;
+  contactPageUrl?: string | null;
+  webScrapedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Extracted value with provenance */
+export interface LeadEmail {
+  id: string;
+  value: string;
+  sourcePageId: string;
+  sourceRunId: string;
+  sourcePage?: { id: string; url: string } | null;
+}
+
+export interface LeadPhone {
+  id: string;
+  value: string;
+  sourcePageId: string;
+  sourceRunId: string;
+  sourcePage?: { id: string; url: string } | null;
+}
+
+export interface LeadSocialProfile {
+  id: string;
+  platform: string;
+  url: string;
+  sourcePageId: string;
+  sourceRunId: string;
+  sourcePage?: { id: string; url: string } | null;
+}
+
+export interface LeadTeamMember {
+  id: string;
+  name: string;
+  title: string | null;
+  sourceUrl: string | null;
+  sourcePageId: string;
+  sourceRunId: string;
+  sourcePage?: { id: string; url: string } | null;
+}
+
+export interface LeadAcquisitionSignal {
+  id: string;
+  signalType: string;
+  text: string;
+  dateMentioned: string | null;
+  sourcePageId: string;
+  sourceRunId: string;
+  sourcePage?: { id: string; url: string } | null;
+}
+
+export interface ScrapedPageRef {
+  id: string;
+  url: string;
+  parentScrapedPageId?: string | null;
+  depth?: number;
+  scrapedAt?: string;
+  statusCode?: number;
+  scrapeMethod?: string;
+  parentScrapedPage?: { id: string; url: string } | null;
+}
+
+export interface ScrapeRun {
+  id: string;
+  leadId: string;
+  rootUrl: string;
+  status: string;
+  startedAt: string;
+  completedAt: string | null;
+  methodSummary: string | null;
+  scrapedPages: ScrapedPageRef[];
+}
+
+export interface LeadProvenance {
+  emails: Array<{ value: string; sourcePageId: string; sourceRunId: string; sourcePage: { id: string; url: string } | null }>;
+  phones: Array<{ value: string; sourcePageId: string; sourceRunId: string; sourcePage: { id: string; url: string } | null }>;
+  socialProfiles: Array<{ platform: string; url: string; sourcePageId: string; sourceRunId: string; sourcePage: { id: string; url: string } | null }>;
+  teamMembers: Array<{ name: string; title: string | null; sourceUrl: string | null; sourcePageId: string; sourceRunId: string; sourcePage: { id: string; url: string } | null }>;
+  acquisitionSignals: Array<{ signalType: string; text: string; dateMentioned: string | null; sourcePageId: string; sourceRunId: string; sourcePage: { id: string; url: string } | null }>;
 }
 
 export interface Campaign {
@@ -140,6 +224,16 @@ export interface LeadFilters {
   qualificationMax?: number;
   hasWebsite?: boolean;
   hasPhone?: boolean;
+  /** Scrape-derived filters */
+  foundedYearMin?: number;
+  foundedYearMax?: number;
+  yearsInBusinessMin?: number;
+  yearsInBusinessMax?: number;
+  headcountEstimateMin?: number;
+  headcountEstimateMax?: number;
+  hasAcquisitionSignal?: boolean;
+  hasExtractedEmail?: boolean;
+  hasExtractedPhone?: boolean;
 }
 
 export interface LeadQueryParams {
@@ -246,4 +340,10 @@ export interface CampaignWithStats extends Campaign {
 
 export interface LeadWithCampaign extends Lead {
   campaign?: Campaign;
+  leadEmails?: LeadEmail[];
+  leadPhones?: LeadPhone[];
+  leadSocialProfiles?: LeadSocialProfile[];
+  leadTeamMembers?: LeadTeamMember[];
+  leadAcquisitionSignals?: LeadAcquisitionSignal[];
+  scrapeRuns?: ScrapeRun[];
 }

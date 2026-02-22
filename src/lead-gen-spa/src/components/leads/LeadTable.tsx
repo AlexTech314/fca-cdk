@@ -142,6 +142,25 @@ export function LeadTable({
               </TableHead>
               <TableHead>
                 <SortableHeader
+                  column="foundedYear"
+                  label="Founded"
+                  currentSort={sorting.sort}
+                  currentOrder={sorting.order}
+                  onSort={onSortChange}
+                />
+              </TableHead>
+              <TableHead>Acquisition</TableHead>
+              <TableHead>
+                <SortableHeader
+                  column="webScrapedAt"
+                  label="Scraped"
+                  currentSort={sorting.sort}
+                  currentOrder={sorting.order}
+                  onSort={onSortChange}
+                />
+              </TableHead>
+              <TableHead>
+                <SortableHeader
                   column="createdAt"
                   label="Added"
                   currentSort={sorting.sort}
@@ -154,7 +173,7 @@ export function LeadTable({
           <TableBody>
             {data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
                   No leads found matching your filters.
                 </TableCell>
               </TableRow>
@@ -218,6 +237,19 @@ export function LeadTable({
                     ) : (
                       <span className="text-muted-foreground text-sm">—</span>
                     )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {lead.foundedYear ?? '—'}
+                  </TableCell>
+                  <TableCell>
+                    {lead.hasAcquisitionSignal ? (
+                      <Badge variant="secondary" className="text-xs">Yes</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {lead.webScrapedAt ? formatDate(lead.webScrapedAt) : '—'}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {formatDate(lead.createdAt)}

@@ -47,6 +47,10 @@ export interface ScrapedPage {
   links: string[];
   status_code: number;
   scraped_at: string;
+  /** URL of page that linked to this one (null for root) */
+  parentUrl?: string | null;
+  /** Depth in crawl tree (0 = root) */
+  depth?: number;
 }
 
 export interface TeamMember {

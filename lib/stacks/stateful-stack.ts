@@ -146,18 +146,6 @@ export class StatefulStack extends cdk.Stack {
           maxAge: 3600,
         },
       ],
-      lifecycleRules: [
-        {
-          id: 'TransitionScrapedDataToIA',
-          prefix: 'scraped-data/',
-          transitions: [
-            {
-              storageClass: s3.StorageClass.INFREQUENT_ACCESS,
-              transitionAfter: cdk.Duration.days(90),
-            },
-          ],
-        },
-      ],
     });
 
     // ============================================================

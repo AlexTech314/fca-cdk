@@ -27,6 +27,24 @@ export const leadFiltersSchema = z.object({
     z.boolean().optional()
   ),
   franchiseId: z.string().optional(),
+  foundedYearMin: z.coerce.number().int().optional(),
+  foundedYearMax: z.coerce.number().int().optional(),
+  yearsInBusinessMin: z.coerce.number().int().optional(),
+  yearsInBusinessMax: z.coerce.number().int().optional(),
+  headcountEstimateMin: z.coerce.number().int().optional(),
+  headcountEstimateMax: z.coerce.number().int().optional(),
+  hasAcquisitionSignal: z.preprocess(
+    (v) => (v === 'true' ? true : v === 'false' ? false : v),
+    z.boolean().optional()
+  ),
+  hasExtractedEmail: z.preprocess(
+    (v) => (v === 'true' ? true : v === 'false' ? false : v),
+    z.boolean().optional()
+  ),
+  hasExtractedPhone: z.preprocess(
+    (v) => (v === 'true' ? true : v === 'false' ? false : v),
+    z.boolean().optional()
+  ),
 });
 
 // Lead list query params
@@ -35,7 +53,6 @@ export const leadQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(200).default(25),
   sort: z.string().default('createdAt'),
   order: z.enum(['asc', 'desc']).default('desc'),
-  // Filters are passed as individual query params
   name: z.string().optional(),
   cityId: z.coerce.number().int().optional(),
   stateId: z.string().optional(),
@@ -61,6 +78,24 @@ export const leadQuerySchema = z.object({
     z.boolean().optional()
   ),
   franchiseId: z.string().optional(),
+  foundedYearMin: z.coerce.number().int().optional(),
+  foundedYearMax: z.coerce.number().int().optional(),
+  yearsInBusinessMin: z.coerce.number().int().optional(),
+  yearsInBusinessMax: z.coerce.number().int().optional(),
+  headcountEstimateMin: z.coerce.number().int().optional(),
+  headcountEstimateMax: z.coerce.number().int().optional(),
+  hasAcquisitionSignal: z.preprocess(
+    (v) => (v === 'true' ? true : v === 'false' ? false : v),
+    z.boolean().optional()
+  ),
+  hasExtractedEmail: z.preprocess(
+    (v) => (v === 'true' ? true : v === 'false' ? false : v),
+    z.boolean().optional()
+  ),
+  hasExtractedPhone: z.preprocess(
+    (v) => (v === 'true' ? true : v === 'false' ? false : v),
+    z.boolean().optional()
+  ),
 });
 
 // Types

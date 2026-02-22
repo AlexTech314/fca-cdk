@@ -210,10 +210,11 @@ export async function scrapeWebsite(
   
   const visited = new Set<string>();
   const queued = new Set<string>(); // Track URLs already in queue (deduplication)
-  const toVisit: string[] = [websiteUri];
+  const toVisit: { url: string; parentUrl: string | null }[] = [{ url: websiteUri, parentUrl: null }];
   queued.add(normalizeUrl(websiteUri) || websiteUri);
   
   const pages: ScrapedPage[] = [];
+  const urlToDepth = new Map<string, number>();
   let cloudscraperCount = 0;
   let puppeteerCount = 0;
   let consecutiveFailures = 0;
@@ -222,7 +223,7 @@ export async function scrapeWebsite(
   const localFailureTracker = failureTracker || new FailureTracker();
   
   while (toVisit.length > 0 && pages.length < maxPages) {
-    const url = toVisit.shift()!;
+    const { url, parentUrl } = toVisit.shift()!;
     
     // Normalize URL
     const normalizedUrl = normalizeUrl(url);
@@ -250,7 +251,13 @@ export async function scrapeWebsite(
     const { result, error } = await scrapePage(normalizedUrl, { browser, pagePool });
     
     if (result) {
-      pages.push(result.page);
+      const depth = parentUrl === null ? 0 : (urlToDepth.get(parentUrl) ?? 0) + 1;
+      urlToDepth.set(normalizedUrl, depth);
+      pages.push({
+        ...result.page,
+        parentUrl: parentUrl ?? undefined,
+        depth,
+      });
       consecutiveFailures = 0;
       
       // Track domain success
@@ -278,11 +285,11 @@ export async function scrapeWebsite(
         // Sort by priority (about, contact, team first)
         const prioritized = sortByPriority(sameDomainLinks);
         
-        // Add to queue and track
+        // Add to queue and track (current page is parent of discovered links)
         for (const link of prioritized) {
           if (!queued.has(link)) {
             queued.add(link);
-            toVisit.push(link);
+            toVisit.push({ url: link, parentUrl: normalizedUrl });
           }
         }
       }

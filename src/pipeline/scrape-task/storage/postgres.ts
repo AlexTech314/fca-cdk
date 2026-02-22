@@ -1,11 +1,11 @@
 /**
  * Postgres storage for scrape task.
- * Creates ScrapedPage records with Lead/Franchise junctions.
- * Also updates leads with web_scraped_at and web_scraped_data for backward compatibility.
+ * Creates ScrapeRun, ScrapedPage tree, normalized extracted tables, and updates Lead scalar fields.
+ * No S3 payload persistence. No legacy JSON blobs.
  */
 
 import type { PrismaClient } from '@prisma/client';
-import type { ExtractedData, ScrapeMetrics } from '../types.js';
+import type { ExtractedData } from '../types.js';
 
 export interface BatchLead {
   id: string;
@@ -23,120 +23,206 @@ function extractDomain(url: string): string {
   }
 }
 
+/** In-memory page from scraper (has url, parentUrl, depth) */
+interface ScrapedPageInput {
+  url: string;
+  status_code: number;
+  scraped_at: string;
+  parentUrl?: string | null;
+  depth?: number;
+}
+
 /**
- * Update a lead with scrape results: create ScrapedPage, junctions, and update lead.
+ * Update a lead with scrape results: create ScrapeRun, ScrapedPage tree, normalized extracted rows, update Lead scalars.
  */
 export async function updateLeadWithScrapeData(
   prisma: PrismaClient,
   leadId: string,
   websiteUrl: string,
-  rawS3Key: string,
-  extractedS3Key: string,
   scrapeMethod: 'cloudscraper' | 'puppeteer',
   pagesCount: number,
-  totalBytes: number,
   durationMs: number,
-  extracted: ExtractedData
+  extracted: ExtractedData,
+  pages: ScrapedPageInput[],
+  taskId?: string
 ): Promise<void> {
   const scrapedAt = new Date();
   const domain = extractDomain(websiteUrl);
-  const extractedDataJson = {
-    contacts: {
-      emails: extracted.emails,
-      phones: extracted.phones,
-      contact_page_url: extracted.contact_page_url,
-      social: extracted.social,
-    },
-    team: {
-      members: extracted.team_members,
-      headcount_estimate: extracted.headcount_estimate,
-      headcount_source: extracted.headcount_source,
-      new_hire_mentions: extracted.new_hire_mentions,
-    },
-    acquisition: {
-      signals: extracted.acquisition_signals,
-      has_signal: extracted.has_acquisition_signal,
-      summary: extracted.acquisition_summary,
-    },
-    history: {
-      founded_year: extracted.founded_year,
-      founded_source: extracted.founded_source,
-      years_in_business: extracted.years_in_business,
-      snippets: extracted.history_snippets,
-    },
-  };
 
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
     select: { franchiseId: true },
   });
 
-  const scrapedPage = await prisma.scrapedPage.create({
+  // 1. Create ScrapeRun
+  const scrapeRun = await prisma.scrapeRun.create({
     data: {
-      url: websiteUrl,
-      domain,
-      scrapeMethod,
-      statusCode: null,
-      scrapedAt,
+      leadId,
+      taskId: taskId ?? null,
+      rootUrl: websiteUrl,
+      status: 'completed',
+      startedAt: new Date(scrapedAt.getTime() - durationMs),
+      completedAt: scrapedAt,
+      methodSummary: scrapeMethod,
+      pagesCount,
       durationMs,
-      rawS3Key,
-      extractedS3Key,
-      extractedData: JSON.parse(JSON.stringify(extractedDataJson)),
     },
   });
 
-  await prisma.leadScrapedPage.create({
-    data: { leadId, scrapedPageId: scrapedPage.id },
-  });
+  // 2. Create ScrapedPage for each crawled page (build url->id map for parent linkage)
+  const urlToPageId = new Map<string, string>();
+  for (const p of pages) {
+    const parentScrapedPageId = p.parentUrl ? urlToPageId.get(p.parentUrl) ?? null : null;
+    const sp = await prisma.scrapedPage.create({
+      data: {
+        scrapeRunId: scrapeRun.id,
+        leadId,
+        parentScrapedPageId,
+        depth: p.depth ?? 0,
+        url: p.url,
+        domain,
+        scrapeMethod,
+        statusCode: p.status_code,
+        scrapedAt: new Date(p.scraped_at),
+        durationMs: pages.length === 1 ? durationMs : null,
+      },
+    });
+    urlToPageId.set(p.url, sp.id);
+  }
 
-  if (lead?.franchiseId) {
-    await prisma.franchiseScrapedPage.create({
-      data: { franchiseId: lead.franchiseId, scrapedPageId: scrapedPage.id },
+  // Root page for assigning provenance when source_url is unknown
+  const rootPageId = urlToPageId.get(websiteUrl) ?? urlToPageId.values().next().value;
+  const effectiveRootPageId = rootPageId ?? [...urlToPageId.values()][0];
+  if (!effectiveRootPageId) {
+    throw new Error('No scraped pages for provenance');
+  }
+  const scrapeRunId = scrapeRun.id;
+
+  // 3. Insert normalized extracted rows with provenance
+  for (const email of extracted.emails) {
+    const sourceUrl = (extracted as { emailSources?: Record<string, string> }).emailSources?.[email];
+    const sourcePageId = sourceUrl ? urlToPageId.get(sourceUrl) : null;
+    await prisma.leadEmail.create({
+      data: {
+        leadId,
+        value: email,
+        sourcePageId: sourcePageId ?? effectiveRootPageId,
+        sourceRunId: scrapeRunId,
+      },
     });
   }
 
-  const webScrapedData = {
-    rawS3Key,
-    extractedS3Key,
-    scrapeMethod,
-    pagesCount,
-    totalBytes,
-    durationMs,
-    ...extractedDataJson,
-  };
+  for (const phone of extracted.phones) {
+    const sourceUrl = (extracted as { phoneSources?: Record<string, string> }).phoneSources?.[phone];
+    const sourcePageId = sourceUrl ? urlToPageId.get(sourceUrl) : null;
+    await prisma.leadPhone.create({
+      data: {
+        leadId,
+        value: phone,
+        sourcePageId: sourcePageId ?? effectiveRootPageId,
+        sourceRunId: scrapeRunId,
+      },
+    });
+  }
 
+  const socialPlatforms = ['linkedin', 'facebook', 'instagram', 'twitter'] as const;
+  for (const platform of socialPlatforms) {
+    const url = extracted.social[platform];
+    if (url) {
+      const sourceUrl = (extracted as { socialSources?: Record<string, string> }).socialSources?.[platform];
+      const sourcePageId = sourceUrl ? urlToPageId.get(sourceUrl) : null;
+      await prisma.leadSocialProfile.create({
+        data: {
+          leadId,
+          platform,
+          url,
+          sourcePageId: sourcePageId ?? effectiveRootPageId,
+          sourceRunId: scrapeRunId,
+        },
+      });
+    }
+  }
+
+  for (const member of extracted.team_members) {
+    const sourcePageId = member.source_url ? urlToPageId.get(member.source_url) : null;
+    if (sourcePageId) {
+      await prisma.leadTeamMember.create({
+        data: {
+          leadId,
+          name: member.name,
+          title: member.title ?? null,
+          sourceUrl: member.source_url,
+          sourcePageId,
+          sourceRunId: scrapeRunId,
+        },
+      });
+    }
+  }
+
+  for (const signal of extracted.acquisition_signals) {
+    const sourcePageId = signal.source_url ? urlToPageId.get(signal.source_url) : null;
+    if (sourcePageId) {
+      await prisma.leadAcquisitionSignal.create({
+        data: {
+          leadId,
+          signalType: signal.signal_type,
+          text: signal.text,
+          dateMentioned: signal.date_mentioned ?? null,
+          sourcePageId,
+          sourceRunId: scrapeRunId,
+        },
+      });
+    }
+  }
+
+  // 4. Update Lead scalar fields
   await prisma.lead.update({
     where: { id: leadId },
     data: {
       webScrapedAt: scrapedAt,
-      webScrapedData: JSON.parse(JSON.stringify(webScrapedData)),
+      foundedYear: extracted.founded_year,
+      yearsInBusiness: extracted.years_in_business,
+      headcountEstimate: extracted.headcount_estimate,
+      hasAcquisitionSignal: extracted.has_acquisition_signal,
+      acquisitionSummary: extracted.acquisition_summary,
+      contactPageUrl: extracted.contact_page_url,
     },
   });
-  console.log(`  [Prisma] Created ScrapedPage ${scrapedPage.id}, updated lead ${leadId}`);
+
+  // 5. Link to franchise if applicable
+  if (lead?.franchiseId) {
+    await prisma.franchiseScrapedPage.createMany({
+      data: [...urlToPageId.values()].map((scrapedPageId) => ({
+        franchiseId: lead.franchiseId!,
+        scrapedPageId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  console.log(`  [Prisma] Created ScrapeRun ${scrapeRun.id}, ${pages.length} ScrapedPages, updated lead ${leadId}`);
 }
 
 /**
- * Mark a lead as failed to scrape
+ * Mark a lead as failed to scrape (update run status only; no JSON blob)
  */
 export async function markLeadScrapeFailed(prisma: PrismaClient, leadId: string): Promise<void> {
+  // Create a failed ScrapeRun if we have context, otherwise just ensure lead has webScrapedAt
+  // For now we only update webScrapedAt to indicate we attempted (simplest failure path)
   await prisma.lead.update({
     where: { id: leadId },
-    data: {
-      webScrapedAt: new Date(),
-      webScrapedData: { status: 'failed', failed_at: new Date().toISOString() },
-    },
+    data: { webScrapedAt: new Date() },
   });
   console.log(`  [Prisma] Marked lead ${leadId} as scrape failed`);
 }
 
 /**
- * Update FargateTask status and metrics in Postgres
+ * Update FargateTask status in Postgres (no metrics - those live on ScrapeRun)
  */
 export async function updateFargateTask(
   prisma: PrismaClient,
   taskId: string,
   status: 'completed' | 'failed',
-  metrics?: ScrapeMetrics,
   errorMessage?: string
 ): Promise<void> {
   await prisma.fargateTask.update({
@@ -145,7 +231,6 @@ export async function updateFargateTask(
       status,
       completedAt: new Date(),
       errorMessage: errorMessage ?? null,
-      metadata: metrics ? JSON.parse(JSON.stringify({ scrape: metrics })) : undefined,
     },
   });
   console.log(`  [Prisma] Updated FargateTask ${taskId} status: ${status}`);

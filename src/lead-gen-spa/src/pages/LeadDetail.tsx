@@ -17,6 +17,11 @@ import {
   Target,
   Sparkles,
   ExternalLink,
+  Mail,
+  Users,
+  TrendingUp,
+  FileSearch,
+  ChevronRight,
 } from 'lucide-react';
 
 export default function LeadDetail() {
@@ -134,6 +139,31 @@ export default function LeadDetail() {
             </CardContent>
           </Card>
 
+          {/* Scrape-derived fields */}
+          {(lead.foundedYear != null || lead.yearsInBusiness != null || lead.headcountEstimate != null || lead.hasAcquisitionSignal || lead.contactPageUrl) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileSearch className="h-4 w-4" />
+                  Scraped Business Info
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {lead.foundedYear != null && <p>Founded: {lead.foundedYear}</p>}
+                {lead.yearsInBusiness != null && <p>Years in business: {lead.yearsInBusiness}</p>}
+                {lead.headcountEstimate != null && <p>Headcount estimate: {lead.headcountEstimate}</p>}
+                {lead.hasAcquisitionSignal && <p className="flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Has acquisition signal</p>}
+                {lead.acquisitionSummary && <p className="text-muted-foreground">{lead.acquisitionSummary}</p>}
+                {lead.contactPageUrl && (
+                  <a href={lead.contactPageUrl.startsWith('http') ? lead.contactPageUrl : `${lead.website}${lead.contactPageUrl}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    Contact page <ExternalLink className="h-3 w-3 inline" />
+                  </a>
+                )}
+                {lead.webScrapedAt && <p className="text-muted-foreground text-xs">Last scraped: {formatDate(lead.webScrapedAt)}</p>}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Location */}
           <Card>
             <CardHeader>
@@ -174,6 +204,108 @@ export default function LeadDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Extracted Data (emails, phones, social, team, acquisition) */}
+        {(lead.leadEmails?.length || lead.leadPhones?.length || lead.leadSocialProfiles?.length || lead.leadTeamMembers?.length || lead.leadAcquisitionSignals?.length) ? (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-base">Extracted Data (from scrape)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {lead.leadEmails?.length ? (
+                <div>
+                  <h4 className="text-sm font-medium flex items-center gap-1 mb-2"><Mail className="h-3 w-3" /> Emails</h4>
+                  <ul className="space-y-1 text-sm">
+                    {lead.leadEmails.map((e) => (
+                      <li key={e.id}>
+                        <a href={`mailto:${e.value}`} className="text-primary hover:underline">{e.value}</a>
+                        {e.sourcePage?.url && <span className="text-muted-foreground text-xs ml-1">(from {e.sourcePage.url})</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {lead.leadPhones?.length ? (
+                <div>
+                  <h4 className="text-sm font-medium flex items-center gap-1 mb-2"><Phone className="h-3 w-3" /> Phones</h4>
+                  <ul className="space-y-1 text-sm">
+                    {lead.leadPhones.map((p) => (
+                      <li key={p.id}>
+                        <a href={`tel:${p.value}`} className="text-primary hover:underline">{p.value}</a>
+                        {p.sourcePage?.url && <span className="text-muted-foreground text-xs ml-1">(from {p.sourcePage.url})</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {lead.leadSocialProfiles?.length ? (
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Social Profiles</h4>
+                  <ul className="space-y-1 text-sm">
+                    {lead.leadSocialProfiles.map((s) => (
+                      <li key={s.id}>
+                        <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{s.platform}: {s.url}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {lead.leadTeamMembers?.length ? (
+                <div>
+                  <h4 className="text-sm font-medium flex items-center gap-1 mb-2"><Users className="h-3 w-3" /> Team Members</h4>
+                  <ul className="space-y-1 text-sm">
+                    {lead.leadTeamMembers.map((t) => (
+                      <li key={t.id}>{t.name}{t.title ? ` — ${t.title}` : ''}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {lead.leadAcquisitionSignals?.length ? (
+                <div>
+                  <h4 className="text-sm font-medium flex items-center gap-1 mb-2"><TrendingUp className="h-3 w-3" /> Acquisition Signals</h4>
+                  <ul className="space-y-1 text-sm">
+                    {lead.leadAcquisitionSignals.map((a) => (
+                      <li key={a.id} className="rounded bg-muted/50 p-2">{a.text}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {/* Scrape Run Tree */}
+        {lead.scrapeRuns?.length ? (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileSearch className="h-4 w-4" />
+                Scrape Run History
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {lead.scrapeRuns.map((run) => (
+                <div key={run.id} className="rounded-lg border p-4">
+                  <div className="text-sm text-muted-foreground mb-2">
+                    {formatDate(run.startedAt)} — {run.status} — {run.methodSummary ?? 'scrape'}
+                  </div>
+                  <div className="text-xs font-mono text-muted-foreground">Root: {run.rootUrl}</div>
+                  {run.scrapedPages?.length ? (
+                    <ul className="mt-2 space-y-1 text-sm">
+                      {run.scrapedPages.map((p) => (
+                        <li key={p.id} className="flex items-center gap-1" style={{ paddingLeft: (p.depth ?? 0) * 12 }}>
+                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                          <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-md">{p.url}</a>
+                          {p.statusCode != null && <span className="text-muted-foreground">({p.statusCode})</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* Campaign Source & Qualification */}
         <div className="mt-6 grid gap-6 lg:grid-cols-2">

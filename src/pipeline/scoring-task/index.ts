@@ -184,6 +184,11 @@ async function main(): Promise<void> {
         include: {
           locationCity: { select: { name: true } },
           locationState: { select: { name: true } },
+          leadEmails: { select: { value: true } },
+          leadPhones: { select: { value: true } },
+          leadSocialProfiles: { select: { platform: true, url: true } },
+          leadTeamMembers: { select: { name: true, title: true } },
+          leadAcquisitionSignals: { select: { signalType: true, text: true, dateMentioned: true } },
         },
       });
       if (!lead) {
@@ -197,6 +202,10 @@ async function main(): Promise<void> {
         continue;
       }
 
+      const social = Object.fromEntries(
+        lead.leadSocialProfiles.map((p) => [p.platform, p.url])
+      );
+
       const leadData = {
         name: lead.name,
         business_type: lead.businessType,
@@ -209,7 +218,23 @@ async function main(): Promise<void> {
         price_level: lead.priceLevel,
         editorial_summary: lead.editorialSummary,
         review_summary: lead.reviewSummary,
-        web_scraped_data: lead.webScrapedData,
+        web_scraped: {
+          emails: lead.leadEmails.map((e) => e.value),
+          phones: lead.leadPhones.map((p) => p.value),
+          social,
+          team_members: lead.leadTeamMembers.map((m) => ({ name: m.name, title: m.title })),
+          acquisition_signals: lead.leadAcquisitionSignals.map((s) => ({
+            signal_type: s.signalType,
+            text: s.text,
+            date_mentioned: s.dateMentioned,
+          })),
+          founded_year: lead.foundedYear,
+          years_in_business: lead.yearsInBusiness,
+          headcount_estimate: lead.headcountEstimate,
+          has_acquisition_signal: lead.hasAcquisitionSignal,
+          acquisition_summary: lead.acquisitionSummary,
+          contact_page_url: lead.contactPageUrl,
+        },
       };
 
       const result = await scoreLead(leadData);

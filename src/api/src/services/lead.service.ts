@@ -86,6 +86,18 @@ export const leadService = {
       percentage: total > 0 ? Math.round((s.value / total) * 100) : 0,
     }));
   },
+
+  async getLeadScrapeRuns(leadId: string) {
+    return leadRepository.getScrapeRunsByLeadId(leadId);
+  },
+
+  async getScrapeRunTree(runId: string) {
+    return leadRepository.getScrapeRunTree(runId);
+  },
+
+  async getLeadProvenance(leadId: string) {
+    return leadRepository.getLeadProvenance(leadId);
+  },
 };
 
 function generateQualificationNotes(score: number): string {

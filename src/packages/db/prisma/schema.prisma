@@ -539,37 +539,62 @@ model Franchise {
   @@map("franchises")
 }
 
-model ScrapedPage {
-  id             String   @id @default(uuid())
-  url            String
-  domain         String
-  scrapeMethod   String   @map("scrape_method")   // cloudscraper | puppeteer
-  statusCode     Int?     @map("status_code")
-  scrapedAt      DateTime @map("scraped_at")
-  durationMs     Int?     @map("duration_ms")
-  rawS3Key       String?  @map("raw_s3_key")
-  extractedS3Key String?  @map("extracted_s3_key")
-  extractedData  Json?    @map("extracted_data")  // contacts, team, acquisition, history
+model ScrapeRun {
+  id            String    @id @default(uuid())
+  leadId        String    @map("lead_id")
+  lead          Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  taskId        String?   @map("task_id")
+  rootUrl       String    @map("root_url")
+  status        String    @default("running")   // running, completed, failed
+  startedAt     DateTime  @default(now()) @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  methodSummary String?   @map("method_summary")
+  pagesCount    Int?      @map("pages_count")
+  durationMs    Int?      @map("duration_ms")
 
-  leads          LeadScrapedPage[]
-  franchises     FranchiseScrapedPage[]
+  scrapedPages ScrapedPage[]
 
-  createdAt      DateTime @default(now()) @map("created_at")
-
-  @@index([domain])
-  @@index([scrapedAt])
-  @@map("scraped_pages")
+  @@index([leadId, startedAt])
+  @@index([status])
+  @@index([taskId])
+  @@map("scrape_runs")
 }
 
-model LeadScrapedPage {
-  leadId        String     @map("lead_id")
-  lead          Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  scrapedPageId String     @map("scraped_page_id")
-  scrapedPage   ScrapedPage @relation(fields: [scrapedPageId], references: [id], onDelete: Cascade)
+model ScrapedPage {
+  id                   String        @id @default(uuid())
+  scrapeRunId          String        @map("scrape_run_id")
+  scrapeRun            ScrapeRun     @relation(fields: [scrapeRunId], references: [id], onDelete: Cascade)
+  leadId               String        @map("lead_id")
+  lead                 Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  parentScrapedPageId  String?       @map("parent_scraped_page_id")
+  parentScrapedPage    ScrapedPage?  @relation("ScrapedPageTree", fields: [parentScrapedPageId], references: [id], onDelete: SetNull)
+  childPages           ScrapedPage[] @relation("ScrapedPageTree")
+  depth                Int           @default(0)
+  linkText             String?
+  anchorText           String?       @map("anchor_text")
+  discoveredFromUrl    String?       @map("discovered_from_url")
+  url                  String
+  domain               String
+  scrapeMethod         String        @map("scrape_method")   // cloudscraper | puppeteer
+  statusCode           Int?          @map("status_code")
+  scrapedAt            DateTime      @map("scraped_at")
+  durationMs           Int?          @map("duration_ms")
 
-  @@id([leadId, scrapedPageId])
-  @@index([scrapedPageId])
-  @@map("lead_scraped_pages")
+  franchises           FranchiseScrapedPage[]
+  leadEmails           LeadEmail[]
+  leadPhones           LeadPhone[]
+  leadSocialProfiles   LeadSocialProfile[]
+  leadTeamMembers      LeadTeamMember[]
+  leadAcquisitionSignals LeadAcquisitionSignal[]
+
+  createdAt            DateTime      @default(now()) @map("created_at")
+
+  @@unique([scrapeRunId, url])
+  @@index([domain])
+  @@index([scrapedAt])
+  @@index([parentScrapedPageId])
+  @@index([leadId, scrapedAt])
+  @@map("scraped_pages")
 }
 
 model FranchiseScrapedPage {
@@ -581,6 +606,91 @@ model FranchiseScrapedPage {
   @@id([franchiseId, scrapedPageId])
   @@index([scrapedPageId])
   @@map("franchise_scraped_pages")
+}
+
+model LeadEmail {
+  id             String      @id @default(uuid())
+  leadId         String      @map("lead_id")
+  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  value          String
+  sourcePageId   String      @map("source_page_id")
+  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
+  sourceRunId    String      @map("source_run_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  @@index([leadId])
+  @@index([sourcePageId])
+  @@index([sourceRunId])
+  @@map("lead_emails")
+}
+
+model LeadPhone {
+  id             String      @id @default(uuid())
+  leadId         String      @map("lead_id")
+  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  value          String
+  sourcePageId   String      @map("source_page_id")
+  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
+  sourceRunId    String      @map("source_run_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  @@index([leadId])
+  @@index([sourcePageId])
+  @@index([sourceRunId])
+  @@map("lead_phones")
+}
+
+model LeadSocialProfile {
+  id             String      @id @default(uuid())
+  leadId         String      @map("lead_id")
+  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  platform       String      // linkedin, facebook, instagram, twitter
+  url            String
+  sourcePageId   String      @map("source_page_id")
+  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
+  sourceRunId    String      @map("source_run_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  @@index([leadId])
+  @@index([sourcePageId])
+  @@index([sourceRunId])
+  @@map("lead_social_profiles")
+}
+
+model LeadTeamMember {
+  id             String      @id @default(uuid())
+  leadId         String      @map("lead_id")
+  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  name           String
+  title          String?
+  sourceUrl      String?     @map("source_url")
+  sourcePageId   String      @map("source_page_id")
+  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
+  sourceRunId    String      @map("source_run_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  @@index([leadId])
+  @@index([sourcePageId])
+  @@index([sourceRunId])
+  @@map("lead_team_members")
+}
+
+model LeadAcquisitionSignal {
+  id             String      @id @default(uuid())
+  leadId         String      @map("lead_id")
+  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  signalType     String      @map("signal_type")  // acquired, sold, merger, new_ownership, rebranded
+  text           String
+  dateMentioned  String?     @map("date_mentioned")
+  sourcePageId   String      @map("source_page_id")
+  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
+  sourceRunId    String      @map("source_run_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  @@index([leadId])
+  @@index([sourcePageId])
+  @@index([sourceRunId])
+  @@map("lead_acquisition_signals")
 }
 
 enum FargateTaskType {
@@ -628,7 +738,13 @@ model Lead {
   franchiseId          String?   @map("franchise_id")
   franchise            Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
 
-  scrapedPages         LeadScrapedPage[]
+  scrapeRuns           ScrapeRun[]
+  scrapedPages         ScrapedPage[]
+  leadEmails           LeadEmail[]
+  leadPhones           LeadPhone[]
+  leadSocialProfiles   LeadSocialProfile[]
+  leadTeamMembers      LeadTeamMember[]
+  leadAcquisitionSignals LeadAcquisitionSignal[]
 
   // Normalized location FKs
   locationCityId       Int?      @map("location_city_id")
@@ -664,9 +780,14 @@ model Lead {
   qualificationNotes   String?   @map("qualification_notes")
   qualifiedAt          DateTime? @map("qualified_at")
 
-  // Web Scraping
+  // Web Scraping (scalar fields from extraction)
   webScrapedAt         DateTime? @map("web_scraped_at")
-  webScrapedData       Json?     @map("web_scraped_data")        // Extracted data from website
+  foundedYear          Int?      @map("founded_year")
+  yearsInBusiness      Int?      @map("years_in_business")
+  headcountEstimate    Int?      @map("headcount_estimate")
+  hasAcquisitionSignal Boolean   @default(false) @map("has_acquisition_signal")
+  acquisitionSummary  String?   @map("acquisition_summary")
+  contactPageUrl       String?   @map("contact_page_url")
 
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
@@ -682,6 +803,8 @@ model Lead {
   @@index([businessStatus])
   @@index([qualificationScore])
   @@index([createdAt])
+  @@index([foundedYear])
+  @@index([hasAcquisitionSignal])
   @@map("leads")
 }
 

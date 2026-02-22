@@ -10,6 +10,10 @@ const sortFieldMap: Record<string, string> = {
   qualificationScore: 'qualificationScore',
   businessType: 'businessType',
   reviewCount: 'reviewCount',
+  foundedYear: 'foundedYear',
+  yearsInBusiness: 'yearsInBusiness',
+  headcountEstimate: 'headcountEstimate',
+  webScrapedAt: 'webScrapedAt',
 };
 
 function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWithRelationInput {
@@ -66,6 +70,21 @@ export const leadRepository = {
         searchQuery: { select: { id: true, textQuery: true } },
         locationCity: { select: { id: true, name: true } },
         locationState: { select: { id: true, name: true } },
+        leadEmails: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadPhones: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadSocialProfiles: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadTeamMembers: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadAcquisitionSignals: { include: { sourcePage: { select: { id: true, url: true } } } },
+        scrapeRuns: {
+          orderBy: { startedAt: 'desc' },
+          take: 5,
+          include: {
+            scrapedPages: {
+              orderBy: { depth: 'asc' },
+              include: { parentScrapedPage: { select: { id: true, url: true } } },
+            },
+          },
+        },
       },
     });
   },
@@ -146,6 +165,84 @@ export const leadRepository = {
     ]);
     return { totalLeads, qualifiedLeads };
   },
+
+  async getScrapeRunsByLeadId(leadId: string) {
+    return prisma.scrapeRun.findMany({
+      where: { leadId },
+      orderBy: { startedAt: 'desc' },
+      include: {
+        scrapedPages: {
+          orderBy: { depth: 'asc' },
+          include: { parentScrapedPage: { select: { id: true, url: true } } },
+        },
+      },
+    });
+  },
+
+  async getScrapeRunTree(runId: string) {
+    const run = await prisma.scrapeRun.findUnique({
+      where: { id: runId },
+      include: {
+        scrapedPages: {
+          orderBy: { depth: 'asc' },
+          include: { parentScrapedPage: { select: { id: true, url: true } } },
+        },
+      },
+    });
+    return run;
+  },
+
+  /** Field-level provenance: value-to-source mappings for audit */
+  async getLeadProvenance(leadId: string) {
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: {
+        leadEmails: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadPhones: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadSocialProfiles: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadTeamMembers: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadAcquisitionSignals: { include: { sourcePage: { select: { id: true, url: true } } } },
+      },
+    });
+    if (!lead) return null;
+    return {
+      emails: lead.leadEmails.map((e) => ({
+        value: e.value,
+        sourcePageId: e.sourcePageId,
+        sourceRunId: e.sourceRunId,
+        sourcePage: e.sourcePage ? { id: e.sourcePage.id, url: e.sourcePage.url } : null,
+      })),
+      phones: lead.leadPhones.map((p) => ({
+        value: p.value,
+        sourcePageId: p.sourcePageId,
+        sourceRunId: p.sourceRunId,
+        sourcePage: p.sourcePage ? { id: p.sourcePage.id, url: p.sourcePage.url } : null,
+      })),
+      socialProfiles: lead.leadSocialProfiles.map((s) => ({
+        platform: s.platform,
+        url: s.url,
+        sourcePageId: s.sourcePageId,
+        sourceRunId: s.sourceRunId,
+        sourcePage: s.sourcePage ? { id: s.sourcePage.id, url: s.sourcePage.url } : null,
+      })),
+      teamMembers: lead.leadTeamMembers.map((t) => ({
+        name: t.name,
+        title: t.title,
+        sourceUrl: t.sourceUrl,
+        sourcePageId: t.sourcePageId,
+        sourceRunId: t.sourceRunId,
+        sourcePage: t.sourcePage ? { id: t.sourcePage.id, url: t.sourcePage.url } : null,
+      })),
+      acquisitionSignals: lead.leadAcquisitionSignals.map((a) => ({
+        signalType: a.signalType,
+        text: a.text,
+        dateMentioned: a.dateMentioned,
+        sourcePageId: a.sourcePageId,
+        sourceRunId: a.sourceRunId,
+        sourcePage: a.sourcePage ? { id: a.sourcePage.id, url: a.sourcePage.url } : null,
+      })),
+    };
+  },
 };
 
 function buildWhereClause(
@@ -196,6 +293,37 @@ function buildWhereClause(
   }
   if (filters.franchiseId) {
     where.franchiseId = filters.franchiseId;
+  }
+  if (filters.foundedYearMin !== undefined) {
+    where.foundedYear = { ...((where.foundedYear as object) || {}), gte: filters.foundedYearMin };
+  }
+  if (filters.foundedYearMax !== undefined) {
+    where.foundedYear = { ...((where.foundedYear as object) || {}), lte: filters.foundedYearMax };
+  }
+  if (filters.yearsInBusinessMin !== undefined) {
+    where.yearsInBusiness = { ...((where.yearsInBusiness as object) || {}), gte: filters.yearsInBusinessMin };
+  }
+  if (filters.yearsInBusinessMax !== undefined) {
+    where.yearsInBusiness = { ...((where.yearsInBusiness as object) || {}), lte: filters.yearsInBusinessMax };
+  }
+  if (filters.headcountEstimateMin !== undefined) {
+    where.headcountEstimate = { ...((where.headcountEstimate as object) || {}), gte: filters.headcountEstimateMin };
+  }
+  if (filters.headcountEstimateMax !== undefined) {
+    where.headcountEstimate = { ...((where.headcountEstimate as object) || {}), lte: filters.headcountEstimateMax };
+  }
+  if (filters.hasAcquisitionSignal !== undefined) {
+    where.hasAcquisitionSignal = filters.hasAcquisitionSignal;
+  }
+  if (filters.hasExtractedEmail === true) {
+    where.leadEmails = { some: {} };
+  } else if (filters.hasExtractedEmail === false) {
+    where.leadEmails = { none: {} };
+  }
+  if (filters.hasExtractedPhone === true) {
+    where.leadPhones = { some: {} };
+  } else if (filters.hasExtractedPhone === false) {
+    where.leadPhones = { none: {} };
   }
 
   return where;

@@ -21,6 +21,8 @@ import type {
   FargateTask,
   FargateTaskType,
   FargateTaskStatus,
+  ScrapeRun,
+  LeadProvenance,
 } from '@/types';
 
 /**
@@ -86,6 +88,21 @@ export interface LeadGenApi {
    * Get count of leads matching filters
    */
   getLeadCount(params: LeadQueryParams): Promise<number>;
+
+  /**
+   * Get scrape runs for a lead (audit)
+   */
+  getLeadScrapeRuns(leadId: string): Promise<ScrapeRun[]>;
+
+  /**
+   * Get crawl tree for a scrape run (audit)
+   */
+  getScrapeRunTree(runId: string): Promise<ScrapeRun | null>;
+
+  /**
+   * Get field-level provenance for a lead (audit)
+   */
+  getLeadProvenance(leadId: string): Promise<LeadProvenance | null>;
   
   /**
    * Trigger AI qualification for a lead

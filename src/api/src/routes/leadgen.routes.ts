@@ -147,6 +147,41 @@ router.get('/leads/:id', async (req, res, next) => {
   }
 });
 
+router.get('/leads/:id/scrape-runs', async (req, res, next) => {
+  try {
+    const runs = await leadService.getLeadScrapeRuns(String(req.params.id));
+    res.json(runs);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/scrape-runs/:runId/tree', async (req, res, next) => {
+  try {
+    const tree = await leadService.getScrapeRunTree(String(req.params.runId));
+    if (!tree) {
+      res.status(404).json({ error: 'Scrape run not found' });
+      return;
+    }
+    res.json(tree);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/leads/:id/provenance', async (req, res, next) => {
+  try {
+    const provenance = await leadService.getLeadProvenance(String(req.params.id));
+    if (!provenance) {
+      res.status(404).json({ error: 'Lead not found' });
+      return;
+    }
+    res.json(provenance);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post('/leads/:id/qualify', authorize('readwrite', 'admin'), async (req, res, next) => {
   try {
     const lead = await leadService.qualify(String(req.params.id));

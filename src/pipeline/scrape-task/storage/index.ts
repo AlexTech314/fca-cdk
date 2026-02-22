@@ -1,4 +1,3 @@
-export { uploadToS3 } from './s3.js';
 export {
   updateLeadWithScrapeData,
   markLeadScrapeFailed,

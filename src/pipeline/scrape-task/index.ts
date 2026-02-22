@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client';
 
 let prisma: PrismaClient | undefined;
 
-import type { JobInput, RawScrapeData, ExtractedScrapeData, ScrapeMetrics } from './types.js';
+import type { JobInput } from './types.js';
 import {
   CAMPAIGN_DATA_BUCKET,
   TASK_MEMORY_MIB,
@@ -21,7 +21,6 @@ import {
   ScrapeWebsiteExtendedResult,
 } from './scraper/index.js';
 import { extractAllData } from './extractors/index.js';
-import { uploadToS3 } from './storage/s3.js';
 import {
   updateLeadWithScrapeData,
   markLeadScrapeFailed,
@@ -160,8 +159,6 @@ async function main(): Promise<void> {
   let failed = 0;
   let totalPages = 0;
   let totalBytes = 0;
-  let cloudscraperCount = 0;
-  let puppeteerCount = 0;
   const startTimeTotal = Date.now();
   
   for (let i = 0; i < businesses.length; i += concurrency) {
@@ -183,7 +180,7 @@ async function main(): Promise<void> {
           enableEarlyExit: false,
         }) as ScrapeWebsiteExtendedResult;
         
-        const { pages, method, cloudscraperCount: siteCloudscraperCount, puppeteerCount: sitePuppeteerCount } = scrapeResult;
+        const { pages, method } = scrapeResult;
         
         if (pages.length === 0) {
           console.log(`  ✗ No pages scraped for ${business.business_name}`);
@@ -200,79 +197,33 @@ async function main(): Promise<void> {
         if (business.phone) knownPhones.push(String(business.phone));
         const extracted = extractAllData(pages, knownPhones);
         
-        // Create S3 keys
-        const timestamp = Date.now();
-        const baseKey = `scraped-data/${business.place_id}/${timestamp}`;
-        const rawS3Key = `${baseKey}/raw.json.gz`;
-        const extractedS3Key = `${baseKey}/extracted.json.gz`;
+        // Map pages to storage shape (url, status_code, scraped_at, parentUrl, depth)
+        const pagesForStorage = pages.map((p) => ({
+          url: p.url,
+          status_code: p.status_code,
+          scraped_at: p.scraped_at,
+          parentUrl: p.parentUrl ?? null,
+          depth: p.depth ?? 0,
+        }));
         
-        // Prepare raw data
-        const rawData: RawScrapeData = {
-          place_id: business.place_id,
-          website_uri: business.website_uri!,
-          scraped_at: new Date().toISOString(),
-          scrape_method: method,
-          duration_ms: durationMs,
-          pages,
-        };
-        
-        // Prepare extracted data
-        const extractedData: ExtractedScrapeData = {
-          place_id: business.place_id,
-          website_uri: business.website_uri!,
-          extracted_at: new Date().toISOString(),
-          contacts: {
-            emails: extracted.emails,
-            phones: extracted.phones,
-            contact_page_url: extracted.contact_page_url,
-            social: extracted.social,
-          },
-          team: {
-            members: extracted.team_members,
-            headcount_estimate: extracted.headcount_estimate,
-            headcount_source: extracted.headcount_source,
-            new_hire_mentions: extracted.new_hire_mentions,
-          },
-          acquisition: {
-            signals: extracted.acquisition_signals,
-            has_signal: extracted.has_acquisition_signal,
-            summary: extracted.acquisition_summary,
-          },
-          history: {
-            founded_year: extracted.founded_year,
-            founded_source: extracted.founded_source,
-            years_in_business: extracted.years_in_business,
-            snippets: extracted.history_snippets,
-          },
-        };
-        
-        // Upload to S3 (parallel)
-        await Promise.all([
-          uploadToS3(CAMPAIGN_DATA_BUCKET, rawS3Key, rawData),
-          uploadToS3(CAMPAIGN_DATA_BUCKET, extractedS3Key, extractedData),
-        ]);
-        
-        // Update Postgres: create ScrapedPage, junctions, update lead
+        // Update Postgres: create ScrapeRun, ScrapedPage tree, normalized extracted tables, update lead
         await updateLeadWithScrapeData(
           db,
           business.id,
           business.website_uri!,
-          rawS3Key,
-          extractedS3Key,
           method,
           pages.length,
-          pageBytes,
           durationMs,
-          extracted
+          extracted,
+          pagesForStorage,
+          taskId ?? undefined
         );
         
         processed++;
         totalPages += pages.length;
         totalBytes += pageBytes;
-        cloudscraperCount += siteCloudscraperCount;
-        puppeteerCount += sitePuppeteerCount;
         
-        console.log(`  ✓ Scraped ${pages.length} pages (cs: ${siteCloudscraperCount}, pp: ${sitePuppeteerCount}), ${extracted.emails.length} emails, ${extracted.team_members.length} team members`);
+        console.log(`  ✓ Scraped ${pages.length} pages (${method}), ${extracted.emails.length} emails, ${extracted.team_members.length} team members`);
         
       } catch (error) {
         failed++;
@@ -300,7 +251,6 @@ async function main(): Promise<void> {
   console.log(`Processed: ${processed}`);
   console.log(`Failed: ${failed}`);
   console.log(`Total pages scraped: ${totalPages}`);
-  console.log(`Methods - Cloudscraper: ${cloudscraperCount}, Puppeteer: ${puppeteerCount}`);
   console.log(`Total bytes: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
   
   // Log failure breakdown
@@ -324,25 +274,13 @@ async function main(): Promise<void> {
     }
   }
   
-  // Build metrics object
-  const metrics: ScrapeMetrics = {
-    processed,
-    failed,
-    filtered: 0,
-    cloudscraper_count: cloudscraperCount,
-    puppeteer_count: puppeteerCount,
-    total_pages: totalPages,
-    total_bytes: totalBytes,
-  };
-  
   // Update FargateTask status (for event-driven mode)
   if (taskId) {
-    await updateFargateTask(db, taskId, 'completed', metrics);
+    await updateFargateTask(db, taskId, 'completed');
   }
   
-  // Output metrics for Step Functions aggregation (distributed mode)
-  // This format is used for lead scraped updates
-  console.log(`SCRAPE_RESULT:${JSON.stringify(metrics)}`);
+  // Output summary for distributed mode
+  console.log(`SCRAPE_RESULT:${JSON.stringify({ processed, failed, total_pages: totalPages })}`);
 }
 
 main().catch(async (error) => {
@@ -359,7 +297,7 @@ main().catch(async (error) => {
   }
   if (taskId && prisma) {
     try {
-      await updateFargateTask(prisma, taskId, 'failed', undefined, error instanceof Error ? error.message : String(error));
+      await updateFargateTask(prisma, taskId, 'failed', error instanceof Error ? error.message : String(error));
     } catch (e) {
       console.error('Failed to update task status:', e);
     }

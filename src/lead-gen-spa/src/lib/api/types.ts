@@ -63,6 +63,11 @@ export interface LeadGenApi {
    */
   getLocationDistribution(): Promise<DistributionData[]>;
 
+  /**
+   * Get all states (for location filters)
+   */
+  getLocationsStates(): Promise<Array<{ id: string; name: string }>>;
+
   // ===========================================
   // Leads
   // ===========================================

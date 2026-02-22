@@ -79,6 +79,17 @@ export const mockApi: LeadGenApi = {
     return getLocationDistribution();
   },
 
+  async getLocationsStates() {
+    await randomDelay();
+    return [
+      { id: 'CO', name: 'Colorado' },
+      { id: 'TX', name: 'Texas' },
+      { id: 'AZ', name: 'Arizona' },
+      { id: 'NV', name: 'Nevada' },
+      { id: 'UT', name: 'Utah' },
+    ];
+  },
+
   // ===========================================
   // Leads
   // ===========================================
@@ -396,13 +407,12 @@ function applyFilters(leads: Lead[], filters: LeadFilters): Lead[] {
     filtered = filtered.filter(l => l.name.toLowerCase().includes(searchTerm));
   }
   
-  if (filters.city) {
-    const searchTerm = filters.city.toLowerCase();
-    filtered = filtered.filter(l => l.city?.toLowerCase().includes(searchTerm));
+  if (filters.cityId) {
+    // Mock: leads don't have cityId; skip this filter in mock mode
   }
   
-  if (filters.states?.length) {
-    filtered = filtered.filter(l => l.state && filters.states!.includes(l.state));
+  if (filters.stateIds?.length) {
+    filtered = filtered.filter(l => l.state && filters.stateIds!.includes(l.state));
   }
   
   if (filters.businessTypes?.length) {

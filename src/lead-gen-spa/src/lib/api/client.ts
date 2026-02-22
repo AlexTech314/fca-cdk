@@ -84,6 +84,8 @@ function transformFranchise(raw: any): Franchise {
 }
 
 function transformLead(raw: any): Lead {
+  const locationCity = raw.locationCity ?? raw.location_city;
+  const locationState = raw.locationState ?? raw.location_state;
   return {
     id: raw.id,
     placeId: raw.placeId || raw.place_id,
@@ -91,8 +93,10 @@ function transformLead(raw: any): Lead {
     campaignRunId: raw.campaignRunId || raw.campaign_run_id || null,
     name: raw.name,
     address: raw.address || null,
-    city: raw.city || null,
-    state: raw.state || null,
+    city: locationCity?.name ?? raw.city ?? null,
+    state: locationState?.name ?? locationState?.id ?? raw.state ?? null,
+    locationCity: locationCity ? { id: locationCity.id, name: locationCity.name } : null,
+    locationState: locationState ? { id: locationState.id, name: locationState.name } : null,
     zipCode: raw.zipCode || raw.zip_code || null,
     phone: raw.phone || null,
     website: raw.website || null,
@@ -220,6 +224,11 @@ export const realApi: LeadGenApi = {
     return apiClient<DistributionData[]>('/dashboard/location-distribution');
   },
 
+  async getLocationsStates(): Promise<Array<{ id: string; name: string }>> {
+    const states = await apiClient<Array<{ id: string; name: string }>>('/locations/states');
+    return states.map((s) => ({ id: s.id, name: s.name }));
+  },
+
   // ===========================================
   // Leads
   // ===========================================
@@ -233,8 +242,8 @@ export const realApi: LeadGenApi = {
 
     const { filters } = params;
     if (filters.name) qs.set('name', filters.name);
-    if (filters.city) qs.set('city', filters.city);
-    if (filters.states?.length) qs.set('states', filters.states.join(','));
+    if (filters.cityId) qs.set('cityId', String(filters.cityId));
+    if (filters.stateIds?.length) qs.set('stateIds', filters.stateIds.join(','));
     if (filters.businessTypes?.length) qs.set('businessTypes', filters.businessTypes.join(','));
     if (filters.campaignId) qs.set('campaignId', filters.campaignId);
     if (filters.ratingMin !== undefined) qs.set('ratingMin', String(filters.ratingMin));
@@ -267,7 +276,8 @@ export const realApi: LeadGenApi = {
     const qs = new URLSearchParams();
     const { filters } = params;
     if (filters.name) qs.set('name', filters.name);
-    if (filters.states?.length) qs.set('states', filters.states.join(','));
+    if (filters.cityId) qs.set('cityId', String(filters.cityId));
+    if (filters.stateIds?.length) qs.set('stateIds', filters.stateIds.join(','));
     if (filters.businessTypes?.length) qs.set('businessTypes', filters.businessTypes.join(','));
     if (filters.campaignId) qs.set('campaignId', filters.campaignId);
     if (filters.franchiseId) qs.set('franchiseId', filters.franchiseId);

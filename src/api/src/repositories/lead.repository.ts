@@ -12,23 +12,36 @@ const sortFieldMap: Record<string, string> = {
   reviewCount: 'reviewCount',
 };
 
+function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWithRelationInput {
+  if (sort === 'city') {
+    return { locationCity: { name: order } };
+  }
+  if (sort === 'state') {
+    return { locationState: { name: order } };
+  }
+  const field = sortFieldMap[sort] || 'createdAt';
+  return { [field]: order };
+}
+
 export const leadRepository = {
   async findMany(query: LeadQuery) {
     const { page, limit, sort, order, ...filters } = query;
     const skip = (page - 1) * limit;
 
     const where = buildWhereClause(filters);
-    const orderByField = sortFieldMap[sort] || 'createdAt';
+    const orderBy = buildOrderBy(sort, order);
 
     const [items, total] = await Promise.all([
       prisma.lead.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { [orderByField]: order },
+        orderBy,
         include: {
           campaign: { select: { id: true, name: true } },
           franchise: { select: { id: true, name: true, displayName: true } },
+          locationCity: { select: { id: true, name: true } },
+          locationState: { select: { id: true, name: true } },
         },
       }),
       prisma.lead.count({ where }),
@@ -51,6 +64,8 @@ export const leadRepository = {
         campaignRun: true,
         franchise: true,
         searchQuery: { select: { id: true, textQuery: true } },
+        locationCity: { select: { id: true, name: true } },
+        locationState: { select: { id: true, name: true } },
       },
     });
   },
@@ -91,14 +106,21 @@ export const leadRepository = {
   },
 
   async getDistinctStates() {
-    const results = await prisma.lead.findMany({
+    const results = await prisma.lead.groupBy({
+      by: ['locationStateId'],
+      _count: { id: true },
       where: { locationStateId: { not: null } },
-      select: { locationState: { select: { id: true, name: true } } },
-      distinct: ['locationStateId'],
+      orderBy: { _count: { id: 'desc' } },
     });
+    const stateIds = results.map((r) => r.locationStateId!);
+    const states = await prisma.state.findMany({
+      where: { id: { in: stateIds } },
+      select: { id: true, name: true },
+    });
+    const stateMap = new Map(states.map((s) => [s.id, s.name]));
     return results.map((r) => ({
-      name: r.locationState!.name,
-      value: r.locationState!.id,
+      name: stateMap.get(r.locationStateId!) ?? r.locationStateId!,
+      value: r._count.id,
     }));
   },
 
@@ -137,7 +159,9 @@ function buildWhereClause(
   if (filters.cityId) {
     where.locationCityId = filters.cityId;
   }
-  if (filters.stateId) {
+  if (filters.stateIds?.length) {
+    where.locationStateId = { in: filters.stateIds };
+  } else if (filters.stateId) {
     where.locationStateId = filters.stateId;
   }
   if (filters.businessTypes?.length) {

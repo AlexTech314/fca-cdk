@@ -4,22 +4,28 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import type { LeadFilters as LeadFiltersType } from '@/types';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 
 interface LeadFiltersProps {
   filters: LeadFiltersType;
   onChange: (filters: LeadFiltersType) => void;
 }
 
-const states = ['CO', 'TX', 'AZ', 'NV', 'UT'];
 const businessTypes = ['Plumber', 'HVAC', 'Electrician', 'Roofer', 'Landscaper', 'General Contractor'];
 
 export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
+  const { data: states = [] } = useQuery({
+    queryKey: ['locations', 'states'],
+    queryFn: () => api.getLocationsStates(),
+  });
+
   const updateFilters = (updates: Partial<LeadFiltersType>) => {
     onChange({ ...filters, ...updates });
   };
 
   const toggleArrayFilter = (
-    key: 'states' | 'businessTypes',
+    key: 'stateIds' | 'businessTypes',
     value: string
   ) => {
     const current = filters[key] || [];
@@ -43,28 +49,18 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
             />
           </div>
 
-          {/* City Search */}
-          <div className="space-y-2">
-            <Label>City</Label>
-            <Input
-              placeholder="Search by city..."
-              value={filters.city || ''}
-              onChange={(e) => updateFilters({ city: e.target.value || undefined })}
-            />
-          </div>
-
           {/* States */}
           <div className="space-y-2 lg:col-span-2">
             <Label>States</Label>
             <div className="flex flex-wrap gap-2">
               {states.map((state) => (
                 <Badge
-                  key={state}
-                  variant={filters.states?.includes(state) ? 'default' : 'outline'}
+                  key={state.id}
+                  variant={filters.stateIds?.includes(state.id) ? 'default' : 'outline'}
                   className="cursor-pointer"
-                  onClick={() => toggleArrayFilter('states', state)}
+                  onClick={() => toggleArrayFilter('stateIds', state.id)}
                 >
-                  {state}
+                  {state.id}
                 </Badge>
               ))}
             </div>

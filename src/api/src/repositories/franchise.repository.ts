@@ -18,6 +18,8 @@ export const franchiseRepository = {
           orderBy: { name: 'asc' },
           include: {
             campaign: { select: { id: true, name: true } },
+            locationCity: { select: { id: true, name: true } },
+            locationState: { select: { id: true, name: true } },
           },
         },
       },

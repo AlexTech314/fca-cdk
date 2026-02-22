@@ -35,6 +35,16 @@ export interface FranchiseWithLeads extends Franchise {
   leads: Lead[];
 }
 
+export interface LocationCity {
+  id: number;
+  name: string;
+}
+
+export interface LocationState {
+  id: string;
+  name: string;
+}
+
 export interface Lead {
   id: string;
   placeId: string;
@@ -42,8 +52,12 @@ export interface Lead {
   campaignRunId: string | null;
   name: string;
   address: string | null;
+  /** Display string from locationCity?.name (for backward compatibility) */
   city: string | null;
+  /** Display string from locationState?.name or id (for backward compatibility) */
   state: string | null;
+  locationCity?: LocationCity | null;
+  locationState?: LocationState | null;
   zipCode: string | null;
   phone: string | null;
   website: string | null;
@@ -115,8 +129,8 @@ export interface FargateTask {
 
 export interface LeadFilters {
   name?: string;
-  city?: string;
-  states?: string[];
+  cityId?: number;
+  stateIds?: string[];
   businessTypes?: string[];
   campaignId?: string;
   franchiseId?: string;

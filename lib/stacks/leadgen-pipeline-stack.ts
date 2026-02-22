@@ -102,6 +102,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       file: 'lambda/bridge/Dockerfile',
       platform: 'linux/arm64',
       provider,
+      retainBuildLogs: true,
     });
 
     const bridgeLambdaLogGroup = new logs.LogGroup(this, 'BridgeLambdaLogs', {
@@ -150,6 +151,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       provider,
       buildArgs: { NODE_20_SLIM: node20Slim },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
+      retainBuildLogs: true,
     });
 
     const placesTaskDef = new ecs.FargateTaskDefinition(this, 'PlacesTaskDef', {
@@ -191,6 +193,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       provider,
       buildArgs: { NODE_20_SLIM: node20Slim },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
+      retainBuildLogs: true,
     });
 
     const startPlacesLogGroup = new logs.LogGroup(this, 'StartPlacesLogs', {
@@ -235,6 +238,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
         NODE_20_SLIM: node20Slim,
       },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
+      retainBuildLogs: true,
     });
 
     const scrapeTaskDef = new ecs.FargateTaskDefinition(this, 'ScrapeTaskDef', {
@@ -273,6 +277,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       provider,
       buildArgs: { NODE_20_SLIM: node20Slim },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
+      retainBuildLogs: true,
     });
 
     const scrapeTriggerLogGroup = new logs.LogGroup(this, 'ScrapeTriggerLogs', {
@@ -321,6 +326,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       provider,
       buildArgs: { NODE_20_SLIM: node20Slim },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
+      retainBuildLogs: true,
     });
 
     const scoringTaskDef = new ecs.FargateTaskDefinition(this, 'ScoringTaskDef', {
@@ -368,6 +374,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       provider,
       buildArgs: { NODE_20_SLIM: node20Slim },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
+      retainBuildLogs: true,
     });
 
     const scoringTriggerLogGroup = new logs.LogGroup(this, 'ScoringTriggerLogs', {

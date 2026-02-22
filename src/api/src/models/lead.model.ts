@@ -5,6 +5,10 @@ export const leadFiltersSchema = z.object({
   name: z.string().optional(),
   cityId: z.coerce.number().int().optional(),
   stateId: z.string().optional(),
+  stateIds: z.preprocess(
+    (v) => (typeof v === 'string' ? v.split(',').filter(Boolean) : v),
+    z.array(z.string()).optional()
+  ),
   businessTypes: z.preprocess(
     (v) => (typeof v === 'string' ? v.split(',') : v),
     z.array(z.string()).optional()
@@ -35,6 +39,10 @@ export const leadQuerySchema = z.object({
   name: z.string().optional(),
   cityId: z.coerce.number().int().optional(),
   stateId: z.string().optional(),
+  stateIds: z.preprocess(
+    (v) => (typeof v === 'string' ? v.split(',').filter(Boolean) : v),
+    z.array(z.string()).optional()
+  ),
   businessTypes: z.preprocess(
     (v) => (typeof v === 'string' ? v.split(',') : v),
     z.array(z.string()).optional()

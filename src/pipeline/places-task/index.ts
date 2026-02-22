@@ -329,13 +329,36 @@ async function main() {
 
         const name = place.displayName?.text || 'Unknown';
         const nameNormalized = normalizeName(name);
-        const city = extractAddressComponent(place.addressComponents, 'locality') ||
+        const cityName = extractAddressComponent(place.addressComponents, 'locality') ||
           extractAddressComponent(place.addressComponents, 'sublocality');
-        const state = extractAddressComponent(place.addressComponents, 'administrative_area_level_1');
+        const stateShort = extractAddressComponent(place.addressComponents, 'administrative_area_level_1');
         const zipCode = extractAddressComponent(place.addressComponents, 'postal_code');
         const openingHours = place.regularOpeningHours?.weekdayDescriptions?.join('; ') ?? null;
         const editorialSummary = place.editorialSummary?.text ?? null;
         const reviewSummary = place.reviewSummary?.text ?? null;
+
+        // Resolve geography FKs from address components
+        let locationStateId: string | null = null;
+        let locationCityId: number | null = null;
+        if (stateShort) {
+          const stateRecord = await prisma.state.findFirst({
+            where: {
+              OR: [
+                { id: stateShort },
+                { name: { equals: stateShort, mode: 'insensitive' } },
+              ],
+            },
+          });
+          if (stateRecord) {
+            locationStateId = stateRecord.id;
+            if (cityName) {
+              const cityRecord = await prisma.city.findFirst({
+                where: { name: { equals: cityName, mode: 'insensitive' }, stateId: stateRecord.id },
+              });
+              locationCityId = cityRecord?.id ?? null;
+            }
+          }
+        }
 
         let franchiseId: string | null = null;
         try {
@@ -344,12 +367,32 @@ async function main() {
           console.warn(`Franchise link failed for ${place.id}:`, e);
         }
 
+        // Link franchise to geography via junction tables
+        if (franchiseId && locationStateId) {
+          try {
+            await prisma.franchiseState.upsert({
+              where: { franchiseId_stateId: { franchiseId, stateId: locationStateId } },
+              update: {},
+              create: { franchiseId, stateId: locationStateId },
+            });
+            if (locationCityId) {
+              await prisma.franchiseCity.upsert({
+                where: { franchiseId_cityId: { franchiseId, cityId: locationCityId } },
+                update: {},
+                create: { franchiseId, cityId: locationCityId },
+              });
+            }
+          } catch (e) {
+            console.warn(`Franchise geography link failed for ${place.id}:`, e);
+          }
+        }
+
         try {
-          // Use raw upsert to handle ON CONFLICT (place_id) DO NOTHING
           const result = await prisma.$executeRaw`
             INSERT INTO leads (
               id, place_id, campaign_id, campaign_run_id, search_query_id, franchise_id,
-              name, name_normalized, address, city, state, zip_code, phone, website,
+              location_state_id, location_city_id,
+              name, name_normalized, address, zip_code, phone, website,
               rating, review_count, price_level, business_type, source,
               business_status, latitude, longitude, primary_type, opening_hours,
               editorial_summary, review_summary, google_maps_uri,
@@ -357,8 +400,9 @@ async function main() {
             ) VALUES (
               gen_random_uuid(), ${place.id}, ${campaignId}, ${campaignRunId ?? null},
               ${searchQuery.id}, ${franchiseId},
+              ${locationStateId}, ${locationCityId},
               ${name}, ${nameNormalized}, ${place.formattedAddress ?? null},
-              ${city || null}, ${state || null}, ${zipCode || null},
+              ${zipCode || null},
               ${place.nationalPhoneNumber ?? null}, ${place.websiteUri ?? null},
               ${place.rating ?? null}, ${place.userRatingCount ?? null},
               ${mapPriceLevel(place.priceLevel)},

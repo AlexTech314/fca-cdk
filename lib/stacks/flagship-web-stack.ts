@@ -62,6 +62,7 @@ export class FlagshipWebStack extends cdk.Stack {
       },
       vpc,
       subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      retainBuildLogs: true,
     });
 
     const adminDockerBuilder = new TokenInjectableDockerBuilder(this, 'AdminDockerBuilderV2', {
@@ -77,6 +78,7 @@ export class FlagshipWebStack extends cdk.Stack {
       },
       vpc,
       subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      retainBuildLogs: true,
     });
 
     // ============================================================

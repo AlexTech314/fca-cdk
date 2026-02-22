@@ -145,7 +145,7 @@ export default function LeadDetail() {
                 <div>
                   {lead.address && <p>{lead.address}</p>}
                   <p>
-                    {lead.city}, {lead.state} {lead.zipCode}
+                    {[lead.city, lead.state, lead.zipCode].filter(Boolean).join(', ') || '—'}
                   </p>
                 </div>
               </div>

@@ -6,6 +6,7 @@ import { campaignService, campaignRunService } from '../services/campaign.servic
 import { franchiseService } from '../services/franchise.service';
 import { taskService } from '../services/task.service';
 import { userService } from '../services/user.service';
+import { locationService } from '../services/location.service';
 import {
   leadQuerySchema,
   createCampaignSchema,
@@ -73,6 +74,43 @@ router.get('/dashboard/location-distribution', async (_req, res, next) => {
 });
 
 // ============================================
+// LOCATIONS (for filters)
+// ============================================
+
+router.get('/locations/states', async (_req, res, next) => {
+  try {
+    const states = await locationService.getAllStates();
+    res.json(states);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/locations/search', async (req, res, next) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const type = (req.query.type as 'city' | 'state' | 'both') || 'both';
+    const limit = Math.min(Number(req.query.limit) || 10, 25);
+    if (!q) {
+      return res.json({ cities: [], states: [] });
+    }
+    const result = await locationService.search(q, type, limit);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/locations/states/:stateId/cities', async (req, res, next) => {
+  try {
+    const cities = await locationService.getCitiesByState(req.params.stateId.toUpperCase());
+    res.json(cities);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================
 // LEADS
 // ============================================
 
@@ -85,9 +123,10 @@ router.get('/leads', validate(leadQuerySchema, 'query'), async (req, res, next) 
   }
 });
 
-router.get('/leads/count', async (req, res, next) => {
+router.get('/leads/count', validate(leadQuerySchema, 'query'), async (req, res, next) => {
   try {
-    const count = await leadService.count(req.query as any);
+    const { page, limit, sort, order, ...filters } = req.query as any;
+    const count = await leadService.count(filters);
     res.json({ count });
   } catch (error) {
     next(error);

@@ -140,6 +140,7 @@ export class StatefulStack extends cdk.Stack {
       subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       buildArgs: { NODE_20_SLIM: ecrNodeSlim(this.account, this.region) },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
+      retainBuildLogs: true,
     });
 
     const seedLambdaLogGroup = new logs.LogGroup(this, 'SeedDbLogs', {
@@ -222,8 +223,35 @@ export class StatefulStack extends cdk.Stack {
     migrateCustomResource.node.addDependency(seedLambda);
 
     // ============================================================
+    // Bastion Host (SSM Session Manager — no SSH key needed)
+    // ============================================================
+    const bastion = new ec2.BastionHostLinux(this, 'BastionHost', {
+      vpc,
+      subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.NANO),
+      machineImage: ec2.MachineImage.latestAmazonLinux2023({ cpuType: ec2.AmazonLinuxCpuType.ARM_64 }),
+    });
+
+    bastion.instance.addUserData(
+      'dnf install -y postgresql16',
+    );
+
+    this.dbSecurityGroup.addIngressRule(
+      bastion.connections.securityGroups[0],
+      ec2.Port.tcp(5432),
+      'Bastion to RDS'
+    );
+
+    this.databaseSecret.grantRead(bastion);
+
+    // ============================================================
     // Outputs
     // ============================================================
+    new cdk.CfnOutput(this, 'BastionInstanceId', {
+      value: bastion.instanceId,
+      description: 'Bastion host instance ID — connect via: aws ssm start-session --target <instance-id>',
+    });
+
     new cdk.CfnOutput(this, 'SeedDbLambdaArn', {
       value: seedLambda.functionArn,
       description: 'Seed DB Lambda ARN (invoke with: aws lambda invoke --function-name <arn> --payload \'{"action":"reset"}\' /dev/stdout)',

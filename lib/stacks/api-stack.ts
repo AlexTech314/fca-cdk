@@ -66,6 +66,7 @@ export class ApiStack extends cdk.Stack {
       provider,
       buildArgs: { NODE_20_SLIM: ecrNodeSlim(this.account, this.region) },
       ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
+      retainBuildLogs: true,
     });
 
     const apiLogGroup = new logs.LogGroup(this, 'ApiLogs', {

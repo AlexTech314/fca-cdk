@@ -92,7 +92,6 @@ model Tombstone {
 
   sortOrder       Int       @default(0) @map("sort_order")
   isPublished     Boolean   @default(true) @map("is_published")
-  previewToken    String    @unique @default(uuid()) @map("preview_token")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
@@ -103,6 +102,7 @@ model Tombstone {
   locationStates  TombstoneState[]
 
   @@index([transactionYear])
+  @@index([isPublished])
   @@map("tombstones")
 }
 
@@ -116,7 +116,6 @@ model BlogPost {
   category     String?                         // news, resource, article
   publishedAt  DateTime? @map("published_at")
   isPublished  Boolean   @default(false) @map("is_published")
-  previewToken String    @unique @default(uuid()) @map("preview_token")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
@@ -286,13 +285,12 @@ model FranchiseState {
 }
 
 model PageContent {
-  id           String   @id @default(uuid())
-  pageKey      String   @unique @map("page_key") // home, about, faq, contact, etc.
-  title        String
-  content      String   @default("")             // Markdown or prose content
-  metadata     Json?                             // SEO metadata, hero settings, structured data
-  previewToken String   @unique @default(uuid()) @map("preview_token")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(uuid())
+  pageKey   String   @unique @map("page_key") // home, about, faq, contact, etc.
+  title     String
+  content   String   @default("")             // Markdown or prose content
+  metadata  Json?                             // SEO metadata, hero settings, structured data
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("page_content")
 }

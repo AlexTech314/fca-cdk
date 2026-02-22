@@ -125,7 +125,6 @@ export interface ApiTombstone {
   locationCities: ApiLocationCity[];
   sortOrder: number;
   isPublished: boolean;
-  previewToken: string;
   createdAt: string;
   updatedAt: string;
   industries: { id: string; name: string; slug: string }[];
@@ -147,7 +146,6 @@ export interface ApiBlogPost {
   category: string | null;
   publishedAt: string | null;
   isPublished: boolean;
-  previewToken: string;
   createdAt: string;
   updatedAt: string;
   industries: { id: string; name: string; slug: string }[];
@@ -164,7 +162,6 @@ export interface ApiPageContent {
   title: string;
   content: string;
   metadata: Record<string, unknown> | null;
-  previewToken: string;
   updatedAt: string;
 }
 
@@ -316,6 +313,8 @@ export async function getBlogPosts(params?: {
   limit?: number;
   category?: string;
   industry?: string;
+  /** Comma-separated industry slugs for batch fetch */
+  industries?: string;
   search?: string;
 }): Promise<PaginatedResponse<ApiBlogPost>> {
   const query = new URLSearchParams();
@@ -323,6 +322,7 @@ export async function getBlogPosts(params?: {
   if (params?.limit) query.set('limit', params.limit.toString());
   if (params?.category) query.set('category', params.category);
   if (params?.industry) query.set('industry', params.industry);
+  if (params?.industries) query.set('industries', params.industries);
   if (params?.search) query.set('search', params.search);
 
   const queryStr = query.toString();
@@ -369,6 +369,11 @@ export async function getAdjacentBlogPosts(slug: string): Promise<{
 
 export async function getAllIndustries(): Promise<{ id: string; name: string; slug: string }[]> {
   return apiFetch<{ id: string; name: string; slug: string }[]>('/industries');
+}
+
+/** Industries that have at least one published news article */
+export async function getNewsIndustries(): Promise<{ id: string; name: string; slug: string }[]> {
+  return apiFetch<{ id: string; name: string; slug: string }[]>('/industries/news');
 }
 
 export async function getIndustryBySlug(

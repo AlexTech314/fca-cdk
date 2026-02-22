@@ -54,7 +54,6 @@ export const tombstoneResponseSchema = z.object({
   transactionYear: z.number().nullable(),
   sortOrder: z.number(),
   isPublished: z.boolean(),
-  previewToken: z.string(),
   pressReleaseId: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),

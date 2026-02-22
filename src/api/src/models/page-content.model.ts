@@ -22,7 +22,6 @@ export const pageContentResponseSchema = z.object({
   title: z.string(),
   content: z.string(),
   metadata: z.record(z.any()).nullable(),
-  previewToken: z.string(),
   updatedAt: z.date(),
 });
 

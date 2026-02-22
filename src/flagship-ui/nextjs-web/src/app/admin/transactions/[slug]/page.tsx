@@ -38,7 +38,6 @@ interface Tombstone {
   buyerPlatform: string | null;
   transactionYear: number | null;
   isPublished: boolean;
-  previewToken: string;
   industries: Industry[];
   pressRelease?: { id: string; slug: string; title: string } | null;
 }

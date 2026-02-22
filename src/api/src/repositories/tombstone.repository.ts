@@ -11,6 +11,24 @@ const tombstoneInclude = {
   locationCities: { include: { city: { include: { state: true } } } },
 } as const;
 
+/** Explicit select for list views (avoids over-fetching) */
+const tombstoneListSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  assetId: true,
+  role: true,
+  buyerPeFirm: true,
+  buyerPlatform: true,
+  transactionYear: true,
+  pressReleaseId: true,
+  sortOrder: true,
+  isPublished: true,
+  createdAt: true,
+  updatedAt: true,
+  ...tombstoneInclude,
+} as const;
+
 export const tombstoneRepository = {
   async findMany(query: TombstoneQuery) {
     const { page, limit, industry, state, city, year, search, published } = query;
@@ -45,7 +63,7 @@ export const tombstoneRepository = {
         skip,
         take: limit,
         orderBy: [{ transactionYear: 'desc' }, { sortOrder: 'asc' }],
-        include: tombstoneInclude,
+        select: tombstoneListSelect,
       }),
       prisma.tombstone.count({ where }),
     ]);
@@ -157,6 +175,11 @@ export const tombstoneRepository = {
         orderBy: { transactionYear: 'desc' },
       }),
       prisma.industry.findMany({
+        where: {
+          tombstones: {
+            some: { tombstone: { isPublished: true } },
+          },
+        },
         select: { id: true, slug: true, name: true },
         orderBy: { name: 'asc' },
       }),

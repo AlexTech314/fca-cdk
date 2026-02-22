@@ -4,7 +4,7 @@ import type { BlogPostQuery, CreateBlogPostInput, UpdateBlogPostInput } from '..
 
 export const blogPostRepository = {
   async findMany(query: BlogPostQuery) {
-    const { page, limit, category, industry, search, published, author } = query;
+    const { page, limit, category, industry, industries, search, published, author } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.BlogPostWhereInput = {};
@@ -18,7 +18,12 @@ export const blogPostRepository = {
     if (author) {
       where.author = { contains: author, mode: 'insensitive' };
     }
-    if (industry) {
+    if (industries) {
+      const slugs = industries.split(',').map((s) => s.trim()).filter(Boolean);
+      if (slugs.length > 0) {
+        where.industries = { some: { industry: { slug: { in: slugs } } } };
+      }
+    } else if (industry) {
       where.industries = { some: { industry: { slug: industry } } };
     }
     if (search) {
@@ -44,7 +49,6 @@ export const blogPostRepository = {
           category: true,
           publishedAt: true,
           isPublished: true,
-          previewToken: true,
           createdAt: true,
           updatedAt: true,
           industries: { include: { industry: true } },

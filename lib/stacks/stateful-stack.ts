@@ -7,6 +7,7 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } from 'token-injectable-docker-builder';
@@ -32,6 +33,13 @@ export class StatefulStack extends cdk.Stack {
   public readonly dbSecurityGroup: ec2.SecurityGroup;
   /** SG for pipeline Lambdas/Fargate; ingress to RDS is in this stack to avoid cross-stack reference failure */
   public readonly pipelineSecurityGroup: ec2.SecurityGroup;
+  /** Seed DB Lambda (migrate, seed, configure-bridge) */
+  public readonly seedLambda: lambda.IFunction;
+  /** SQS queues for lead pipeline (Bridge Lambda -> scrape/scoring) */
+  public readonly scrapeQueue: sqs.IQueue;
+  public readonly scoringQueue: sqs.IQueue;
+  /** Bridge Lambda ARN (invoked by PG triggers via aws_lambda extension) */
+  public readonly bridgeLambdaArn: string;
 
   constructor(scope: Construct, id: string, props: StatefulStackProps) {
     super(scope, id, props);
@@ -127,10 +135,73 @@ export class StatefulStack extends cdk.Stack {
       ],
     });
 
+    const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
+
+    // ============================================================
+    // SQS Queues (Bridge Lambda -> scrape/scoring pipeline)
+    // ============================================================
+    const scrapeDlq = new sqs.Queue(this, 'ScrapeDlq', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+    this.scrapeQueue = new sqs.Queue(this, 'ScrapeQueue', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      visibilityTimeout: cdk.Duration.minutes(15),
+      deadLetterQueue: { queue: scrapeDlq, maxReceiveCount: 3 },
+    });
+    const scoringDlq = new sqs.Queue(this, 'ScoringDlq', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+    this.scoringQueue = new sqs.Queue(this, 'ScoringQueue', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      visibilityTimeout: cdk.Duration.minutes(5),
+      deadLetterQueue: { queue: scoringDlq, maxReceiveCount: 3 },
+    });
+
+    // ============================================================
+    // Bridge Lambda (PG trigger -> SQS) — deployed with database
+    // ============================================================
+    const bridgeImage = new TokenInjectableDockerBuilder(this, 'BridgeImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'lambda/bridge/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+      retainBuildLogs: true,
+    });
+    const bridgeLambdaLogGroup = new logs.LogGroup(this, 'BridgeLambdaLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    const bridgeLambda = new lambda.DockerImageFunction(this, 'BridgeLambda', {
+      code: bridgeImage.dockerImageCode,
+      architecture: lambda.Architecture.ARM_64,
+      timeout: cdk.Duration.seconds(10),
+      memorySize: 128,
+      logGroup: bridgeLambdaLogGroup,
+      environment: {
+        SCRAPE_QUEUE_URL: this.scrapeQueue.queueUrl,
+        SCORING_QUEUE_URL: this.scoringQueue.queueUrl,
+      },
+    });
+    this.scrapeQueue.grantSendMessages(bridgeLambda);
+    this.scoringQueue.grantSendMessages(bridgeLambda);
+    this.bridgeLambdaArn = bridgeLambda.functionArn;
+
+    // IAM Role for RDS to invoke Bridge Lambda
+    const rdsLambdaRole = new iam.Role(this, 'RdsLambdaRole', {
+      assumedBy: new iam.ServicePrincipal('rds.amazonaws.com'),
+      description: 'Allow RDS to invoke Bridge Lambda via aws_lambda extension',
+    });
+    bridgeLambda.grantInvoke(rdsLambdaRole);
+
     // ============================================================
     // Seed DB Lambda (invoke to wipe/migrate/seed the database)
     // ============================================================
-    const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
     const seedDbImage = new TokenInjectableDockerBuilder(this, 'SeedDbImage', {
       path: path.join(__dirname, '../../src'),
       file: 'lambda/seed-db/Dockerfile',
@@ -148,7 +219,7 @@ export class StatefulStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    const seedLambda = new lambda.DockerImageFunction(this, 'SeedDbLambda', {
+    this.seedLambda = new lambda.DockerImageFunction(this, 'SeedDbLambda', {
       code: seedDbImage.dockerImageCode,
       architecture: lambda.Architecture.ARM_64,
       timeout: cdk.Duration.minutes(10),
@@ -164,10 +235,10 @@ export class StatefulStack extends cdk.Stack {
       },
     });
 
-    this.databaseSecret.grantRead(seedLambda);
+    this.databaseSecret.grantRead(this.seedLambda);
 
     if (cognitoUserPoolId) {
-      seedLambda.addToRolePolicy(
+      this.seedLambda.addToRolePolicy(
         new iam.PolicyStatement({
           actions: [
             'cognito-idp:AdminCreateUser',
@@ -195,7 +266,7 @@ export class StatefulStack extends cdk.Stack {
         service: 'Lambda',
         action: 'invoke',
         parameters: {
-          FunctionName: seedLambda.functionName,
+          FunctionName: this.seedLambda.functionName,
           InvocationType: 'RequestResponse',
           Payload: migratePayload,
         },
@@ -205,7 +276,7 @@ export class StatefulStack extends cdk.Stack {
         service: 'Lambda',
         action: 'invoke',
         parameters: {
-          FunctionName: seedLambda.functionName,
+          FunctionName: this.seedLambda.functionName,
           InvocationType: 'RequestResponse',
           Payload: migratePayload,
         },
@@ -214,13 +285,53 @@ export class StatefulStack extends cdk.Stack {
       policy: cr.AwsCustomResourcePolicy.fromStatements([
         new iam.PolicyStatement({
           actions: ['lambda:InvokeFunction'],
-          resources: [seedLambda.functionArn],
+          resources: [this.seedLambda.functionArn],
         }),
       ]),
       timeout: cdk.Duration.minutes(11),
       installLatestAwsSdk: false,
     });
-    migrateCustomResource.node.addDependency(seedLambda);
+    migrateCustomResource.node.addDependency(this.seedLambda);
+
+    // ============================================================
+    // Configure Bridge Lambda ARN in RDS (for PG triggers)
+    // ============================================================
+    const configureBridgePayload = JSON.stringify({
+      action: 'configure-bridge',
+      bridgeLambdaArn: bridgeLambda.functionArn,
+      awsRegion: this.region,
+    });
+    const configureBridgeResource = new cr.AwsCustomResource(this, 'ConfigureBridgeLambda', {
+      onCreate: {
+        service: 'Lambda',
+        action: 'invoke',
+        parameters: {
+          FunctionName: this.seedLambda.functionName,
+          InvocationType: 'RequestResponse',
+          Payload: configureBridgePayload,
+        },
+        physicalResourceId: cr.PhysicalResourceId.of('ConfigureBridgeLambda'),
+      },
+      onUpdate: {
+        service: 'Lambda',
+        action: 'invoke',
+        parameters: {
+          FunctionName: this.seedLambda.functionName,
+          InvocationType: 'RequestResponse',
+          Payload: configureBridgePayload,
+        },
+        physicalResourceId: cr.PhysicalResourceId.of('ConfigureBridgeLambda'),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new iam.PolicyStatement({
+          actions: ['lambda:InvokeFunction'],
+          resources: [this.seedLambda.functionArn],
+        }),
+      ]),
+      timeout: cdk.Duration.minutes(2),
+      installLatestAwsSdk: false,
+    });
+    configureBridgeResource.node.addDependency(migrateCustomResource);
 
     // ============================================================
     // Bastion Host (SSM Session Manager — no SSH key needed)
@@ -270,7 +381,7 @@ SCRIPT`,
     });
 
     new cdk.CfnOutput(this, 'SeedDbLambdaArn', {
-      value: seedLambda.functionArn,
+      value: this.seedLambda.functionArn,
       description: 'Seed DB Lambda ARN (invoke with: aws lambda invoke --function-name <arn> --payload \'{"action":"reset"}\' /dev/stdout)',
     });
 
@@ -282,6 +393,26 @@ SCRIPT`,
     new cdk.CfnOutput(this, 'CampaignDataBucketName', {
       value: this.campaignDataBucket.bucketName,
       description: 'S3 bucket for campaign data',
+    });
+
+    new cdk.CfnOutput(this, 'BridgeLambdaArn', {
+      value: this.bridgeLambdaArn,
+      description: 'Bridge Lambda ARN (for RDS trigger configuration)',
+    });
+
+    new cdk.CfnOutput(this, 'RdsLambdaRoleArn', {
+      value: rdsLambdaRole.roleArn,
+      description: 'IAM Role ARN to attach to RDS for Lambda invocation',
+    });
+
+    new cdk.CfnOutput(this, 'ScrapeQueueUrl', {
+      value: this.scrapeQueue.queueUrl,
+      description: 'SQS scrape queue URL',
+    });
+
+    new cdk.CfnOutput(this, 'ScoringQueueUrl', {
+      value: this.scoringQueue.queueUrl,
+      description: 'SQS scoring queue URL',
     });
   }
 }

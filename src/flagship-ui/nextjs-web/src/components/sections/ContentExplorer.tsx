@@ -130,6 +130,13 @@ export function ContentExplorer({
 
   const basePath = type === 'transactions' ? '/transactions' : '/news';
 
+  // Only show when we have at least one clickable option
+  const hasOptions =
+    type === 'transactions'
+      ? industries.length > 0 || states.length > 0 || cities.length > 0
+      : industries.length > 0;
+  if (!hasOptions) return null;
+
   const linkClass = "shrink-0 rounded-lg border border-secondary/20 bg-white px-4 py-2 text-sm font-medium text-primary shadow-sm transition-all hover:border-secondary hover:bg-secondary hover:text-white hover:shadow-md";
 
   const renderContent = () => {

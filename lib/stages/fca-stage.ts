@@ -56,6 +56,8 @@ export class FcaStage extends cdk.Stage {
       databaseSecret: this.statefulStack.databaseSecret,
       pipelineSecurityGroup: this.statefulStack.pipelineSecurityGroup,
       campaignDataBucket: this.statefulStack.campaignDataBucket,
+      scrapeQueue: this.statefulStack.scrapeQueue,
+      scoringQueue: this.statefulStack.scoringQueue,
     });
     this.pipelineStack.addDependency(this.statefulStack);
 

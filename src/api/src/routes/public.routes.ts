@@ -140,6 +140,30 @@ router.get('/blog-posts/:slug/related', async (req, res, next) => {
 // INDUSTRIES
 // ============================================
 
+/** Industries that have at least one published news article (for ContentExplorer) */
+router.get('/industries/news', async (_req, res, next) => {
+  try {
+    const { prisma } = require('@fca/db');
+    const industries = await prisma.industry.findMany({
+      where: {
+        blogPosts: {
+          some: {
+            blogPost: {
+              isPublished: true,
+              category: 'news',
+            },
+          },
+        },
+      },
+      select: { id: true, name: true, slug: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json(industries);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/industries', async (_req, res, next) => {
   try {
     const { prisma } = require('@fca/db');

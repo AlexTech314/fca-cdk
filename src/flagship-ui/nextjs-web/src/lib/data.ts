@@ -4,6 +4,7 @@
  * Fetches from the API and maps responses to app types (Tombstone, NewsArticle, ResourceArticle).
  */
 
+import { cache } from 'react';
 import type { NewsArticle, ResourceArticle, Tombstone, NewsArticleSummary, TombstoneSummary } from './types';
 import { toAssetUrl } from './utils';
 import {
@@ -16,6 +17,7 @@ import {
   getRelatedNewsForTombstone as apiGetRelatedNews,
   getRelatedContentForBlogPost,
   getAllIndustries,
+  getNewsIndustries,
   getIndustryBySlug,
   getPageContent,
   getTeamMembers,
@@ -142,29 +144,28 @@ export async function getTombstone(slug: string): Promise<Tombstone | null> {
 }
 
 /**
- * Get tombstones filtered by industry slug
+ * Get tombstones filtered by industry slug (request-scoped cache for metadata + page deduplication)
  */
-export async function getTombstonesByIndustry(slug: string): Promise<Tombstone[]> {
+export const getTombstonesByIndustry = cache(async (slug: string): Promise<Tombstone[]> => {
   const response = await apiGetTombstones({ industry: slug, limit: 100 });
   return response.items.map(fromApiTombstone);
-}
+});
 
 /**
- * Get tombstones filtered by year
+ * Get tombstones filtered by year (request-scoped cache for metadata + page deduplication)
  */
-export async function getTombstonesByYear(year: number): Promise<Tombstone[]> {
+export const getTombstonesByYear = cache(async (year: number): Promise<Tombstone[]> => {
   const response = await apiGetTombstones({ year, limit: 100 });
   return response.items.map(fromApiTombstone);
-}
-
+});
 
 /**
- * Get tombstones by state
+ * Get tombstones by state (request-scoped cache for metadata + page deduplication)
  */
-export async function getTombstonesByState(state: string): Promise<Tombstone[]> {
+export const getTombstonesByState = cache(async (state: string): Promise<Tombstone[]> => {
   const response = await apiGetTombstones({ state, limit: 100 });
   return response.items.map(fromApiTombstone);
-}
+});
 
 /**
  * Get tombstone filter options (states, cities, years, tags) in a single API call
@@ -174,14 +175,14 @@ export async function getTombstoneFilterOptions() {
 }
 
 /**
- * Get tombstones by city. Pass URL slug (e.g. "denver") or display name (e.g. "Denver").
- * Converts slug to display name for API matching.
+ * Get tombstones by city (request-scoped cache for metadata + page deduplication).
+ * Pass URL slug (e.g. "denver") or display name (e.g. "Denver").
  */
-export async function getTombstonesByCity(citySlugOrName: string): Promise<Tombstone[]> {
+export const getTombstonesByCity = cache(async (citySlugOrName: string): Promise<Tombstone[]> => {
   const cityName = citySlugOrName.includes('-') ? slugToCity(citySlugOrName) : citySlugOrName;
   const response = await apiGetTombstones({ city: cityName, limit: 100 });
   return response.items.map(fromApiTombstone);
-}
+});
 
 // ============================================
 // NEWS ARTICLES
@@ -205,18 +206,18 @@ export async function getNewsArticle(slug: string): Promise<NewsArticle | null> 
 }
 
 /**
- * Get news articles by industry slug
+ * Get news articles by industry slug (request-scoped cache for metadata + page deduplication)
  */
-export async function getNewsArticlesByIndustry(slug: string): Promise<NewsArticle[]> {
+export const getNewsArticlesByIndustry = cache(async (slug: string): Promise<NewsArticle[]> => {
   const response = await apiGetBlogPosts({ category: 'news', industry: slug, limit: 100 });
   return response.items.map(fromApiBlogPostToNewsArticle);
-}
+});
 
 /**
- * Get all industries for news filtering
+ * Get industries that have at least one news article (for ContentExplorer - only show clickable topics with content)
  */
 export async function getAllNewsIndustries(): Promise<{ id: string; name: string; slug: string }[]> {
-  return getAllIndustries();
+  return getNewsIndustries();
 }
 
 /**
@@ -292,24 +293,26 @@ export async function getRelatedTombstonesForNews(article: NewsArticle): Promise
 }
 
 /**
- * Get related news articles from tombstones by fetching news for each unique industry.
+ * Get related news articles from tombstones (single batch query by industry slugs).
  * Deduplicates by slug and sorts by date descending.
  */
 export async function getRelatedNewsFromTombstones(
   tombstones: { industries?: { id: string; name: string; slug: string }[] }[]
 ): Promise<NewsArticle[]> {
   const uniqueSlugs = [...new Set(tombstones.flatMap((t) => (t.industries || []).map((i) => i.slug)))];
-  const newsResults = await Promise.all(
-    uniqueSlugs.map((slug) => getNewsArticlesByIndustry(slug))
-  );
+  if (uniqueSlugs.length === 0) return [];
+
+  const response = await apiGetBlogPosts({
+    category: 'news',
+    industries: uniqueSlugs.join(','),
+    limit: 50,
+  });
   const seenSlugs = new Set<string>();
   const relatedNews: NewsArticle[] = [];
-  for (const articles of newsResults) {
-    for (const article of articles) {
-      if (!seenSlugs.has(article.slug)) {
-        seenSlugs.add(article.slug);
-        relatedNews.push(article);
-      }
+  for (const article of response.items) {
+    if (!seenSlugs.has(article.slug)) {
+      seenSlugs.add(article.slug);
+      relatedNews.push(fromApiBlogPostToNewsArticle(article));
     }
   }
   relatedNews.sort(

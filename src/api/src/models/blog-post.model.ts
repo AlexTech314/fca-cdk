@@ -32,6 +32,8 @@ export const blogPostQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(200).default(20),
   category: z.string().optional(),
   industry: z.string().optional(),
+  /** Comma-separated industry slugs for batch fetch (e.g. "plumbing,hvac,fire-life-safety") */
+  industries: z.string().optional(),
   search: z.string().optional(),
   published: z.coerce.boolean().optional(),
   author: z.string().optional(),
@@ -48,7 +50,6 @@ export const blogPostResponseSchema = z.object({
   category: z.string().nullable(),
   publishedAt: z.date().nullable(),
   isPublished: z.boolean(),
-  previewToken: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
   industries: z.array(z.object({

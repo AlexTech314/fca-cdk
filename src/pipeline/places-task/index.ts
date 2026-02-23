@@ -120,6 +120,26 @@ function normalizeName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+/** Strip UTM and other tracking params from Google Places website URLs */
+function sanitizeWebsiteUrl(url: string | undefined | null): string | null {
+  if (!url || typeof url !== 'string') return null;
+  try {
+    const parsed = new URL(url);
+    parsed.hash = '';
+    const trackingParams = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'gclid', 'fbclid', 'ref', 'source',
+    ];
+    for (const p of trackingParams) {
+      parsed.searchParams.delete(p);
+    }
+    const href = parsed.href;
+    return href.endsWith('?') ? href.slice(0, -1) : href;
+  } catch {
+    return null;
+  }
+}
+
 async function searchPlaces(
   textQuery: string,
   maxResults: number,
@@ -388,6 +408,8 @@ async function main() {
         }
 
         try {
+          const googleMapsUri =
+            place.googleMapsUri ?? `https://www.google.com/maps/place/?q=place_id:${place.id}`;
           const result = await prisma.$executeRaw`
             INSERT INTO leads (
               id, place_id, campaign_id, campaign_run_id, search_query_id, franchise_id,
@@ -403,7 +425,7 @@ async function main() {
               ${locationStateId}, ${locationCityId},
               ${name}, ${nameNormalized}, ${place.formattedAddress ?? null},
               ${zipCode || null},
-              ${place.nationalPhoneNumber ?? null}, ${place.websiteUri ?? null},
+              ${place.nationalPhoneNumber ?? null}, ${sanitizeWebsiteUrl(place.websiteUri) ?? null},
               ${place.rating ?? null}, ${place.userRatingCount ?? null},
               ${mapPriceLevel(place.priceLevel)},
               ${place.primaryTypeDisplayName?.text ?? place.primaryType ?? null},
@@ -411,7 +433,7 @@ async function main() {
               ${place.businessStatus ?? null},
               ${place.location?.latitude ?? null}, ${place.location?.longitude ?? null},
               ${place.primaryType ?? null}, ${openingHours},
-              ${editorialSummary}, ${reviewSummary}, ${place.googleMapsUri ?? null},
+              ${editorialSummary}, ${reviewSummary}, ${googleMapsUri},
               NOW(), NOW()
             )
             ON CONFLICT (place_id) DO NOTHING`;

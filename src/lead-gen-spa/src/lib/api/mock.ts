@@ -107,7 +107,15 @@ export const mockApi: LeadGenApi = {
     
     // Paginate
     const start = (page - 1) * limit;
-    const data = filtered.slice(start, start + limit);
+    const data = filtered.slice(start, start + limit).map((lead) => {
+      const extracted = getMockExtractedForLead(lead.id);
+      return {
+        ...lead,
+        googleMapsUri: (lead as any).googleMapsUri ?? `https://www.google.com/maps/place/?q=place_id:${lead.placeId}`,
+        emails: extracted.emails.map((e) => e.value),
+        lastScrapePagesCount: lead.website ? 1 : 0,
+      };
+    });
     
     return {
       data,
@@ -131,6 +139,7 @@ export const mockApi: LeadGenApi = {
     
     return {
       ...lead,
+      googleMapsUri: (lead as any).googleMapsUri ?? `https://www.google.com/maps/place/?q=place_id:${lead.placeId}`,
       campaign,
       leadEmails: mockExtracted.emails,
       leadPhones: mockExtracted.phones,
@@ -435,8 +444,16 @@ function getMockExtractedForLead(leadId: string) {
   const pageId = `page-${leadId}`;
   const runId = `run-${leadId}`;
   const sourcePage = { id: pageId, url: lead?.website ?? 'https://example.com' };
+  const domain = lead?.website?.replace(/^https?:\/\//, '').split('/')[0];
+  const baseEmails = domain
+    ? [
+        { id: `email-1-${leadId}`, value: `contact@${domain}`, sourcePageId: pageId, sourceRunId: runId, sourcePage },
+        { id: `email-2-${leadId}`, value: `info@${domain}`, sourcePageId: pageId, sourceRunId: runId, sourcePage },
+        { id: `email-3-${leadId}`, value: `sales@${domain}`, sourcePageId: pageId, sourceRunId: runId, sourcePage },
+      ]
+    : [];
   return {
-    emails: lead?.website ? [{ id: `email-${leadId}`, value: `contact@${lead.website?.replace(/^https?:\/\//, '').split('/')[0]}`, sourcePageId: pageId, sourceRunId: runId, sourcePage }] : [],
+    emails: baseEmails,
     phones: lead?.phone ? [{ id: `phone-${leadId}`, value: lead.phone, sourcePageId: pageId, sourceRunId: runId, sourcePage }] : [],
     socialProfiles: [] as any[],
     teamMembers: [] as any[],

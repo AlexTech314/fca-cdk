@@ -2,10 +2,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { CreateCampaignInput, UpdateCampaignInput } from '@/types';
 
+const PULSE_REFETCH_MS = 10_000;
+const pulseQueryOptions = {
+  refetchInterval: PULSE_REFETCH_MS,
+  refetchIntervalInBackground: false,
+} as const;
+
 export function useCampaigns() {
   return useQuery({
     queryKey: ['campaigns'],
     queryFn: () => api.getCampaigns(),
+    ...pulseQueryOptions,
   });
 }
 
@@ -14,6 +21,7 @@ export function useCampaign(id: string) {
     queryKey: ['campaigns', id],
     queryFn: () => api.getCampaign(id),
     enabled: !!id,
+    ...pulseQueryOptions,
   });
 }
 
@@ -22,6 +30,7 @@ export function useCampaignRuns(campaignId: string) {
     queryKey: ['campaigns', campaignId, 'runs'],
     queryFn: () => api.getCampaignRuns(campaignId),
     enabled: !!campaignId,
+    ...pulseQueryOptions,
   });
 }
 

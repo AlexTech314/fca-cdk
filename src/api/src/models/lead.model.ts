@@ -1,5 +1,25 @@
 import { z } from 'zod';
 
+const leadListFields = [
+  'name',
+  'city',
+  'state',
+  'phone',
+  'emails',
+  'website',
+  'rating',
+  'businessType',
+  'qualificationScore',
+  'headcountEstimate',
+  'foundedYear',
+  'yearsInBusiness',
+  'hasAcquisitionSignal',
+  'webScrapedAt',
+  'createdAt',
+] as const;
+
+const leadListFieldSchema = z.enum(leadListFields);
+
 // Lead filters (for server-side filtering)
 export const leadFiltersSchema = z.object({
   name: z.string().optional(),
@@ -96,8 +116,13 @@ export const leadQuerySchema = z.object({
     (v) => (v === 'true' ? true : v === 'false' ? false : v),
     z.boolean().optional()
   ),
+  fields: z.preprocess(
+    (v) => (typeof v === 'string' ? v.split(',').filter(Boolean) : v),
+    z.array(leadListFieldSchema).optional()
+  ),
 });
 
 // Types
 export type LeadFilters = z.infer<typeof leadFiltersSchema>;
 export type LeadQuery = z.infer<typeof leadQuerySchema>;
+export type LeadListField = z.infer<typeof leadListFieldSchema>;

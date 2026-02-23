@@ -61,6 +61,7 @@ export interface Lead {
   zipCode: string | null;
   phone: string | null;
   website: string | null;
+  googleMapsUri?: string | null;
   rating: number | null;
   reviewCount: number | null;
   priceLevel: number | null;
@@ -76,10 +77,14 @@ export interface Lead {
   foundedYear?: number | null;
   yearsInBusiness?: number | null;
   headcountEstimate?: number | null;
+  /** Emails from leadEmails (for list display) */
+  emails?: string[];
   hasAcquisitionSignal?: boolean | null;
   acquisitionSummary?: string | null;
   contactPageUrl?: string | null;
   webScrapedAt?: string | null;
+  /** Pages scraped in most recent run (from list API) */
+  lastScrapePagesCount?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -149,6 +154,8 @@ export interface ScrapeRun {
   startedAt: string;
   completedAt: string | null;
   methodSummary: string | null;
+  pagesCount?: number | null;
+  durationMs?: number | null;
   scrapedPages: ScrapedPageRef[];
 }
 
@@ -242,7 +249,25 @@ export interface LeadQueryParams {
   sort: string;
   order: 'asc' | 'desc';
   filters: LeadFilters;
+  fields?: LeadListField[];
 }
+
+export type LeadListField =
+  | 'name'
+  | 'city'
+  | 'state'
+  | 'phone'
+  | 'emails'
+  | 'website'
+  | 'rating'
+  | 'businessType'
+  | 'qualificationScore'
+  | 'headcountEstimate'
+  | 'foundedYear'
+  | 'yearsInBusiness'
+  | 'hasAcquisitionSignal'
+  | 'webScrapedAt'
+  | 'createdAt';
 
 export interface PaginatedResponse<T> {
   data: T[];

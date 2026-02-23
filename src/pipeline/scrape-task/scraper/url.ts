@@ -15,15 +15,20 @@ export function isSameDomain(url1: string, url2: string): boolean {
  * Normalize a URL by removing hash, tracking params, etc.
  * Returns null if the URL is invalid
  */
+const TRACKING_PARAMS = [
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+  'gclid', 'fbclid', 'ref', 'source',
+];
+
 export function normalizeUrl(url: string): string | null {
   try {
     const parsed = new URL(url);
     parsed.hash = '';
-    // Remove tracking params
-    parsed.searchParams.delete('utm_source');
-    parsed.searchParams.delete('utm_medium');
-    parsed.searchParams.delete('utm_campaign');
-    return parsed.href;
+    for (const p of TRACKING_PARAMS) {
+      parsed.searchParams.delete(p);
+    }
+    const href = parsed.href;
+    return href.endsWith('?') ? href.slice(0, -1) : href;
   } catch {
     return null;
   }

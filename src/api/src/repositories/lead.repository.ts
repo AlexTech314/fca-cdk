@@ -1,6 +1,6 @@
 import { prisma } from '@fca/db';
 import type { Prisma } from '@fca/db';
-import type { LeadQuery } from '../models/lead.model';
+import type { LeadListField, LeadQuery } from '../models/lead.model';
 
 // Map sort field names from camelCase frontend to Prisma field names
 const sortFieldMap: Record<string, string> = {
@@ -16,6 +16,18 @@ const sortFieldMap: Record<string, string> = {
   webScrapedAt: 'webScrapedAt',
 };
 
+const defaultLeadFields: LeadListField[] = [
+  'name',
+  'city',
+  'state',
+  'phone',
+  'emails',
+  'website',
+  'rating',
+  'businessType',
+  'qualificationScore',
+];
+
 function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWithRelationInput {
   if (sort === 'city') {
     return { locationCity: { name: order } };
@@ -29,11 +41,13 @@ function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWi
 
 export const leadRepository = {
   async findMany(query: LeadQuery) {
-    const { page, limit, sort, order, ...filters } = query;
+    const { page, limit, sort, order, fields, ...filters } = query;
     const skip = (page - 1) * limit;
+    const selectedFields = new Set<LeadListField>((fields?.length ? fields : defaultLeadFields) as LeadListField[]);
 
     const where = buildWhereClause(filters);
     const orderBy = buildOrderBy(sort, order);
+    const select = buildLeadSelect(selectedFields);
 
     const [items, total] = await Promise.all([
       prisma.lead.findMany({
@@ -41,12 +55,7 @@ export const leadRepository = {
         skip,
         take: limit,
         orderBy,
-        include: {
-          campaign: { select: { id: true, name: true } },
-          franchise: { select: { id: true, name: true, displayName: true } },
-          locationCity: { select: { id: true, name: true } },
-          locationState: { select: { id: true, name: true } },
-        },
+        select,
       }),
       prisma.lead.count({ where }),
     ]);
@@ -95,7 +104,7 @@ export const leadRepository = {
     });
   },
 
-  async count(filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order'>) {
+  async count(filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>) {
     const where = buildWhereClause(filters);
     return prisma.lead.count({ where });
   },
@@ -246,7 +255,7 @@ export const leadRepository = {
 };
 
 function buildWhereClause(
-  filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order'>
+  filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>
 ): Prisma.LeadWhereInput {
   const where: Prisma.LeadWhereInput = {};
 
@@ -327,4 +336,63 @@ function buildWhereClause(
   }
 
   return where;
+}
+
+function buildLeadSelect(fields: Set<LeadListField>) {
+  const select: Record<string, unknown> = {
+    id: true,
+    placeId: true,
+    createdAt: true,
+    updatedAt: true,
+  };
+
+  if (fields.has('name')) {
+    select.name = true;
+    select.franchise = { select: { id: true, name: true, displayName: true } };
+  }
+  if (fields.has('city')) {
+    select.locationCity = { select: { id: true, name: true } };
+  }
+  if (fields.has('state')) {
+    select.locationState = { select: { id: true, name: true } };
+  }
+  if (fields.has('phone')) {
+    select.phone = true;
+  }
+  if (fields.has('emails')) {
+    select.leadEmails = { select: { value: true } };
+  }
+  if (fields.has('website')) {
+    select.website = true;
+    select.googleMapsUri = true;
+  }
+  if (fields.has('rating')) {
+    select.rating = true;
+  }
+  if (fields.has('businessType')) {
+    select.businessType = true;
+  }
+  if (fields.has('qualificationScore')) {
+    select.qualificationScore = true;
+  }
+  if (fields.has('headcountEstimate')) {
+    select.headcountEstimate = true;
+  }
+  if (fields.has('foundedYear')) {
+    select.foundedYear = true;
+  }
+  if (fields.has('yearsInBusiness')) {
+    select.yearsInBusiness = true;
+  }
+  if (fields.has('hasAcquisitionSignal')) {
+    select.hasAcquisitionSignal = true;
+  }
+  if (fields.has('webScrapedAt')) {
+    select.webScrapedAt = true;
+  }
+  if (fields.has('createdAt')) {
+    select.createdAt = true;
+  }
+
+  return select;
 }

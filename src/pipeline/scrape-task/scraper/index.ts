@@ -162,6 +162,49 @@ export interface ScrapeWebsiteExtendedResult extends ScrapeWebsiteResult {
   earlyExit: boolean;
 }
 
+const SITEMAP_SEED_PATHS = ['/sitemap.xml', '/sitemap_index.xml', '/sitemap.php', '/sitemap'];
+
+function isSitemapDiscoveryUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.toLowerCase();
+    return path.includes('sitemap') || path.endsWith('.xml');
+  } catch {
+    return false;
+  }
+}
+
+function buildSitemapSeedUrls(websiteUri: string): string[] {
+  try {
+    const base = new URL(websiteUri);
+    return SITEMAP_SEED_PATHS.map((path) => new URL(path, base.origin).href);
+  } catch {
+    return [];
+  }
+}
+
+function decodeXmlEntity(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function extractUrlsFromSitemapXml(xml: string): string[] {
+  const urls: string[] = [];
+  const locRegex = /<loc>([\s\S]*?)<\/loc>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = locRegex.exec(xml)) !== null) {
+    const value = decodeXmlEntity(match[1].trim());
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      urls.push(value);
+    }
+  }
+  return urls;
+}
+
 // ============ Main Scrape Function ============
 
 export interface ScrapeWebsiteOptions {
@@ -212,6 +255,7 @@ export async function scrapeWebsite(
   const queued = new Set<string>(); // Track URLs already in queue (deduplication)
   const toVisit: { url: string; parentUrl: string | null }[] = [{ url: websiteUri, parentUrl: null }];
   queued.add(normalizeUrl(websiteUri) || websiteUri);
+  const maxQueueSize = Math.max(maxPages * 4, 200);
   
   const pages: ScrapedPage[] = [];
   const urlToDepth = new Map<string, number>();
@@ -221,6 +265,23 @@ export async function scrapeWebsite(
   let earlyExitTriggered = false;
   
   const localFailureTracker = failureTracker || new FailureTracker();
+
+  const enqueueIfEligible = (candidateUrl: string, parentUrl: string | null) => {
+    if (toVisit.length >= maxQueueSize) return;
+    const normalized = normalizeUrl(candidateUrl);
+    if (!normalized) return;
+    if (!isSameDomain(normalized, websiteUri)) return;
+    const isSitemapUrl = isSitemapDiscoveryUrl(normalized);
+    if (!isSitemapUrl && shouldSkipUrl(normalized)) return;
+    if (visited.has(normalized) || queued.has(normalized)) return;
+    queued.add(normalized);
+    toVisit.push({ url: normalized, parentUrl });
+  };
+
+  // Seed likely sitemap URLs early so we can discover deep links quickly.
+  for (const sitemapUrl of buildSitemapSeedUrls(websiteUri)) {
+    enqueueIfEligible(sitemapUrl, websiteUri);
+  }
   
   while (toVisit.length > 0 && pages.length < maxPages) {
     const { url, parentUrl } = toVisit.shift()!;
@@ -240,8 +301,10 @@ export async function scrapeWebsite(
       continue;
     }
     
-    // Skip non-content URLs
-    if (shouldSkipUrl(normalizedUrl)) {
+    const isSitemapPage = isSitemapDiscoveryUrl(normalizedUrl);
+
+    // Skip non-content URLs (except sitemap discovery pages).
+    if (!isSitemapPage && shouldSkipUrl(normalizedUrl)) {
       continue;
     }
     
@@ -253,11 +316,6 @@ export async function scrapeWebsite(
     if (result) {
       const depth = parentUrl === null ? 0 : (urlToDepth.get(parentUrl) ?? 0) + 1;
       urlToDepth.set(normalizedUrl, depth);
-      pages.push({
-        ...result.page,
-        parentUrl: parentUrl ?? undefined,
-        depth,
-      });
       consecutiveFailures = 0;
       
       // Track domain success
@@ -271,14 +329,40 @@ export async function scrapeWebsite(
       } else {
         cloudscraperCount++;
       }
+
+      if (isSitemapPage) {
+        const sitemapDiscoveredLinks = [
+          ...extractUrlsFromSitemapXml(result.page.html),
+          ...result.page.links,
+        ];
+
+        const candidates = sortByPriority(
+          sitemapDiscoveredLinks
+            .map((link) => normalizeUrl(link))
+            .filter((link): link is string => link !== null)
+            .filter((link) => isSameDomain(link, websiteUri))
+            .filter((link) => !shouldSkipUrl(link) || isSitemapDiscoveryUrl(link))
+        );
+
+        for (const link of candidates) {
+          enqueueIfEligible(link, normalizedUrl);
+        }
+        continue;
+      }
+
+      pages.push({
+        ...result.page,
+        parentUrl: parentUrl ?? undefined,
+        depth,
+      });
       
       // Add links to queue if page has enough content
       if (result.page.text_content.length > 500) {
         const sameDomainLinks = result.page.links
-          .filter(link => isSameDomain(link, websiteUri))
-          .filter(link => !shouldSkipUrl(link))
           .map(link => normalizeUrl(link))
           .filter((link): link is string => link !== null)
+          .filter(link => isSameDomain(link, websiteUri))
+          .filter(link => !shouldSkipUrl(link))
           .filter(link => !visited.has(link))
           .filter(link => !queued.has(link)); // Deduplication: skip already-queued URLs
         
@@ -287,10 +371,7 @@ export async function scrapeWebsite(
         
         // Add to queue and track (current page is parent of discovered links)
         for (const link of prioritized) {
-          if (!queued.has(link)) {
-            queued.add(link);
-            toVisit.push({ url: link, parentUrl: normalizedUrl });
-          }
+          enqueueIfEligible(link, normalizedUrl);
         }
       }
       

@@ -1,6 +1,6 @@
 import type { ScrapedPage, ExtractedData, TeamMember } from '../types.js';
 import { extractEmails, extractPhones } from './contact.js';
-import { extractSocialLinks, findContactPageUrl } from './social.js';
+import { extractSocialLinks, findContactPageUrl, isValidSocialProfileUrl } from './social.js';
 import { extractTeamMembers, extractHeadcount, extractNewHires, dedupeTeamMembers } from './team.js';
 import { extractFoundedYear, extractHistorySnippets } from './history.js';
 import { extractAcquisitionSignals } from './acquisition.js';
@@ -21,13 +21,29 @@ function extractSocialFromSchemaOrg(sameAs: string[]): ExtractedData['social'] {
   
   for (const url of sameAs) {
     const urlLower = url.toLowerCase();
-    if (urlLower.includes('linkedin.com') && !social.linkedin) {
+    if (
+      urlLower.includes('linkedin.com') &&
+      !social.linkedin &&
+      isValidSocialProfileUrl(url, 'linkedin')
+    ) {
       social.linkedin = url;
-    } else if (urlLower.includes('facebook.com') && !social.facebook) {
+    } else if (
+      urlLower.includes('facebook.com') &&
+      !social.facebook &&
+      isValidSocialProfileUrl(url, 'facebook')
+    ) {
       social.facebook = url;
-    } else if (urlLower.includes('instagram.com') && !social.instagram) {
+    } else if (
+      urlLower.includes('instagram.com') &&
+      !social.instagram &&
+      isValidSocialProfileUrl(url, 'instagram')
+    ) {
       social.instagram = url;
-    } else if ((urlLower.includes('twitter.com') || urlLower.includes('x.com')) && !social.twitter) {
+    } else if (
+      (urlLower.includes('twitter.com') || urlLower.includes('x.com')) &&
+      !social.twitter &&
+      isValidSocialProfileUrl(url, 'twitter')
+    ) {
       social.twitter = url;
     }
   }

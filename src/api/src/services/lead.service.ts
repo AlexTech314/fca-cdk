@@ -15,7 +15,7 @@ export const leadService = {
     return leadRepository.findById(id);
   },
 
-  async count(filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order'>) {
+  async count(filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>) {
     return leadRepository.count(filters);
   },
 

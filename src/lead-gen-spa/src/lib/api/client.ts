@@ -86,9 +86,14 @@ function transformFranchise(raw: any): Franchise {
 function transformLead(raw: any): Lead {
   const locationCity = raw.locationCity ?? raw.location_city;
   const locationState = raw.locationState ?? raw.location_state;
+  const placeId = raw.placeId || raw.place_id;
+  const googleMapsUri =
+    raw.googleMapsUri ||
+    raw.google_maps_uri ||
+    (placeId ? `https://www.google.com/maps/place/?q=place_id:${placeId}` : null);
   return {
     id: raw.id,
-    placeId: raw.placeId || raw.place_id,
+    placeId,
     campaignId: raw.campaignId || raw.campaign_id || null,
     campaignRunId: raw.campaignRunId || raw.campaign_run_id || null,
     name: raw.name,
@@ -100,6 +105,7 @@ function transformLead(raw: any): Lead {
     zipCode: raw.zipCode || raw.zip_code || null,
     phone: raw.phone || null,
     website: raw.website || null,
+    googleMapsUri,
     rating: raw.rating ?? null,
     reviewCount: raw.reviewCount ?? raw.review_count ?? null,
     priceLevel: raw.priceLevel ?? raw.price_level ?? null,
@@ -118,6 +124,8 @@ function transformLead(raw: any): Lead {
     acquisitionSummary: raw.acquisitionSummary ?? raw.acquisition_summary ?? null,
     contactPageUrl: raw.contactPageUrl ?? raw.contact_page_url ?? null,
     webScrapedAt: raw.webScrapedAt ?? raw.web_scraped_at ?? null,
+    lastScrapePagesCount: raw.scrapeRuns?.[0]?.pagesCount ?? null,
+    emails: (raw.leadEmails ?? []).map((e: { value: string }) => e.value),
     createdAt: raw.createdAt || raw.created_at,
     updatedAt: raw.updatedAt || raw.updated_at,
   };
@@ -247,6 +255,7 @@ export const realApi: LeadGenApi = {
     qs.set('limit', String(params.limit));
     qs.set('sort', params.sort);
     qs.set('order', params.order);
+    if (params.fields?.length) qs.set('fields', params.fields.join(','));
 
     const { filters } = params;
     if (filters.name) qs.set('name', filters.name);

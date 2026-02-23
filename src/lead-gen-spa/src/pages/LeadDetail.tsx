@@ -22,7 +22,34 @@ import {
   TrendingUp,
   FileSearch,
   ChevronRight,
+  CheckCircle2,
 } from 'lucide-react';
+import type { Lead } from '@/types';
+
+/** Build per-page extraction summary for a scrape run (nested event log) */
+function getExtractedByPage(lead: Lead, runId: string): Map<string, { emails: string[]; phones: string[]; social: { platform: string; url: string }[]; team: { name: string; title: string | null }[]; acquisition: { text: string }[] }> {
+  const byPage = new Map<string, { emails: string[]; phones: string[]; social: { platform: string; url: string }[]; team: { name: string; title: string | null }[]; acquisition: { text: string }[] }>();
+  const add = (pageId: string) => {
+    if (!byPage.has(pageId)) byPage.set(pageId, { emails: [], phones: [], social: [], team: [], acquisition: [] });
+    return byPage.get(pageId)!;
+  };
+  for (const e of lead.leadEmails ?? []) {
+    if (e.sourceRunId === runId) add(e.sourcePageId).emails.push(e.value);
+  }
+  for (const p of lead.leadPhones ?? []) {
+    if (p.sourceRunId === runId) add(p.sourcePageId).phones.push(p.value);
+  }
+  for (const s of lead.leadSocialProfiles ?? []) {
+    if (s.sourceRunId === runId) add(s.sourcePageId).social.push({ platform: s.platform, url: s.url });
+  }
+  for (const t of lead.leadTeamMembers ?? []) {
+    if (t.sourceRunId === runId) add(t.sourcePageId).team.push({ name: t.name, title: t.title });
+  }
+  for (const a of lead.leadAcquisitionSignals ?? []) {
+    if (a.sourceRunId === runId) add(a.sourcePageId).acquisition.push({ text: a.text });
+  }
+  return byPage;
+}
 
 export default function LeadDetail() {
   const { id } = useParams<{ id: string }>();
@@ -197,6 +224,19 @@ export default function LeadDetail() {
                   </span>
                 </div>
               )}
+              {lead.googleMapsUri && (
+                <div className="text-sm">
+                  <a
+                    href={lead.googleMapsUri}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    Open on Google Maps
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              )}
               <div className="text-sm text-muted-foreground">
                 <p>Added: {formatDate(lead.createdAt)}</p>
                 <p>Source: {lead.source || 'google_maps'}</p>
@@ -284,25 +324,66 @@ export default function LeadDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {lead.scrapeRuns.map((run) => (
-                <div key={run.id} className="rounded-lg border p-4">
-                  <div className="text-sm text-muted-foreground mb-2">
-                    {formatDate(run.startedAt)} — {run.status} — {run.methodSummary ?? 'scrape'}
+              {lead.scrapeRuns.map((run) => {
+                const extractedByPage = getExtractedByPage(lead, run.id);
+                return (
+                  <div key={run.id} className="rounded-lg border p-4">
+                    <div className="text-sm text-muted-foreground mb-2">
+                      {formatDate(run.startedAt)} — {run.status} — {run.methodSummary ?? 'scrape'}
+                      {(run.pagesCount != null || run.durationMs != null) && (
+                        <span className="ml-2">
+                          ({run.pagesCount != null ? `${run.pagesCount} pages` : ''}
+                          {run.pagesCount != null && run.durationMs != null ? ', ' : ''}
+                          {run.durationMs != null ? `${(run.durationMs / 1000).toFixed(1)}s` : ''})
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs font-mono text-muted-foreground">Root: {run.rootUrl}</div>
+                    {run.scrapedPages?.length ? (
+                      <ul className="mt-2 space-y-2 text-sm">
+                        {run.scrapedPages.map((p) => {
+                          const ex = extractedByPage.get(p.id);
+                          const hasExtracted = ex && (ex.emails.length || ex.phones.length || ex.social.length || ex.team.length || ex.acquisition.length);
+                          return (
+                            <li key={p.id} className="space-y-1" style={{ paddingLeft: (p.depth ?? 0) * 12 }}>
+                              <div className="flex items-center gap-1">
+                                <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-3xl block">{p.url}</a>
+                                {(p.statusCode == null || p.statusCode >= 400) && (
+                                  <Badge variant="destructive" className="shrink-0 text-xs">failed</Badge>
+                                )}
+                              </div>
+                              {hasExtracted && (
+                                <ul className="ml-4 space-y-0.5 text-xs text-muted-foreground border-l border-muted pl-2">
+                                  {ex!.emails.map((v) => (
+                                    <li key={v} className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> email: {v}</li>
+                                  ))}
+                                  {ex!.phones.map((v) => (
+                                    <li key={v} className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> phone: {v}</li>
+                                  ))}
+                                  {ex!.social.map((s) => (
+                                    <li key={s.url} className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> {s.platform}: {s.url}</li>
+                                  ))}
+                                  {ex!.team.map((t, ti) => (
+                                    <li key={ti} className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> team: {t.name}{t.title ? ` — ${t.title}` : ''}</li>
+                                  ))}
+                                  {ex!.acquisition.map((a, i) => (
+                                    <li key={i} className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> acquisition: {a.text}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-sm text-muted-foreground italic">
+                        No page tree for this run. Re-scrape this lead to capture the full link tree.
+                      </p>
+                    )}
                   </div>
-                  <div className="text-xs font-mono text-muted-foreground">Root: {run.rootUrl}</div>
-                  {run.scrapedPages?.length ? (
-                    <ul className="mt-2 space-y-1 text-sm">
-                      {run.scrapedPages.map((p) => (
-                        <li key={p.id} className="flex items-center gap-1" style={{ paddingLeft: (p.depth ?? 0) * 12 }}>
-                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                          <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-md">{p.url}</a>
-                          {p.statusCode != null && <span className="text-muted-foreground">({p.statusCode})</span>}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
         ) : null}

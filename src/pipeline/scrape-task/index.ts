@@ -19,6 +19,7 @@ import {
   DomainTracker, 
   FailureTracker,
   ScrapeWebsiteExtendedResult,
+  normalizeUrl,
 } from './scraper/index.js';
 import { extractAllData } from './extractors/index.js';
 import {
@@ -32,11 +33,12 @@ import type { BatchLead } from './storage/postgres.js';
 
 /** Map batch lead to Business shape for scraper */
 function batchLeadToBusiness(lead: BatchLead): { id: string; place_id: string; business_name: string; website_uri: string; phone?: string } {
+  const website = lead.website ? (normalizeUrl(lead.website) ?? lead.website) : lead.website;
   return {
     id: lead.id,
     place_id: lead.place_id,
     business_name: lead.website || lead.place_id,
-    website_uri: lead.website,
+    website_uri: website,
     phone: lead.phone ?? undefined,
   };
 }
@@ -64,7 +66,9 @@ async function main(): Promise<void> {
   }
   
   const taskId = jobInput.taskId ?? jobInput.jobId;
-  const maxPagesPerSite = jobInput.maxPagesPerSite ?? 15;
+  const MAX_PAGES_PER_LEAD = 100;
+  const requestedMaxPagesPerSite = jobInput.maxPagesPerSite ?? MAX_PAGES_PER_LEAD;
+  const maxPagesPerSite = Math.min(requestedMaxPagesPerSite, MAX_PAGES_PER_LEAD);
   
   // Read batch from S3 (scrape-trigger writes { id, place_id, website }[] per batch)
   const batchS3Key = jobInput.batchS3Key;
@@ -105,6 +109,11 @@ async function main(): Promise<void> {
   console.log(`Task resources: ${TASK_MEMORY_MIB}MB memory, ${TASK_CPU_UNITS} CPU units`);
   console.log(`Calculated optimal concurrency: ${calculatedConcurrency}`);
   console.log(`Using concurrency: ${concurrency}`);
+  if (requestedMaxPagesPerSite > MAX_PAGES_PER_LEAD) {
+    console.log(
+      `Requested max pages per site (${requestedMaxPagesPerSite}) exceeds limit; capping at ${MAX_PAGES_PER_LEAD}`
+    );
+  }
   console.log(`Max pages per site: ${maxPagesPerSite}`);
   console.log(`Fast mode (no Puppeteer): ${fastMode}`);
   console.log(`Leads to scrape: ${businesses.length}`);

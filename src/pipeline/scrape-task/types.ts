@@ -148,18 +148,6 @@ export interface ExtractedScrapeData {
   };
 }
 
-// ============ Metrics Types ============
-
-export interface ScrapeMetrics {
-  processed: number;
-  failed: number;
-  filtered: number;
-  cloudscraper_count: number;
-  puppeteer_count: number;
-  total_pages: number;
-  total_bytes: number;
-}
-
 // ============ HTTP Response Types ============
 
 export interface CloudscraperResponse {

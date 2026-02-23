@@ -570,7 +570,7 @@ model ScrapedPage {
   parentScrapedPage    ScrapedPage?  @relation("ScrapedPageTree", fields: [parentScrapedPageId], references: [id], onDelete: SetNull)
   childPages           ScrapedPage[] @relation("ScrapedPageTree")
   depth                Int           @default(0)
-  linkText             String?
+  linkText             String?       @map("link_text")
   anchorText           String?       @map("anchor_text")
   discoveredFromUrl    String?       @map("discovered_from_url")
   url                  String

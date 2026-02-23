@@ -24,10 +24,10 @@ import {
   ChevronRight,
   CheckCircle2,
 } from 'lucide-react';
-import type { Lead } from '@/types';
+import type { LeadWithCampaign } from '@/types';
 
 /** Build per-page extraction summary for a scrape run (nested event log) */
-function getExtractedByPage(lead: Lead, runId: string): Map<string, { emails: string[]; phones: string[]; social: { platform: string; url: string }[]; team: { name: string; title: string | null }[]; acquisition: { text: string }[] }> {
+function getExtractedByPage(lead: LeadWithCampaign, runId: string): Map<string, { emails: string[]; phones: string[]; social: { platform: string; url: string }[]; team: { name: string; title: string | null }[]; acquisition: { text: string }[] }> {
   const byPage = new Map<string, { emails: string[]; phones: string[]; social: { platform: string; url: string }[]; team: { name: string; title: string | null }[]; acquisition: { text: string }[] }>();
   const add = (pageId: string) => {
     if (!byPage.has(pageId)) byPage.set(pageId, { emails: [], phones: [], social: [], team: [], acquisition: [] });

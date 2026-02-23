@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
@@ -9,16 +9,42 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   DEFAULT_LEAD_COLUMNS,
   LEAD_COLUMNS_STORAGE_KEY,
   LEAD_COLUMN_OPTIONS,
 } from '@/lib/leads/columns';
-import { Filter, TableProperties, X } from 'lucide-react';
+import { ChevronDown, Filter, Globe, Sparkles, TableProperties, X } from 'lucide-react';
+
+type BulkAction = 'scrape' | 'score';
+
+const BULK_ACTION_CONFIG: Record<BulkAction, { label: string; icon: typeof Globe; confirmTitle: string; confirmBody: (n: number) => string }> = {
+  scrape: {
+    label: 'Scrape',
+    icon: Globe,
+    confirmTitle: 'Confirm Bulk Scrape',
+    confirmBody: (n) => `You are about to scrape ${n} lead${n !== 1 ? 's' : ''}. This will launch web scraping jobs for the selected leads.`,
+  },
+  score: {
+    label: 'Score',
+    icon: Sparkles,
+    confirmTitle: 'Confirm Bulk Score',
+    confirmBody: (n) => `You are about to score ${n} lead${n !== 1 ? 's' : ''}. This will run AI qualification on the selected leads.`,
+  },
+};
 
 function loadColumnSelection(): LeadListField[] {
   if (typeof window === 'undefined') return DEFAULT_LEAD_COLUMNS;
@@ -43,7 +69,49 @@ export default function Leads() {
     fields: loadColumnSelection(),
   }));
 
+  const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+
   const { data, isLoading } = useLeads(queryParams);
+
+  const handleStartBulkAction = useCallback((action: BulkAction) => {
+    setBulkAction(action);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleCancelBulkAction = useCallback(() => {
+    setBulkAction(null);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleConfirmBulkAction = useCallback(() => {
+    if (!bulkAction) return;
+    console.log(`[Bulk ${bulkAction}]`, [...selectedIds]);
+    setConfirmDialogOpen(false);
+    setBulkAction(null);
+    setSelectedIds(new Set());
+  }, [bulkAction, selectedIds]);
+
+  const handleToggleRow = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleToggleAllOnPage = useCallback((ids: string[], checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }, []);
 
   const handleFiltersChange = (filters: LeadFiltersType) => {
     setQueryParams(prev => ({ ...prev, filters, page: 1 }));
@@ -81,13 +149,61 @@ export default function Leads() {
 
   const hasActiveFilters = Object.keys(queryParams.filters).length > 0;
   const selectedColumnSet = useMemo(() => new Set(visibleColumns), [visibleColumns]);
+  const isSelecting = bulkAction !== null;
+  const actionConfig = bulkAction ? BULK_ACTION_CONFIG[bulkAction] : null;
+
+  const descriptionText = isSelecting && selectedIds.size > 0
+    ? `${data?.total.toLocaleString() ?? '...'} leads found · ${selectedIds.size} selected`
+    : data ? `${data.total.toLocaleString()} leads found` : 'Loading leads...';
 
   return (
-    <PageContainer 
+    <PageContainer
       title="Leads"
-      description={data ? `${data.total.toLocaleString()} leads found` : 'Loading leads...'}
+      description={descriptionText}
       actions={
         <div className="flex items-center gap-2">
+          {/* Actions group */}
+          {isSelecting && actionConfig ? (
+            <>
+              <Button
+                size="sm"
+                disabled={selectedIds.size === 0}
+                onClick={() => setConfirmDialogOpen(true)}
+              >
+                <actionConfig.icon className="mr-1.5 h-3.5 w-3.5" />
+                {actionConfig.label} {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+              </Button>
+              <button
+                onClick={handleCancelBulkAction}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  Bulk Actions
+                  <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleStartBulkAction('scrape')}>
+                  <Globe className="mr-2 h-4 w-4" />
+                  Scrape Selected
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStartBulkAction('score')}>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Score Selected
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          <div className="mx-1 h-6 w-px bg-border" />
+
+          {/* View group */}
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={handleClearFilters}>
               <X className="mr-1 h-4 w-4" />
@@ -139,9 +255,9 @@ export default function Leads() {
       {/* Filters Panel */}
       {showFilters && (
         <div className="mb-6">
-          <LeadFilters 
-            filters={queryParams.filters} 
-            onChange={handleFiltersChange} 
+          <LeadFilters
+            filters={queryParams.filters}
+            onChange={handleFiltersChange}
           />
         </div>
       )}
@@ -161,9 +277,34 @@ export default function Leads() {
           order: queryParams.order,
         }}
         visibleColumns={visibleColumns}
+        selectedIds={isSelecting ? selectedIds : undefined}
+        onToggleRow={isSelecting ? handleToggleRow : undefined}
+        onToggleAllOnPage={isSelecting ? handleToggleAllOnPage : undefined}
         onPageChange={handlePageChange}
         onSortChange={handleSortChange}
       />
+
+      {/* Confirmation Dialog */}
+      {actionConfig && (
+        <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{actionConfig.confirmTitle}</DialogTitle>
+              <DialogDescription>
+                {actionConfig.confirmBody(selectedIds.size)}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleConfirmBulkAction}>
+                Confirm
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </PageContainer>
   );
 }

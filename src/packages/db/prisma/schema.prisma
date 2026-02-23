@@ -618,6 +618,7 @@ model LeadEmail {
   sourceRunId    String      @map("source_run_id")
   createdAt      DateTime    @default(now()) @map("created_at")
 
+  @@unique([leadId, value], name: "leadId_value")
   @@index([leadId])
   @@index([sourcePageId])
   @@index([sourceRunId])
@@ -634,6 +635,7 @@ model LeadPhone {
   sourceRunId    String      @map("source_run_id")
   createdAt      DateTime    @default(now()) @map("created_at")
 
+  @@unique([leadId, value], name: "leadId_value")
   @@index([leadId])
   @@index([sourcePageId])
   @@index([sourceRunId])

@@ -98,14 +98,17 @@ export async function updateLeadWithScrapeData(
   }
   const scrapeRunId = scrapeRun.id;
 
-  // 3. Insert normalized extracted rows with provenance
+  // 3. Insert normalized extracted rows with provenance (upsert to avoid duplicates across runs)
   for (const email of extracted.emails) {
     const sourceUrl = (extracted as { emailSources?: Record<string, string> }).emailSources?.[email];
     const sourcePageId = sourceUrl ? urlToPageId.get(sourceUrl) : null;
-    await prisma.leadEmail.create({
-      data: {
+    const normalizedEmail = email.toLowerCase().trim();
+    await prisma.leadEmail.upsert({
+      where: { leadId_value: { leadId, value: normalizedEmail } },
+      update: { sourcePageId: sourcePageId ?? effectiveRootPageId, sourceRunId: scrapeRunId },
+      create: {
         leadId,
-        value: email,
+        value: normalizedEmail,
         sourcePageId: sourcePageId ?? effectiveRootPageId,
         sourceRunId: scrapeRunId,
       },
@@ -115,8 +118,10 @@ export async function updateLeadWithScrapeData(
   for (const phone of extracted.phones) {
     const sourceUrl = (extracted as { phoneSources?: Record<string, string> }).phoneSources?.[phone];
     const sourcePageId = sourceUrl ? urlToPageId.get(sourceUrl) : null;
-    await prisma.leadPhone.create({
-      data: {
+    await prisma.leadPhone.upsert({
+      where: { leadId_value: { leadId, value: phone } },
+      update: { sourcePageId: sourcePageId ?? effectiveRootPageId, sourceRunId: scrapeRunId },
+      create: {
         leadId,
         value: phone,
         sourcePageId: sourcePageId ?? effectiveRootPageId,

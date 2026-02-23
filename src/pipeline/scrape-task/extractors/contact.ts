@@ -6,15 +6,23 @@ import { normalizePhone, isFakePhone } from '../utils/phone.js';
  */
 export function extractEmails(text: string, sourceUrl?: string): string[] {
   const matches = text.match(PATTERNS.email) || [];
-  // Filter out common false positives
-  const emails = [...new Set(matches.filter(email => 
-    !email.includes('example.com') &&
-    !email.includes('domain.com') &&
-    !email.includes('email.com') &&
-    !email.endsWith('.png') &&
-    !email.endsWith('.jpg') &&
-    !email.endsWith('.gif')
-  ))].slice(0, 10); // Max 10 emails
+  const seen = new Set<string>();
+  const emails: string[] = [];
+  for (const raw of matches) {
+    const normalized = raw.toLowerCase().trim();
+    if (seen.has(normalized)) continue;
+    if (
+      normalized.includes('example.com') ||
+      normalized.includes('domain.com') ||
+      normalized.includes('email.com') ||
+      normalized.endsWith('.png') ||
+      normalized.endsWith('.jpg') ||
+      normalized.endsWith('.gif')
+    ) continue;
+    seen.add(normalized);
+    emails.push(normalized);
+    if (emails.length >= 10) break;
+  }
   
   if (emails.length > 0) {
     console.log(`    [Extract:Emails] Found ${emails.length}: ${emails.slice(0, 3).join(', ')}${emails.length > 3 ? '...' : ''}`);

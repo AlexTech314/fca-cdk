@@ -24,6 +24,7 @@ export const LEAD_COLUMN_OPTIONS: LeadColumnOption[] = [
   { key: 'phone', label: 'Phone' },
   { key: 'emails', label: 'Emails' },
   { key: 'website', label: 'Website' },
+  { key: 'googleMaps', label: 'Google Maps' },
   { key: 'rating', label: 'Rating' },
   { key: 'businessType', label: 'Type' },
   { key: 'qualificationScore', label: 'Score' },

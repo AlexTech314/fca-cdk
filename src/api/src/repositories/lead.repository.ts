@@ -364,6 +364,8 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   }
   if (fields.has('website')) {
     select.website = true;
+  }
+  if (fields.has('googleMaps')) {
     select.googleMapsUri = true;
   }
   if (fields.has('rating')) {

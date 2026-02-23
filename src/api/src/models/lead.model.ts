@@ -7,6 +7,7 @@ const leadListFields = [
   'phone',
   'emails',
   'website',
+  'googleMaps',
   'rating',
   'businessType',
   'qualificationScore',

@@ -259,6 +259,7 @@ export type LeadListField =
   | 'phone'
   | 'emails'
   | 'website'
+  | 'googleMaps'
   | 'rating'
   | 'businessType'
   | 'qualificationScore'

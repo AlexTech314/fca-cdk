@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { QualificationBadge } from './QualificationBadge';
 import type { Lead, LeadListField } from '@/types';
 import { formatDate } from '@/lib/utils';
@@ -30,6 +31,9 @@ interface LeadTableProps {
     sort: string;
     order: 'asc' | 'desc';
   };
+  selectedIds?: Set<string>;
+  onToggleRow?: (id: string) => void;
+  onToggleAllOnPage?: (ids: string[], checked: boolean) => void;
   onPageChange: (page: number) => void;
   onSortChange: (sort: string, order: 'asc' | 'desc') => void;
 }
@@ -134,9 +138,16 @@ export function LeadTable({
   visibleColumns,
   pagination,
   sorting,
+  selectedIds,
+  onToggleRow,
+  onToggleAllOnPage,
   onPageChange,
   onSortChange,
 }: LeadTableProps) {
+  const hasSelection = !!(selectedIds && onToggleRow && onToggleAllOnPage);
+  const pageIds = data.map((l) => l.id);
+  const allOnPageSelected = hasSelection && pageIds.length > 0 && pageIds.every((id) => selectedIds!.has(id));
+  const someOnPageSelected = hasSelection && pageIds.some((id) => selectedIds!.has(id));
   const columnDefs: Record<
     LeadListField,
     {
@@ -185,26 +196,19 @@ export function LeadTable({
     },
     emails: {
       label: 'Emails',
-      headClassName: 'min-w-[180px]',
-      cellClassName: 'text-sm min-w-[180px]',
+      headClassName: 'min-w-[200px]',
+      cellClassName: 'text-sm min-w-[200px]',
       renderCell: (lead) =>
         lead.emails?.length ? (
-          <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
-            {lead.emails.slice(0, 2).map((email, i) => (
-              <span key={email} className="inline-flex items-center gap-1">
-                {i > 0 && <span className="text-muted-foreground">,</span>}
-                <a
-                  href={`mailto:${email}`}
-                  className="text-primary hover:underline truncate max-w-[140px]"
-                  title={email}
-                >
-                  {email}
-                </a>
-              </span>
-            ))}
-            {lead.emails.length > 2 && (
-              <Badge variant="secondary" className="text-xs font-normal shrink-0">
-                +{lead.emails.length - 2}
+          <div className="flex flex-wrap items-center gap-1">
+            <a href={`mailto:${lead.emails[0]}`} className="inline-flex">
+              <Badge variant="secondary" className="text-xs font-normal hover:bg-accent cursor-pointer whitespace-nowrap">
+                {lead.emails[0]}
+              </Badge>
+            </a>
+            {lead.emails.length > 1 && (
+              <Badge variant="outline" className="text-xs font-normal shrink-0">
+                +{lead.emails.length - 1}
               </Badge>
             )}
           </div>
@@ -215,29 +219,31 @@ export function LeadTable({
     website: {
       label: 'Website',
       renderCell: (lead) =>
-        lead.website || lead.googleMapsUri ? (
-          <div className="flex flex-col gap-1">
-            {lead.website ? (
-              <a
-                href={lead.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-1"
-              >
-                Site <ExternalLink className="h-3 w-3" />
-              </a>
-            ) : null}
-            {lead.googleMapsUri ? (
-              <a
-                href={lead.googleMapsUri}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-1"
-              >
-                Google <ExternalLink className="h-3 w-3" />
-              </a>
-            ) : null}
-          </div>
+        lead.website ? (
+          <a
+            href={lead.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline inline-flex items-center gap-1"
+          >
+            Site <ExternalLink className="h-3 w-3" />
+          </a>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        ),
+    },
+    googleMaps: {
+      label: 'Google Maps',
+      renderCell: (lead) =>
+        lead.googleMapsUri ? (
+          <a
+            href={lead.googleMapsUri}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline inline-flex items-center gap-1"
+          >
+            Maps <ExternalLink className="h-3 w-3" />
+          </a>
         ) : (
           <span className="text-muted-foreground">-</span>
         ),
@@ -331,6 +337,17 @@ export function LeadTable({
         <Table>
           <TableHeader>
             <TableRow>
+              {hasSelection && (
+                <TableHead className="w-12 !p-0">
+                  <div className="flex h-full w-full items-center justify-center">
+                    <Checkbox
+                      checked={allOnPageSelected ? true : someOnPageSelected ? 'indeterminate' : false}
+                      onCheckedChange={(checked) => onToggleAllOnPage!(pageIds, checked === true)}
+                      aria-label="Select all on page"
+                    />
+                  </div>
+                </TableHead>
+              )}
               {activeColumns.map((columnKey) => {
                 const column = columnDefs[columnKey];
                 return (
@@ -354,23 +371,37 @@ export function LeadTable({
           <TableBody>
             {data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={Math.max(activeColumns.length, 1)} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={Math.max(activeColumns.length + (hasSelection ? 1 : 0), 1)} className="text-center text-muted-foreground py-8">
                   No leads found matching your filters.
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((lead) => (
-                <TableRow key={lead.id} className="hover:bg-muted/50">
-                  {activeColumns.map((columnKey) => {
-                    const column = columnDefs[columnKey];
-                    return (
-                      <TableCell key={`${lead.id}-${columnKey}`} className={column.cellClassName}>
-                        {column.renderCell(lead)}
+              data.map((lead) => {
+                const isSelected = hasSelection && selectedIds!.has(lead.id);
+                return (
+                  <TableRow key={lead.id} data-state={isSelected ? 'selected' : undefined} className={isSelected ? 'bg-muted/80' : 'hover:bg-muted/50'}>
+                    {hasSelection && (
+                      <TableCell className="w-12 !p-0">
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => onToggleRow!(lead.id)}
+                            aria-label={`Select ${lead.name}`}
+                          />
+                        </div>
                       </TableCell>
-                    );
-                  })}
-                </TableRow>
-              ))
+                    )}
+                    {activeColumns.map((columnKey) => {
+                      const column = columnDefs[columnKey];
+                      return (
+                        <TableCell key={`${lead.id}-${columnKey}`} className={column.cellClassName}>
+                          {column.renderCell(lead)}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

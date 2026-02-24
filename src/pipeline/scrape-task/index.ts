@@ -20,6 +20,7 @@ import {
   FailureTracker,
   ScrapeWebsiteExtendedResult,
   normalizeUrl,
+  needsPuppeteer,
 } from './scraper/index.js';
 import { extractAllData } from './extractors/index.js';
 import {
@@ -102,12 +103,9 @@ async function main(): Promise<void> {
   const leadsToScrape = batchLeads.filter(l => l.website);
   const businesses = leadsToScrape.map(batchLeadToBusiness);
   
-  const fastMode = jobInput.fastMode ?? true;
-  const calculatedConcurrency = calculateOptimalConcurrency(fastMode);
-  const concurrency = jobInput.concurrency || calculatedConcurrency;
+  const concurrency = jobInput.concurrency || calculateOptimalConcurrency(true);
   
   console.log(`Task resources: ${TASK_MEMORY_MIB}MB memory, ${TASK_CPU_UNITS} CPU units`);
-  console.log(`Calculated optimal concurrency: ${calculatedConcurrency}`);
   console.log(`Using concurrency: ${concurrency}`);
   if (requestedMaxPagesPerSite > MAX_PAGES_PER_LEAD) {
     console.log(
@@ -115,7 +113,7 @@ async function main(): Promise<void> {
     );
   }
   console.log(`Max pages per site: ${maxPagesPerSite}`);
-  console.log(`Fast mode (no Puppeteer): ${fastMode}`);
+  console.log(`Mode: cloudscraper first, lazy Puppeteer fallback for SPA sites`);
   console.log(`Leads to scrape: ${businesses.length}`);
   
   if (businesses.length === 0) {
@@ -123,44 +121,31 @@ async function main(): Promise<void> {
     return;
   }
   
-  // Initialize tracking
   const domainTracker = new DomainTracker();
   const globalFailureTracker = new FailureTracker();
   
-  // Launch Puppeteer browser and page pool - skip in fast mode
+  // Puppeteer is launched lazily only when a SPA site is detected
   let browser: Browser | null = null;
   let pagePool: PagePool | null = null;
+  let puppeteerRetries = 0;
   
-  if (!fastMode) {
-    console.log('Launching Puppeteer browser...');
-    try {
-      const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-      if (executablePath) {
-        console.log(`Using custom Chromium path: ${executablePath}`);
-      }
-      
-      browser = await puppeteer.launch({
-        headless: true,
-        executablePath: executablePath || undefined,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-        ],
-      });
-      console.log('Browser launched successfully');
-      
-      // Create page pool for efficient page reuse
-      // Pool size based on concurrency (1 page per concurrent site)
-      const poolSize = Math.min(concurrency, 5);
-      pagePool = new PagePool(browser, poolSize);
-      console.log(`Page pool created with ${poolSize} pages`);
-    } catch (error) {
-      console.warn('Failed to launch Puppeteer, will use cloudscraper only:', error);
-    }
-  } else {
-    console.log('Fast mode enabled - skipping Puppeteer for maximum speed');
+  async function ensureBrowser(): Promise<{ browser: Browser; pagePool: PagePool }> {
+    if (browser && pagePool) return { browser, pagePool };
+    console.log('  [Puppeteer] Launching browser for SPA fallback...');
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    browser = await puppeteer.launch({
+      headless: true,
+      executablePath: executablePath || undefined,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+      ],
+    });
+    pagePool = new PagePool(browser, 3);
+    console.log('  [Puppeteer] Browser ready');
+    return { browser, pagePool };
   }
   
   // Process businesses
@@ -179,17 +164,38 @@ async function main(): Promise<void> {
       try {
         console.log(`\nScraping: ${business.business_name} (${business.website_uri})`);
         
-        // Use extended scrape options with all new features
-        const scrapeResult = await scrapeWebsite(business.website_uri!, {
+        // Pass 1: cloudscraper (fast, no browser)
+        let scrapeResult = await scrapeWebsite(business.website_uri!, {
           maxPages: maxPagesPerSite,
-          browser,
-          pagePool,
+          browser: null,
+          pagePool: null,
           domainTracker,
           failureTracker: globalFailureTracker,
           enableEarlyExit: false,
         }) as ScrapeWebsiteExtendedResult;
         
-        const { pages, method } = scrapeResult;
+        let { pages, method } = scrapeResult;
+        
+        // Pass 2: if root page looks like a JS SPA, retry with Puppeteer
+        if (pages.length > 0 && needsPuppeteer(pages[0].html)) {
+          console.log(`  [SPA detected] Re-scraping ${business.website_uri} with Puppeteer`);
+          puppeteerRetries++;
+          try {
+            const bp = await ensureBrowser();
+            scrapeResult = await scrapeWebsite(business.website_uri!, {
+              maxPages: maxPagesPerSite,
+              browser: bp.browser,
+              pagePool: bp.pagePool,
+              domainTracker,
+              failureTracker: globalFailureTracker,
+              enableEarlyExit: false,
+            }) as ScrapeWebsiteExtendedResult;
+            pages = scrapeResult.pages;
+            method = scrapeResult.method;
+          } catch (puppeteerError) {
+            console.warn(`  [Puppeteer fallback failed] ${business.business_name}:`, puppeteerError);
+          }
+        }
         
         if (pages.length === 0) {
           console.log(`  ✗ No pages scraped for ${business.business_name}`);
@@ -201,12 +207,10 @@ async function main(): Promise<void> {
         const durationMs = Date.now() - startTime;
         const pageBytes = pages.reduce((sum, p) => sum + p.html.length, 0);
         
-        // Extract data (pass known phone to exclude from scraped phones)
         const knownPhones: string[] = [];
         if (business.phone) knownPhones.push(String(business.phone));
         const extracted = extractAllData(pages, knownPhones);
         
-        // Map pages to storage shape (url, status_code, scraped_at, parentUrl, depth)
         const pagesForStorage = pages.map((p) => ({
           url: p.url,
           status_code: p.status_code,
@@ -215,7 +219,6 @@ async function main(): Promise<void> {
           depth: p.depth ?? 0,
         }));
         
-        // Update Postgres: create ScrapeRun, ScrapedPage tree, normalized extracted tables, update lead
         await updateLeadWithScrapeData(
           db,
           business.id,
@@ -243,12 +246,12 @@ async function main(): Promise<void> {
     console.log(`\nProgress: ${processed + failed}/${businesses.length}`);
   }
   
-  // Clean up
-  if (pagePool) {
-    await pagePool.closeAll();
+  // Clean up lazily-launched Puppeteer
+  if (pagePool as PagePool | null) {
+    await pagePool!.closeAll();
   }
-  if (browser) {
-    await browser.close();
+  if (browser as Browser | null) {
+    await browser!.close();
   }
   
   const totalDurationMs = Date.now() - startTimeTotal;
@@ -261,6 +264,9 @@ async function main(): Promise<void> {
   console.log(`Failed: ${failed}`);
   console.log(`Total pages scraped: ${totalPages}`);
   console.log(`Total bytes: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
+  if (puppeteerRetries > 0) {
+    console.log(`Puppeteer SPA fallbacks: ${puppeteerRetries}`);
+  }
   
   // Log failure breakdown
   globalFailureTracker.logSummary();

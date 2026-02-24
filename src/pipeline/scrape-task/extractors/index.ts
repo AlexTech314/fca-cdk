@@ -62,6 +62,7 @@ export function extractAllData(pages: ScrapedPage[], knownPhones: string[] = [])
   const allSocial: ExtractedData['social'] = {};
   const allTeamMembers: TeamMember[] = [];
   const allSnippets: SnippetOfInterest[] = [];
+  const seenSnippetTexts = new Set<string>();
   const allAcquisitionSignals: ReturnType<typeof extractAcquisitionSignals> = [];
   let foundedYear: number | null = null;
   let foundedSource: string | null = null;
@@ -137,7 +138,7 @@ export function extractAllData(pages: ScrapedPage[], knownPhones: string[] = [])
     }
     
     extractEmails(text).forEach(e => allEmails.add(e));
-    extractPhones(text, knownPhones).forEach(p => allPhones.add(p));
+    extractPhones(text, knownPhones, html).forEach(p => allPhones.add(p));
     
     const social = extractSocialLinks(html);
     if (social.linkedin && !allSocial.linkedin) allSocial.linkedin = social.linkedin;
@@ -163,7 +164,13 @@ export function extractAllData(pages: ScrapedPage[], knownPhones: string[] = [])
     
     allTeamMembers.push(...extractTeamMembers(text, page.url));
     allAcquisitionSignals.push(...extractAcquisitionSignals(text, page.url));
-    allSnippets.push(...extractSnippetsOfInterest(text, html, page.url));
+    for (const snippet of extractSnippetsOfInterest(text, html, page.url)) {
+      const key = snippet.text.toLowerCase();
+      if (!seenSnippetTexts.has(key)) {
+        seenSnippetTexts.add(key);
+        allSnippets.push(snippet);
+      }
+    }
   }
   
   const yearsInBusiness = foundedYear ? new Date().getFullYear() - foundedYear : null;
@@ -225,8 +232,8 @@ export function extractAllData(pages: ScrapedPage[], knownPhones: string[] = [])
   }
   
   return {
-    emails: [...allEmails],
-    phones: [...allPhones],
+    emails: [...allEmails].slice(0, 10),
+    phones: [...allPhones].slice(0, 5),
     contact_page_url: contactPageUrl,
     social: allSocial,
     team_members: dedupedTeamMembers,

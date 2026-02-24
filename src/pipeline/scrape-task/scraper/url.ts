@@ -80,6 +80,12 @@ export const SKIP_PATTERNS: RegExp[] = [
   /\.wmv$/i,
   /\.json$/i,
   /\.xml$/i,
+  /\.webmanifest$/i,
+  /\.txt$/i,
+  /\.csv$/i,
+  /\.rss$/i,
+  /\.atom$/i,
+  /\.map$/i,
   
   // Wix garbage
   /\/copy-of-/i,

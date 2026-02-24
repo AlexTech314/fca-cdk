@@ -2,10 +2,13 @@
  * Extract text content from HTML, stripping tags, scripts, and styles
  */
 export function extractTextContent(html: string): string {
-  // Remove scripts, styles, and comments
   let text = html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '')
+    .replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, '')
+    .replace(/<input[^>]*>/gi, '')
+    .replace(/<textarea[^>]*>[\s\S]*?<\/textarea>/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')

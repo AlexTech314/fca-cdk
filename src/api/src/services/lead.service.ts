@@ -4,6 +4,7 @@ import { campaignRunRepository } from '../repositories/campaign.repository';
 import type { LeadQuery } from '../models/lead.model';
 
 const SCORING_QUEUE_URL = process.env.SCORING_QUEUE_URL || '';
+const SCRAPE_QUEUE_URL = process.env.SCRAPE_QUEUE_URL || '';
 const sqsClient = new SQSClient({});
 
 export const leadService = {
@@ -46,6 +47,43 @@ export const leadService = {
       const result = await this.qualify(id);
       results.push(result);
     }
+    return results;
+  },
+
+  async scrapeBulk(ids: string[]) {
+    if (!SCRAPE_QUEUE_URL) {
+      throw new Error('SCRAPE_QUEUE_URL is not configured');
+    }
+
+    const results: Array<{ id: string; status: 'queued' | 'skipped' | 'not_found' | 'error'; error?: string }> = [];
+
+    for (const id of ids) {
+      try {
+        const lead = await leadRepository.findById(id);
+        if (!lead) {
+          results.push({ id, status: 'not_found' });
+          continue;
+        }
+        if (!lead.website) {
+          results.push({ id, status: 'skipped' });
+          continue;
+        }
+        await sqsClient.send(
+          new SendMessageCommand({
+            QueueUrl: SCRAPE_QUEUE_URL,
+            MessageBody: JSON.stringify({
+              lead_id: id,
+              place_id: lead.placeId ?? '',
+              website: lead.website,
+            }),
+          })
+        );
+        results.push({ id, status: 'queued' });
+      } catch (err) {
+        results.push({ id, status: 'error', error: err instanceof Error ? err.message : 'Unknown error' });
+      }
+    }
+
     return results;
   },
 

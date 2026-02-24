@@ -3,7 +3,8 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { Button } from '@/components/ui/button';
-import { useLeads, defaultLeadQueryParams } from '@/hooks/useLeads';
+import { useLeads, useScrapeLeadsBulk, useQualifyLeadsBulk, defaultLeadQueryParams } from '@/hooks/useLeads';
+import { toast } from '@/hooks/use-toast';
 import type { LeadFilters as LeadFiltersType, LeadListField, LeadQueryParams } from '@/types';
 import {
   DropdownMenu,
@@ -72,8 +73,11 @@ export default function Leads() {
   const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
 
   const { data, isLoading } = useLeads(queryParams);
+  const scrapeBulk = useScrapeLeadsBulk();
+  const qualifyBulk = useQualifyLeadsBulk();
 
   const handleStartBulkAction = useCallback((action: BulkAction) => {
     setBulkAction(action);
@@ -85,13 +89,46 @@ export default function Leads() {
     setSelectedIds(new Set());
   }, []);
 
-  const handleConfirmBulkAction = useCallback(() => {
+  const handleConfirmBulkAction = useCallback(async () => {
     if (!bulkAction) return;
-    console.log(`[Bulk ${bulkAction}]`, [...selectedIds]);
     setConfirmDialogOpen(false);
-    setBulkAction(null);
-    setSelectedIds(new Set());
-  }, [bulkAction, selectedIds]);
+
+    const ids = [...selectedIds];
+    const BATCH_SIZE = 20;
+    const batches: string[][] = [];
+    for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+      batches.push(ids.slice(i, i + BATCH_SIZE));
+    }
+
+    setBulkProgress({ current: 0, total: ids.length });
+
+    try {
+      let processed = 0;
+      for (const batch of batches) {
+        if (bulkAction === 'scrape') {
+          await scrapeBulk.mutateAsync(batch);
+        } else {
+          await qualifyBulk.mutateAsync(batch);
+        }
+        processed += batch.length;
+        setBulkProgress({ current: processed, total: ids.length });
+      }
+      toast({
+        title: `Bulk ${bulkAction} complete`,
+        description: `Successfully processed ${ids.length} lead${ids.length !== 1 ? 's' : ''}.`,
+      });
+    } catch (err) {
+      toast({
+        title: `Bulk ${bulkAction} failed`,
+        description: err instanceof Error ? err.message : 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setBulkProgress(null);
+      setBulkAction(null);
+      setSelectedIds(new Set());
+    }
+  }, [bulkAction, selectedIds, scrapeBulk, qualifyBulk]);
 
   const handleToggleRow = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -284,6 +321,15 @@ export default function Leads() {
         onSortChange={handleSortChange}
       />
 
+      {/* Bulk Progress */}
+      {bulkProgress && (
+        <div className="fixed bottom-4 right-4 z-50 rounded-lg border bg-background p-4 shadow-lg">
+          <p className="text-sm font-medium">
+            Processing {bulkProgress.current} of {bulkProgress.total} leads...
+          </p>
+        </div>
+      )}
+
       {/* Confirmation Dialog */}
       {actionConfig && (
         <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
@@ -298,7 +344,10 @@ export default function Leads() {
               <Button variant="outline" onClick={() => setConfirmDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleConfirmBulkAction}>
+              <Button
+                onClick={handleConfirmBulkAction}
+                disabled={scrapeBulk.isPending || qualifyBulk.isPending}
+              >
                 Confirm
               </Button>
             </DialogFooter>

@@ -114,6 +114,11 @@ export interface LeadGenApi {
    */
   qualifyLeadsBulk(ids: string[]): Promise<Lead[]>;
 
+  /**
+   * Bulk scrape multiple leads
+   */
+  scrapeLeadsBulk(ids: string[]): Promise<{ results: Array<{ id: string; status: string }> }>;
+
   // ===========================================
   // Campaigns
   // ===========================================

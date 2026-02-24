@@ -34,6 +34,8 @@ export interface LeadGenPipelineStackProps extends cdk.StackProps {
 export class LeadGenPipelineStack extends cdk.Stack {
   public readonly startPlacesLambdaArn: string;
   public readonly scoringQueue: sqs.IQueue;
+  public readonly scrapeQueueUrl: string;
+  public readonly scrapeQueueArn: string;
   public readonly pipelineClusterArn: string;
 
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
@@ -439,6 +441,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
     databaseSecret.grantRead(scoringTriggerLambda);
 
     this.scoringQueue = scoringQueue;
+    this.scrapeQueueUrl = scrapeQueue.queueUrl;
+    this.scrapeQueueArn = scrapeQueue.queueArn;
 
     // ============================================================
     // Outputs

@@ -209,6 +209,13 @@ export const mockApi: LeadGenApi = {
     return results;
   },
 
+  async scrapeLeadsBulk(ids) {
+    await delay(500);
+    return {
+      results: ids.map((id) => ({ id, status: 'queued' })),
+    };
+  },
+
   // ===========================================
   // Campaigns
   // ===========================================

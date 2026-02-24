@@ -23,6 +23,8 @@ export interface ApiStackProps extends cdk.StackProps {
   readonly startPlacesLambdaArn: string;
   readonly pipelineClusterArn: string;
   readonly scoringQueue?: sqs.IQueue;
+  readonly scrapeQueueUrl?: string;
+  readonly scrapeQueueArn?: string;
   readonly cognitoUserPoolId: string;
   readonly cognitoClientId: string;
 }
@@ -50,6 +52,8 @@ export class ApiStack extends cdk.Stack {
       startPlacesLambdaArn,
       pipelineClusterArn,
       scoringQueue,
+      scrapeQueueUrl,
+      scrapeQueueArn,
       cognitoUserPoolId,
       cognitoClientId,
     } = props;
@@ -99,6 +103,7 @@ export class ApiStack extends cdk.Stack {
           START_PLACES_LAMBDA_ARN: startPlacesLambdaArn,
           PIPELINE_CLUSTER_ARN: pipelineClusterArn,
           SCORING_QUEUE_URL: scoringQueue?.queueUrl ?? '',
+          SCRAPE_QUEUE_URL: scrapeQueueUrl ?? '',
           COGNITO_USER_POOL_ID: cognitoUserPoolId,
           COGNITO_CLIENT_ID: cognitoClientId,
           AWS_REGION: this.region,
@@ -138,6 +143,15 @@ export class ApiStack extends cdk.Stack {
 
     if (scoringQueue) {
       scoringQueue.grantSendMessages(apiService.taskDefinition.taskRole);
+    }
+
+    if (scrapeQueueArn) {
+      apiService.taskDefinition.taskRole.addToPrincipalPolicy(
+        new iam.PolicyStatement({
+          actions: ['sqs:SendMessage'],
+          resources: [scrapeQueueArn],
+        })
+      );
     }
 
     apiService.taskDefinition.taskRole.addToPrincipalPolicy(

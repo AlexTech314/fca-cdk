@@ -205,6 +205,24 @@ router.post('/leads/qualify-bulk', authorize('readwrite', 'admin'), async (req, 
   }
 });
 
+router.post('/leads/scrape-bulk', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const { leadIds } = req.body;
+    if (!Array.isArray(leadIds) || leadIds.length === 0) {
+      res.status(400).json({ error: 'leadIds array is required and must not be empty' });
+      return;
+    }
+    if (leadIds.length > 100) {
+      res.status(400).json({ error: 'Maximum 100 leads per request' });
+      return;
+    }
+    const results = await leadService.scrapeBulk(leadIds);
+    res.json({ results });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post('/leads/export', authorize('readwrite', 'admin'), async (_req, res, next) => {
   try {
     // TODO: Generate CSV export, upload to S3, return presigned download URL

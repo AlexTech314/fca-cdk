@@ -57,6 +57,17 @@ export function useQualifyLeadsBulk() {
   });
 }
 
+export function useScrapeLeadsBulk() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => api.scrapeLeadsBulk(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
 // Default query params
 export const defaultLeadQueryParams: LeadQueryParams = {
   page: 1,

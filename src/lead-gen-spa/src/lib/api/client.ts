@@ -356,6 +356,13 @@ export const realApi: LeadGenApi = {
     return results;
   },
 
+  async scrapeLeadsBulk(ids: string[]): Promise<{ results: Array<{ id: string; status: string }> }> {
+    return apiClient<{ results: Array<{ id: string; status: string }> }>('/leads/scrape-bulk', {
+      method: 'POST',
+      body: JSON.stringify({ leadIds: ids }),
+    });
+  },
+
   // ===========================================
   // Campaigns
   // ===========================================

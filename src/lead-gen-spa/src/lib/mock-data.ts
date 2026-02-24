@@ -435,7 +435,7 @@ function generateLeads(): Lead[] {
       qualificationScore: score,
       qualificationNotes: score !== null ? generateQualificationNotes(score) : null,
       qualifiedAt,
-      source: 'google_maps',
+      source: 'google_places',
       franchiseId: null,
       foundedYear: webScrapedAt && Math.random() > 0.5 ? 1995 + Math.floor(Math.random() * 25) : null,
       yearsInBusiness: webScrapedAt && Math.random() > 0.5 ? Math.floor(Math.random() * 20) + 1 : null,

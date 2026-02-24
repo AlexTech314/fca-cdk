@@ -1,5 +1,5 @@
 import { prisma } from '@fca/db';
-import type { Prisma } from '@fca/db';
+import type { Prisma, BlogPostCategory } from '@fca/db';
 import type { BlogPostQuery, CreateBlogPostInput, UpdateBlogPostInput } from '../models/blog-post.model';
 
 export const blogPostRepository = {
@@ -13,7 +13,7 @@ export const blogPostRepository = {
       where.isPublished = published;
     }
     if (category) {
-      where.category = category;
+      where.category = category as BlogPostCategory;
     }
     if (author) {
       where.author = { contains: author, mode: 'insensitive' };

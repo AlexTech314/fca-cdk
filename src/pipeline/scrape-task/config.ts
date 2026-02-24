@@ -18,7 +18,13 @@ export const s3Client = new S3Client({ region: process.env.AWS_REGION });
 
 // ============ Environment Variables ============
 
-export const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Required environment variable ${name} is not set`);
+  return value;
+}
+
+export const CAMPAIGN_DATA_BUCKET = requireEnv('CAMPAIGN_DATA_BUCKET');
 
 // Task resource info for dynamic concurrency calculation
 export const TASK_MEMORY_MIB = parseInt(process.env.TASK_MEMORY_MIB || '4096', 10);
@@ -59,6 +65,17 @@ export function calculateOptimalConcurrency(fastMode: boolean): number {
     return Math.max(Math.min(memoryBasedConcurrency, cpuBasedConcurrency), 3); // Min 3
   }
 }
+
+// ============ Extraction Limits ============
+
+export const LIMITS = {
+  MAX_EMAILS: 10,
+  MAX_PHONES: 5,
+  MAX_TEAM_MEMBERS: 20,
+  MAX_ACQUISITION_SIGNALS: 10,
+  MAX_SNIPPETS: 50,
+  MAX_PAGES_PER_LEAD: 100,
+} as const;
 
 // ============ Regex Patterns ============
 

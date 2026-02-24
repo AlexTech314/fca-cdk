@@ -1,24 +1,53 @@
 import { PATTERNS } from '../config.js';
 import { normalizePhone, isFakePhone } from '../utils/phone.js';
 
+const JUNK_EMAIL_PATTERNS = [
+  'example.com', 'domain.com', 'email.com', 'test.com',
+  'sentry.io', 'wixpress.com', 'squarespace.com',
+];
+
+function isJunkEmail(email: string): boolean {
+  if (JUNK_EMAIL_PATTERNS.some(p => email.includes(p))) return true;
+  if (/\.(png|jpg|gif|svg|css|js)$/i.test(email)) return true;
+  return false;
+}
+
 /**
- * Extract email addresses from text content
+ * Extract emails from mailto: links (highest confidence)
  */
-export function extractEmails(text: string, sourceUrl?: string): string[] {
-  const matches = text.match(PATTERNS.email) || [];
+function extractMailtoEmails(html: string): string[] {
+  const pattern = /href=["']mailto:([^"'?]+)/gi;
+  const emails: string[] = [];
+  const seen = new Set<string>();
+  for (const match of html.matchAll(pattern)) {
+    const normalized = match[1].toLowerCase().trim();
+    if (!isJunkEmail(normalized) && !seen.has(normalized)) {
+      seen.add(normalized);
+      emails.push(normalized);
+    }
+  }
+  return emails;
+}
+
+/**
+ * Extract email addresses from text content and HTML mailto: links
+ */
+export function extractEmails(text: string, html?: string): string[] {
   const seen = new Set<string>();
   const emails: string[] = [];
+
+  // Pass 1: mailto: links (high confidence)
+  if (html) {
+    for (const e of extractMailtoEmails(html)) {
+      if (!seen.has(e)) { seen.add(e); emails.push(e); }
+    }
+  }
+
+  // Pass 2: regex on text content
+  const matches = text.match(PATTERNS.email) || [];
   for (const raw of matches) {
     const normalized = raw.toLowerCase().trim();
-    if (seen.has(normalized)) continue;
-    if (
-      normalized.includes('example.com') ||
-      normalized.includes('domain.com') ||
-      normalized.includes('email.com') ||
-      normalized.endsWith('.png') ||
-      normalized.endsWith('.jpg') ||
-      normalized.endsWith('.gif')
-    ) continue;
+    if (seen.has(normalized) || isJunkEmail(normalized)) continue;
     seen.add(normalized);
     emails.push(normalized);
     if (emails.length >= 10) break;

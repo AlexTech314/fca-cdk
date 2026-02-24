@@ -135,116 +135,81 @@ const SCHEMA_TYPES_OF_INTEREST = [
 ];
 
 /**
- * Extract Schema.org JSON-LD structured data from HTML
- * Returns structured data that can be used to supplement regex extraction
+ * Extract and merge Schema.org JSON-LD structured data from HTML.
+ * Merges fields across multiple JSON-LD blocks (e.g. Organization + LocalBusiness).
  */
 export function extractSchemaOrgData(html: string): SchemaOrgData | null {
-  // Find all JSON-LD script tags
   const scriptPattern = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-  const matches = [...html.matchAll(scriptPattern)];
+  const scriptMatches = [...html.matchAll(scriptPattern)];
   
-  if (matches.length === 0) {
-    return null;
-  }
+  if (scriptMatches.length === 0) return null;
   
-  for (const match of matches) {
+  const merged: SchemaOrgData = {};
+  const allSameAs: string[] = [];
+  let found = false;
+
+  for (const scriptMatch of scriptMatches) {
     try {
-      const jsonContent = match[1].trim();
-      const data = JSON.parse(jsonContent);
-      
-      // Handle @graph arrays
+      const data = JSON.parse(scriptMatch[1].trim());
       const items = Array.isArray(data['@graph']) ? data['@graph'] : [data];
       
       for (const item of items) {
         const itemType = item['@type'];
-        
-        // Check if this is a type we're interested in
         const types = Array.isArray(itemType) ? itemType : [itemType];
-        const isRelevant = types.some(t => SCHEMA_TYPES_OF_INTEREST.includes(t));
-        
-        if (!isRelevant) continue;
-        
-        const result: SchemaOrgData = {};
-        
-        // Extract email
-        if (item.email) {
-          result.email = String(item.email).replace(/^mailto:/i, '');
-        }
-        
-        // Extract phone
-        if (item.telephone) {
-          result.telephone = String(item.telephone);
-        }
-        
-        // Extract founding date
-        if (item.foundingDate) {
-          result.foundingDate = String(item.foundingDate);
+        if (!types.some((t: string) => SCHEMA_TYPES_OF_INTEREST.includes(t))) continue;
+        found = true;
+
+        if (item.email && !merged.email) merged.email = String(item.email).replace(/^mailto:/i, '');
+        if (item.telephone && !merged.telephone) merged.telephone = String(item.telephone);
+        if (item.name && !merged.name) merged.name = String(item.name);
+        if (item.description && !merged.description) merged.description = String(item.description);
+
+        if (item.foundingDate && !merged.foundingYear) {
+          merged.foundingDate = String(item.foundingDate);
           const year = parseInt(item.foundingDate.slice(0, 4), 10);
-          if (year >= 1800 && year <= new Date().getFullYear()) {
-            result.foundingYear = year;
-          }
+          if (year >= 1800 && year <= new Date().getFullYear()) merged.foundingYear = year;
         }
-        
-        // Extract name
-        if (item.name) {
-          result.name = String(item.name);
-        }
-        
-        // Extract description
-        if (item.description) {
-          result.description = String(item.description);
-        }
-        
-        // Extract address
-        if (item.address && typeof item.address === 'object') {
-          result.address = {
+
+        if (item.address && typeof item.address === 'object' && !merged.address) {
+          merged.address = {
             streetAddress: item.address.streetAddress,
             addressLocality: item.address.addressLocality,
             addressRegion: item.address.addressRegion,
             postalCode: item.address.postalCode,
           };
         }
-        
-        // Extract social links (sameAs)
+
         if (item.sameAs) {
-          const sameAs = Array.isArray(item.sameAs) ? item.sameAs : [item.sameAs];
-          result.sameAs = sameAs.filter((url: unknown): url is string => 
-            typeof url === 'string' && url.startsWith('http')
-          );
+          const urls = (Array.isArray(item.sameAs) ? item.sameAs : [item.sameAs])
+            .filter((url: unknown): url is string => typeof url === 'string' && url.startsWith('http'));
+          allSameAs.push(...urls);
         }
-        
-        // Extract employee count
-        if (item.numberOfEmployees) {
+
+        if (item.numberOfEmployees && !merged.numberOfEmployees) {
           if (typeof item.numberOfEmployees === 'number') {
-            result.numberOfEmployees = item.numberOfEmployees;
+            merged.numberOfEmployees = item.numberOfEmployees;
           } else if (typeof item.numberOfEmployees === 'object') {
-            // Handle QuantitativeValue format
             const value = item.numberOfEmployees.value || item.numberOfEmployees.minValue;
-            if (typeof value === 'number') {
-              result.numberOfEmployees = value;
-            }
+            if (typeof value === 'number') merged.numberOfEmployees = value;
           }
         }
-        
-        // Extract founder
-        if (item.founder) {
-          if (typeof item.founder === 'string') {
-            result.founder = item.founder;
-          } else if (typeof item.founder === 'object' && item.founder.name) {
-            result.founder = item.founder.name;
-          }
-        }
-        
-        // Return first relevant schema found
-        if (Object.keys(result).length > 0) {
-          console.log(`    [Schema.org] Found ${types.join('/')} with: ${Object.keys(result).join(', ')}`);
-          return result;
+
+        if (item.founder && !merged.founder) {
+          if (typeof item.founder === 'string') merged.founder = item.founder;
+          else if (typeof item.founder === 'object' && item.founder.name) merged.founder = item.founder.name;
         }
       }
-    } catch (e) {
-      // Invalid JSON or parsing error, continue to next script tag
+    } catch {
+      // Invalid JSON, continue
     }
   }
-  
-  return null;
+
+  if (!found) return null;
+
+  if (allSameAs.length > 0) {
+    merged.sameAs = [...new Set(allSameAs)];
+  }
+
+  console.log(`    [Schema.org] Found: ${Object.keys(merged).filter(k => (merged as any)[k]).join(', ')}`);
+  return merged;
 }

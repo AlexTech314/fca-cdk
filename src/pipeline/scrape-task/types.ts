@@ -96,6 +96,11 @@ export interface ExtractedData {
     instagram?: string;
     twitter?: string;
   };
+
+  // Provenance: maps extracted value -> source page URL
+  emailSources?: Record<string, string>;
+  phoneSources?: Record<string, string>;
+  socialSources?: Record<string, string>;
   
   // Team/employee data
   team_members: TeamMember[];

@@ -1,4 +1,4 @@
-import { PATTERNS, EXECUTIVE_TITLES_SET, JOB_TITLES_SET } from '../config.js';
+import { PATTERNS, EXECUTIVE_TITLES_SET, JOB_TITLES_SET, LIMITS } from '../config.js';
 import { normalizeName, isValidPersonName } from '../utils/name.js';
 import type { TeamMember } from '../types.js';
 
@@ -97,7 +97,7 @@ export function extractTeamMembers(text: string, sourceUrl: string): TeamMember[
     }
   }
 
-  const result = members.slice(0, 20);
+  const result = members.slice(0, LIMITS.MAX_TEAM_MEMBERS);
   if (result.length > 0) {
     console.log(`    [Extract:Team] Found ${result.length} members: ${result.slice(0, 3).map(m => `${m.name} (${m.title}${m.isExecutive ? ' *exec*' : ''})`).join(', ')}${result.length > 3 ? '...' : ''}`);
   }
@@ -175,5 +175,5 @@ export function dedupeTeamMembers(members: TeamMember[]): TeamMember[] {
     }
   }
 
-  return [...seen.values()].slice(0, 20);
+  return [...seen.values()].slice(0, LIMITS.MAX_TEAM_MEMBERS);
 }

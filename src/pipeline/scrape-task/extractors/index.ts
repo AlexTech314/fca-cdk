@@ -6,6 +6,7 @@ import { extractFoundedYear } from './history.js';
 import { extractAcquisitionSignals } from './acquisition.js';
 import { extractSnippetsOfInterest } from './snippets.js';
 import { extractSchemaOrgData, SchemaOrgData } from '../scraper/html.js';
+import { LIMITS } from '../config.js';
 
 // Re-export all extractors
 export { extractEmails, extractPhones } from './contact.js';
@@ -60,6 +61,9 @@ export function extractAllData(pages: ScrapedPage[], knownPhones: string[] = [])
   const allEmails = new Set<string>();
   const allPhones = new Set<string>();
   const allSocial: ExtractedData['social'] = {};
+  const emailSources: Record<string, string> = {};
+  const phoneSources: Record<string, string> = {};
+  const socialSources: Record<string, string> = {};
   const allTeamMembers: TeamMember[] = [];
   const allSnippets: SnippetOfInterest[] = [];
   const seenSnippetTexts = new Set<string>();
@@ -92,59 +96,67 @@ export function extractAllData(pages: ScrapedPage[], knownPhones: string[] = [])
     
     console.log(`   [Page] ${page.url} (${text.length} chars)`);
     
-    // Extract Schema.org JSON-LD (first valid schema wins)
-    if (!schemaOrgData) {
-      schemaOrgData = extractSchemaOrgData(html);
-      
-      if (schemaOrgData) {
-        if (schemaOrgData.email) {
-          allEmails.add(schemaOrgData.email);
+    // Extract and merge Schema.org JSON-LD
+    const pageSchema = extractSchemaOrgData(html);
+    if (pageSchema) {
+      if (!schemaOrgData) schemaOrgData = pageSchema;
+
+      if (pageSchema.email) {
+        if (!allEmails.has(pageSchema.email)) emailSources[pageSchema.email] = page.url;
+        allEmails.add(pageSchema.email);
+      }
+
+      if (pageSchema.telephone) {
+        const phone = pageSchema.telephone.replace(/[^\d]/g, '');
+        if (phone.length === 10 || (phone.length === 11 && phone.startsWith('1'))) {
+          const normalized = phone.slice(-10);
+          if (!allPhones.has(normalized)) phoneSources[normalized] = page.url;
+          allPhones.add(normalized);
         }
-        
-        if (schemaOrgData.telephone) {
-          const phone = schemaOrgData.telephone.replace(/[^\d]/g, '');
-          if (phone.length === 10 || (phone.length === 11 && phone.startsWith('1'))) {
-            allPhones.add(phone.slice(-10));
-          }
-        }
-        
-        if (schemaOrgData.foundingYear && !foundedYear) {
-          foundedYear = schemaOrgData.foundingYear;
-          foundedSource = 'Schema.org JSON-LD';
-        }
-        
-        if (schemaOrgData.numberOfEmployees && !headcountEstimate) {
-          headcountEstimate = schemaOrgData.numberOfEmployees;
-          headcountSource = 'Schema.org JSON-LD';
-        }
-        
-        if (schemaOrgData.sameAs && schemaOrgData.sameAs.length > 0) {
-          const schemaSocial = extractSocialFromSchemaOrg(schemaOrgData.sameAs);
-          if (schemaSocial.linkedin && !allSocial.linkedin) allSocial.linkedin = schemaSocial.linkedin;
-          if (schemaSocial.facebook && !allSocial.facebook) allSocial.facebook = schemaSocial.facebook;
-          if (schemaSocial.instagram && !allSocial.instagram) allSocial.instagram = schemaSocial.instagram;
-          if (schemaSocial.twitter && !allSocial.twitter) allSocial.twitter = schemaSocial.twitter;
-        }
-        
-        if (schemaOrgData.founder) {
-          allTeamMembers.push({
-            name: schemaOrgData.founder,
-            title: 'Founder',
-            isExecutive: true,
-            source_url: page.url,
-          });
-        }
+      }
+
+      if (pageSchema.foundingYear && !foundedYear) {
+        foundedYear = pageSchema.foundingYear;
+        foundedSource = 'Schema.org JSON-LD';
+      }
+
+      if (pageSchema.numberOfEmployees && !headcountEstimate) {
+        headcountEstimate = pageSchema.numberOfEmployees;
+        headcountSource = 'Schema.org JSON-LD';
+      }
+
+      if (pageSchema.sameAs && pageSchema.sameAs.length > 0) {
+        const schemaSocial = extractSocialFromSchemaOrg(pageSchema.sameAs);
+        if (schemaSocial.linkedin && !allSocial.linkedin) { allSocial.linkedin = schemaSocial.linkedin; socialSources['linkedin'] = page.url; }
+        if (schemaSocial.facebook && !allSocial.facebook) { allSocial.facebook = schemaSocial.facebook; socialSources['facebook'] = page.url; }
+        if (schemaSocial.instagram && !allSocial.instagram) { allSocial.instagram = schemaSocial.instagram; socialSources['instagram'] = page.url; }
+        if (schemaSocial.twitter && !allSocial.twitter) { allSocial.twitter = schemaSocial.twitter; socialSources['twitter'] = page.url; }
+      }
+
+      if (pageSchema.founder) {
+        allTeamMembers.push({
+          name: pageSchema.founder,
+          title: 'Founder',
+          isExecutive: true,
+          source_url: page.url,
+        });
       }
     }
     
-    extractEmails(text).forEach(e => allEmails.add(e));
-    extractPhones(text, knownPhones, html).forEach(p => allPhones.add(p));
+    for (const e of extractEmails(text, html)) {
+      if (!allEmails.has(e)) emailSources[e] = page.url;
+      allEmails.add(e);
+    }
+    for (const p of extractPhones(text, knownPhones, html)) {
+      if (!allPhones.has(p)) phoneSources[p] = page.url;
+      allPhones.add(p);
+    }
     
     const social = extractSocialLinks(html);
-    if (social.linkedin && !allSocial.linkedin) allSocial.linkedin = social.linkedin;
-    if (social.facebook && !allSocial.facebook) allSocial.facebook = social.facebook;
-    if (social.instagram && !allSocial.instagram) allSocial.instagram = social.instagram;
-    if (social.twitter && !allSocial.twitter) allSocial.twitter = social.twitter;
+    if (social.linkedin && !allSocial.linkedin) { allSocial.linkedin = social.linkedin; socialSources['linkedin'] = page.url; }
+    if (social.facebook && !allSocial.facebook) { allSocial.facebook = social.facebook; socialSources['facebook'] = page.url; }
+    if (social.instagram && !allSocial.instagram) { allSocial.instagram = social.instagram; socialSources['instagram'] = page.url; }
+    if (social.twitter && !allSocial.twitter) { allSocial.twitter = social.twitter; socialSources['twitter'] = page.url; }
     
     if (!foundedYear) {
       const { year, source } = extractFoundedYear(text);
@@ -232,19 +244,22 @@ export function extractAllData(pages: ScrapedPage[], knownPhones: string[] = [])
   }
   
   return {
-    emails: [...allEmails].slice(0, 10),
-    phones: [...allPhones].slice(0, 5),
+    emails: [...allEmails].slice(0, LIMITS.MAX_EMAILS),
+    phones: [...allPhones].slice(0, LIMITS.MAX_PHONES),
     contact_page_url: contactPageUrl,
     social: allSocial,
+    emailSources,
+    phoneSources,
+    socialSources,
     team_members: dedupedTeamMembers,
     headcount_estimate: headcountEstimate,
     headcount_source: headcountSource,
-    acquisition_signals: allAcquisitionSignals.slice(0, 10),
+    acquisition_signals: allAcquisitionSignals.slice(0, LIMITS.MAX_ACQUISITION_SIGNALS),
     has_acquisition_signal: allAcquisitionSignals.length > 0,
     acquisition_summary: acquisitionSummary,
     founded_year: foundedYear,
     founded_source: foundedSource,
     years_in_business: yearsInBusiness,
-    snippets: allSnippets.slice(0, 50),
+    snippets: allSnippets.slice(0, LIMITS.MAX_SNIPPETS),
   };
 }

@@ -10,6 +10,7 @@ import {
   CAMPAIGN_DATA_BUCKET,
   TASK_MEMORY_MIB,
   TASK_CPU_UNITS,
+  LIMITS,
   calculateOptimalConcurrency,
   s3Client,
 } from './config.js';
@@ -67,9 +68,8 @@ async function main(): Promise<void> {
   }
   
   const taskId = jobInput.taskId ?? jobInput.jobId;
-  const MAX_PAGES_PER_LEAD = 100;
-  const requestedMaxPagesPerSite = jobInput.maxPagesPerSite ?? MAX_PAGES_PER_LEAD;
-  const maxPagesPerSite = Math.min(requestedMaxPagesPerSite, MAX_PAGES_PER_LEAD);
+  const requestedMaxPagesPerSite = jobInput.maxPagesPerSite ?? LIMITS.MAX_PAGES_PER_LEAD;
+  const maxPagesPerSite = Math.min(requestedMaxPagesPerSite, LIMITS.MAX_PAGES_PER_LEAD);
   
   // Read batch from S3 (scrape-trigger writes { id, place_id, website }[] per batch)
   const batchS3Key = jobInput.batchS3Key;
@@ -107,9 +107,9 @@ async function main(): Promise<void> {
   
   console.log(`Task resources: ${TASK_MEMORY_MIB}MB memory, ${TASK_CPU_UNITS} CPU units`);
   console.log(`Using concurrency: ${concurrency}`);
-  if (requestedMaxPagesPerSite > MAX_PAGES_PER_LEAD) {
+  if (requestedMaxPagesPerSite > LIMITS.MAX_PAGES_PER_LEAD) {
     console.log(
-      `Requested max pages per site (${requestedMaxPagesPerSite}) exceeds limit; capping at ${MAX_PAGES_PER_LEAD}`
+      `Requested max pages per site (${requestedMaxPagesPerSite}) exceeds limit; capping at ${LIMITS.MAX_PAGES_PER_LEAD}`
     );
   }
   console.log(`Max pages per site: ${maxPagesPerSite}`);
@@ -148,12 +148,13 @@ async function main(): Promise<void> {
     return { browser, pagePool };
   }
   
-  // Process businesses
   let processed = 0;
   let failed = 0;
   let totalPages = 0;
   let totalBytes = 0;
   const startTimeTotal = Date.now();
+
+  try {
   
   for (let i = 0; i < businesses.length; i += concurrency) {
     const batch = businesses.slice(i, i + concurrency);
@@ -199,7 +200,7 @@ async function main(): Promise<void> {
         
         if (pages.length === 0) {
           console.log(`  ✗ No pages scraped for ${business.business_name}`);
-          await markLeadScrapeFailed(db, business.id);
+          await markLeadScrapeFailed(db, business.id, business.website_uri, taskId ?? undefined, 'No pages scraped');
           failed++;
           return;
         }
@@ -245,13 +246,10 @@ async function main(): Promise<void> {
     
     console.log(`\nProgress: ${processed + failed}/${businesses.length}`);
   }
-  
-  // Clean up lazily-launched Puppeteer
-  if (pagePool as PagePool | null) {
-    await pagePool!.closeAll();
-  }
-  if (browser as Browser | null) {
-    await browser!.close();
+
+  } finally {
+    try { if (pagePool) await (pagePool as PagePool).closeAll(); } catch { /* ignore */ }
+    try { if (browser) await (browser as Browser).close(); } catch { /* ignore */ }
   }
   
   const totalDurationMs = Date.now() - startTimeTotal;

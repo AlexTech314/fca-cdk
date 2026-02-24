@@ -161,6 +161,10 @@ export const mockApi: LeadGenApi = {
     return run ?? null;
   },
 
+  async deleteScrapeRun() {
+    await delay(300);
+  },
+
   async getLeadProvenance(leadId: string) {
     await randomDelay();
     const extracted = getMockExtractedForLead(leadId);

@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { QualificationBadge } from '@/components/leads/QualificationBadge';
-import { useLead, useQualifyLead } from '@/hooks/useLeads';
+import { useLead, useQualifyLead, useDeleteScrapeRun } from '@/hooks/useLeads';
+import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate, formatNumber } from '@/lib/utils';
 import { 
@@ -23,6 +24,7 @@ import {
   FileSearch,
   ChevronRight,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 import type { LeadWithCampaign } from '@/types';
 
@@ -67,6 +69,7 @@ export default function LeadDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: lead, isLoading } = useLead(id || '');
   const qualifyMutation = useQualifyLead();
+  const deleteScrapeRunMutation = useDeleteScrapeRun();
   const { canWrite } = useAuth();
 
   if (isLoading) {
@@ -340,14 +343,32 @@ export default function LeadDetail() {
                 const extractedByPage = getExtractedByPage(lead, run.id);
                 return (
                   <div key={run.id} className="rounded-lg border p-4">
-                    <div className="text-sm text-muted-foreground mb-2">
-                      {formatDate(run.startedAt)} — {run.status} — {run.methodSummary ?? 'scrape'}
-                      {(run.pagesCount != null || run.durationMs != null) && (
-                        <span className="ml-2">
-                          ({run.pagesCount != null ? `${run.pagesCount} pages` : ''}
-                          {run.pagesCount != null && run.durationMs != null ? ', ' : ''}
-                          {run.durationMs != null ? `${(run.durationMs / 1000).toFixed(1)}s` : ''})
-                        </span>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+                      <span>
+                        {formatDate(run.startedAt)} — {run.status} — {run.methodSummary ?? 'scrape'}
+                        {(run.pagesCount != null || run.durationMs != null) && (
+                          <span className="ml-2">
+                            ({run.pagesCount != null ? `${run.pagesCount} pages` : ''}
+                            {run.pagesCount != null && run.durationMs != null ? ', ' : ''}
+                            {run.durationMs != null ? `${(run.durationMs / 1000).toFixed(1)}s` : ''})
+                          </span>
+                        )}
+                      </span>
+                      {canWrite && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                          disabled={deleteScrapeRunMutation.isPending}
+                          onClick={() =>
+                            deleteScrapeRunMutation.mutateAsync(run.id).then(
+                              () => toast({ title: 'Scrape run deleted' }),
+                              () => toast({ title: 'Failed to delete scrape run', variant: 'destructive' })
+                            )
+                          }
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       )}
                     </div>
                     <div className="text-xs font-mono text-muted-foreground">Root: {run.rootUrl}</div>

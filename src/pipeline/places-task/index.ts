@@ -293,6 +293,17 @@ async function main() {
       return;
     }
 
+    // Pre-load geography lookups to avoid N+1 queries per place
+    const allStates = await prisma.state.findMany();
+    const stateById = new Map(allStates.map((s) => [s.id.toLowerCase(), s]));
+    const stateByName = new Map(allStates.map((s) => [s.name.toLowerCase(), s]));
+
+    const allCities = await prisma.city.findMany({ select: { id: true, name: true, stateId: true } });
+    const cityByStateAndName = new Map<string, { id: number }>();
+    for (const c of allCities) {
+      cityByStateAndName.set(`${c.stateId.toLowerCase()}:${c.name.toLowerCase()}`, c);
+    }
+
     let leadsFound = 0;
     let duplicatesSkipped = 0;
     let queriesExecuted = 0;
@@ -357,24 +368,16 @@ async function main() {
         const editorialSummary = place.editorialSummary?.text ?? null;
         const reviewSummary = place.reviewSummary?.text ?? null;
 
-        // Resolve geography FKs from address components
+        // Resolve geography FKs from pre-loaded caches
         let locationStateId: string | null = null;
         let locationCityId: number | null = null;
         if (stateShort) {
-          const stateRecord = await prisma.state.findFirst({
-            where: {
-              OR: [
-                { id: stateShort },
-                { name: { equals: stateShort, mode: 'insensitive' } },
-              ],
-            },
-          });
+          const key = stateShort.toLowerCase();
+          const stateRecord = stateById.get(key) ?? stateByName.get(key) ?? null;
           if (stateRecord) {
             locationStateId = stateRecord.id;
             if (cityName) {
-              const cityRecord = await prisma.city.findFirst({
-                where: { name: { equals: cityName, mode: 'insensitive' }, stateId: stateRecord.id },
-              });
+              const cityRecord = cityByStateAndName.get(`${stateRecord.id.toLowerCase()}:${cityName.toLowerCase()}`);
               locationCityId = cityRecord?.id ?? null;
             }
           }

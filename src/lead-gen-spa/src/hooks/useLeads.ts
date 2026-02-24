@@ -68,6 +68,17 @@ export function useScrapeLeadsBulk() {
   });
 }
 
+export function useDeleteScrapeRun() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (runId: string) => api.deleteScrapeRun(runId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
 // Default query params
 export const defaultLeadQueryParams: LeadQueryParams = {
   page: 1,

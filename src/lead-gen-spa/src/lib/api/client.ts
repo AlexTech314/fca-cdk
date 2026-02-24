@@ -318,6 +318,10 @@ export const realApi: LeadGenApi = {
     return apiClient<any>(`/leads/${leadId}/provenance`);
   },
 
+  async deleteScrapeRun(runId: string): Promise<void> {
+    await apiClient(`/scrape-runs/${runId}`, { method: 'DELETE' });
+  },
+
   async getLeadCount(params: LeadQueryParams): Promise<number> {
     const qs = new URLSearchParams();
     const { filters } = params;

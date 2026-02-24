@@ -105,6 +105,11 @@ export interface LeadGenApi {
   getLeadProvenance(leadId: string): Promise<LeadProvenance | null>;
   
   /**
+   * Delete a scrape run by ID
+   */
+  deleteScrapeRun(runId: string): Promise<void>;
+
+  /**
    * Trigger AI qualification for a lead
    */
   qualifyLead(id: string): Promise<Lead>;

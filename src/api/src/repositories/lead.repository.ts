@@ -202,6 +202,32 @@ export const leadRepository = {
     return run;
   },
 
+  async deleteScrapeRun(runId: string, leadId: string) {
+    await prisma.$transaction(async (tx) => {
+      await tx.scrapeRun.delete({ where: { id: runId } });
+
+      const remaining = await tx.scrapeRun.findFirst({
+        where: { leadId },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      if (!remaining) {
+        await tx.lead.update({
+          where: { id: leadId },
+          data: {
+            webScrapedAt: null,
+            foundedYear: null,
+            yearsInBusiness: null,
+            headcountEstimate: null,
+            hasAcquisitionSignal: null,
+            acquisitionSummary: null,
+            contactPageUrl: null,
+          },
+        });
+      }
+    });
+  },
+
   /** Field-level provenance: value-to-source mappings for audit */
   async getLeadProvenance(leadId: string) {
     const lead = await prisma.lead.findUnique({

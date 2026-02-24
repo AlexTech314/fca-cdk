@@ -1,4 +1,5 @@
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { prisma } from '@fca/db';
 import { leadRepository } from '../repositories/lead.repository';
 import { campaignRunRepository } from '../repositories/campaign.repository';
 import type { LeadQuery } from '../models/lead.model';
@@ -135,6 +136,13 @@ export const leadService = {
 
   async getLeadProvenance(leadId: string) {
     return leadRepository.getLeadProvenance(leadId);
+  },
+
+  async deleteScrapeRun(runId: string) {
+    const run = await prisma.scrapeRun.findUnique({ where: { id: runId }, select: { leadId: true } });
+    if (!run) return null;
+    await leadRepository.deleteScrapeRun(runId, run.leadId);
+    return true;
   },
 };
 

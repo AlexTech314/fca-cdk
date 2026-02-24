@@ -169,6 +169,19 @@ router.get('/scrape-runs/:runId/tree', async (req, res, next) => {
   }
 });
 
+router.delete('/scrape-runs/:runId', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const result = await leadService.deleteScrapeRun(String(req.params.runId));
+    if (!result) {
+      res.status(404).json({ error: 'Scrape run not found' });
+      return;
+    }
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/leads/:id/provenance', async (req, res, next) => {
   try {
     const provenance = await leadService.getLeadProvenance(String(req.params.id));

@@ -84,6 +84,7 @@ export const leadRepository = {
         leadSocialProfiles: { include: { sourcePage: { select: { id: true, url: true } } } },
         leadTeamMembers: { include: { sourcePage: { select: { id: true, url: true } } } },
         leadAcquisitionSignals: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadSnippets: { include: { sourcePage: { select: { id: true, url: true } } } },
         scrapeRuns: {
           orderBy: { startedAt: 'desc' },
           take: 5,
@@ -211,6 +212,7 @@ export const leadRepository = {
         leadSocialProfiles: { include: { sourcePage: { select: { id: true, url: true } } } },
         leadTeamMembers: { include: { sourcePage: { select: { id: true, url: true } } } },
         leadAcquisitionSignals: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadSnippets: { include: { sourcePage: { select: { id: true, url: true } } } },
       },
     });
     if (!lead) return null;
@@ -249,6 +251,13 @@ export const leadRepository = {
         sourcePageId: a.sourcePageId,
         sourceRunId: a.sourceRunId,
         sourcePage: a.sourcePage ? { id: a.sourcePage.id, url: a.sourcePage.url } : null,
+      })),
+      snippets: lead.leadSnippets.map((s) => ({
+        category: s.category,
+        text: s.text,
+        sourcePageId: s.sourcePageId,
+        sourceRunId: s.sourceRunId,
+        sourcePage: s.sourcePage ? { id: s.sourcePage.id, url: s.sourcePage.url } : null,
       })),
     };
   },

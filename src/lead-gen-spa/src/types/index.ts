@@ -135,6 +135,15 @@ export interface LeadAcquisitionSignal {
   sourcePage?: { id: string; url: string } | null;
 }
 
+export interface LeadSnippet {
+  id: string;
+  category: string;
+  text: string;
+  sourcePageId: string;
+  sourceRunId: string;
+  sourcePage?: { id: string; url: string } | null;
+}
+
 export interface ScrapedPageRef {
   id: string;
   url: string;
@@ -371,5 +380,6 @@ export interface LeadWithCampaign extends Lead {
   leadSocialProfiles?: LeadSocialProfile[];
   leadTeamMembers?: LeadTeamMember[];
   leadAcquisitionSignals?: LeadAcquisitionSignal[];
+  leadSnippets?: LeadSnippet[];
   scrapeRuns?: ScrapeRun[];
 }

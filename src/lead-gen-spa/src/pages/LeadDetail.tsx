@@ -26,11 +26,20 @@ import {
 } from 'lucide-react';
 import type { LeadWithCampaign } from '@/types';
 
+interface PageExtraction {
+  emails: string[];
+  phones: string[];
+  social: { platform: string; url: string }[];
+  team: { name: string; title: string | null }[];
+  acquisition: { text: string }[];
+  snippets: { category: string; text: string }[];
+}
+
 /** Build per-page extraction summary for a scrape run (nested event log) */
-function getExtractedByPage(lead: LeadWithCampaign, runId: string): Map<string, { emails: string[]; phones: string[]; social: { platform: string; url: string }[]; team: { name: string; title: string | null }[]; acquisition: { text: string }[] }> {
-  const byPage = new Map<string, { emails: string[]; phones: string[]; social: { platform: string; url: string }[]; team: { name: string; title: string | null }[]; acquisition: { text: string }[] }>();
+function getExtractedByPage(lead: LeadWithCampaign, runId: string): Map<string, PageExtraction> {
+  const byPage = new Map<string, PageExtraction>();
   const add = (pageId: string) => {
-    if (!byPage.has(pageId)) byPage.set(pageId, { emails: [], phones: [], social: [], team: [], acquisition: [] });
+    if (!byPage.has(pageId)) byPage.set(pageId, { emails: [], phones: [], social: [], team: [], acquisition: [], snippets: [] });
     return byPage.get(pageId)!;
   };
   for (const e of lead.leadEmails ?? []) {
@@ -47,6 +56,9 @@ function getExtractedByPage(lead: LeadWithCampaign, runId: string): Map<string, 
   }
   for (const a of lead.leadAcquisitionSignals ?? []) {
     if (a.sourceRunId === runId) add(a.sourcePageId).acquisition.push({ text: a.text });
+  }
+  for (const sn of lead.leadSnippets ?? []) {
+    if (sn.sourceRunId === runId) add(sn.sourcePageId).snippets.push({ category: sn.category, text: sn.text });
   }
   return byPage;
 }
@@ -343,7 +355,7 @@ export default function LeadDetail() {
                       <ul className="mt-2 space-y-2 text-sm">
                         {run.scrapedPages.map((p) => {
                           const ex = extractedByPage.get(p.id);
-                          const hasExtracted = ex && (ex.emails.length || ex.phones.length || ex.social.length || ex.team.length || ex.acquisition.length);
+                          const hasExtracted = ex && (ex.emails.length || ex.phones.length || ex.social.length || ex.team.length || ex.acquisition.length || ex.snippets.length);
                           return (
                             <li key={p.id} className="space-y-1" style={{ paddingLeft: (p.depth ?? 0) * 12 }}>
                               <div className="flex items-center gap-1">
@@ -369,6 +381,9 @@ export default function LeadDetail() {
                                   ))}
                                   {ex!.acquisition.map((a, i) => (
                                     <li key={i} className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> acquisition: {a.text}</li>
+                                  ))}
+                                  {ex!.snippets.map((s, i) => (
+                                    <li key={`sn-${i}`} className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-blue-500 shrink-0" /> {s.category}: {s.text}</li>
                                   ))}
                                 </ul>
                               )}

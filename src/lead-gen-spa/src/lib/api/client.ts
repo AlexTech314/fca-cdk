@@ -301,6 +301,7 @@ export const realApi: LeadGenApi = {
     lead.leadSocialProfiles = raw.leadSocialProfiles ?? [];
     lead.leadTeamMembers = raw.leadTeamMembers ?? [];
     lead.leadAcquisitionSignals = raw.leadAcquisitionSignals ?? [];
+    lead.leadSnippets = raw.leadSnippets ?? [];
     lead.scrapeRuns = raw.scrapeRuns ?? [];
     return lead;
   },

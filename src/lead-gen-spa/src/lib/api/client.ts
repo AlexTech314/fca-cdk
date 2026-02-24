@@ -74,6 +74,21 @@ async function apiClient<T>(
 // Transform Helpers (snake_case -> camelCase)
 // ============================================
 
+/** Extract .text from a Google Places JSON-encoded summary field, or return the plain string. */
+function extractJsonText(val: unknown): string | null {
+  if (val == null) return null;
+  if (typeof val === 'object') return (val as any).text ?? null;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return parsed.text ?? val;
+    } catch {
+      return val;
+    }
+  }
+  return null;
+}
+
 function transformFranchise(raw: any): Franchise {
   return {
     id: raw.id,
@@ -122,6 +137,8 @@ function transformLead(raw: any): Lead {
     headcountEstimate: raw.headcountEstimate ?? raw.headcount_estimate ?? null,
     hasAcquisitionSignal: raw.hasAcquisitionSignal ?? raw.has_acquisition_signal ?? null,
     acquisitionSummary: raw.acquisitionSummary ?? raw.acquisition_summary ?? null,
+    editorialSummary: extractJsonText(raw.editorialSummary ?? raw.editorial_summary),
+    reviewSummary: extractJsonText(raw.reviewSummary ?? raw.review_summary),
     contactPageUrl: raw.contactPageUrl ?? raw.contact_page_url ?? null,
     webScrapedAt: raw.webScrapedAt ?? raw.web_scraped_at ?? null,
     lastScrapePagesCount: raw.scrapeRuns?.[0]?.pagesCount ?? null,

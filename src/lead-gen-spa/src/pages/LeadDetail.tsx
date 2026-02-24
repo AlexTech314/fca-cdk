@@ -239,6 +239,18 @@ export default function LeadDetail() {
                   </span>
                 </div>
               )}
+              {lead.reviewSummary && (
+                <div className="mt-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Review Summary</p>
+                  <p className="text-sm italic text-muted-foreground">{lead.reviewSummary}</p>
+                </div>
+              )}
+              {lead.editorialSummary && (
+                <div className="mt-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Editorial Summary</p>
+                  <p className="text-sm italic text-muted-foreground">{lead.editorialSummary}</p>
+                </div>
+              )}
               {lead.googleMapsUri && (
                 <div className="text-sm">
                   <a

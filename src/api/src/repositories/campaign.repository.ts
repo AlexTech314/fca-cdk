@@ -1,4 +1,5 @@
 import { prisma } from '@fca/db';
+import type { CampaignRunStatus } from '@fca/db';
 import type { CreateCampaignInput, UpdateCampaignInput } from '../models/campaign.model';
 
 export const campaignRepository = {
@@ -113,7 +114,7 @@ export const campaignRunRepository = {
       duplicatesSkipped?: number;
       errors?: number;
       errorMessages?: string[];
-      status?: string;
+      status?: CampaignRunStatus;
       completedAt?: Date;
     }
   ) {

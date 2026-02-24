@@ -219,7 +219,7 @@ export const leadRepository = {
             foundedYear: null,
             yearsInBusiness: null,
             headcountEstimate: null,
-            hasAcquisitionSignal: null,
+            hasAcquisitionSignal: false,
             acquisitionSummary: null,
             contactPageUrl: null,
           },

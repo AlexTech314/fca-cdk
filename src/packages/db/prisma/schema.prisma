@@ -20,7 +20,7 @@ model User {
   email          String    @unique
   name           String?
   cognitoSub     String?   @unique @map("cognito_sub")
-  role           String    @default("readonly") // readonly, readwrite, admin
+  role           UserRole  @default(readonly)
   lastActiveAt   DateTime? @map("last_active_at")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
@@ -113,7 +113,7 @@ model BlogPost {
   excerpt      String?
   content      String                          // Markdown content
   author       String?
-  category     String?                         // news, resource, article
+  category     BlogPostCategory?
   publishedAt  DateTime? @map("published_at")
   isPublished  Boolean   @default(false) @map("is_published")
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -545,7 +545,7 @@ model ScrapeRun {
   lead          Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
   taskId        String?   @map("task_id")
   rootUrl       String    @map("root_url")
-  status        String    @default("running")   // running, completed, failed
+  status        ScrapeRunStatus @default(running)
   startedAt     DateTime  @default(now()) @map("started_at")
   completedAt   DateTime? @map("completed_at")
   methodSummary String?   @map("method_summary")
@@ -715,6 +715,37 @@ model LeadSnippet {
   @@map("lead_snippets")
 }
 
+enum UserRole {
+  readonly
+  readwrite
+  admin
+}
+
+enum ScrapeRunStatus {
+  running
+  completed
+  failed
+}
+
+enum CampaignRunStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+enum LeadSource {
+  google_places
+  manual
+  import
+}
+
+enum BlogPostCategory {
+  news
+  resource
+  article
+}
+
 enum FargateTaskType {
   places_search
   web_scrape
@@ -786,7 +817,7 @@ model Lead {
   reviewCount          Int?      @map("review_count")
   priceLevel           Int?      @map("price_level")
   businessType         String?   @map("business_type")
-  source               String?                                   // "google_places", "manual", "import"
+  source               LeadSource?
 
   // Extended Places fields
   businessStatus       String?   @map("business_status")   // OPERATIONAL, CLOSED_PERMANENTLY, etc.
@@ -863,7 +894,7 @@ model CampaignRun {
   campaign             Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   startedById          String?   @map("started_by_id")
 
-  status               String    @default("pending")             // pending, running, completed, failed
+  status               CampaignRunStatus @default(pending)
   startedAt            DateTime  @default(now()) @map("started_at")
   completedAt          DateTime? @map("completed_at")
 

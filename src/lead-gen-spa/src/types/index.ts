@@ -62,6 +62,8 @@ export interface Lead {
   phone: string | null;
   website: string | null;
   googleMapsUri?: string | null;
+  editorialSummary?: string | null;
+  reviewSummary?: string | null;
   rating: number | null;
   reviewCount: number | null;
   priceLevel: number | null;
@@ -69,7 +71,7 @@ export interface Lead {
   qualificationScore: number | null;
   qualificationNotes: string | null;
   qualifiedAt: string | null;
-  source: string | null;
+  source: 'google_places' | 'manual' | 'import' | null;
   franchiseId: string | null;
   franchise?: Franchise | null;
   campaign?: { id: string; name: string } | null;
@@ -159,7 +161,7 @@ export interface ScrapeRun {
   id: string;
   leadId: string;
   rootUrl: string;
-  status: string;
+  status: 'running' | 'completed' | 'failed';
   startedAt: string;
   completedAt: string | null;
   methodSummary: string | null;

@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBusinessTypeDistribution } from '@/hooks/useDashboard';
+import { topNWithOther } from '@/lib/utils';
 
 const COLORS = [
   'hsl(217, 91%, 60%)',  // primary blue
@@ -10,10 +12,14 @@ const COLORS = [
   'hsl(0, 84%, 60%)',    // destructive red
   'hsl(280, 70%, 60%)',  // purple
   'hsl(180, 70%, 50%)',  // cyan
+  'hsl(215, 20%, 55%)',  // muted gray for Other
 ];
+
+const TOP_N = 9;
 
 export function BusinessTypePieChart() {
   const { data, isLoading } = useBusinessTypeDistribution();
+  const chartData = useMemo(() => topNWithOther(data, TOP_N), [data]);
 
   return (
     <Card>
@@ -27,7 +33,7 @@ export function BusinessTypePieChart() {
           <ResponsiveContainer width="100%" height={256}>
             <PieChart>
               <Pie
-                data={data}
+                data={chartData}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
@@ -36,8 +42,11 @@ export function BusinessTypePieChart() {
                 dataKey="value"
                 nameKey="name"
               >
-                {data?.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                {chartData?.map((item, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={item.name === 'Other' ? COLORS[6] : COLORS[index % 6]}
+                  />
                 ))}
               </Pie>
               <Tooltip
@@ -59,7 +68,7 @@ export function BusinessTypePieChart() {
                 iconType="circle"
                 iconSize={8}
                 formatter={(value: string) => {
-                  const item = data?.find(d => d.name === value);
+                  const item = chartData?.find(d => d.name === value);
                   return (
                     <span style={{ color: 'hsl(213, 31%, 91%)', fontSize: '12px' }}>
                       {value} ({item?.percentage}%)

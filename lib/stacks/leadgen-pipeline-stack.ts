@@ -332,6 +332,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       new lambdaEventSources.SqsEventSource(scrapeQueue, {
         batchSize: 50,
         maxBatchingWindow: cdk.Duration.seconds(30),
+        maxConcurrency: 50,
       })
     );
 

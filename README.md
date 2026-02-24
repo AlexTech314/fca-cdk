@@ -160,7 +160,7 @@ The Dev stage deploys 7 stacks:
 |-------|-------|---------|--------------|
 | 1 | **NetworkStack** | VPC with fck-nat (t4g.nano), S3 gateway endpoint | None |
 | 2 | **CognitoStack** | User Pool, App Client, Domain, Groups (admin/readwrite/readonly) | None |
-| 3 | **StatefulStack** | RDS PostgreSQL (db.t4g.micro), S3 campaign bucket, seed-db Lambda | Network, Cognito |
+| 3 | **StatefulStack** | RDS PostgreSQL (db.t4g.small), S3 campaign bucket, seed-db Lambda | Network, Cognito |
 | 4 | **LeadGenPipelineStack** | SQS queues, Bridge Lambda, Fargate tasks, Step Functions, Scoring Lambda | Stateful |
 | 5 | **ApiStack** | Shared Express API on Fargate + ALB | Stateful, LeadGenPipeline, Cognito |
 | 6 | **LeadGenWebStack** | Lead-gen SPA in S3 + CloudFront | Api |
@@ -342,7 +342,7 @@ Pricing from AWS Price List API for **us-east-2**. Assumes low/dev traffic (~1K 
 | Resource | Config | Unit Price | Daily Cost |
 |----------|--------|------------|------------|
 | **EC2 NAT** (fck-nat) | t4g.nano (ARM64) | $0.0042/hr | **$0.10** |
-| **RDS PostgreSQL** | db.t4g.micro, Single-AZ | $0.016/hr | **$0.38** |
+| **RDS PostgreSQL** | db.t4g.small, Single-AZ | $0.032/hr | **$0.77** |
 | **RDS Storage** | 20 GB gp2 | $0.115/GB-mo | **$0.08** |
 | **ECS Fargate API** | 0.25 vCPU, 0.5 GB ARM64 | vCPU $0.03238/hr + Mem $0.00356/hr | **$0.24** |
 | **ECS Fargate Next.js** (x2) | 0.25 vCPU, 0.5 GB x86_64 each | vCPU $0.04048/hr + Mem $0.004445/hr | **$0.59** |
@@ -350,7 +350,7 @@ Pricing from AWS Price List API for **us-east-2**. Assumes low/dev traffic (~1K 
 | **Secrets Manager** | 5 secrets | $0.40/secret/mo | **$0.07** |
 | **CodePipeline** | 1 active pipeline | $1.00/pipeline-mo | **$0.03** |
 | **ECR Storage** | ~5 GB images | $0.10/GB-mo | **$0.02** |
-| | | **Always-on subtotal** | **$2.15/day** |
+| | | **Always-on subtotal** | **$2.54/day** |
 
 ### Variable / Event-Driven
 
@@ -368,9 +368,9 @@ Pricing from AWS Price List API for **us-east-2**. Assumes low/dev traffic (~1K 
 
 | Category | Daily | Monthly (30 days) |
 |----------|-------|-------------------|
-| Always-on | **$2.15** | **$64.50** |
+| Always-on | **$2.54** | **$76.20** |
 | Variable | **~$0.18** | **~$5.40** |
-| **Total** | **~$2.33/day** | **~$69.90/mo** |
+| **Total** | **~$2.72/day** | **~$81.60/mo** |
 
 **Top cost drivers:** ECS Fargate (~39%), ALB (~30%), RDS (~21%). The fck-nat t4g.nano saves ~$29/mo vs a managed NAT Gateway.
 

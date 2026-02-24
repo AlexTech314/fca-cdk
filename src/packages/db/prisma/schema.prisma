@@ -586,6 +586,7 @@ model ScrapedPage {
   leadSocialProfiles   LeadSocialProfile[]
   leadTeamMembers      LeadTeamMember[]
   leadAcquisitionSignals LeadAcquisitionSignal[]
+  leadSnippets         LeadSnippet[]
 
   createdAt            DateTime      @default(now()) @map("created_at")
 
@@ -665,6 +666,7 @@ model LeadTeamMember {
   lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
   name           String
   title          String?
+  isExecutive    Boolean     @default(false) @map("is_executive")
   sourceUrl      String?     @map("source_url")
   sourcePageId   String      @map("source_page_id")
   sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
@@ -693,6 +695,24 @@ model LeadAcquisitionSignal {
   @@index([sourcePageId])
   @@index([sourceRunId])
   @@map("lead_acquisition_signals")
+}
+
+model LeadSnippet {
+  id             String      @id @default(uuid())
+  leadId         String      @map("lead_id")
+  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  category       String      // history, new_hire, award, certification, licensing, insurance, service_area, tagline
+  text           String
+  sourcePageId   String      @map("source_page_id")
+  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
+  sourceRunId    String      @map("source_run_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  @@index([leadId])
+  @@index([leadId, category])
+  @@index([sourcePageId])
+  @@index([sourceRunId])
+  @@map("lead_snippets")
 }
 
 enum FargateTaskType {
@@ -747,6 +767,7 @@ model Lead {
   leadSocialProfiles   LeadSocialProfile[]
   leadTeamMembers      LeadTeamMember[]
   leadAcquisitionSignals LeadAcquisitionSignal[]
+  leadSnippets           LeadSnippet[]
 
   // Normalized location FKs
   locationCityId       Int?      @map("location_city_id")

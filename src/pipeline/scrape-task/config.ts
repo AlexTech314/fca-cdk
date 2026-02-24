@@ -2,6 +2,8 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { EventEmitter } from 'events';
 import { createRequire } from 'module';
 import { FIRST_NAMES } from './first-names.js';
+import { EXECUTIVE_TITLES } from './executive-titles.js';
+import { JOB_TITLES } from './job-titles.js';
 
 // Increase max listeners to avoid warnings with concurrent requests
 EventEmitter.defaultMaxListeners = 50;
@@ -102,13 +104,6 @@ export const PATTERNS = {
   parentCompany: /(?:parent\s+company|subsidiary\s+of)\s+([^,.]+)/gi,
   rebranded: /(?:formerly\s+known\s+as|rebranded\s+(?:from|to))\s+([^,.]+)/gi,
   
-  // Team member patterns - CASE SENSITIVE to require proper capitalization
-  // Pattern 1: "Name Title" or "Name - Title" or "Name, Title"
-  teamMemberWithTitle: /([A-Z][a-z]{1,15}(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]{1,20})[\s,\-–|:]+(?:is\s+(?:the|our)\s+)?(CEO|Owner|President|Founder|Co-Founder|Director|Manager|Chief\s+[A-Z][a-z]+\s+Officer|Vice\s+President|VP\s+of\s+[A-Z][a-z]+|General\s+Manager|Partner|Principal|Broker|Agent)/g,
-  
-  // New hire patterns
-  newHire: /(?:welcome|joins?(?:\s+(?:us|our|the)\s+team)?|new\s+(?:team\s+)?member|recently\s+hired)\s+([^.!?]+)/gi,
-  
   // Contact page URL patterns
   contactPage: /\/(?:contact(?:-us)?|get-in-touch|reach-us)\/?$/i,
 };
@@ -118,6 +113,12 @@ export const PATTERNS = {
 // First names from union of unique-names-generator and US SSA data (9,525 names)
 // See: scripts/generate-first-names.ts
 export const COMMON_FIRST_NAMES = FIRST_NAMES;
+
+// C-suite and executive position titles for team extraction
+export const EXECUTIVE_TITLES_SET = EXECUTIVE_TITLES;
+
+// Generic job titles and associated words (non-executive roles)
+export const JOB_TITLES_SET = JOB_TITLES;
 
 // Words that should NOT appear in names
 export const NAME_BLACKLIST = new Set([

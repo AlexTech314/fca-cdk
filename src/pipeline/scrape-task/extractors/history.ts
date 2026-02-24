@@ -1,5 +1,4 @@
 import { PATTERNS } from '../config.js';
-import type { HistorySnippet } from '../types.js';
 
 /**
  * Extract the year a business was founded from text
@@ -7,7 +6,6 @@ import type { HistorySnippet } from '../types.js';
 export function extractFoundedYear(text: string): { year: number | null; source: string | null } {
   const currentYear = new Date().getFullYear();
   
-  // Try direct founded/established patterns
   const foundedMatches = [...text.matchAll(PATTERNS.foundedYear)];
   for (const match of foundedMatches) {
     const year = parseInt(match[1], 10);
@@ -17,7 +15,6 @@ export function extractFoundedYear(text: string): { year: number | null; source:
     }
   }
   
-  // Try "X years in business" patterns
   const yearsMatches = [...text.matchAll(PATTERNS.yearInBusiness)];
   for (const match of yearsMatches) {
     const years = parseInt(match[1], 10);
@@ -28,7 +25,6 @@ export function extractFoundedYear(text: string): { year: number | null; source:
     }
   }
   
-  // Try anniversary patterns
   const anniversaryMatches = [...text.matchAll(PATTERNS.anniversary)];
   for (const match of anniversaryMatches) {
     const years = parseInt(match[1], 10);
@@ -39,7 +35,6 @@ export function extractFoundedYear(text: string): { year: number | null; source:
     }
   }
   
-  // Try family-owned patterns
   const familyMatches = [...text.matchAll(PATTERNS.familyOwned)];
   for (const match of familyMatches) {
     if (match[1]) {
@@ -52,31 +47,4 @@ export function extractFoundedYear(text: string): { year: number | null; source:
   }
   
   return { year: null, source: null };
-}
-
-/**
- * Extract history-related snippets from text
- */
-export function extractHistorySnippets(text: string, sourceUrl: string): HistorySnippet[] {
-  const snippets: HistorySnippet[] = [];
-  const historyKeywords = ['history', 'story', 'founded', 'established', 'began', 'started', 'heritage', 'tradition', 'legacy'];
-  
-  // Split into sentences
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
-  
-  for (const sentence of sentences) {
-    const lower = sentence.toLowerCase();
-    if (historyKeywords.some(kw => lower.includes(kw))) {
-      snippets.push({
-        text: sentence.trim().slice(0, 300),
-        source_url: sourceUrl,
-      });
-    }
-  }
-  
-  const result = snippets.slice(0, 5);
-  if (result.length > 0) {
-    console.log(`    [Extract:History] Found ${result.length} snippets: "${result[0].text.slice(0, 60)}..."`);
-  }
-  return result;
 }

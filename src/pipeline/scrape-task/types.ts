@@ -56,11 +56,7 @@ export interface ScrapedPage {
 export interface TeamMember {
   name: string;
   title: string;
-  source_url: string;
-}
-
-export interface NewHireMention {
-  text: string;
+  isExecutive: boolean;
   source_url: string;
 }
 
@@ -71,7 +67,18 @@ export interface AcquisitionSignal {
   source_url: string;
 }
 
-export interface HistorySnippet {
+export type SnippetCategory =
+  | 'history'
+  | 'new_hire'
+  | 'award'
+  | 'certification'
+  | 'licensing'
+  | 'insurance'
+  | 'service_area'
+  | 'tagline';
+
+export interface SnippetOfInterest {
+  category: SnippetCategory;
   text: string;
   source_url: string;
 }
@@ -94,7 +101,6 @@ export interface ExtractedData {
   team_members: TeamMember[];
   headcount_estimate: number | null;
   headcount_source: string | null;
-  new_hire_mentions: NewHireMention[];
   
   // Acquisition signals
   acquisition_signals: AcquisitionSignal[];
@@ -105,47 +111,9 @@ export interface ExtractedData {
   founded_year: number | null;
   founded_source: string | null;
   years_in_business: number | null;
-  history_snippets: HistorySnippet[];
-}
 
-// ============ S3 Storage Types ============
-
-export interface RawScrapeData {
-  place_id: string;
-  website_uri: string;
-  scraped_at: string;
-  scrape_method: 'fetch' | 'cloudscraper' | 'puppeteer';
-  duration_ms: number;
-  pages: ScrapedPage[];
-}
-
-export interface ExtractedScrapeData {
-  place_id: string;
-  website_uri: string;
-  extracted_at: string;
-  contacts: {
-    emails: string[];
-    phones: string[];
-    contact_page_url: string | null;
-    social: ExtractedData['social'];
-  };
-  team: {
-    members: TeamMember[];
-    headcount_estimate: number | null;
-    headcount_source: string | null;
-    new_hire_mentions: NewHireMention[];
-  };
-  acquisition: {
-    signals: AcquisitionSignal[];
-    has_signal: boolean;
-    summary: string | null;
-  };
-  history: {
-    founded_year: number | null;
-    founded_source: string | null;
-    years_in_business: number | null;
-    snippets: HistorySnippet[];
-  };
+  // Snippets of interest (unified)
+  snippets: SnippetOfInterest[];
 }
 
 // ============ HTTP Response Types ============

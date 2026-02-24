@@ -156,6 +156,7 @@ export async function updateLeadWithScrapeData(
           leadId,
           name: member.name,
           title: member.title ?? null,
+          isExecutive: member.isExecutive,
           sourceUrl: member.source_url,
           sourcePageId,
           sourceRunId: scrapeRunId,
@@ -173,6 +174,21 @@ export async function updateLeadWithScrapeData(
           signalType: signal.signal_type,
           text: signal.text,
           dateMentioned: signal.date_mentioned ?? null,
+          sourcePageId,
+          sourceRunId: scrapeRunId,
+        },
+      });
+    }
+  }
+
+  for (const snippet of extracted.snippets) {
+    const sourcePageId = snippet.source_url ? urlToPageId.get(snippet.source_url) : null;
+    if (sourcePageId) {
+      await prisma.leadSnippet.create({
+        data: {
+          leadId,
+          category: snippet.category,
+          text: snippet.text,
           sourcePageId,
           sourceRunId: scrapeRunId,
         },

@@ -45,3 +45,23 @@ export function formatRelativeTime(date: string | Date): string {
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 15)
 }
+
+/** Take top N items by value and group the rest into "Other" with combined percentage. */
+export function topNWithOther<T extends { name: string; value: number; percentage?: number }>(
+  items: T[] | undefined,
+  n = 9,
+): T[] {
+  if (!items?.length) return items ?? [];
+  const sorted = [...items].sort((a, b) => b.value - a.value);
+  if (sorted.length <= n) return sorted;
+  const top = sorted.slice(0, n);
+  const rest = sorted.slice(n);
+  const otherTotal = rest.reduce((sum, item) => sum + item.value, 0);
+  if (otherTotal === 0) return top;
+  const total = sorted.reduce((sum, item) => sum + item.value, 0);
+  const otherPercentage = total > 0 ? Math.round((otherTotal / total) * 100) : 0;
+  return [
+    ...top,
+    { name: 'Other', value: otherTotal, percentage: otherPercentage } as T,
+  ];
+}

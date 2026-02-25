@@ -701,7 +701,7 @@ model LeadSnippet {
   id             String      @id @default(uuid())
   leadId         String      @map("lead_id")
   lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  category       String      // history, new_hire, award, certification, licensing, insurance, service_area, tagline
+  category       String      // history, executive_hire, award, certification, licensing, revenue_scale, recurring_revenue, commercial_clients, multi_location, succession, proprietary
   text           String
   sourcePageId   String      @map("source_page_id")
   sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)

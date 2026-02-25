@@ -176,7 +176,7 @@ export function extractAllData(pages: ScrapedPage[], knownPhones: string[] = [])
     
     allTeamMembers.push(...extractTeamMembers(text, page.url));
     allAcquisitionSignals.push(...extractAcquisitionSignals(text, page.url));
-    for (const snippet of extractSnippetsOfInterest(text, html, page.url)) {
+    for (const snippet of extractSnippetsOfInterest(html, page.url)) {
       const key = snippet.text.toLowerCase();
       if (!seenSnippetTexts.has(key)) {
         seenSnippetTexts.add(key);

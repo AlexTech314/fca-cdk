@@ -67,15 +67,21 @@ export interface AcquisitionSignal {
   source_url: string;
 }
 
-export type SnippetCategory =
-  | 'history'
-  | 'new_hire'
-  | 'award'
-  | 'certification'
-  | 'licensing'
-  | 'insurance'
-  | 'service_area'
-  | 'tagline';
+export const SNIPPET_CATEGORIES = [
+  'history',
+  'executive_hire',
+  'award',
+  'certification',
+  'licensing',
+  'revenue_scale',
+  'recurring_revenue',
+  'commercial_clients',
+  'multi_location',
+  'succession',
+  'proprietary',
+] as const;
+
+export type SnippetCategory = (typeof SNIPPET_CATEGORIES)[number];
 
 export interface SnippetOfInterest {
   category: SnippetCategory;

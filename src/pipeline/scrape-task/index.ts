@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client';
 
 let prisma: PrismaClient | undefined;
 
-import type { JobInput } from './types.js';
+import type { JobInput, ExtractedData } from './types.js';
 import {
   CAMPAIGN_DATA_BUCKET,
   TASK_MEMORY_MIB,
@@ -30,6 +30,42 @@ import {
   updateFargateTask,
 } from './storage/postgres.js';
 import type { BatchLead } from './storage/postgres.js';
+
+// ============ Social Media Detection ============
+
+const SOCIAL_MEDIA_DOMAINS: Record<string, keyof ExtractedData['social']> = {
+  'instagram.com': 'instagram',
+  'facebook.com': 'facebook',
+  'linkedin.com': 'linkedin',
+  'twitter.com': 'twitter',
+  'x.com': 'twitter',
+};
+
+const SOCIAL_MEDIA_SKIP_DOMAINS = new Set([
+  ...Object.keys(SOCIAL_MEDIA_DOMAINS),
+  'yelp.com',
+  'tiktok.com',
+  'youtube.com',
+]);
+
+function isSocialMediaUrl(url: string): { isSocial: boolean; platform?: keyof ExtractedData['social'] } {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    for (const [domain, platform] of Object.entries(SOCIAL_MEDIA_DOMAINS)) {
+      if (hostname === domain || hostname.endsWith('.' + domain)) {
+        return { isSocial: true, platform };
+      }
+    }
+    for (const domain of SOCIAL_MEDIA_SKIP_DOMAINS) {
+      if (hostname === domain || hostname.endsWith('.' + domain)) {
+        return { isSocial: true };
+      }
+    }
+  } catch {
+    // invalid URL, not social
+  }
+  return { isSocial: false };
+}
 
 // ============ Main ============
 
@@ -164,7 +200,27 @@ async function main(): Promise<void> {
       
       try {
         console.log(`\nScraping: ${business.business_name} (${business.website_uri})`);
-        
+
+        // Skip social media root URLs — no useful data to scrape
+        const socialCheck = isSocialMediaUrl(business.website_uri!);
+        if (socialCheck.isSocial) {
+          console.log(`  [Social skip] ${business.website_uri} is a social media link, skipping scrape`);
+          const socialData: ExtractedData = {
+            emails: [], phones: [], contact_page_url: null,
+            social: socialCheck.platform ? { [socialCheck.platform]: business.website_uri } : {},
+            team_members: [], headcount_estimate: null, headcount_source: null,
+            acquisition_signals: [], has_acquisition_signal: false, acquisition_summary: null,
+            founded_year: null, founded_source: null, years_in_business: null,
+            snippets: [],
+          };
+          await updateLeadWithScrapeData(
+            db, business.id, business.website_uri!, 'cloudscraper', 0, 0,
+            socialData, [], taskId ?? undefined,
+          );
+          processed++;
+          return;
+        }
+
         // Pass 1: cloudscraper (fast, no browser)
         let scrapeResult = await scrapeWebsite(business.website_uri!, {
           maxPages: maxPagesPerSite,

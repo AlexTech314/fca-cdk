@@ -4,24 +4,23 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, ArrowLeft, CheckCircle2, Info } from 'lucide-react';
-import { USE_MOCK_AUTH, DEMO_CREDENTIALS } from '@/lib/amplify-config';
+import { Loader2, AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react';
+
 export default function Login() {
-  const { 
-    login, 
+  const {
+    login,
     confirmNewPassword,
     forgotPassword,
     confirmResetPassword,
     startForgotPasswordFlow,
     cancelAuthFlow,
-    isAuthenticated, 
+    isAuthenticated,
     isLoading: authLoading,
     authFlow,
     pendingEmail,
     resetCodeDestination,
   } = useAuth();
-  
+
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,17 +61,17 @@ export default function Login() {
   const handleNewPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (newPassword !== confirmPasswordValue) {
       setError('Passwords do not match');
       return;
     }
-    
+
     if (newPassword.length < 8) {
       setError('Password must be at least 8 characters');
       return;
     }
-    
+
     setIsLoading(true);
 
     try {
@@ -102,17 +101,17 @@ export default function Login() {
   const handleConfirmReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (newPassword !== confirmPasswordValue) {
       setError('Passwords do not match');
       return;
     }
-    
+
     if (newPassword.length < 8) {
       setError('Password must be at least 8 characters');
       return;
     }
-    
+
     setIsLoading(true);
 
     try {
@@ -132,11 +131,6 @@ export default function Login() {
     setError('');
     setSuccess('');
     cancelAuthFlow();
-  };
-
-  const fillDemoCredentials = () => {
-    setEmail(DEMO_CREDENTIALS.email);
-    setPassword(DEMO_CREDENTIALS.password);
   };
 
   const renderForm = () => {
@@ -250,10 +244,10 @@ export default function Login() {
               )}
             </Button>
 
-            <Button 
-              type="button" 
-              variant="ghost" 
-              className="w-full" 
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
               onClick={handleBack}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -276,13 +270,6 @@ export default function Login() {
               <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {error}
-              </div>
-            )}
-
-            {USE_MOCK_AUTH && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 text-primary text-sm">
-                <Info className="h-4 w-4 shrink-0" />
-                Demo mode: Use code <code className="font-mono font-bold">123456</code>
               </div>
             )}
 
@@ -343,10 +330,10 @@ export default function Login() {
               )}
             </Button>
 
-            <Button 
-              type="button" 
-              variant="ghost" 
-              className="w-full" 
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
               onClick={handleBack}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -435,7 +422,7 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-blue-950/50 to-indigo-950/60 p-4">
       <div className="w-full max-w-sm animate-fade-in">
-        {/* Logo - matches nextjs: 64x64, mt-4 */}
+        {/* Logo */}
         <div className="mb-8 text-center">
           <img
             src="https://d1bjh7dvpwoxii.cloudfront.net/logos/fca-mountain-on-white.png"
@@ -447,45 +434,10 @@ export default function Login() {
           <h1 className="mt-4 text-2xl font-bold text-foreground">Flatirons Capital Advisors</h1>
         </div>
 
-        {/* Demo Credentials Banner */}
-        {USE_MOCK_AUTH && authFlow === 'LOGIN' && (
-          <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/5 p-4">
-            <div className="flex items-start gap-3">
-              <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">Demo Mode</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Use these credentials to sign in:
-                </p>
-                <div className="mt-2 p-2 rounded-lg bg-background/50 font-mono text-xs">
-                  <div>Email: <span className="text-primary">{DEMO_CREDENTIALS.email}</span></div>
-                  <div>Password: <span className="text-primary">{DEMO_CREDENTIALS.password}</span></div>
-                </div>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-2 h-7 text-xs"
-                  onClick={fillDemoCredentials}
-                >
-                  Fill Demo Credentials
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Auth form card - matches nextjs: rounded-2xl, p-8, shadow-xl (dark mode) */}
+        {/* Auth form card */}
         <div className="rounded-2xl border border-border bg-card p-8 shadow-xl shadow-black/20">
           {renderForm()}
         </div>
-
-        {/* Footer */}
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          {USE_MOCK_AUTH && (
-            <Badge variant="outline" className="text-[10px]">Mock Auth Enabled</Badge>
-          )}
-        </p>
       </div>
     </div>
   );

@@ -1,14 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { 
-  checkAuthSession, 
+import {
+  checkAuthSession,
   login as authLogin,
   confirmSignInWithNewPassword as authConfirmNewPassword,
   initiatePasswordReset as authInitiateReset,
   confirmPasswordReset as authConfirmReset,
-  logout as authLogout, 
-  canWrite as authCanWrite, 
-  isAdmin as authIsAdmin, 
-  getOrganizationName,
+  logout as authLogout,
+  canWrite as authCanWrite,
+  isAdmin as authIsAdmin,
   type AuthState,
   type SignInResult,
 } from '@/lib/auth';
@@ -139,7 +138,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     isAdmin: authState.user ? authIsAdmin(authState.user) : false,
     canWrite: authState.user ? authCanWrite(authState.user) : false,
-    organizationName: getOrganizationName(),
+    organizationName: 'Flatirons Capital Advisors',
     login,
     confirmNewPassword,
     forgotPassword,

@@ -1,12 +1,10 @@
 import type { User } from '@/types';
-import { mockCurrentUser, mockOrganization } from './mock-data';
-import { USE_MOCK_AUTH, DEMO_CREDENTIALS } from './amplify-config';
 
 // ===========================================
 // Types
 // ===========================================
 
-export type SignInStep = 
+export type SignInStep =
   | 'DONE'
   | 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED'
   | 'RESET_PASSWORD';
@@ -27,18 +25,7 @@ export interface AuthState {
 }
 
 // ===========================================
-// Mock Auth State (in-memory)
-// ===========================================
-
-let mockAuthState: AuthState = {
-  user: null,
-  isAuthenticated: false,
-};
-
-let mockRequiresNewPassword = false;
-
-// ===========================================
-// Cognito (lazy-loaded to avoid import when using mock)
+// Cognito (lazy-loaded)
 // ===========================================
 
 async function getAmplifyAuth() {
@@ -54,11 +41,6 @@ async function getAmplifyAuth() {
  * Get the current authenticated user
  */
 export async function getCurrentAuthUser(): Promise<User | null> {
-  if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    return mockAuthState.user;
-  }
-
   try {
     const { getCurrentUser, fetchAuthSession } = await getAmplifyAuth();
     const cognitoUser = await getCurrentUser();
@@ -86,11 +68,6 @@ export async function getCurrentAuthUser(): Promise<User | null> {
  * Check if there's a valid session
  */
 export async function checkAuthSession(): Promise<AuthState> {
-  if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    return mockAuthState;
-  }
-
   try {
     const user = await getCurrentAuthUser();
     return { user, isAuthenticated: !!user };
@@ -103,22 +80,6 @@ export async function checkAuthSession(): Promise<AuthState> {
  * Sign in with email and password
  */
 export async function login(email: string, password: string): Promise<SignInResult> {
-  if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    if (email === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
-      mockAuthState = { user: mockCurrentUser, isAuthenticated: true };
-      return { isSignedIn: true, user: mockCurrentUser };
-    }
-
-    if (email === 'newuser@flatironscapital.com' && password === 'temppass123') {
-      mockRequiresNewPassword = true;
-      return { isSignedIn: false, nextStep: 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED' };
-    }
-
-    throw new Error('Invalid email or password');
-  }
-
   const { signIn, signOut } = await getAmplifyAuth();
   // Clear any existing session first (e.g. stale local Cognito session when pointing to cloud)
   try {
@@ -144,16 +105,6 @@ export async function login(email: string, password: string): Promise<SignInResu
  * Confirm sign-in with a new password (for first-time login with temp password)
  */
 export async function confirmSignInWithNewPassword(newPassword: string): Promise<SignInResult> {
-  if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (mockRequiresNewPassword) {
-      mockRequiresNewPassword = false;
-      mockAuthState = { user: mockCurrentUser, isAuthenticated: true };
-      return { isSignedIn: true, user: mockCurrentUser };
-    }
-    throw new Error('No pending password change');
-  }
-
   const { confirmSignIn } = await getAmplifyAuth();
   const result = await confirmSignIn({ challengeResponse: newPassword });
 
@@ -169,12 +120,6 @@ export async function confirmSignInWithNewPassword(newPassword: string): Promise
  * Initiate password reset flow
  */
 export async function initiatePasswordReset(email: string): Promise<{ destination?: string }> {
-  if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const maskedEmail = email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
-    return { destination: maskedEmail };
-  }
-
   const { resetPassword } = await getAmplifyAuth();
   const result = await resetPassword({ username: email });
   return {
@@ -190,15 +135,6 @@ export async function confirmPasswordReset(
   confirmationCode: string,
   newPassword: string
 ): Promise<void> {
-  if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (confirmationCode === '123456') {
-      console.log(`Password reset for ${email} with new password`);
-      return;
-    }
-    throw new Error('Invalid verification code');
-  }
-
   const { confirmResetPassword } = await getAmplifyAuth();
   await confirmResetPassword({ username: email, confirmationCode, newPassword });
 }
@@ -207,12 +143,6 @@ export async function confirmPasswordReset(
  * Sign out the current user
  */
 export async function logout(): Promise<void> {
-  if (USE_MOCK_AUTH) {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    mockAuthState = { user: null, isAuthenticated: false };
-    return;
-  }
-
   const { signOut } = await getAmplifyAuth();
   await signOut();
 }
@@ -222,10 +152,6 @@ export async function logout(): Promise<void> {
  * The leadgen API expects the Cognito access token (tokenUse: 'access'), not the ID token.
  */
 export async function getIdToken(): Promise<string | null> {
-  if (USE_MOCK_AUTH) {
-    return mockAuthState.isAuthenticated ? 'mock-id-token' : null;
-  }
-
   try {
     const { fetchAuthSession } = await getAmplifyAuth();
     const session = await fetchAuthSession();
@@ -238,10 +164,6 @@ export async function getIdToken(): Promise<string | null> {
 // ===========================================
 // Helper Functions
 // ===========================================
-
-export function getOrganizationName(): string {
-  return mockOrganization.name;
-}
 
 export function hasPermission(user: User, requiredRole: 'readonly' | 'readwrite' | 'admin'): boolean {
   const roleHierarchy = {

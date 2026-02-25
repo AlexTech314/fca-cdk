@@ -13,6 +13,9 @@ const FACEBOOK_BLOCKED_PREFIXES = new Set([
   'watch',
   'events',
   'groups',
+  'tr',
+  'pixel',
+  'ads',
 ]);
 
 const LINKEDIN_BLOCKED_PREFIXES = new Set([

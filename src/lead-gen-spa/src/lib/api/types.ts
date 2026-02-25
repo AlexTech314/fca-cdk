@@ -29,13 +29,8 @@ export type LeadDataType = 'email' | 'phone' | 'social' | 'team' | 'acquisition'
 
 /**
  * LeadGenApi Interface
- * 
+ *
  * This interface defines the contract for all API operations.
- * Both mock and real implementations must follow this interface.
- * 
- * To switch from mock to real API:
- * 1. Implement this interface in client.ts
- * 2. Change the export in index.ts from mockApi to realApi
  */
 export interface LeadGenApi {
   // ===========================================

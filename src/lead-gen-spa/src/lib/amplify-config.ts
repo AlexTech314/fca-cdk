@@ -1,19 +1,6 @@
 /**
  * Amplify Configuration
- *
- * Set VITE_USE_MOCK_AUTH=true for local dev with mock auth.
- * When Cognito is deployed, set the VITE_COGNITO_* environment variables.
  */
-
-// Toggle this to switch between mock and real auth
-export const USE_MOCK_AUTH = import.meta.env.VITE_USE_MOCK_AUTH === 'true' ||
-  (!import.meta.env.VITE_COGNITO_USER_POOL_ID); // Default to mock if no pool configured
-
-// Demo credentials (shown on login screen when USE_MOCK_AUTH is true)
-export const DEMO_CREDENTIALS = {
-  email: 'demo@flatironscapital.com',
-  password: 'demo123',
-};
 
 // API base URL for leadgen endpoints
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/leadgen';
@@ -42,12 +29,6 @@ const amplifyConfig = {
 };
 
 export function configureAmplify() {
-  if (USE_MOCK_AUTH) {
-    console.log('[auth] Using mock authentication');
-    return;
-  }
-
-  // Dynamically import to avoid loading Amplify when using mock auth
   import('aws-amplify').then(({ Amplify }) => {
     Amplify.configure(amplifyConfig);
     console.log('[auth] Amplify configured with pool:', amplifyConfig.Auth.Cognito.userPoolId);

@@ -3,6 +3,8 @@ import { normalizePhone, isFakePhone } from '../utils/phone.js';
 
 const JUNK_EMAIL_PATTERNS = [
   'example.com', 'domain.com', 'email.com', 'test.com',
+  'mysite.com', 'yoursite.com', 'mycompany.com', 'yourcompany.com',
+  'website.com', 'company.com', 'yourdomain.com',
   'sentry.io', 'wixpress.com', 'squarespace.com',
 ];
 

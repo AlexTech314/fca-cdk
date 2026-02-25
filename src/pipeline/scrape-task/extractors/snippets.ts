@@ -113,7 +113,7 @@ const CATEGORY_CONFIGS: Record<SnippetCategory, CategoryConfig> = {
       'government contract', 'federal contract', 'state contract', 'municipal',
       'property management', 'property managers',
       'general contractor', 'subcontract',
-      'hoa', 'homeowners association',
+      'hoa management', 'hoa client', 'hoa contract', 'homeowners association',
       'fortune 500', 'enterprise clients', 'corporate clients',
       'institutional', 'industrial clients',
     ],
@@ -152,6 +152,9 @@ const CATEGORY_CONFIGS: Record<SnippetCategory, CategoryConfig> = {
       'proprietary method', 'proprietary software', 'proprietary formula',
       'fleet of', 'specialized equipment', 'custom-built',
       'trade secret', 'in-house developed', 'internally developed',
+      'clinical study', 'clinical trial', 'clinical research',
+      'peer-reviewed', 'published research', 'sponsored research',
+      'research partnership', 'research collaboration',
     ],
     maxPerPage: 3,
     minWords: 5,
@@ -162,7 +165,7 @@ const CATEGORY_CONFIGS: Record<SnippetCategory, CategoryConfig> = {
 const EXEC_TITLE_KEYWORDS = /\b(ceo|cfo|coo|cto|cio|president|vice president|vp|director|general manager|gm|manager|supervisor|team lead)\b/i;
 
 const MIN_BLOCK_LENGTH = 30;
-const MAX_BLOCK_LENGTH = 300;
+const MAX_BLOCK_LENGTH = 15000;
 
 const NAV_JUNK = /\b(shop all|learn more|read more|click here|sign up|log in|subscribe|add to cart|buy now|view all|see more|load more|show more|menu|navigation|breadcrumb|footer|header|sidebar|skip link)\b/i;
 

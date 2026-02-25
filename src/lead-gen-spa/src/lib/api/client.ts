@@ -140,6 +140,7 @@ function transformLead(raw: any): Lead {
     editorialSummary: extractJsonText(raw.editorialSummary ?? raw.editorial_summary),
     reviewSummary: extractJsonText(raw.reviewSummary ?? raw.review_summary),
     contactPageUrl: raw.contactPageUrl ?? raw.contact_page_url ?? null,
+    pipelineStatus: raw.pipelineStatus ?? raw.pipeline_status ?? 'idle',
     webScrapedAt: raw.webScrapedAt ?? raw.web_scraped_at ?? null,
     lastScrapePagesCount: raw.scrapeRuns?.[0]?.pagesCount ?? null,
     emails: (raw.leadEmails ?? []).map((e: { value: string }) => e.value),

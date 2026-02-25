@@ -201,6 +201,7 @@ export async function updateLeadWithScrapeData(
         hasAcquisitionSignal: extracted.has_acquisition_signal,
         acquisitionSummary: extracted.acquisition_summary,
         contactPageUrl: extracted.contact_page_url,
+        pipelineStatus: 'idle',
       },
     });
 
@@ -245,7 +246,7 @@ export async function markLeadScrapeFailed(
   });
   await prisma.lead.update({
     where: { id: leadId },
-    data: { webScrapedAt: now },
+    data: { webScrapedAt: now, pipelineStatus: 'idle' },
   });
   console.log(`  [Prisma] Created failed ScrapeRun for lead ${leadId}`);
 }

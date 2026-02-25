@@ -24,6 +24,8 @@ export interface User {
 
 export type UserRole = 'readonly' | 'readwrite' | 'admin';
 
+export type LeadPipelineStatus = 'idle' | 'queued_for_scrape' | 'scraping' | 'queued_for_scoring' | 'queued_for_batch_scoring' | 'scoring';
+
 export interface Franchise {
   id: string;
   name: string;
@@ -84,6 +86,7 @@ export interface Lead {
   hasAcquisitionSignal?: boolean | null;
   acquisitionSummary?: string | null;
   contactPageUrl?: string | null;
+  pipelineStatus: LeadPipelineStatus;
   webScrapedAt?: string | null;
   /** Pages scraped in most recent run (from list API) */
   lastScrapePagesCount?: number | null;

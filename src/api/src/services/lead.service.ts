@@ -34,6 +34,7 @@ export const leadService = {
           MessageBody: JSON.stringify({ lead_id: id, place_id: lead.placeId ?? '' }),
         })
       );
+      await prisma.lead.update({ where: { id }, data: { pipelineStatus: 'queued_for_batch_scoring' } });
       return lead;
     }
 
@@ -79,6 +80,7 @@ export const leadService = {
             }),
           })
         );
+        await prisma.lead.update({ where: { id }, data: { pipelineStatus: 'queued_for_scrape' } });
         results.push({ id, status: 'queued' });
       } catch (err) {
         results.push({ id, status: 'error', error: err instanceof Error ? err.message : 'Unknown error' });

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { QualificationBadge } from '@/components/leads/QualificationBadge';
+import { PipelineStatusDot } from '@/components/leads/PipelineStatusDot';
 import { useLead, useQualifyLead, useDeleteScrapeRun, useDeleteScrapedPage, useDeleteLeadData, useUpdateLeadData } from '@/hooks/useLeads';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -239,7 +240,10 @@ export default function LeadDetail() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h3 className="text-lg font-semibold">{lead.name}</h3>
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <PipelineStatusDot status={lead.pipelineStatus} />
+                  {lead.name}
+                </h3>
                 {lead.franchise && (
                   <p className="text-sm text-muted-foreground mt-0.5">
                     Location of: {lead.franchise.displayName ?? lead.franchise.name}

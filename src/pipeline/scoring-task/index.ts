@@ -198,6 +198,7 @@ async function main(): Promise<void> {
       }
       if (lead.qualificationScore !== null) {
         console.log(`Lead ${lead_id} already scored, skipping`);
+        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'idle' } });
         skipped++;
         continue;
       }
@@ -237,6 +238,7 @@ async function main(): Promise<void> {
         },
       };
 
+      await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'scoring' } });
       const result = await scoreLead(leadData);
       await db.lead.update({
         where: { id: lead_id },
@@ -244,6 +246,7 @@ async function main(): Promise<void> {
           qualificationScore: result.score,
           qualificationNotes: result.notes,
           qualifiedAt: new Date(),
+          pipelineStatus: 'idle',
         },
       });
       scored++;

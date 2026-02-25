@@ -200,6 +200,7 @@ async function main(): Promise<void> {
       
       try {
         console.log(`\nScraping: ${business.business_name} (${business.website_uri})`);
+        await db.lead.update({ where: { id: business.id }, data: { pipelineStatus: 'scraping' } });
 
         // Skip social media root URLs — no useful data to scrape
         const socialCheck = isSocialMediaUrl(business.website_uri!);

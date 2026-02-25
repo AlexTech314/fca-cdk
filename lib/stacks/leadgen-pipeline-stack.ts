@@ -102,6 +102,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
       file: 'lambda/bridge/Dockerfile',
       platform: 'linux/arm64',
       provider,
+      buildArgs: { NODE_20_SLIM: node20Slim },
+      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
       retainBuildLogs: true,
     });
 
@@ -113,17 +115,23 @@ export class LeadGenPipelineStack extends cdk.Stack {
     const bridgeLambda = new lambda.DockerImageFunction(this, 'BridgeLambda', {
       code: bridgeImage.dockerImageCode,
       architecture: lambda.Architecture.ARM_64,
-      timeout: cdk.Duration.seconds(10),
-      memorySize: 128,
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
       logGroup: bridgeLambdaLogGroup,
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [pipelineSecurityGroup],
       environment: {
         SCRAPE_QUEUE_URL: scrapeQueue.queueUrl,
         SCORING_QUEUE_URL: scoringQueue.queueUrl,
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
       },
     });
 
     scrapeQueue.grantSendMessages(bridgeLambda);
     scoringQueue.grantSendMessages(bridgeLambda);
+    databaseSecret.grantRead(bridgeLambda);
 
     // ============================================================
     // Configure Bridge Lambda ARN in RDS (for PG triggers)

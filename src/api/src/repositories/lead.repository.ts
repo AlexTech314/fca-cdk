@@ -24,6 +24,7 @@ const sortFieldMap: Record<string, string> = {
   yearsInBusiness: 'yearsInBusiness',
   headcountEstimate: 'headcountEstimate',
   webScrapedAt: 'webScrapedAt',
+  pipelineStatus: 'pipelineStatus',
 };
 
 const defaultLeadFields: LeadListField[] = [
@@ -401,6 +402,7 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   const select: Record<string, unknown> = {
     id: true,
     placeId: true,
+    pipelineStatus: true,
     createdAt: true,
     updatedAt: true,
   };

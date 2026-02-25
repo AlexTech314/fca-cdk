@@ -3,7 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.500.0"
+    "@aws-sdk/client-sqs": "^3.500.0",
+    "@fca/db": "file:../../packages/db",
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

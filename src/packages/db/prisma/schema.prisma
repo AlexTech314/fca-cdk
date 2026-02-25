@@ -734,6 +734,15 @@ enum CampaignRunStatus {
   failed
 }
 
+enum LeadPipelineStatus {
+  idle
+  queued_for_scrape
+  scraping
+  queued_for_scoring
+  queued_for_batch_scoring
+  scoring
+}
+
 enum LeadSource {
   google_places
   manual
@@ -842,6 +851,7 @@ model Lead {
   hasAcquisitionSignal Boolean   @default(false) @map("has_acquisition_signal")
   acquisitionSummary  String?   @map("acquisition_summary")
   contactPageUrl       String?   @map("contact_page_url")
+  pipelineStatus       LeadPipelineStatus @default(idle) @map("pipeline_status")
 
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
@@ -859,6 +869,7 @@ model Lead {
   @@index([createdAt])
   @@index([foundedYear])
   @@index([hasAcquisitionSignal])
+  @@index([pipelineStatus])
   @@map("leads")
 }
 

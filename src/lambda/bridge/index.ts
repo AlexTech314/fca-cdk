@@ -9,8 +9,19 @@
  */
 
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { bootstrapDatabaseUrl } from '@fca/db';
+import { PrismaClient } from '@prisma/client';
 
 const sqsClient = new SQSClient({});
+
+let _prisma: PrismaClient | undefined;
+async function getDb(): Promise<PrismaClient> {
+  if (!_prisma) {
+    await bootstrapDatabaseUrl();
+    _prisma = new PrismaClient();
+  }
+  return _prisma;
+}
 
 const SCRAPE_QUEUE_URL = process.env.SCRAPE_QUEUE_URL!;
 const SCORING_QUEUE_URL = process.env.SCORING_QUEUE_URL!;
@@ -41,6 +52,8 @@ export async function handler(event: TriggerEvent): Promise<{ statusCode: number
           MessageBody: JSON.stringify({ lead_id, place_id, website }),
           MessageGroupId: undefined, // Standard queue, no group ID
         }));
+        const db = await getDb();
+        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scrape' } });
         console.log(`Sent lead ${lead_id} to scrape queue`);
         break;
       }
@@ -51,6 +64,8 @@ export async function handler(event: TriggerEvent): Promise<{ statusCode: number
           QueueUrl: SCORING_QUEUE_URL,
           MessageBody: JSON.stringify({ lead_id, place_id }),
         }));
+        const db = await getDb();
+        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scoring' } });
         console.log(`Sent lead ${lead_id} to scoring queue`);
         break;
       }

@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { QualificationBadge } from './QualificationBadge';
+import { PipelineStatusDot } from './PipelineStatusDot';
 import type { Lead, LeadListField } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { ChevronUp, ChevronDown, Star, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -163,12 +164,15 @@ export function LeadTable({
       sortColumn: 'name',
       renderCell: (lead) => (
         <>
-          <Link
-            to={`/leads/${lead.id}`}
-            className="font-medium text-primary hover:underline"
-          >
-            {lead.name}
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <PipelineStatusDot status={lead.pipelineStatus} />
+            <Link
+              to={`/leads/${lead.id}`}
+              className="font-medium text-primary hover:underline"
+            >
+              {lead.name}
+            </Link>
+          </div>
           {lead.franchise && (
             <div className="text-xs text-muted-foreground mt-0.5">
               Location of: {lead.franchise.displayName ?? lead.franchise.name}

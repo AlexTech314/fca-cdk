@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { LeadQueryParams, LeadFilters } from '@/types';
+import type { LeadDataType } from '@/lib/api/types';
 import { DEFAULT_LEAD_COLUMNS } from '@/lib/leads/columns';
 
 const PULSE_REFETCH_MS = 10_000;
@@ -73,6 +74,40 @@ export function useDeleteScrapeRun() {
 
   return useMutation({
     mutationFn: (runId: string) => api.deleteScrapeRun(runId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
+export function useDeleteScrapedPage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (pageId: string) => api.deleteScrapedPage(pageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
+export function useDeleteLeadData() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ type, id }: { type: LeadDataType; id: string }) => api.deleteLeadData(type, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
+export function useUpdateLeadData() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ type, id, data }: { type: LeadDataType; id: string; data: Record<string, unknown> }) =>
+      api.updateLeadData(type, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     },

@@ -6,6 +6,7 @@ import { extractFoundedYear } from './history.js';
 import { extractAcquisitionSignals } from './acquisition.js';
 import { extractSnippetsOfInterest } from './snippets.js';
 import { extractSchemaOrgData, SchemaOrgData } from '../scraper/html.js';
+import { normalizePhone } from '../utils/phone.js';
 import { LIMITS } from '../config.js';
 
 // Re-export all extractors
@@ -62,8 +63,13 @@ export function extractAllData(pages: ScrapedPage[], knownPhones: string[] = [])
   const allPhones = new Set<string>();
   const allSocial: ExtractedData['social'] = {};
   const emailSources: Record<string, string> = {};
-  const phoneSources: Record<string, string> = {};
+  let phoneSources: Record<string, string> = {};
   const socialSources: Record<string, string> = {};
+
+  // If we have a Google Places phone, confirming it on the website means we can
+  // stop searching — any other scraped phones are noise.
+  const placesPhone = knownPhones.length > 0 ? normalizePhone(knownPhones[0]) : null;
+  let placesPhoneConfirmed = false;
   const allTeamMembers: TeamMember[] = [];
   const allSnippets: SnippetOfInterest[] = [];
   const seenSnippetTexts = new Set<string>();
@@ -106,12 +112,20 @@ export function extractAllData(pages: ScrapedPage[], knownPhones: string[] = [])
         allEmails.add(pageSchema.email);
       }
 
-      if (pageSchema.telephone) {
+      if (pageSchema.telephone && !placesPhoneConfirmed) {
         const phone = pageSchema.telephone.replace(/[^\d]/g, '');
         if (phone.length === 10 || (phone.length === 11 && phone.startsWith('1'))) {
           const normalized = phone.slice(-10);
-          if (!allPhones.has(normalized)) phoneSources[normalized] = page.url;
-          allPhones.add(normalized);
+          if (placesPhone && normalized === placesPhone) {
+            allPhones.clear();
+            allPhones.add(normalized);
+            phoneSources = { [normalized]: page.url };
+            placesPhoneConfirmed = true;
+            console.log(`    [Extract:Phones] Places phone confirmed via Schema.org, stopping phone search`);
+          } else {
+            if (!allPhones.has(normalized)) phoneSources[normalized] = page.url;
+            allPhones.add(normalized);
+          }
         }
       }
 
@@ -147,9 +161,19 @@ export function extractAllData(pages: ScrapedPage[], knownPhones: string[] = [])
       if (!allEmails.has(e)) emailSources[e] = page.url;
       allEmails.add(e);
     }
-    for (const p of extractPhones(text, knownPhones, html)) {
-      if (!allPhones.has(p)) phoneSources[p] = page.url;
-      allPhones.add(p);
+    if (!placesPhoneConfirmed) {
+      for (const p of extractPhones(text, [], html)) {
+        if (placesPhone && p === placesPhone) {
+          allPhones.clear();
+          allPhones.add(p);
+          phoneSources = { [p]: page.url };
+          placesPhoneConfirmed = true;
+          console.log(`    [Extract:Phones] Places phone confirmed on page, stopping phone search`);
+          break;
+        }
+        if (!allPhones.has(p)) phoneSources[p] = page.url;
+        allPhones.add(p);
+      }
     }
     
     const social = extractSocialLinks(html);

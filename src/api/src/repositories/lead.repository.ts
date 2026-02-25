@@ -1,6 +1,16 @@
 import { prisma } from '@fca/db';
 import type { Prisma } from '@fca/db';
-import type { LeadListField, LeadQuery } from '../models/lead.model';
+import type { LeadListField, LeadQuery, LeadDataType } from '../models/lead.model';
+
+/** Maps the generic type param to the corresponding Prisma delegate name */
+const leadDataModelMap: Record<LeadDataType, string> = {
+  email: 'leadEmail',
+  phone: 'leadPhone',
+  social: 'leadSocialProfile',
+  team: 'leadTeamMember',
+  acquisition: 'leadAcquisitionSignal',
+  snippet: 'leadSnippet',
+};
 
 // Map sort field names from camelCase frontend to Prisma field names
 const sortFieldMap: Record<string, string> = {
@@ -226,6 +236,20 @@ export const leadRepository = {
         });
       }
     });
+  },
+
+  async deleteScrapedPage(pageId: string) {
+    return (prisma as any).scrapedPage.delete({ where: { id: pageId } });
+  },
+
+  async deleteLeadData(type: LeadDataType, id: string) {
+    const model = leadDataModelMap[type];
+    return (prisma as any)[model].delete({ where: { id } });
+  },
+
+  async updateLeadData(type: LeadDataType, id: string, data: Record<string, unknown>) {
+    const model = leadDataModelMap[type];
+    return (prisma as any)[model].update({ where: { id }, data });
   },
 
   /** Field-level provenance: value-to-source mappings for audit */

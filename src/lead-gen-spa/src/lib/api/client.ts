@@ -5,7 +5,7 @@
  * Backend uses snake_case; frontend uses camelCase. Transforms happen here.
  */
 
-import type { LeadGenApi } from './types';
+import type { LeadGenApi, LeadDataType } from './types';
 import type {
   Lead,
   Franchise,
@@ -604,5 +604,24 @@ export const realApi: LeadGenApi = {
   async cancelTask(id: string): Promise<FargateTask> {
     const raw = await apiClient<any>(`/tasks/${id}/cancel`, { method: 'POST' });
     return transformFargateTask(raw);
+  },
+
+  // ===========================================
+  // Scraped Page / Lead Data CRUD
+  // ===========================================
+
+  async deleteScrapedPage(pageId: string): Promise<void> {
+    await apiClient(`/scraped-pages/${pageId}`, { method: 'DELETE' });
+  },
+
+  async deleteLeadData(type: LeadDataType, id: string): Promise<void> {
+    await apiClient(`/lead-data/${type}/${id}`, { method: 'DELETE' });
+  },
+
+  async updateLeadData(type: LeadDataType, id: string, data: Record<string, unknown>): Promise<unknown> {
+    return apiClient(`/lead-data/${type}/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
   },
 };

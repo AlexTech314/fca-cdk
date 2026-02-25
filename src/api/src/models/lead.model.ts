@@ -123,6 +123,21 @@ export const leadQuerySchema = z.object({
   ),
 });
 
+// Lead data type enum (for generic CRUD on extracted data)
+export const leadDataTypes = ['email', 'phone', 'social', 'team', 'acquisition', 'snippet'] as const;
+export const leadDataTypeSchema = z.enum(leadDataTypes);
+export type LeadDataType = z.infer<typeof leadDataTypeSchema>;
+
+// Update schemas per data type
+export const leadDataUpdateSchemas = {
+  email: z.object({ value: z.string().min(1) }),
+  phone: z.object({ value: z.string().min(1) }),
+  social: z.object({ platform: z.string().min(1), url: z.string().min(1) }),
+  team: z.object({ name: z.string().min(1), title: z.string().nullable().optional() }),
+  acquisition: z.object({ text: z.string().min(1) }),
+  snippet: z.object({ text: z.string().min(1) }),
+} as const;
+
 // Types
 export type LeadFilters = z.infer<typeof leadFiltersSchema>;
 export type LeadQuery = z.infer<typeof leadQuerySchema>;

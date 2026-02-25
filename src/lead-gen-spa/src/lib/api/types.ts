@@ -25,6 +25,8 @@ import type {
   LeadProvenance,
 } from '@/types';
 
+export type LeadDataType = 'email' | 'phone' | 'social' | 'team' | 'acquisition' | 'snippet';
+
 /**
  * LeadGenApi Interface
  * 
@@ -242,4 +244,23 @@ export interface LeadGenApi {
    * Cancel a running task
    */
   cancelTask(id: string): Promise<FargateTask>;
+
+  // ===========================================
+  // Scraped Page / Lead Data CRUD
+  // ===========================================
+
+  /**
+   * Delete a scraped page (cascade-deletes its extracted data)
+   */
+  deleteScrapedPage(pageId: string): Promise<void>;
+
+  /**
+   * Delete an individual extracted data item
+   */
+  deleteLeadData(type: LeadDataType, id: string): Promise<void>;
+
+  /**
+   * Update an individual extracted data item
+   */
+  updateLeadData(type: LeadDataType, id: string, data: Record<string, unknown>): Promise<unknown>;
 }

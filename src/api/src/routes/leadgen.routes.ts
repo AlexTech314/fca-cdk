@@ -13,7 +13,10 @@ import {
   updateCampaignSchema,
   confirmUploadSchema,
   startCampaignRunSchema,
+  leadDataTypeSchema,
+  leadDataUpdateSchemas,
 } from '../models';
+import type { LeadDataType } from '../models';
 
 const router = Router();
 
@@ -177,6 +180,61 @@ router.delete('/scrape-runs/:runId', authorize('readwrite', 'admin'), async (req
       return;
     }
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/scraped-pages/:pageId', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const result = await leadService.deleteScrapedPage(String(req.params.pageId));
+    if (!result) {
+      res.status(404).json({ error: 'Scraped page not found' });
+      return;
+    }
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/lead-data/:type/:id', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const parsed = leadDataTypeSchema.safeParse(req.params.type);
+    if (!parsed.success) {
+      res.status(400).json({ error: `Invalid type. Must be one of: ${leadDataTypeSchema.options.join(', ')}` });
+      return;
+    }
+    const result = await leadService.deleteLeadData(parsed.data, String(req.params.id));
+    if (!result) {
+      res.status(404).json({ error: 'Record not found' });
+      return;
+    }
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/lead-data/:type/:id', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const parsed = leadDataTypeSchema.safeParse(req.params.type);
+    if (!parsed.success) {
+      res.status(400).json({ error: `Invalid type. Must be one of: ${leadDataTypeSchema.options.join(', ')}` });
+      return;
+    }
+    const schema = leadDataUpdateSchemas[parsed.data as LeadDataType];
+    const body = schema.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: 'Invalid body', details: body.error.flatten() });
+      return;
+    }
+    const result = await leadService.updateLeadData(parsed.data, String(req.params.id), body.data);
+    if (!result) {
+      res.status(404).json({ error: 'Record not found' });
+      return;
+    }
+    res.json(result);
   } catch (error) {
     next(error);
   }

@@ -444,6 +444,19 @@ export const mockApi: LeadGenApi = {
     const task = await this.getTask(id);
     return { ...task, status: 'cancelled' as const };
   },
+
+  async deleteScrapedPage() {
+    await delay(300);
+  },
+
+  async deleteLeadData() {
+    await delay(300);
+  },
+
+  async updateLeadData(_type: string, _id: string, data: Record<string, unknown>) {
+    await delay(300);
+    return data;
+  },
 };
 
 // ===========================================

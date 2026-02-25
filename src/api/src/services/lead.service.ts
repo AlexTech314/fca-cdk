@@ -2,7 +2,7 @@ import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { prisma } from '@fca/db';
 import { leadRepository } from '../repositories/lead.repository';
 import { campaignRunRepository } from '../repositories/campaign.repository';
-import type { LeadQuery } from '../models/lead.model';
+import type { LeadQuery, LeadDataType } from '../models/lead.model';
 
 const SCORING_QUEUE_URL = process.env.SCORING_QUEUE_URL || '';
 const SCRAPE_QUEUE_URL = process.env.SCRAPE_QUEUE_URL || '';
@@ -143,6 +143,30 @@ export const leadService = {
     if (!run) return null;
     await leadRepository.deleteScrapeRun(runId, run.leadId);
     return true;
+  },
+
+  async deleteScrapedPage(pageId: string) {
+    const page = await prisma.scrapedPage.findUnique({ where: { id: pageId } });
+    if (!page) return null;
+    await leadRepository.deleteScrapedPage(pageId);
+    return true;
+  },
+
+  async deleteLeadData(type: LeadDataType, id: string) {
+    try {
+      await leadRepository.deleteLeadData(type, id);
+      return true;
+    } catch {
+      return null;
+    }
+  },
+
+  async updateLeadData(type: LeadDataType, id: string, data: Record<string, unknown>) {
+    try {
+      return await leadRepository.updateLeadData(type, id, data);
+    } catch {
+      return null;
+    }
   },
 };
 

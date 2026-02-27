@@ -21,38 +21,14 @@ function getPagePriority(url: string): number {
   return PRIORITY_PATHS.length;
 }
 
-/** Elements to strip before Turndown conversion */
-const STRIP_TAGS = [
+/** Elements for Turndown to remove entirely (content + tags) via DOM parsing */
+const REMOVE_ELEMENTS = [
   'script', 'style', 'noscript', 'svg', 'img', 'iframe',
   'figure', 'figcaption', 'picture', 'video', 'audio', 'canvas',
   'form', 'button', 'input', 'select', 'textarea',
   'nav', 'header', 'footer', 'aside',
+  'link', 'meta',
 ];
-
-function stripUnwantedElements(html: string): string {
-  let cleaned = html;
-  for (const tag of STRIP_TAGS) {
-    // Self-closing tags (img, input, etc.)
-    cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*/?>`, 'gi'), '');
-    // Tags with content
-    cleaned = cleaned.replace(new RegExp(`<${tag}[\\s\\S]*?</${tag}>`, 'gi'), '');
-  }
-  return cleaned;
-}
-
-/** Strip markdown links, image refs, and raw URLs after Turndown conversion */
-function stripMarkdownLinks(md: string): string {
-  return md
-    // Image refs: ![alt](url) -> nothing
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
-    // Links: [text](url) -> text
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-    // Raw URLs
-    .replace(/https?:\/\/[^\s)>\]]+/g, '')
-    // Collapse excessive whitespace left behind
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
 
 function urlHash(url: string): string {
   return createHash('sha256').update(url).digest('hex').slice(0, 12);
@@ -64,16 +40,15 @@ function convertPageToMarkdown(page: ScrapedPage): string {
     codeBlockStyle: 'fenced',
   });
 
-  const cleanHtml = stripUnwantedElements(page.html);
+  // Use Turndown's built-in DOM-based element removal (much more reliable than regex)
+  turndown.remove(REMOVE_ELEMENTS);
+
   let md: string;
   try {
-    md = turndown.turndown(cleanHtml);
+    md = turndown.turndown(page.html);
   } catch {
     md = page.text_content;
   }
-
-  md = stripMarkdownLinks(md);
-  md = md.replace(/\n{3,}/g, '\n\n').trim();
 
   return md;
 }

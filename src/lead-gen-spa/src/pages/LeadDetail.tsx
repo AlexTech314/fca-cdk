@@ -600,18 +600,65 @@ export default function LeadDetail() {
             </CardHeader>
             <CardContent>
               {lead.priorityScore !== null ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <QualificationBadge score={lead.priorityScore} size="lg" />
+                    {lead.priorityTier != null && (
+                      <span className="text-sm font-medium">Tier {lead.priorityTier}</span>
+                    )}
                     <span className="text-sm text-muted-foreground">
                       Scored on {formatDate(lead.scoredAt || lead.updatedAt)}
                     </span>
                   </div>
+
+                  {lead.isExcluded && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950">
+                      <p className="text-sm font-medium text-red-800 dark:text-red-200">Excluded</p>
+                      {lead.exclusionReason && (
+                        <p className="text-sm text-red-700 dark:text-red-300">{lead.exclusionReason}</p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Business Quality</p>
+                      <p className="text-lg font-semibold">{lead.businessQualityScore ?? '—'}<span className="text-xs text-muted-foreground">/10</span></p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Sell Likelihood</p>
+                      <p className="text-lg font-semibold">{lead.sellLikelihoodScore ?? '—'}<span className="text-xs text-muted-foreground">/10</span></p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Owner</p>
+                      <p className="text-sm font-medium">{lead.controllingOwner || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Ownership</p>
+                      <p className="text-sm font-medium">{lead.ownershipType || '—'}</p>
+                    </div>
+                  </div>
+
                   {lead.scoringRationale && (
-                    <div className="mt-3 rounded-lg bg-muted p-4">
+                    <div className="rounded-lg bg-muted p-4">
                       <pre className="text-sm whitespace-pre-wrap font-sans">
                         {lead.scoringRationale}
                       </pre>
+                    </div>
+                  )}
+
+                  {lead.supportingUrls.length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Supporting URLs</p>
+                      <ul className="space-y-1">
+                        {lead.supportingUrls.map((url, i) => (
+                          <li key={i}>
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline dark:text-blue-400 truncate block">
+                              {url}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                 </div>

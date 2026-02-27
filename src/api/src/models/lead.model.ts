@@ -12,6 +12,8 @@ const leadListFields = [
   'businessType',
   'priorityScore',
   'priorityTier',
+  'businessQualityScore',
+  'sellLikelihoodScore',
   'webScrapedAt',
   'createdAt',
 ] as const;

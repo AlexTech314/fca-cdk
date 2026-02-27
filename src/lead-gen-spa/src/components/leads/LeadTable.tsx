@@ -299,6 +299,26 @@ export function LeadTable({
         );
       },
     },
+    businessQualityScore: {
+      label: 'BQ',
+      sortColumn: 'businessQualityScore',
+      renderCell: (lead) =>
+        lead.businessQualityScore != null ? (
+          <span className="text-sm font-medium">{lead.businessQualityScore}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        ),
+    },
+    sellLikelihoodScore: {
+      label: 'SL',
+      sortColumn: 'sellLikelihoodScore',
+      renderCell: (lead) =>
+        lead.sellLikelihoodScore != null ? (
+          <span className="text-sm font-medium">{lead.sellLikelihoodScore}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        ),
+    },
     webScrapedAt: {
       label: 'Scraped',
       sortColumn: 'webScrapedAt',

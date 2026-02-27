@@ -16,6 +16,8 @@ const sortFieldMap: Record<string, string> = {
   rating: 'rating',
   priorityScore: 'priorityScore',
   priorityTier: 'priorityTier',
+  businessQualityScore: 'businessQualityScore',
+  sellLikelihoodScore: 'sellLikelihoodScore',
   businessType: 'businessType',
   reviewCount: 'reviewCount',
   webScrapedAt: 'webScrapedAt',
@@ -379,6 +381,12 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   }
   if (fields.has('priorityTier')) {
     select.priorityTier = true;
+  }
+  if (fields.has('businessQualityScore')) {
+    select.businessQualityScore = true;
+  }
+  if (fields.has('sellLikelihoodScore')) {
+    select.sellLikelihoodScore = true;
   }
   if (fields.has('webScrapedAt')) {
     select.webScrapedAt = true;

@@ -72,9 +72,15 @@ export interface Lead {
   businessType: string | null;
   priorityScore: number | null;
   priorityTier: number | null;
+  businessQualityScore: number | null;
+  sellLikelihoodScore: number | null;
+  controllingOwner: string | null;
+  ownershipType: string | null;
   scoringRationale: string | null;
+  supportingUrls: string[];
   scoredAt: string | null;
   isExcluded: boolean;
+  exclusionReason: string | null;
   source: 'google_places' | 'manual' | 'import' | null;
   franchiseId: string | null;
   franchise?: Franchise | null;
@@ -235,6 +241,8 @@ export type LeadListField =
   | 'businessType'
   | 'priorityScore'
   | 'priorityTier'
+  | 'businessQualityScore'
+  | 'sellLikelihoodScore'
   | 'webScrapedAt'
   | 'createdAt';
 

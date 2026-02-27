@@ -192,46 +192,6 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
             </div>
           </div>
 
-          {/* Scrape-derived filters */}
-          <div className="space-y-2 lg:col-span-2">
-            <Label>Founded Year</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                placeholder="Min"
-                min={1900}
-                max={2030}
-                value={filters.foundedYearMin ?? ''}
-                onChange={(e) => updateFilters({ foundedYearMin: e.target.value ? parseInt(e.target.value) : undefined })}
-                className="w-24"
-              />
-              <span className="text-muted-foreground">to</span>
-              <Input
-                type="number"
-                placeholder="Max"
-                min={1900}
-                max={2030}
-                value={filters.foundedYearMax ?? ''}
-                onChange={(e) => updateFilters({ foundedYearMax: e.target.value ? parseInt(e.target.value) : undefined })}
-                className="w-24"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Acquisition Signal</Label>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="hasAcquisitionSignal"
-                checked={filters.hasAcquisitionSignal === true}
-                onCheckedChange={(checked) => 
-                  updateFilters({ hasAcquisitionSignal: checked === true ? true : undefined })
-                }
-              />
-              <Label htmlFor="hasAcquisitionSignal" className="font-normal cursor-pointer">
-                Has acquisition signal
-              </Label>
-            </div>
-          </div>
         </div>
       </CardContent>
     </Card>

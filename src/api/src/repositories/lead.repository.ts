@@ -7,9 +7,6 @@ const leadDataModelMap: Record<LeadDataType, string> = {
   email: 'leadEmail',
   phone: 'leadPhone',
   social: 'leadSocialProfile',
-  team: 'leadTeamMember',
-  acquisition: 'leadAcquisitionSignal',
-  snippet: 'leadSnippet',
 };
 
 // Map sort field names from camelCase frontend to Prisma field names
@@ -21,9 +18,6 @@ const sortFieldMap: Record<string, string> = {
   priorityTier: 'priorityTier',
   businessType: 'businessType',
   reviewCount: 'reviewCount',
-  foundedYear: 'foundedYear',
-  yearsInBusiness: 'yearsInBusiness',
-  headcountEstimate: 'headcountEstimate',
   webScrapedAt: 'webScrapedAt',
   pipelineStatus: 'pipelineStatus',
 };
@@ -94,9 +88,6 @@ export const leadRepository = {
         leadEmails: { include: { sourcePage: { select: { id: true, url: true } } } },
         leadPhones: { include: { sourcePage: { select: { id: true, url: true } } } },
         leadSocialProfiles: { include: { sourcePage: { select: { id: true, url: true } } } },
-        leadTeamMembers: { include: { sourcePage: { select: { id: true, url: true } } } },
-        leadAcquisitionSignals: { include: { sourcePage: { select: { id: true, url: true } } } },
-        leadSnippets: { include: { sourcePage: { select: { id: true, url: true } } } },
         scrapeRuns: {
           orderBy: { startedAt: 'desc' },
           take: 5,
@@ -266,9 +257,6 @@ export const leadRepository = {
         leadEmails: { include: { sourcePage: { select: { id: true, url: true } } } },
         leadPhones: { include: { sourcePage: { select: { id: true, url: true } } } },
         leadSocialProfiles: { include: { sourcePage: { select: { id: true, url: true } } } },
-        leadTeamMembers: { include: { sourcePage: { select: { id: true, url: true } } } },
-        leadAcquisitionSignals: { include: { sourcePage: { select: { id: true, url: true } } } },
-        leadSnippets: { include: { sourcePage: { select: { id: true, url: true } } } },
       },
     });
     if (!lead) return null;
@@ -288,29 +276,6 @@ export const leadRepository = {
       socialProfiles: lead.leadSocialProfiles.map((s) => ({
         platform: s.platform,
         url: s.url,
-        sourcePageId: s.sourcePageId,
-        sourceRunId: s.sourceRunId,
-        sourcePage: s.sourcePage ? { id: s.sourcePage.id, url: s.sourcePage.url } : null,
-      })),
-      teamMembers: lead.leadTeamMembers.map((t) => ({
-        name: t.name,
-        title: t.title,
-        sourceUrl: t.sourceUrl,
-        sourcePageId: t.sourcePageId,
-        sourceRunId: t.sourceRunId,
-        sourcePage: t.sourcePage ? { id: t.sourcePage.id, url: t.sourcePage.url } : null,
-      })),
-      acquisitionSignals: lead.leadAcquisitionSignals.map((a) => ({
-        signalType: a.signalType,
-        text: a.text,
-        dateMentioned: a.dateMentioned,
-        sourcePageId: a.sourcePageId,
-        sourceRunId: a.sourceRunId,
-        sourcePage: a.sourcePage ? { id: a.sourcePage.id, url: a.sourcePage.url } : null,
-      })),
-      snippets: lead.leadSnippets.map((s) => ({
-        category: s.category,
-        text: s.text,
         sourcePageId: s.sourcePageId,
         sourceRunId: s.sourceRunId,
         sourcePage: s.sourcePage ? { id: s.sourcePage.id, url: s.sourcePage.url } : null,
@@ -367,27 +332,6 @@ function buildWhereClause(
   }
   if (filters.franchiseId) {
     where.franchiseId = filters.franchiseId;
-  }
-  if (filters.foundedYearMin !== undefined) {
-    where.foundedYear = { ...((where.foundedYear as object) || {}), gte: filters.foundedYearMin };
-  }
-  if (filters.foundedYearMax !== undefined) {
-    where.foundedYear = { ...((where.foundedYear as object) || {}), lte: filters.foundedYearMax };
-  }
-  if (filters.yearsInBusinessMin !== undefined) {
-    where.yearsInBusiness = { ...((where.yearsInBusiness as object) || {}), gte: filters.yearsInBusinessMin };
-  }
-  if (filters.yearsInBusinessMax !== undefined) {
-    where.yearsInBusiness = { ...((where.yearsInBusiness as object) || {}), lte: filters.yearsInBusinessMax };
-  }
-  if (filters.headcountEstimateMin !== undefined) {
-    where.headcountEstimate = { ...((where.headcountEstimate as object) || {}), gte: filters.headcountEstimateMin };
-  }
-  if (filters.headcountEstimateMax !== undefined) {
-    where.headcountEstimate = { ...((where.headcountEstimate as object) || {}), lte: filters.headcountEstimateMax };
-  }
-  if (filters.hasAcquisitionSignal !== undefined) {
-    where.hasAcquisitionSignal = filters.hasAcquisitionSignal;
   }
   if (filters.hasExtractedEmail === true) {
     where.leadEmails = { some: {} };
@@ -446,18 +390,6 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   }
   if (fields.has('priorityTier')) {
     select.priorityTier = true;
-  }
-  if (fields.has('headcountEstimate')) {
-    select.headcountEstimate = true;
-  }
-  if (fields.has('foundedYear')) {
-    select.foundedYear = true;
-  }
-  if (fields.has('yearsInBusiness')) {
-    select.yearsInBusiness = true;
-  }
-  if (fields.has('hasAcquisitionSignal')) {
-    select.hasAcquisitionSignal = true;
   }
   if (fields.has('webScrapedAt')) {
     select.webScrapedAt = true;

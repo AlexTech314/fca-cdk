@@ -25,7 +25,7 @@ import type {
   LeadProvenance,
 } from '@/types';
 
-export type LeadDataType = 'email' | 'phone' | 'social' | 'team' | 'acquisition' | 'snippet';
+export type LeadDataType = 'email' | 'phone' | 'social';
 
 /**
  * LeadGenApi Interface

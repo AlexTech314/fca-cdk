@@ -22,8 +22,6 @@ import {
   Sparkles,
   ExternalLink,
   Mail,
-  Users,
-  TrendingUp,
   FileSearch,
   FileText,
   ChevronRight,
@@ -37,16 +35,13 @@ interface PageExtraction {
   emails: { id: string; value: string }[];
   phones: { id: string; value: string }[];
   social: { id: string; platform: string; url: string }[];
-  team: { id: string; name: string; title: string | null }[];
-  acquisition: { id: string; text: string }[];
-  snippets: { id: string; category: string; text: string }[];
 }
 
 /** Build per-page extraction summary for a scrape run (nested event log) */
 function getExtractedByPage(lead: LeadWithCampaign, runId: string): Map<string, PageExtraction> {
   const byPage = new Map<string, PageExtraction>();
   const add = (pageId: string) => {
-    if (!byPage.has(pageId)) byPage.set(pageId, { emails: [], phones: [], social: [], team: [], acquisition: [], snippets: [] });
+    if (!byPage.has(pageId)) byPage.set(pageId, { emails: [], phones: [], social: [] });
     return byPage.get(pageId)!;
   };
   for (const e of lead.leadEmails ?? []) {
@@ -57,15 +52,6 @@ function getExtractedByPage(lead: LeadWithCampaign, runId: string): Map<string, 
   }
   for (const s of lead.leadSocialProfiles ?? []) {
     if (s.sourceRunId === runId) add(s.sourcePageId).social.push({ id: s.id, platform: s.platform, url: s.url });
-  }
-  for (const t of lead.leadTeamMembers ?? []) {
-    if (t.sourceRunId === runId) add(t.sourcePageId).team.push({ id: t.id, name: t.name, title: t.title });
-  }
-  for (const a of lead.leadAcquisitionSignals ?? []) {
-    if (a.sourceRunId === runId) add(a.sourcePageId).acquisition.push({ id: a.id, text: a.text });
-  }
-  for (const sn of lead.leadSnippets ?? []) {
-    if (sn.sourceRunId === runId) add(sn.sourcePageId).snippets.push({ id: sn.id, category: sn.category, text: sn.text });
   }
   return byPage;
 }
@@ -89,9 +75,6 @@ function InlineEditForm({ type, initial, onSave, onCancel }: {
       case 'email': return [{ key: 'value', placeholder: 'Email' }];
       case 'phone': return [{ key: 'value', placeholder: 'Phone' }];
       case 'social': return [{ key: 'platform', placeholder: 'Platform' }, { key: 'url', placeholder: 'URL' }];
-      case 'team': return [{ key: 'name', placeholder: 'Name' }, { key: 'title', placeholder: 'Title' }];
-      case 'acquisition': return [{ key: 'text', placeholder: 'Signal text' }];
-      case 'snippet': return [{ key: 'text', placeholder: 'Snippet text' }];
     }
   })();
 
@@ -283,31 +266,6 @@ export default function LeadDetail() {
             </CardContent>
           </Card>
 
-          {/* Scrape-derived fields */}
-          {(lead.foundedYear != null || lead.yearsInBusiness != null || lead.headcountEstimate != null || lead.hasAcquisitionSignal || lead.contactPageUrl) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileSearch className="h-4 w-4" />
-                  Scraped Business Info
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                {lead.foundedYear != null && <p>Founded: {lead.foundedYear}</p>}
-                {lead.yearsInBusiness != null && <p>Years in business: {lead.yearsInBusiness}</p>}
-                {lead.headcountEstimate != null && <p>Headcount estimate: {lead.headcountEstimate}</p>}
-                {lead.hasAcquisitionSignal && <p className="flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Has acquisition signal</p>}
-                {lead.acquisitionSummary && <p className="text-muted-foreground">{lead.acquisitionSummary}</p>}
-                {lead.contactPageUrl && (
-                  <a href={lead.contactPageUrl.startsWith('http') ? lead.contactPageUrl : `${lead.website}${lead.contactPageUrl}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                    Contact page <ExternalLink className="h-3 w-3 inline" />
-                  </a>
-                )}
-                {lead.webScrapedAt && <p className="text-muted-foreground text-xs">Last scraped: {formatDate(lead.webScrapedAt)}</p>}
-              </CardContent>
-            </Card>
-          )}
-
           {/* Location */}
           <Card>
             <CardHeader>
@@ -374,8 +332,8 @@ export default function LeadDetail() {
           </Card>
         </div>
 
-        {/* Extracted Data (emails, phones, social, team, acquisition) */}
-        {(lead.leadEmails?.length || lead.leadPhones?.length || lead.leadSocialProfiles?.length || lead.leadTeamMembers?.length || lead.leadAcquisitionSignals?.length) ? (
+        {/* Extracted Data (emails, phones, social) */}
+        {(lead.leadEmails?.length || lead.leadPhones?.length || lead.leadSocialProfiles?.length) ? (
           <Card className="mt-6">
             <CardHeader>
               <CardTitle className="text-base">Extracted Data (from scrape)</CardTitle>
@@ -455,54 +413,6 @@ export default function LeadDetail() {
                   </ul>
                 </div>
               ) : null}
-              {lead.leadTeamMembers?.length ? (
-                <div>
-                  <h4 className="text-sm font-medium flex items-center gap-1 mb-2"><Users className="h-3 w-3" /> Team Members</h4>
-                  <ul className="space-y-1 text-sm">
-                    {lead.leadTeamMembers.map((t) => (
-                      <li key={t.id} className="group flex items-center gap-1">
-                        {editingId === t.id ? (
-                          <InlineEditForm
-                            type="team"
-                            initial={{ name: t.name, title: t.title ?? '' }}
-                            onSave={(data) => handleUpdateData('team', t.id, { ...data, title: data.title || null })}
-                            onCancel={() => setEditingId(null)}
-                          />
-                        ) : (
-                          <>
-                            <span>{t.name}{t.title ? ` — ${t.title}` : ''}</span>
-                            <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(t.id)} onDelete={() => handleDeleteData('team', t.id)} isPending={isMutating} />
-                          </>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {lead.leadAcquisitionSignals?.length ? (
-                <div>
-                  <h4 className="text-sm font-medium flex items-center gap-1 mb-2"><TrendingUp className="h-3 w-3" /> Acquisition Signals</h4>
-                  <ul className="space-y-1 text-sm">
-                    {lead.leadAcquisitionSignals.map((a) => (
-                      <li key={a.id} className="group flex items-center gap-1">
-                        {editingId === a.id ? (
-                          <InlineEditForm
-                            type="acquisition"
-                            initial={{ text: a.text }}
-                            onSave={(data) => handleUpdateData('acquisition', a.id, data)}
-                            onCancel={() => setEditingId(null)}
-                          />
-                        ) : (
-                          <>
-                            <span className="rounded bg-muted/50 p-2">{a.text}</span>
-                            <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(a.id)} onDelete={() => handleDeleteData('acquisition', a.id)} isPending={isMutating} />
-                          </>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
             </CardContent>
           </Card>
         ) : null}
@@ -554,7 +464,7 @@ export default function LeadDetail() {
                       <ul className="mt-2 space-y-2 text-sm">
                         {run.scrapedPages.map((p) => {
                           const ex = extractedByPage.get(p.id);
-                          const hasExtracted = ex && (ex.emails.length || ex.phones.length || ex.social.length || ex.team.length || ex.acquisition.length || ex.snippets.length);
+                          const hasExtracted = ex && (ex.emails.length || ex.phones.length || ex.social.length);
                           return (
                             <li key={p.id} className="space-y-1" style={{ paddingLeft: (p.depth ?? 0) * 12 }}>
                               <div className="group flex items-center gap-1">
@@ -631,57 +541,6 @@ export default function LeadDetail() {
                                         <>
                                           <CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> {s.platform}: {s.url}
                                           <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(s.id)} onDelete={() => handleDeleteData('social', s.id)} isPending={isMutating} />
-                                        </>
-                                      )}
-                                    </li>
-                                  ))}
-                                  {ex!.team.map((t) => (
-                                    <li key={t.id} className="group flex items-center gap-1">
-                                      {editingId === t.id ? (
-                                        <InlineEditForm
-                                          type="team"
-                                          initial={{ name: t.name, title: t.title ?? '' }}
-                                          onSave={(data) => handleUpdateData('team', t.id, { ...data, title: data.title || null })}
-                                          onCancel={() => setEditingId(null)}
-                                        />
-                                      ) : (
-                                        <>
-                                          <CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> team: {t.name}{t.title ? ` — ${t.title}` : ''}
-                                          <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(t.id)} onDelete={() => handleDeleteData('team', t.id)} isPending={isMutating} />
-                                        </>
-                                      )}
-                                    </li>
-                                  ))}
-                                  {ex!.acquisition.map((a) => (
-                                    <li key={a.id} className="group flex items-center gap-1">
-                                      {editingId === a.id ? (
-                                        <InlineEditForm
-                                          type="acquisition"
-                                          initial={{ text: a.text }}
-                                          onSave={(data) => handleUpdateData('acquisition', a.id, data)}
-                                          onCancel={() => setEditingId(null)}
-                                        />
-                                      ) : (
-                                        <>
-                                          <CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> acquisition: {a.text}
-                                          <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(a.id)} onDelete={() => handleDeleteData('acquisition', a.id)} isPending={isMutating} />
-                                        </>
-                                      )}
-                                    </li>
-                                  ))}
-                                  {ex!.snippets.map((s) => (
-                                    <li key={s.id} className="group flex items-center gap-1">
-                                      {editingId === s.id ? (
-                                        <InlineEditForm
-                                          type="snippet"
-                                          initial={{ text: s.text }}
-                                          onSave={(data) => handleUpdateData('snippet', s.id, data)}
-                                          onCancel={() => setEditingId(null)}
-                                        />
-                                      ) : (
-                                        <>
-                                          <CheckCircle2 className="h-3 w-3 text-blue-500 shrink-0" /> {s.category}: {s.text}
-                                          <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(s.id)} onDelete={() => handleDeleteData('snippet', s.id)} isPending={isMutating} />
                                         </>
                                       )}
                                     </li>

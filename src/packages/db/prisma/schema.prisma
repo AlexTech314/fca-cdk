@@ -585,9 +585,6 @@ model ScrapedPage {
   leadEmails           LeadEmail[]
   leadPhones           LeadPhone[]
   leadSocialProfiles   LeadSocialProfile[]
-  leadTeamMembers      LeadTeamMember[]
-  leadAcquisitionSignals LeadAcquisitionSignal[]
-  leadSnippets         LeadSnippet[]
 
   createdAt            DateTime      @default(now()) @map("created_at")
 
@@ -661,60 +658,6 @@ model LeadSocialProfile {
   @@map("lead_social_profiles")
 }
 
-model LeadTeamMember {
-  id             String      @id @default(uuid())
-  leadId         String      @map("lead_id")
-  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  name           String
-  title          String?
-  isExecutive    Boolean     @default(false) @map("is_executive")
-  sourceUrl      String?     @map("source_url")
-  sourcePageId   String      @map("source_page_id")
-  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
-  sourceRunId    String      @map("source_run_id")
-  createdAt      DateTime    @default(now()) @map("created_at")
-
-  @@index([leadId])
-  @@index([sourcePageId])
-  @@index([sourceRunId])
-  @@map("lead_team_members")
-}
-
-model LeadAcquisitionSignal {
-  id             String      @id @default(uuid())
-  leadId         String      @map("lead_id")
-  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  signalType     String      @map("signal_type")  // acquired, sold, merger, new_ownership, rebranded
-  text           String
-  dateMentioned  String?     @map("date_mentioned")
-  sourcePageId   String      @map("source_page_id")
-  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
-  sourceRunId    String      @map("source_run_id")
-  createdAt      DateTime    @default(now()) @map("created_at")
-
-  @@index([leadId])
-  @@index([sourcePageId])
-  @@index([sourceRunId])
-  @@map("lead_acquisition_signals")
-}
-
-model LeadSnippet {
-  id             String      @id @default(uuid())
-  leadId         String      @map("lead_id")
-  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  category       String      // history, executive_hire, award, certification, licensing, revenue_scale, recurring_revenue, commercial_clients, multi_location, succession, proprietary
-  text           String
-  sourcePageId   String      @map("source_page_id")
-  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
-  sourceRunId    String      @map("source_run_id")
-  createdAt      DateTime    @default(now()) @map("created_at")
-
-  @@index([leadId])
-  @@index([leadId, category])
-  @@index([sourcePageId])
-  @@index([sourceRunId])
-  @@map("lead_snippets")
-}
 
 enum UserRole {
   readonly
@@ -806,9 +749,6 @@ model Lead {
   leadEmails           LeadEmail[]
   leadPhones           LeadPhone[]
   leadSocialProfiles   LeadSocialProfile[]
-  leadTeamMembers      LeadTeamMember[]
-  leadAcquisitionSignals LeadAcquisitionSignal[]
-  leadSnippets           LeadSnippet[]
 
   // Normalized location FKs
   locationCityId       Int?      @map("location_city_id")
@@ -853,13 +793,8 @@ model Lead {
   scrapeMarkdownS3Key  String?   @map("scrape_markdown_s3_key")
   scoredAt             DateTime? @map("scored_at")
 
-  // Web Scraping (scalar fields from extraction)
+  // Web Scraping
   webScrapedAt         DateTime? @map("web_scraped_at")
-  foundedYear          Int?      @map("founded_year")
-  yearsInBusiness      Int?      @map("years_in_business")
-  headcountEstimate    Int?      @map("headcount_estimate")
-  hasAcquisitionSignal Boolean   @default(false) @map("has_acquisition_signal")
-  acquisitionSummary  String?   @map("acquisition_summary")
   contactPageUrl       String?   @map("contact_page_url")
   pipelineStatus       LeadPipelineStatus @default(idle) @map("pipeline_status")
 
@@ -880,8 +815,6 @@ model Lead {
   @@index([isExcluded])
   @@index([scoredAt])
   @@index([createdAt])
-  @@index([foundedYear])
-  @@index([hasAcquisitionSignal])
   @@index([pipelineStatus])
   @@map("leads")
 }

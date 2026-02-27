@@ -299,33 +299,6 @@ export function LeadTable({
         );
       },
     },
-    headcountEstimate: {
-      label: 'Headcount',
-      sortColumn: 'headcountEstimate',
-      cellClassName: 'text-muted-foreground text-sm font-mono',
-      renderCell: (lead) => (lead.headcountEstimate != null ? lead.headcountEstimate : '—'),
-    },
-    foundedYear: {
-      label: 'Founded',
-      sortColumn: 'foundedYear',
-      cellClassName: 'text-muted-foreground text-sm',
-      renderCell: (lead) => lead.foundedYear ?? '—',
-    },
-    yearsInBusiness: {
-      label: 'Years',
-      sortColumn: 'yearsInBusiness',
-      cellClassName: 'text-muted-foreground text-sm',
-      renderCell: (lead) => (lead.yearsInBusiness != null ? lead.yearsInBusiness : '—'),
-    },
-    hasAcquisitionSignal: {
-      label: 'Acquisition',
-      renderCell: (lead) =>
-        lead.hasAcquisitionSignal ? (
-          <Badge variant="secondary" className="text-xs">Yes</Badge>
-        ) : (
-          <span className="text-muted-foreground text-sm">—</span>
-        ),
-    },
     webScrapedAt: {
       label: 'Scraped',
       sortColumn: 'webScrapedAt',

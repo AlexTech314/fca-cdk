@@ -30,10 +30,6 @@ export const LEAD_COLUMN_OPTIONS: LeadColumnOption[] = [
   { key: 'businessType', label: 'Type' },
   { key: 'priorityScore', label: 'Score' },
   { key: 'priorityTier', label: 'Tier' },
-  { key: 'headcountEstimate', label: 'Headcount' },
-  { key: 'foundedYear', label: 'Founded' },
-  { key: 'yearsInBusiness', label: 'Years' },
-  { key: 'hasAcquisitionSignal', label: 'Acquisition' },
   { key: 'webScrapedAt', label: 'Scraped' },
   { key: 'createdAt', label: 'Added' },
 ];

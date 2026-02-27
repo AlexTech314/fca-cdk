@@ -46,6 +46,7 @@ export async function handler(event: SQSEvent): Promise<void> {
   }
 
   const batch: BatchLead[] = [];
+  const skippedLeadIds: string[] = [];
   for (const r of event.Records as SQSRecord[]) {
     try {
       const body = JSON.parse(r.body);
@@ -54,7 +55,10 @@ export async function handler(event: SQSEvent): Promise<void> {
       const website = body.website ?? '';
 
       if (!leadId) continue;
-      if (!website || typeof website !== 'string' || website.trim() === '') continue;
+      if (!website || typeof website !== 'string' || website.trim() === '') {
+        skippedLeadIds.push(leadId);
+        continue;
+      }
 
       batch.push({
         id: leadId,
@@ -64,6 +68,16 @@ export async function handler(event: SQSEvent): Promise<void> {
     } catch {
       // skip malformed messages
     }
+  }
+
+  // Reset pipeline status for leads that have no website (stuck prevention)
+  if (skippedLeadIds.length > 0) {
+    const prismaEarly = await getDb();
+    await prismaEarly.lead.updateMany({
+      where: { id: { in: skippedLeadIds }, pipelineStatus: 'queued_for_scrape' },
+      data: { pipelineStatus: 'idle' },
+    });
+    console.log(`Reset ${skippedLeadIds.length} lead(s) with no website back to idle`);
   }
 
   if (batch.length === 0) {

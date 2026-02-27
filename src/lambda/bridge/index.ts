@@ -46,7 +46,11 @@ export async function handler(event: TriggerEvent): Promise<{ statusCode: number
   try {
     switch (eventType) {
       case 'new_lead': {
-        // New lead inserted -> send to scrape queue
+        // New lead inserted -> send to scrape queue (only if it has a website)
+        if (!website || typeof website !== 'string' || website.trim() === '') {
+          console.log(`Lead ${lead_id} has no website, skipping scrape queue`);
+          break;
+        }
         await sqsClient.send(new SendMessageCommand({
           QueueUrl: SCRAPE_QUEUE_URL,
           MessageBody: JSON.stringify({ lead_id, place_id, website }),

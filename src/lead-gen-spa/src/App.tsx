@@ -16,6 +16,7 @@ import Admin from '@/pages/Admin'
 import Export from '@/pages/Export'
 import Settings from '@/pages/Settings'
 import Tasks from '@/pages/Tasks'
+import ScrapedPageMarkdown from '@/pages/ScrapedPageMarkdown'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -43,6 +44,7 @@ function AuthenticatedLayout() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/leads" element={<Leads />} />
+          <Route path="/leads/:leadId/scraped-page/:pageId/markdown" element={<ScrapedPageMarkdown />} />
           <Route path="/leads/:id" element={<LeadDetail />} />
           <Route path="/campaigns" element={<Campaigns />} />
           <Route path="/campaigns/new" element={<CampaignCreate />} />

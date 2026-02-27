@@ -245,6 +245,11 @@ export interface LeadGenApi {
   // ===========================================
 
   /**
+   * Get raw markdown for a scraped page
+   */
+  getScrapedPageMarkdown(pageId: string): Promise<string>;
+
+  /**
    * Delete a scraped page (cascade-deletes its extracted data)
    */
   deleteScrapedPage(pageId: string): Promise<void>;

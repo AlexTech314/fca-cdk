@@ -185,6 +185,20 @@ router.delete('/scrape-runs/:runId', authorize('readwrite', 'admin'), async (req
   }
 });
 
+router.get('/scraped-pages/:pageId/markdown', async (req, res, next) => {
+  try {
+    const markdown = await leadService.getScrapedPageMarkdown(String(req.params.pageId));
+    if (!markdown) {
+      res.status(404).json({ error: 'Markdown not available for this page' });
+      return;
+    }
+    res.setHeader('Content-Type', 'text/markdown');
+    res.send(markdown);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.delete('/scraped-pages/:pageId', authorize('readwrite', 'admin'), async (req, res, next) => {
   try {
     const result = await leadService.deleteScrapedPage(String(req.params.pageId));

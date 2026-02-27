@@ -1,4 +1,5 @@
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { prisma } from '@fca/db';
 import { leadRepository } from '../repositories/lead.repository';
 import { campaignRunRepository } from '../repositories/campaign.repository';
@@ -6,7 +7,9 @@ import type { LeadQuery, LeadDataType } from '../models/lead.model';
 
 const SCORING_QUEUE_URL = process.env.SCORING_QUEUE_URL || '';
 const SCRAPE_QUEUE_URL = process.env.SCRAPE_QUEUE_URL || '';
+const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET || '';
 const sqsClient = new SQSClient({});
+const s3Client = new S3Client({});
 
 export const leadService = {
   async list(query: LeadQuery) {
@@ -145,6 +148,18 @@ export const leadService = {
     if (!run) return null;
     await leadRepository.deleteScrapeRun(runId, run.leadId);
     return true;
+  },
+
+  async getScrapedPageMarkdown(pageId: string): Promise<string | null> {
+    const s3Key = await leadRepository.getScrapedPageMarkdownKey(pageId);
+    if (!s3Key || !CAMPAIGN_DATA_BUCKET) return null;
+
+    const response = await s3Client.send(new GetObjectCommand({
+      Bucket: CAMPAIGN_DATA_BUCKET,
+      Key: s3Key,
+    }));
+
+    return response.Body?.transformToString() ?? null;
   },
 
   async deleteScrapedPage(pageId: string) {

@@ -45,6 +45,7 @@ export async function updateLeadWithScrapeData(
   pages: ScrapedPageInput[],
   taskId?: string,
   scrapeMarkdownS3Key?: string | null,
+  pageMarkdownKeys?: Map<string, string>,
 ): Promise<void> {
   const scrapedAt = new Date();
   const domain = extractDomain(websiteUrl);
@@ -86,6 +87,7 @@ export async function updateLeadWithScrapeData(
           statusCode: p.status_code,
           scrapedAt: new Date(p.scraped_at),
           durationMs: pages.length === 1 ? durationMs : null,
+          markdownS3Key: pageMarkdownKeys?.get(p.url) ?? null,
         },
       });
       urlToPageId.set(p.url, sp.id);

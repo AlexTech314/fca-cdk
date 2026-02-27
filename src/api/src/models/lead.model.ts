@@ -11,6 +11,7 @@ const leadListFields = [
   'rating',
   'businessType',
   'priorityScore',
+  'priorityTier',
   'headcountEstimate',
   'foundedYear',
   'yearsInBusiness',

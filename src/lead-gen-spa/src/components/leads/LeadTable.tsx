@@ -282,6 +282,23 @@ export function LeadTable({
           <span className="text-muted-foreground text-sm">—</span>
         ),
     },
+    priorityTier: {
+      label: 'Tier',
+      sortColumn: 'priorityTier',
+      renderCell: (lead) => {
+        if (lead.priorityTier == null) return <span className="text-muted-foreground text-sm">—</span>;
+        const colors: Record<number, string> = {
+          1: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+          2: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+          3: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+        };
+        return (
+          <Badge className={`text-xs font-semibold ${colors[lead.priorityTier] ?? 'bg-muted text-muted-foreground'}`}>
+            T{lead.priorityTier}
+          </Badge>
+        );
+      },
+    },
     headcountEstimate: {
       label: 'Headcount',
       sortColumn: 'headcountEstimate',

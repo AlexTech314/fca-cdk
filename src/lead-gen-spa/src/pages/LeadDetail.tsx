@@ -25,6 +25,7 @@ import {
   Users,
   TrendingUp,
   FileSearch,
+  FileText,
   ChevronRight,
   CheckCircle2,
   Trash2,
@@ -559,6 +560,13 @@ export default function LeadDetail() {
                               <div className="group flex items-center gap-1">
                                 <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
                                 <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-3xl block">{p.url}</a>
+                                <Link
+                                  to={`/leads/${lead.id}/scraped-page/${p.id}/markdown`}
+                                  className="text-muted-foreground hover:text-primary p-0.5 shrink-0"
+                                  title="View page markdown"
+                                >
+                                  <FileText className="h-3 w-3" />
+                                </Link>
                                 {(p.statusCode == null || p.statusCode >= 400) && (
                                   <Badge variant="destructive" className="shrink-0 text-xs">failed</Badge>
                                 )}

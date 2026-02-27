@@ -1,7 +1,9 @@
 /**
- * Convert scraped HTML pages to a single markdown document and upload to S3.
+ * Convert scraped HTML pages to markdown and upload to S3.
+ * Uploads both individual per-page files and a combined file for scoring.
  */
 
+import { createHash } from 'crypto';
 import TurndownService from 'turndown';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import type { ScrapedPage } from './types.js';
@@ -19,31 +21,80 @@ function getPagePriority(url: string): number {
   return PRIORITY_PATHS.length;
 }
 
+/** Elements to strip before Turndown conversion */
+const STRIP_TAGS = [
+  'script', 'style', 'noscript', 'svg', 'img', 'iframe',
+  'figure', 'figcaption', 'picture', 'video', 'audio', 'canvas',
+  'form', 'button', 'input', 'select', 'textarea',
+  'nav', 'header', 'footer', 'aside',
+];
+
 function stripUnwantedElements(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
-    .replace(/<svg[\s\S]*?<\/svg>/gi, '')
-    .replace(/<img[^>]*>/gi, '')
-    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
-    .replace(/<figure[\s\S]*?<\/figure>/gi, '')
-    .replace(/<figcaption[\s\S]*?<\/figcaption>/gi, '');
+  let cleaned = html;
+  for (const tag of STRIP_TAGS) {
+    // Self-closing tags (img, input, etc.)
+    cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*/?>`, 'gi'), '');
+    // Tags with content
+    cleaned = cleaned.replace(new RegExp(`<${tag}[\\s\\S]*?</${tag}>`, 'gi'), '');
+  }
+  return cleaned;
+}
+
+/** Strip markdown links, image refs, and raw URLs after Turndown conversion */
+function stripMarkdownLinks(md: string): string {
+  return md
+    // Image refs: ![alt](url) -> nothing
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    // Links: [text](url) -> text
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    // Raw URLs
+    .replace(/https?:\/\/[^\s)>\]]+/g, '')
+    // Collapse excessive whitespace left behind
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function urlHash(url: string): string {
+  return createHash('sha256').update(url).digest('hex').slice(0, 12);
+}
+
+function convertPageToMarkdown(page: ScrapedPage): string {
+  const turndown = new TurndownService({
+    headingStyle: 'atx',
+    codeBlockStyle: 'fenced',
+  });
+
+  const cleanHtml = stripUnwantedElements(page.html);
+  let md: string;
+  try {
+    md = turndown.turndown(cleanHtml);
+  } catch {
+    md = page.text_content;
+  }
+
+  md = stripMarkdownLinks(md);
+  md = md.replace(/\n{3,}/g, '\n\n').trim();
+
+  return md;
+}
+
+export interface MarkdownUploadResult {
+  /** S3 key for the combined markdown file (for scoring) */
+  combinedS3Key: string;
+  /** Map of page URL -> S3 key for individual page markdown */
+  pageMarkdownKeys: Map<string, string>;
 }
 
 /**
  * Convert scraped pages to markdown and upload to S3.
- * Returns the S3 key.
+ * Uploads individual per-page files + a combined file for scoring.
  */
 export async function convertAndUploadMarkdown(
   pages: ScrapedPage[],
   leadId: string,
   scrapeRunId: string,
-): Promise<string> {
-  const turndown = new TurndownService({
-    headingStyle: 'atx',
-    codeBlockStyle: 'fenced',
-  });
+): Promise<MarkdownUploadResult> {
+  const pageMarkdownKeys = new Map<string, string>();
 
   // Sort pages: priority pages first, then by URL
   const sorted = [...pages].sort((a, b) => {
@@ -53,27 +104,37 @@ export async function convertAndUploadMarkdown(
     return a.url.localeCompare(b.url);
   });
 
+  // Upload individual per-page markdown files
+  const uploadPromises: Promise<void>[] = [];
+  for (const page of sorted) {
+    const md = convertPageToMarkdown(page);
+    if (!md) continue;
+
+    const hash = urlHash(page.url);
+    const pageS3Key = `scrape-markdown/${leadId}/${scrapeRunId}/${hash}.md`;
+    pageMarkdownKeys.set(page.url, pageS3Key);
+
+    uploadPromises.push(
+      s3Client.send(new PutObjectCommand({
+        Bucket: CAMPAIGN_DATA_BUCKET,
+        Key: pageS3Key,
+        Body: md,
+        ContentType: 'text/markdown',
+      })).then(() => {})
+    );
+  }
+
+  // Build combined markdown for scoring (with char limit)
   const parts: string[] = [];
   let totalLength = 0;
 
   for (const page of sorted) {
     if (totalLength >= MAX_MARKDOWN_CHARS) break;
 
-    const cleanHtml = stripUnwantedElements(page.html);
-    let md: string;
-    try {
-      md = turndown.turndown(cleanHtml);
-    } catch {
-      // Fallback to plain text if Turndown fails
-      md = page.text_content;
-    }
-
-    // Collapse excessive whitespace
-    md = md.replace(/\n{3,}/g, '\n\n').trim();
-
+    const md = convertPageToMarkdown(page);
     if (!md) continue;
 
-    const header = `# ${page.title || 'Untitled'}\nSource: ${page.url}\n---\n`;
+    const header = `# ${page.title || 'Untitled'}\n---\n`;
     const section = header + md + '\n\n';
 
     const remaining = MAX_MARKDOWN_CHARS - totalLength;
@@ -87,17 +148,21 @@ export async function convertAndUploadMarkdown(
     totalLength += section.length;
   }
 
-  const markdown = parts.join('');
-  const s3Key = `scrape-markdown/${leadId}/${scrapeRunId}.md`;
+  const combinedMarkdown = parts.join('');
+  const combinedS3Key = `scrape-markdown/${leadId}/${scrapeRunId}.md`;
 
-  await s3Client.send(new PutObjectCommand({
-    Bucket: CAMPAIGN_DATA_BUCKET,
-    Key: s3Key,
-    Body: markdown,
-    ContentType: 'text/markdown',
-  }));
+  uploadPromises.push(
+    s3Client.send(new PutObjectCommand({
+      Bucket: CAMPAIGN_DATA_BUCKET,
+      Key: combinedS3Key,
+      Body: combinedMarkdown,
+      ContentType: 'text/markdown',
+    })).then(() => {})
+  );
 
-  console.log(`  [Markdown] Uploaded ${(markdown.length / 1024).toFixed(1)}KB to s3://${CAMPAIGN_DATA_BUCKET}/${s3Key}`);
+  await Promise.all(uploadPromises);
 
-  return s3Key;
+  console.log(`  [Markdown] Uploaded ${pageMarkdownKeys.size} page files + combined (${(combinedMarkdown.length / 1024).toFixed(1)}KB) to s3://${CAMPAIGN_DATA_BUCKET}/scrape-markdown/${leadId}/${scrapeRunId}/`);
+
+  return { combinedS3Key, pageMarkdownKeys };
 }

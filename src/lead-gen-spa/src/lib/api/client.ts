@@ -613,6 +613,17 @@ export const realApi: LeadGenApi = {
   // Scraped Page / Lead Data CRUD
   // ===========================================
 
+  async getScrapedPageMarkdown(pageId: string): Promise<string> {
+    const token = await getIdToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(`${API_BASE_URL}/scraped-pages/${pageId}/markdown`, { headers });
+    if (!response.ok) {
+      throw new Error(response.status === 404 ? 'Markdown not available' : 'Failed to fetch markdown');
+    }
+    return response.text();
+  },
+
   async deleteScrapedPage(pageId: string): Promise<void> {
     await apiClient(`/scraped-pages/${pageId}`, { method: 'DELETE' });
   },

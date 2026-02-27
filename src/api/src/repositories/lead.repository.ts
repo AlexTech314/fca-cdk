@@ -236,6 +236,14 @@ export const leadRepository = {
     });
   },
 
+  async getScrapedPageMarkdownKey(pageId: string): Promise<string | null> {
+    const page = await prisma.scrapedPage.findUnique({
+      where: { id: pageId },
+      select: { markdownS3Key: true },
+    });
+    return page?.markdownS3Key ?? null;
+  },
+
   async deleteScrapedPage(pageId: string) {
     return (prisma as any).scrapedPage.delete({ where: { id: pageId } });
   },
@@ -434,6 +442,9 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   }
   if (fields.has('priorityScore')) {
     select.priorityScore = true;
+    select.priorityTier = true;
+  }
+  if (fields.has('priorityTier')) {
     select.priorityTier = true;
   }
   if (fields.has('headcountEstimate')) {

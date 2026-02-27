@@ -279,6 +279,7 @@ export type LeadListField =
   | 'rating'
   | 'businessType'
   | 'priorityScore'
+  | 'priorityTier'
   | 'headcountEstimate'
   | 'foundedYear'
   | 'yearsInBusiness'

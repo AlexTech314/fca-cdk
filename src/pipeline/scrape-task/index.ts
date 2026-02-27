@@ -270,8 +270,11 @@ async function main(): Promise<void> {
         // Convert scraped pages to markdown and upload to S3
         const scrapeRunId = randomUUID();
         let scrapeMarkdownS3Key: string | null = null;
+        let pageMarkdownKeys: Map<string, string> | undefined;
         try {
-          scrapeMarkdownS3Key = await convertAndUploadMarkdown(pages, business.id, scrapeRunId);
+          const mdResult = await convertAndUploadMarkdown(pages, business.id, scrapeRunId);
+          scrapeMarkdownS3Key = mdResult.combinedS3Key;
+          pageMarkdownKeys = mdResult.pageMarkdownKeys;
         } catch (mdErr) {
           console.warn(`  [Markdown] Failed to upload markdown for ${business.business_name}:`, mdErr);
         }
@@ -295,6 +298,7 @@ async function main(): Promise<void> {
           pagesForStorage,
           taskId ?? undefined,
           scrapeMarkdownS3Key,
+          pageMarkdownKeys,
         );
 
         processed++;

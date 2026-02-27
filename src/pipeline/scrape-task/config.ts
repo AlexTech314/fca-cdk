@@ -1,9 +1,6 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import { EventEmitter } from 'events';
 import { createRequire } from 'module';
-import { FIRST_NAMES } from './first-names.js';
-import { EXECUTIVE_TITLES } from './executive-titles.js';
-import { JOB_TITLES } from './job-titles.js';
 
 // Increase max listeners to avoid warnings with concurrent requests
 EventEmitter.defaultMaxListeners = 50;
@@ -71,17 +68,14 @@ export function calculateOptimalConcurrency(fastMode: boolean): number {
 export const LIMITS = {
   MAX_EMAILS: 10,
   MAX_PHONES: 5,
-  MAX_TEAM_MEMBERS: 20,
-  MAX_ACQUISITION_SIGNALS: 10,
-  MAX_SNIPPETS: 50,
-  MAX_PAGES_PER_LEAD: 100,
+  MAX_PAGES_PER_LEAD: 20,
 } as const;
 
 // ============ Regex Patterns ============
 
 export const PATTERNS = {
-  // Email pattern
-  email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
+  // Email pattern (TLD capped at 6 chars to reject false positives like v@build.version)
+  email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g,
   
   // Phone patterns (US formats)
   phone: /(?:\+1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,
@@ -92,60 +86,7 @@ export const PATTERNS = {
   instagram: /https?:\/\/(?:www\.)?instagram\.com\/[a-zA-Z0-9._-]+\/?/gi,
   twitter: /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[a-zA-Z0-9_]+\/?/gi,
   
-  // Founded year patterns
-  foundedYear: /(?:founded|established|since|est\.?)\s*(?:in\s*)?(\d{4})/gi,
-  yearInBusiness: /(\d+)\+?\s*years?\s*(?:in\s*business|of\s*experience|serving)/gi,
-  familyOwned: /family[- ]owned\s+(?:since\s+)?(\d{4})?/gi,
-  generationBusiness: /(\d+)(?:st|nd|rd|th)\s*generation/gi,
-  anniversary: /celebrating\s+(\d+)\s*years?/gi,
-  
-  // Headcount patterns - multiple patterns for different phrasings
-  // Pattern 1: "X employees/staff/people" - most common
-  headcountDirect: /(\d{1,5})\+?\s*(?:employees?|staff(?:\s+members?)?|team\s+members?|professionals?|technicians?|workers?|specialists?)/gi,
-  // Pattern 2: "team of X" / "staff of X" / "workforce of X"
-  headcountTeamOf: /(?:team|staff|workforce|crew)\s+of\s+(?:over\s+|more\s+than\s+|approximately\s+|about\s+|around\s+)?(\d{1,5})\+?/gi,
-  // Pattern 3: "X-person team" / "X-member staff"
-  headcountPersonTeam: /(\d{1,5})\s*-?\s*(?:person|member|man|woman)\s+(?:team|staff|crew|operation)/gi,
-  // Pattern 4: "employs X" / "we employ X" / "employing X"
-  headcountEmploys: /(?:we\s+)?employ(?:s|ing)?\s+(?:over\s+|more\s+than\s+|approximately\s+|about\s+|around\s+)?(\d{1,5})\+?/gi,
-  // Pattern 5: "over/more than X employees"
-  headcountOver: /(?:over|more\s+than|approximately|about|around|nearly)\s+(\d{1,5})\+?\s*(?:employees?|staff|team\s+members?|professionals?)/gi,
-  // Pattern 6: Range "X-Y employees" - we'll take the higher number
-  headcountRange: /(\d{1,5})\s*[-–to]+\s*(\d{1,5})\s*(?:employees?|staff|team\s+members?|professionals?)/gi,
-  
-  // Acquisition/ownership patterns
-  acquired: /acquired\s+by\s+([^,.]+)/gi,
-  soldTo: /sold\s+to\s+([^,.]+)/gi,
-  merger: /merger\s+with\s+([^,.]+)/gi,
-  newOwnership: /(?:under\s+)?new\s+(?:ownership|management)/gi,
-  parentCompany: /(?:parent\s+company|subsidiary\s+of)\s+([^,.]+)/gi,
-  rebranded: /(?:formerly\s+known\s+as|rebranded\s+(?:from|to))\s+([^,.]+)/gi,
-  
   // Contact page URL patterns
   contactPage: /\/(?:contact(?:-us)?|get-in-touch|reach-us)\/?$/i,
 };
 
-// ============ Name Validation Constants ============
-
-// First names from union of unique-names-generator and US SSA data (9,525 names)
-// See: scripts/generate-first-names.ts
-export const COMMON_FIRST_NAMES = FIRST_NAMES;
-
-// C-suite and executive position titles for team extraction
-export const EXECUTIVE_TITLES_SET = EXECUTIVE_TITLES;
-
-// Generic job titles and associated words (non-executive roles)
-export const JOB_TITLES_SET = JOB_TITLES;
-
-// Words that should NOT appear in names
-export const NAME_BLACKLIST = new Set([
-  'home', 'business', 'service', 'services', 'company', 'inc', 'llc', 'corp', 'the', 'and', 'for',
-  'our', 'your', 'with', 'from', 'that', 'this', 'have', 'been', 'was', 'are', 'were', 'being',
-  'colorado', 'california', 'texas', 'florida', 'new', 'york', 'chicago', 'los', 'angeles',
-  'property', 'properties', 'real', 'estate', 'construction', 'plumbing', 'heating', 'cooling',
-  'electric', 'electrical', 'roofing', 'painting', 'cleaning', 'maintenance', 'repair', 'repairs',
-  'give', 'giving', 'providing', 'offers', 'offer', 'plugin', 'website', 'contact', 'about',
-  'concerns', 'concern', 'regarding', 'information', 'details', 'more', 'learn', 'read',
-  'click', 'here', 'page', 'site', 'web', 'online', 'today', 'now', 'call', 'email',
-  'north', 'south', 'east', 'west', 'central', 'metro', 'area', 'region', 'county', 'city',
-]);

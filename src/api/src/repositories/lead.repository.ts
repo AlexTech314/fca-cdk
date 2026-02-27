@@ -17,7 +17,8 @@ const sortFieldMap: Record<string, string> = {
   createdAt: 'createdAt',
   name: 'name',
   rating: 'rating',
-  qualificationScore: 'qualificationScore',
+  priorityScore: 'priorityScore',
+  priorityTier: 'priorityTier',
   businessType: 'businessType',
   reviewCount: 'reviewCount',
   foundedYear: 'foundedYear',
@@ -36,7 +37,7 @@ const defaultLeadFields: LeadListField[] = [
   'website',
   'rating',
   'businessType',
-  'qualificationScore',
+  'priorityScore',
 ];
 
 function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWithRelationInput {
@@ -125,9 +126,9 @@ export const leadRepository = {
     return prisma.lead.update({
       where: { id },
       data: {
-        qualificationScore: score,
-        qualificationNotes: notes,
-        qualifiedAt: new Date(),
+        priorityScore: score,
+        scoringRationale: notes,
+        scoredAt: new Date(),
       },
     });
   },
@@ -182,7 +183,7 @@ export const leadRepository = {
   async getStats() {
     const [totalLeads, qualifiedLeads] = await Promise.all([
       prisma.lead.count(),
-      prisma.lead.count({ where: { qualificationScore: { not: null } } }),
+      prisma.lead.count({ where: { scoredAt: { not: null } } }),
     ]);
     return { totalLeads, qualifiedLeads };
   },
@@ -227,12 +228,8 @@ export const leadRepository = {
           where: { id: leadId },
           data: {
             webScrapedAt: null,
-            foundedYear: null,
-            yearsInBusiness: null,
-            headcountEstimate: null,
-            hasAcquisitionSignal: false,
-            acquisitionSummary: null,
             contactPageUrl: null,
+            scrapeMarkdownS3Key: null,
           },
         });
       }
@@ -343,14 +340,14 @@ function buildWhereClause(
     where.rating = { ...((where.rating as object) || {}), lte: filters.ratingMax };
   }
   if (filters.qualificationMin !== undefined) {
-    where.qualificationScore = {
-      ...((where.qualificationScore as object) || {}),
+    where.priorityScore = {
+      ...((where.priorityScore as object) || {}),
       gte: filters.qualificationMin,
     };
   }
   if (filters.qualificationMax !== undefined) {
-    where.qualificationScore = {
-      ...((where.qualificationScore as object) || {}),
+    where.priorityScore = {
+      ...((where.priorityScore as object) || {}),
       lte: filters.qualificationMax,
     };
   }
@@ -435,8 +432,9 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   if (fields.has('businessType')) {
     select.businessType = true;
   }
-  if (fields.has('qualificationScore')) {
-    select.qualificationScore = true;
+  if (fields.has('priorityScore')) {
+    select.priorityScore = true;
+    select.priorityTier = true;
   }
   if (fields.has('headcountEstimate')) {
     select.headcountEstimate = true;

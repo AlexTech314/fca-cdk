@@ -70,9 +70,11 @@ export interface Lead {
   reviewCount: number | null;
   priceLevel: number | null;
   businessType: string | null;
-  qualificationScore: number | null;
-  qualificationNotes: string | null;
-  qualifiedAt: string | null;
+  priorityScore: number | null;
+  priorityTier: number | null;
+  scoringRationale: string | null;
+  scoredAt: string | null;
+  isExcluded: boolean;
   source: 'google_places' | 'manual' | 'import' | null;
   franchiseId: string | null;
   franchise?: Franchise | null;
@@ -276,7 +278,7 @@ export type LeadListField =
   | 'googleMaps'
   | 'rating'
   | 'businessType'
-  | 'qualificationScore'
+  | 'priorityScore'
   | 'headcountEstimate'
   | 'foundedYear'
   | 'yearsInBusiness'

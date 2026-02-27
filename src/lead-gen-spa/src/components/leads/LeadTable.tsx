@@ -272,12 +272,12 @@ export function LeadTable({
       renderCell: (lead) =>
         lead.businessType ? <Badge variant="secondary">{lead.businessType}</Badge> : <span className="text-muted-foreground">-</span>,
     },
-    qualificationScore: {
+    priorityScore: {
       label: 'Score',
-      sortColumn: 'qualificationScore',
+      sortColumn: 'priorityScore',
       renderCell: (lead) =>
-        lead.qualificationScore !== null ? (
-          <QualificationBadge score={lead.qualificationScore} size="sm" />
+        lead.priorityScore !== null ? (
+          <QualificationBadge score={lead.priorityScore} size="sm" />
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         ),

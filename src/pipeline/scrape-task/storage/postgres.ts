@@ -1,12 +1,11 @@
 /**
  * Postgres storage for scrape task.
- * Creates ScrapeRun, ScrapedPage tree, normalized extracted tables, and updates Lead scalar fields.
+ * Creates ScrapeRun, ScrapedPage tree, normalized contact tables, and updates Lead.
  * All writes are wrapped in a transaction for atomicity.
  */
 
 import type { PrismaClient } from '@prisma/client';
 import type { ExtractedData } from '../types.js';
-import { LIMITS } from '../config.js';
 
 export interface BatchLead {
   id: string;
@@ -44,7 +43,8 @@ export async function updateLeadWithScrapeData(
   durationMs: number,
   extracted: ExtractedData,
   pages: ScrapedPageInput[],
-  taskId?: string
+  taskId?: string,
+  scrapeMarkdownS3Key?: string | null,
 ): Promise<void> {
   const scrapedAt = new Date();
   const domain = extractDomain(websiteUrl);
@@ -100,11 +100,8 @@ export async function updateLeadWithScrapeData(
     const resolvePageId = (sourceUrl?: string | null) =>
       (sourceUrl ? urlToPageId.get(sourceUrl) : null) ?? firstPageId;
 
-    // 3. Delete old extracted data for this lead from previous runs, then insert fresh
+    // 3. Delete old extracted contact data, then insert fresh
     await tx.leadSocialProfile.deleteMany({ where: { leadId } });
-    await tx.leadTeamMember.deleteMany({ where: { leadId } });
-    await tx.leadAcquisitionSignal.deleteMany({ where: { leadId } });
-    await tx.leadSnippet.deleteMany({ where: { leadId } });
 
     // 3a. Upsert emails (dedupe by value)
     for (const email of extracted.emails) {
@@ -139,68 +136,13 @@ export async function updateLeadWithScrapeData(
       }
     }
 
-    // 3d. Insert team members (fresh per run)
-    for (const member of extracted.team_members.slice(0, LIMITS.MAX_TEAM_MEMBERS)) {
-      const sourcePageId = member.source_url ? urlToPageId.get(member.source_url) : null;
-      if (sourcePageId) {
-        await tx.leadTeamMember.create({
-          data: {
-            leadId,
-            name: member.name,
-            title: member.title ?? null,
-            isExecutive: member.isExecutive,
-            sourceUrl: member.source_url,
-            sourcePageId,
-            sourceRunId: runId,
-          },
-        });
-      }
-    }
-
-    // 3e. Insert acquisition signals (fresh per run)
-    for (const signal of extracted.acquisition_signals.slice(0, LIMITS.MAX_ACQUISITION_SIGNALS)) {
-      const sourcePageId = signal.source_url ? urlToPageId.get(signal.source_url) : null;
-      if (sourcePageId) {
-        await tx.leadAcquisitionSignal.create({
-          data: {
-            leadId,
-            signalType: signal.signal_type,
-            text: signal.text,
-            dateMentioned: signal.date_mentioned ?? null,
-            sourcePageId,
-            sourceRunId: runId,
-          },
-        });
-      }
-    }
-
-    // 3f. Insert snippets (fresh per run)
-    for (const snippet of extracted.snippets.slice(0, LIMITS.MAX_SNIPPETS)) {
-      const sourcePageId = snippet.source_url ? urlToPageId.get(snippet.source_url) : null;
-      if (sourcePageId) {
-        await tx.leadSnippet.create({
-          data: {
-            leadId,
-            category: snippet.category,
-            text: snippet.text,
-            sourcePageId,
-            sourceRunId: runId,
-          },
-        });
-      }
-    }
-
     // 4. Update Lead scalar fields
     await tx.lead.update({
       where: { id: leadId },
       data: {
         webScrapedAt: scrapedAt,
-        foundedYear: extracted.founded_year,
-        yearsInBusiness: extracted.years_in_business,
-        headcountEstimate: extracted.headcount_estimate,
-        hasAcquisitionSignal: extracted.has_acquisition_signal,
-        acquisitionSummary: extracted.acquisition_summary,
         contactPageUrl: extracted.contact_page_url,
+        scrapeMarkdownS3Key: scrapeMarkdownS3Key ?? null,
         pipelineStatus: 'idle',
       },
     });

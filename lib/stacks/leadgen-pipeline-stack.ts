@@ -297,7 +297,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       },
     });
 
-    campaignDataBucket.grantRead(scrapeTaskDef.taskRole);
+    campaignDataBucket.grantReadWrite(scrapeTaskDef.taskRole);
     databaseSecret.grantRead(scrapeTaskDef.taskRole);
 
     // ============================================================
@@ -390,7 +390,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       new iam.PolicyStatement({
         actions: ['bedrock:InvokeModel'],
         resources: [
-          `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-sonnet-4-6`,
+          `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-3-haiku-20240307`,
         ],
       })
     );

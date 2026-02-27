@@ -6,6 +6,8 @@ const JUNK_EMAIL_PATTERNS = [
   'mysite.com', 'yoursite.com', 'mycompany.com', 'yourcompany.com',
   'website.com', 'company.com', 'yourdomain.com',
   'sentry.io', 'wixpress.com', 'squarespace.com',
+  'build.version', 'schema.org', 'w3.org', 'xmlns.com',
+  'purl.org', 'ogp.me', 'rdfs.org',
 ];
 
 function isJunkEmail(email: string): boolean {

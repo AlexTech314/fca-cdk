@@ -1,4 +1,5 @@
 import puppeteer, { Browser } from 'puppeteer';
+import { randomUUID } from 'crypto';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { bootstrapDatabaseUrl } from '@fca/db';
 import { PrismaClient } from '@prisma/client';
@@ -14,16 +15,17 @@ import {
   calculateOptimalConcurrency,
   s3Client,
 } from './config.js';
-import { 
-  scrapeWebsite, 
-  PagePool, 
-  DomainTracker, 
+import {
+  scrapeWebsite,
+  PagePool,
+  DomainTracker,
   FailureTracker,
   ScrapeWebsiteExtendedResult,
   normalizeUrl,
   needsPuppeteer,
 } from './scraper/index.js';
 import { extractAllData } from './extractors/index.js';
+import { convertAndUploadMarkdown } from './markdown.js';
 import {
   updateLeadWithScrapeData,
   markLeadScrapeFailed,
@@ -209,10 +211,6 @@ async function main(): Promise<void> {
           const socialData: ExtractedData = {
             emails: [], phones: [], contact_page_url: null,
             social: socialCheck.platform ? { [socialCheck.platform]: business.website_uri } : {},
-            team_members: [], headcount_estimate: null, headcount_source: null,
-            acquisition_signals: [], has_acquisition_signal: false, acquisition_summary: null,
-            founded_year: null, founded_source: null, years_in_business: null,
-            snippets: [],
           };
           await updateLeadWithScrapeData(
             db, business.id, business.website_uri!, 'cloudscraper', 0, 0,
@@ -268,7 +266,16 @@ async function main(): Promise<void> {
         const knownPhones: string[] = [];
         if (business.phone) knownPhones.push(String(business.phone));
         const extracted = extractAllData(pages, knownPhones);
-        
+
+        // Convert scraped pages to markdown and upload to S3
+        const scrapeRunId = randomUUID();
+        let scrapeMarkdownS3Key: string | null = null;
+        try {
+          scrapeMarkdownS3Key = await convertAndUploadMarkdown(pages, business.id, scrapeRunId);
+        } catch (mdErr) {
+          console.warn(`  [Markdown] Failed to upload markdown for ${business.business_name}:`, mdErr);
+        }
+
         const pagesForStorage = pages.map((p) => ({
           url: p.url,
           status_code: p.status_code,
@@ -276,7 +283,7 @@ async function main(): Promise<void> {
           parentUrl: p.parentUrl ?? null,
           depth: p.depth ?? 0,
         }));
-        
+
         await updateLeadWithScrapeData(
           db,
           business.id,
@@ -286,14 +293,15 @@ async function main(): Promise<void> {
           durationMs,
           extracted,
           pagesForStorage,
-          taskId ?? undefined
+          taskId ?? undefined,
+          scrapeMarkdownS3Key,
         );
-        
+
         processed++;
         totalPages += pages.length;
         totalBytes += pageBytes;
-        
-        console.log(`  ✓ Scraped ${pages.length} pages (${method}), ${extracted.emails.length} emails, ${extracted.team_members.length} team members`);
+
+        console.log(`  ✓ Scraped ${pages.length} pages (${method}), ${extracted.emails.length} emails`);
         
       } catch (error) {
         failed++;

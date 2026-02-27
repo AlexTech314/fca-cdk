@@ -732,18 +732,18 @@ export default function LeadDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {lead.qualificationScore !== null ? (
+              {lead.priorityScore !== null ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <QualificationBadge score={lead.qualificationScore} size="lg" />
+                    <QualificationBadge score={lead.priorityScore} size="lg" />
                     <span className="text-sm text-muted-foreground">
-                      Qualified on {formatDate(lead.qualifiedAt || lead.updatedAt)}
+                      Scored on {formatDate(lead.scoredAt || lead.updatedAt)}
                     </span>
                   </div>
-                  {lead.qualificationNotes && (
+                  {lead.scoringRationale && (
                     <div className="mt-3 rounded-lg bg-muted p-4">
                       <pre className="text-sm whitespace-pre-wrap font-sans">
-                        {lead.qualificationNotes}
+                        {lead.scoringRationale}
                       </pre>
                     </div>
                   )}

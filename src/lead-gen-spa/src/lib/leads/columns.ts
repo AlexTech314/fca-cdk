@@ -14,7 +14,7 @@ export const DEFAULT_LEAD_COLUMNS: LeadListField[] = [
   'website',
   'rating',
   'businessType',
-  'qualificationScore',
+  'priorityScore',
 ];
 
 export const LEAD_COLUMN_OPTIONS: LeadColumnOption[] = [
@@ -27,7 +27,7 @@ export const LEAD_COLUMN_OPTIONS: LeadColumnOption[] = [
   { key: 'googleMaps', label: 'Google Maps' },
   { key: 'rating', label: 'Rating' },
   { key: 'businessType', label: 'Type' },
-  { key: 'qualificationScore', label: 'Score' },
+  { key: 'priorityScore', label: 'Score' },
   { key: 'headcountEstimate', label: 'Headcount' },
   { key: 'foundedYear', label: 'Founded' },
   { key: 'yearsInBusiness', label: 'Years' },

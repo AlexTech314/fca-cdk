@@ -53,42 +53,6 @@ export interface ScrapedPage {
   depth?: number;
 }
 
-export interface TeamMember {
-  name: string;
-  title: string;
-  isExecutive: boolean;
-  source_url: string;
-}
-
-export interface AcquisitionSignal {
-  text: string;
-  signal_type: 'acquired' | 'sold' | 'merger' | 'new_ownership' | 'rebranded';
-  date_mentioned?: string;
-  source_url: string;
-}
-
-export const SNIPPET_CATEGORIES = [
-  'history',
-  'executive_hire',
-  'award',
-  'certification',
-  'licensing',
-  'revenue_scale',
-  'recurring_revenue',
-  'commercial_clients',
-  'multi_location',
-  'succession',
-  'proprietary',
-] as const;
-
-export type SnippetCategory = (typeof SNIPPET_CATEGORIES)[number];
-
-export interface SnippetOfInterest {
-  category: SnippetCategory;
-  text: string;
-  source_url: string;
-}
-
 // ============ Extracted Data Types ============
 
 export interface ExtractedData {
@@ -107,24 +71,6 @@ export interface ExtractedData {
   emailSources?: Record<string, string>;
   phoneSources?: Record<string, string>;
   socialSources?: Record<string, string>;
-  
-  // Team/employee data
-  team_members: TeamMember[];
-  headcount_estimate: number | null;
-  headcount_source: string | null;
-  
-  // Acquisition signals
-  acquisition_signals: AcquisitionSignal[];
-  has_acquisition_signal: boolean;
-  acquisition_summary: string | null;
-  
-  // Business history
-  founded_year: number | null;
-  founded_source: string | null;
-  years_in_business: number | null;
-
-  // Snippets of interest (unified)
-  snippets: SnippetOfInterest[];
 }
 
 // ============ HTTP Response Types ============

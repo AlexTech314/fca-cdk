@@ -74,8 +74,8 @@ export const LIMITS = {
 // ============ Regex Patterns ============
 
 export const PATTERNS = {
-  // Email pattern (TLD capped at 6 chars to reject false positives like v@build.version)
-  email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}/g,
+  // Email pattern: word boundary after TLD prevents partial matches like v@build.versio(n)
+  email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}\b/g,
   
   // Phone patterns (US formats)
   phone: /(?:\+1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,

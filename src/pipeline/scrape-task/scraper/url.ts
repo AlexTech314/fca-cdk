@@ -27,6 +27,10 @@ export function normalizeUrl(url: string): string | null {
     for (const p of TRACKING_PARAMS) {
       parsed.searchParams.delete(p);
     }
+    // Strip trailing slash from path (except root "/")
+    if (parsed.pathname.length > 1 && parsed.pathname.endsWith('/')) {
+      parsed.pathname = parsed.pathname.slice(0, -1);
+    }
     const href = parsed.href;
     return href.endsWith('?') ? href.slice(0, -1) : href;
   } catch {
@@ -122,6 +126,10 @@ export const SKIP_PATTERNS: RegExp[] = [
   /\/calendar\//i,
   /\/events\//i,            // often noisy
   /\/rss\/?$/i,
+  /[?&]format=rss/i,
+  /[?&]format=atom/i,
+  /[?&]format=feed/i,
+  /[?&]format=xml/i,
 
   // E-commerce (not useful for M&A lead data)
   /\/products?\//i,

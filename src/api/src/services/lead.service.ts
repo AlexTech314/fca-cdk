@@ -30,20 +30,22 @@ export const leadService = {
       throw new Error('Lead not found');
     }
 
-    if (SCORING_QUEUE_URL) {
-      await sqsClient.send(
-        new SendMessageCommand({
-          QueueUrl: SCORING_QUEUE_URL,
-          MessageBody: JSON.stringify({ lead_id: id, place_id: lead.placeId ?? '' }),
-        })
-      );
-      await prisma.lead.update({ where: { id }, data: { pipelineStatus: 'queued_for_batch_scoring' } });
-      return lead;
+    if (!lead.webScrapedAt) {
+      throw new Error('Lead has not been scraped yet');
     }
 
-    const score = Math.floor(Math.random() * 40) + 60;
-    const notes = generateQualificationNotes(score);
-    return leadRepository.updateQualification(id, score, notes);
+    if (!SCORING_QUEUE_URL) {
+      throw new Error('SCORING_QUEUE_URL is not configured');
+    }
+
+    await sqsClient.send(
+      new SendMessageCommand({
+        QueueUrl: SCORING_QUEUE_URL,
+        MessageBody: JSON.stringify({ lead_id: id, place_id: lead.placeId ?? '' }),
+      })
+    );
+    await prisma.lead.update({ where: { id }, data: { pipelineStatus: 'queued_for_scoring' } });
+    return lead;
   },
 
   async qualifyBulk(ids: string[]) {
@@ -186,13 +188,3 @@ export const leadService = {
     }
   },
 };
-
-function generateQualificationNotes(score: number): string {
-  if (score >= 80) {
-    return '• Strong online presence with professional website\n• High review count and excellent ratings\n• Established business with 5+ years operation\n• Good geographic coverage';
-  } else if (score >= 60) {
-    return '• Moderate online presence\n• Decent reviews and ratings\n• Growing business with potential\n• Limited service area';
-  } else {
-    return '• Limited online presence\n• Few reviews\n• New or small operation\n• May need more research';
-  }
-}

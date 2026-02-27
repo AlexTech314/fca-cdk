@@ -683,7 +683,6 @@ enum LeadPipelineStatus {
   queued_for_scrape
   scraping
   queued_for_scoring
-  queued_for_batch_scoring
   scoring
 }
 

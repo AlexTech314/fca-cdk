@@ -24,7 +24,7 @@ export interface User {
 
 export type UserRole = 'readonly' | 'readwrite' | 'admin';
 
-export type LeadPipelineStatus = 'idle' | 'queued_for_scrape' | 'scraping' | 'queued_for_scoring' | 'queued_for_batch_scoring' | 'scoring';
+export type LeadPipelineStatus = 'idle' | 'queued_for_scrape' | 'scraping' | 'queued_for_scoring' | 'scoring';
 
 export interface Franchise {
   id: string;

@@ -113,17 +113,6 @@ export const leadRepository = {
     return prisma.lead.count({ where });
   },
 
-  async updateQualification(id: string, score: number, notes: string) {
-    return prisma.lead.update({
-      where: { id },
-      data: {
-        priorityScore: score,
-        scoringRationale: notes,
-        scoredAt: new Date(),
-      },
-    });
-  },
-
   async getDistinctBusinessTypes() {
     const results = await prisma.lead.groupBy({
       by: ['businessType'],

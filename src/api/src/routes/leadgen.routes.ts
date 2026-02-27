@@ -276,20 +276,6 @@ router.post('/leads/:id/qualify', authorize('readwrite', 'admin'), async (req, r
   }
 });
 
-router.post('/leads/qualify-bulk', authorize('readwrite', 'admin'), async (req, res, next) => {
-  try {
-    const { s3Key } = req.body;
-    if (!s3Key) {
-      res.status(400).json({ error: 's3Key is required (upload IDs to S3 first)' });
-      return;
-    }
-    // TODO: Read IDs from S3, qualify each
-    res.json({ message: 'Bulk qualification started', s3Key });
-  } catch (error) {
-    next(error);
-  }
-});
-
 router.post('/leads/scrape-bulk', authorize('readwrite', 'admin'), async (req, res, next) => {
   try {
     const { leadIds } = req.body;

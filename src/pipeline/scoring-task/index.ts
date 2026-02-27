@@ -20,7 +20,7 @@ const bedrockClient = new BedrockRuntimeClient({
 });
 const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
 const BEDROCK_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
-const DELAY_MS = 500;
+const CONCURRENCY = 5;
 
 const SCORING_PROMPT = `You are a PE deal sourcing analyst for Flatirons Capital Advisors, an investment bank specializing in lower middle market transactions ($5M-$250M enterprise value).
 
@@ -208,16 +208,14 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log(`Loaded ${batch.length} leads to score`);
+  console.log(`Loaded ${batch.length} leads to score (concurrency: ${CONCURRENCY})`);
 
   let scored = 0;
   let skipped = 0;
   let failed = 0;
+  let completed = 0;
 
-  for (let i = 0; i < batch.length; i++) {
-    const { lead_id } = batch[i];
-    if (i > 0) await sleep(DELAY_MS);
-
+  async function processLead(lead_id: string): Promise<void> {
     try {
       const lead = await db.lead.findUnique({
         where: { id: lead_id },
@@ -232,13 +230,13 @@ async function main(): Promise<void> {
       if (!lead) {
         console.warn(`Lead ${lead_id} not found, skipping`);
         skipped++;
-        continue;
+        return;
       }
       if (lead.scoredAt !== null) {
         console.log(`Lead ${lead_id} already scored, skipping`);
         await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'idle' } });
         skipped++;
-        continue;
+        return;
       }
 
       const social = Object.fromEntries(
@@ -263,7 +261,6 @@ async function main(): Promise<void> {
         contact_page_url: lead.contactPageUrl,
       };
 
-      // Fetch raw markdown from S3 if available
       let markdown: string | null = null;
       if (lead.scrapeMarkdownS3Key) {
         markdown = await fetchMarkdownFromS3(lead.scrapeMarkdownS3Key);
@@ -289,14 +286,27 @@ async function main(): Promise<void> {
         },
       });
       scored++;
+      completed++;
       console.log(
-        `[${i + 1}/${batch.length}] Scored lead ${lead_id}: T${result.priority_tier} (BQ:${result.business_quality_score} SL:${result.sell_likelihood_score} P:${result.priority_score})${result.is_excluded ? ' [EXCLUDED]' : ''}`
+        `[${completed}/${batch.length}] Scored lead ${lead_id}: T${result.priority_tier} (BQ:${result.business_quality_score} SL:${result.sell_likelihood_score} P:${result.priority_score})${result.is_excluded ? ' [EXCLUDED]' : ''}`
       );
     } catch (err) {
       console.error(`Failed to score lead ${lead_id}:`, err);
       failed++;
+      completed++;
     }
   }
+
+  // Process leads with bounded concurrency
+  const pending = new Set<Promise<void>>();
+  for (const { lead_id } of batch) {
+    const p = processLead(lead_id).then(() => { pending.delete(p); });
+    pending.add(p);
+    if (pending.size >= CONCURRENCY) {
+      await Promise.race(pending);
+    }
+  }
+  await Promise.all(pending);
 
   await db.fargateTask.update({
     where: { id: taskId },

@@ -109,7 +109,7 @@ export async function convertAndUploadMarkdown(
     const md = convertPageToMarkdown(page);
     if (!md) continue;
 
-    const header = `# ${page.title || 'Untitled'}\n---\n`;
+    const header = `# ${page.title || 'Untitled'}\nSource: ${page.url}\n---\n`;
     const section = header + md + '\n\n';
 
     const remaining = MAX_MARKDOWN_CHARS - totalLength;

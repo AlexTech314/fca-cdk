@@ -72,7 +72,7 @@ export interface Lead {
   controllingOwner: string | null;
   ownershipType: string | null;
   scoringRationale: string | null;
-  supportingUrls: string[];
+  supportingEvidence: { url: string; snippet: string }[];
   scoredAt: string | null;
   isExcluded: boolean;
   exclusionReason: string | null;

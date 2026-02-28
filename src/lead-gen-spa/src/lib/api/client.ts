@@ -130,7 +130,7 @@ function transformLead(raw: any): Lead {
     controllingOwner: raw.controllingOwner ?? raw.controlling_owner ?? null,
     ownershipType: raw.ownershipType ?? raw.ownership_type ?? null,
     scoringRationale: raw.scoringRationale || raw.scoring_rationale || null,
-    supportingUrls: raw.supportingUrls ?? raw.supporting_urls ?? [],
+    supportingEvidence: raw.supportingEvidence ?? raw.supporting_evidence ?? [],
     scoredAt: raw.scoredAt || raw.scored_at || null,
     isExcluded: raw.isExcluded ?? raw.is_excluded ?? false,
     exclusionReason: raw.exclusionReason ?? raw.exclusion_reason ?? null,

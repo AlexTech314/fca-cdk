@@ -649,14 +649,17 @@ export default function LeadDetail() {
                     </div>
                   )}
 
-                  {lead.supportingUrls.length > 0 && (
+                  {lead.supportingEvidence.length > 0 && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Supporting URLs</p>
-                      <ul className="space-y-1">
-                        {lead.supportingUrls.map((url, i) => (
-                          <li key={i}>
-                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline dark:text-blue-400 truncate block">
-                              {url}
+                      <p className="text-xs text-muted-foreground mb-2">Supporting Evidence</p>
+                      <ul className="space-y-3">
+                        {lead.supportingEvidence.map((ev, i) => (
+                          <li key={i} className="border-l-2 border-muted pl-3">
+                            <blockquote className="text-sm italic text-muted-foreground mb-1">
+                              &ldquo;{ev.snippet}&rdquo;
+                            </blockquote>
+                            <a href={ev.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline dark:text-blue-400 truncate block">
+                              {ev.url}
                             </a>
                           </li>
                         ))}

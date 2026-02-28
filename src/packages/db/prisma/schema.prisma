@@ -784,7 +784,7 @@ model Lead {
   businessQualityScore Int?      @map("business_quality_score")
   sellLikelihoodScore  Int?      @map("sell_likelihood_score")
   scoringRationale     String?   @map("scoring_rationale")
-  supportingUrls       String[]  @default([]) @map("supporting_urls")
+  supportingEvidence   Json?     @map("supporting_evidence")
   scrapeMarkdownS3Key  String?   @map("scrape_markdown_s3_key")
   scoredAt             DateTime? @map("scored_at")
 

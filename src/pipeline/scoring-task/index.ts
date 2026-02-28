@@ -70,7 +70,9 @@ How likely is the owner to sell in the next 1-3 years? Be very skeptical — mos
 If there is not enough evidence to produce a real score, return -1. Do NOT guess or default to any number. Do NOT inflate beyond 3 without specific, concrete evidence. A business being old does not by itself mean the owner wants to sell.
 
 ### 5. Supporting Evidence
-Include up to 5 URLs from the source material that best support your assessment.
+Provide up to 5 pieces of evidence from the source material. For each, include:
+- The source page URL (from the "Source:" line in the website content)
+- A verbatim snippet copied exactly from the source — do NOT paraphrase, edit, or summarize the snippet. Copy it character-for-character.
 
 ## Lead Data
 `;
@@ -88,7 +90,7 @@ interface ScoringResult {
   business_quality_score: number;
   sell_likelihood_score: number;
   rationale: string;
-  supporting_urls: string[];
+  supporting_evidence: { url: string; snippet: string }[];
 }
 
 function sleep(ms: number): Promise<void> {
@@ -123,7 +125,7 @@ async function scoreLead(leadData: Record<string, unknown>, markdown: string | n
   "business_quality_score": <1-10 or -1>,
   "sell_likelihood_score": <1-10 or -1>,
   "rationale": "<2-3 sentence summary>",
-  "supporting_urls": ["<url1>", ...]
+  "supporting_evidence": [{"url": "<source page url>", "snippet": "<exact verbatim quote>"}, ...]
 }`;
 
   for (let attempt = 0; attempt <= backoffMs.length; attempt++) {
@@ -135,7 +137,7 @@ async function scoreLead(leadData: Record<string, unknown>, markdown: string | n
           accept: 'application/json',
           body: JSON.stringify({
             anthropic_version: 'bedrock-2023-05-31',
-            max_tokens: 500,
+            max_tokens: 1024,
             messages: [{ role: 'user', content: [{ type: 'text', text: content }] }],
           }),
         })
@@ -157,7 +159,7 @@ async function scoreLead(leadData: Record<string, unknown>, markdown: string | n
           business_quality_score: -1,
           sell_likelihood_score: -1,
           rationale: 'Unable to parse Bedrock response',
-          supporting_urls: [],
+          supporting_evidence: [],
         };
       }
     } catch (err) {
@@ -289,7 +291,7 @@ async function main(): Promise<void> {
           businessQualityScore: result.business_quality_score,
           sellLikelihoodScore: result.sell_likelihood_score,
           scoringRationale: result.rationale,
-          supportingUrls: result.supporting_urls,
+          supportingEvidence: result.supporting_evidence,
           scoredAt: new Date(),
           pipelineStatus: 'idle',
         },

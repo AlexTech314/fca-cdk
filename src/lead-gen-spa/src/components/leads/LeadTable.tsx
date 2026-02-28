@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { PipelineStatusDot } from './PipelineStatusDot';
 import { ScoreBadge } from './QualificationBadge';
+import { ScrapedDataDialog } from './ScrapedDataDialog';
 import type { Lead, LeadListField } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { ChevronUp, ChevronDown, Star, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -271,6 +272,18 @@ export function LeadTable({
       cellClassName: 'min-w-[180px]',
       renderCell: (lead) =>
         lead.businessType ? <Badge variant="secondary">{lead.businessType}</Badge> : <span className="text-muted-foreground">-</span>,
+    },
+    scrapedData: {
+      label: 'Scraped Data',
+      headClassName: 'text-center',
+      cellClassName: 'text-center',
+      renderCell: (lead) => (
+        <ScrapedDataDialog
+          leadId={lead.id}
+          leadName={lead.name}
+          hasData={!!lead.webScrapedAt}
+        />
+      ),
     },
     businessQualityScore: {
       label: 'Business Quality',

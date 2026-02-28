@@ -245,6 +245,11 @@ export interface LeadGenApi {
   // ===========================================
 
   /**
+   * Get combined scraped markdown for a lead
+   */
+  getLeadScrapedMarkdown(leadId: string): Promise<string>;
+
+  /**
    * Get raw markdown for a scraped page
    */
   getScrapedPageMarkdown(pageId: string): Promise<string>;

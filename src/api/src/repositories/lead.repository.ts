@@ -31,6 +31,7 @@ const defaultLeadFields: LeadListField[] = [
   'website',
   'rating',
   'businessType',
+  'scrapedData',
   'businessQualityScore',
   'sellLikelihoodScore',
 ];
@@ -361,6 +362,9 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   }
   if (fields.has('businessType')) {
     select.businessType = true;
+  }
+  if (fields.has('scrapedData')) {
+    select.webScrapedAt = true;
   }
   if (fields.has('businessQualityScore')) {
     select.businessQualityScore = true;

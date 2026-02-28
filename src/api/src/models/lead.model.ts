@@ -10,6 +10,7 @@ const leadListFields = [
   'googleMaps',
   'rating',
   'businessType',
+  'scrapedData',
   'businessQualityScore',
   'sellLikelihoodScore',
   'webScrapedAt',

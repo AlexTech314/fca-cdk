@@ -19,7 +19,7 @@ const bedrockClient = new BedrockRuntimeClient({
   region: process.env.AWS_REGION || 'us-east-2',
 });
 const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
-const BEDROCK_MODEL_ID = 'us.anthropic.claude-3-haiku-20240307-v1:0';
+const BEDROCK_MODEL_ID = 'anthropic.claude-3-haiku-20240307-v1:0';
 const CONCURRENCY = 5;
 
 const SCORING_PROMPT = `You are a PE deal sourcing analyst for Flatirons Capital Advisors, an investment bank specializing in lower middle market transactions ($5M-$250M enterprise value).

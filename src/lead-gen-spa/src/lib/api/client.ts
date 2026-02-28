@@ -587,6 +587,17 @@ export const realApi: LeadGenApi = {
   // Scraped Page / Lead Data CRUD
   // ===========================================
 
+  async getLeadScrapedMarkdown(leadId: string): Promise<string> {
+    const token = await getIdToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(`${API_BASE_URL}/leads/${leadId}/scraped-markdown`, { headers });
+    if (!response.ok) {
+      throw new Error(response.status === 404 ? 'Scraped data not available' : 'Failed to fetch scraped data');
+    }
+    return response.text();
+  },
+
   async getScrapedPageMarkdown(pageId: string): Promise<string> {
     const token = await getIdToken();
     const headers: Record<string, string> = {};

@@ -191,6 +191,21 @@ export const leadService = {
     return true;
   },
 
+  async getLeadScrapedMarkdown(leadId: string): Promise<string | null> {
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { scrapeMarkdownS3Key: true },
+    });
+    if (!lead?.scrapeMarkdownS3Key || !CAMPAIGN_DATA_BUCKET) return null;
+
+    const response = await s3Client.send(new GetObjectCommand({
+      Bucket: CAMPAIGN_DATA_BUCKET,
+      Key: lead.scrapeMarkdownS3Key,
+    }));
+
+    return response.Body?.transformToString() ?? null;
+  },
+
   async getScrapedPageMarkdown(pageId: string): Promise<string | null> {
     const s3Key = await leadRepository.getScrapedPageMarkdownKey(pageId);
     if (!s3Key || !CAMPAIGN_DATA_BUCKET) return null;

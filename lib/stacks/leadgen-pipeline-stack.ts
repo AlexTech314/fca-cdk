@@ -341,7 +341,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
     scrapeTriggerLambda.addEventSource(
       new lambdaEventSources.SqsEventSource(scrapeQueue, {
         batchSize: 50,
-        maxBatchingWindow: cdk.Duration.seconds(30),
+        maxBatchingWindow: cdk.Duration.seconds(5),
         maxConcurrency: 50,
       })
     );
@@ -449,7 +449,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
     scoringTriggerLambda.addEventSource(
       new lambdaEventSources.SqsEventSource(scoringQueue, {
         batchSize: 50,
-        maxBatchingWindow: cdk.Duration.seconds(60),
+        maxBatchingWindow: cdk.Duration.seconds(5),
         maxConcurrency: 5,
       })
     );

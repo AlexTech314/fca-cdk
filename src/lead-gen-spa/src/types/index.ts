@@ -67,8 +67,6 @@ export interface Lead {
   reviewCount: number | null;
   priceLevel: number | null;
   businessType: string | null;
-  priorityScore: number | null;
-  priorityTier: number | null;
   businessQualityScore: number | null;
   sellLikelihoodScore: number | null;
   controllingOwner: string | null;
@@ -209,8 +207,6 @@ export interface LeadFilters {
   franchiseId?: string;
   ratingMin?: number;
   ratingMax?: number;
-  qualificationMin?: number;
-  qualificationMax?: number;
   hasWebsite?: boolean;
   hasPhone?: boolean;
   hasExtractedEmail?: boolean;
@@ -236,8 +232,6 @@ export type LeadListField =
   | 'googleMaps'
   | 'rating'
   | 'businessType'
-  | 'priorityScore'
-  | 'priorityTier'
   | 'businessQualityScore'
   | 'sellLikelihoodScore'
   | 'webScrapedAt'

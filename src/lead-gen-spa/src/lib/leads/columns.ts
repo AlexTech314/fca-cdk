@@ -14,8 +14,6 @@ export const DEFAULT_LEAD_COLUMNS: LeadListField[] = [
   'website',
   'rating',
   'businessType',
-  'priorityScore',
-  'priorityTier',
   'businessQualityScore',
   'sellLikelihoodScore',
 ];
@@ -30,12 +28,10 @@ export const LEAD_COLUMN_OPTIONS: LeadColumnOption[] = [
   { key: 'googleMaps', label: 'Google Maps' },
   { key: 'rating', label: 'Rating' },
   { key: 'businessType', label: 'Type' },
-  { key: 'priorityScore', label: 'Score' },
-  { key: 'priorityTier', label: 'Tier' },
-  { key: 'businessQualityScore', label: 'BQ' },
-  { key: 'sellLikelihoodScore', label: 'SL' },
+  { key: 'businessQualityScore', label: 'Business Quality' },
+  { key: 'sellLikelihoodScore', label: 'Sell Likelihood' },
   { key: 'webScrapedAt', label: 'Scraped' },
   { key: 'createdAt', label: 'Added' },
 ];
 
-export const LEAD_COLUMNS_STORAGE_KEY = 'lead-table-columns-v2';
+export const LEAD_COLUMNS_STORAGE_KEY = 'lead-table-columns-v3';

@@ -24,8 +24,6 @@ const availableColumns = [
   { key: 'rating', label: 'Rating', default: true },
   { key: 'reviewCount', label: 'Review Count', default: false },
   { key: 'businessType', label: 'Business Type', default: true },
-  { key: 'priorityScore', label: 'Priority Score', default: true },
-  { key: 'priorityTier', label: 'Priority Tier', default: false },
   { key: 'scoringRationale', label: 'Scoring Rationale', default: false },
   { key: 'createdAt', label: 'Date Added', default: true },
 ];

@@ -12,8 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { QualificationBadge } from './QualificationBadge';
 import { PipelineStatusDot } from './PipelineStatusDot';
+import { ScoreBadge } from './QualificationBadge';
 import type { Lead, LeadListField } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { ChevronUp, ChevronDown, Star, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -272,49 +272,26 @@ export function LeadTable({
       renderCell: (lead) =>
         lead.businessType ? <Badge variant="secondary">{lead.businessType}</Badge> : <span className="text-muted-foreground">-</span>,
     },
-    priorityScore: {
-      label: 'Score',
-      sortColumn: 'priorityScore',
-      renderCell: (lead) =>
-        lead.priorityScore !== null ? (
-          <QualificationBadge score={lead.priorityScore} size="sm" />
-        ) : (
-          <span className="text-muted-foreground text-sm">—</span>
-        ),
-    },
-    priorityTier: {
-      label: 'Tier',
-      sortColumn: 'priorityTier',
-      renderCell: (lead) => {
-        if (lead.priorityTier == null) return <span className="text-muted-foreground text-sm">—</span>;
-        const colors: Record<number, string> = {
-          1: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-          2: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-          3: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-        };
-        return (
-          <Badge className={`text-xs font-semibold ${colors[lead.priorityTier] ?? 'bg-muted text-muted-foreground'}`}>
-            T{lead.priorityTier}
-          </Badge>
-        );
-      },
-    },
     businessQualityScore: {
-      label: 'BQ',
+      label: 'Business Quality',
       sortColumn: 'businessQualityScore',
+      headClassName: 'text-center',
+      cellClassName: 'text-center',
       renderCell: (lead) =>
-        lead.businessQualityScore != null ? (
-          <span className="text-sm font-medium">{lead.businessQualityScore}</span>
+        lead.businessQualityScore != null && lead.businessQualityScore !== -1 ? (
+          <ScoreBadge score={lead.businessQualityScore} size="sm" />
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         ),
     },
     sellLikelihoodScore: {
-      label: 'SL',
+      label: 'Sell Likelihood',
       sortColumn: 'sellLikelihoodScore',
+      headClassName: 'text-center',
+      cellClassName: 'text-center',
       renderCell: (lead) =>
-        lead.sellLikelihoodScore != null ? (
-          <span className="text-sm font-medium">{lead.sellLikelihoodScore}</span>
+        lead.sellLikelihoodScore != null && lead.sellLikelihoodScore !== -1 ? (
+          <ScoreBadge score={lead.sellLikelihoodScore} size="sm" />
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         ),

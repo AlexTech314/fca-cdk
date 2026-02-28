@@ -10,8 +10,6 @@ const leadListFields = [
   'googleMaps',
   'rating',
   'businessType',
-  'priorityScore',
-  'priorityTier',
   'businessQualityScore',
   'sellLikelihoodScore',
   'webScrapedAt',
@@ -36,8 +34,6 @@ export const leadFiltersSchema = z.object({
   campaignId: z.string().optional(),
   ratingMin: z.coerce.number().optional(),
   ratingMax: z.coerce.number().optional(),
-  qualificationMin: z.coerce.number().optional(),
-  qualificationMax: z.coerce.number().optional(),
   hasWebsite: z.preprocess(
     (v) => (v === 'true' ? true : v === 'false' ? false : v),
     z.boolean().optional()
@@ -77,8 +73,6 @@ export const leadQuerySchema = z.object({
   campaignId: z.string().optional(),
   ratingMin: z.coerce.number().optional(),
   ratingMax: z.coerce.number().optional(),
-  qualificationMin: z.coerce.number().optional(),
-  qualificationMax: z.coerce.number().optional(),
   hasWebsite: z.preprocess(
     (v) => (v === 'true' ? true : v === 'false' ? false : v),
     z.boolean().optional()

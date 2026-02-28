@@ -24,7 +24,14 @@ const CONCURRENCY = 5;
 
 const SCORING_PROMPT = `You are a PE deal sourcing analyst for Flatirons Capital Advisors, an investment bank specializing in lower middle market transactions ($5M-$250M enterprise value).
 
-Evaluate this business as a potential PE acquisition target using the rubric below.
+Evaluate this business as a potential PE acquisition target. Be rigorous and skeptical — most businesses are mediocre acquisition targets and most owners are not looking to sell. Your scores should reflect reality, not optimism.
+
+## Calibration Guidance
+
+Your scores across a large batch should approximate these distributions:
+- Business Quality: ~30% score 1-3, ~40% score 4-6, ~25% score 7-8, ~5% score 9-10
+- Sell Likelihood: ~50% score 1-3, ~30% score 4-5, ~15% score 6-7, ~5% score 8-10
+A score of 5 is NOT "average" or "default" — it means meaningfully above-median evidence exists.
 
 ## Evaluation Steps
 
@@ -41,18 +48,28 @@ Set is_excluded=true if ANY of these apply:
 Provide a brief exclusion_reason if excluded.
 
 ### 3. Business Quality Score (1-10)
-Consider: years in business, team size, service breadth, certifications/licenses, commercial client base, recurring revenue indicators, multi-location presence, online reputation (reviews/rating), professional website quality.
+How attractive is this business as a PE acquisition target? Evaluate the evidence, not assumptions.
+
+- **1-2 (Poor)**: Very small/marginal operation. No website or bare-minimum web presence. No reviews or poor ratings (<3.5). Sole proprietor with no employees. No differentiators. Likely under $1M revenue.
+- **3-4 (Below average)**: Small local business. Basic website. Modest reviews (3.5-4.0 rating, <50 reviews). Few employees. Limited service offerings. Residential-focused. No clear competitive moat.
+- **5-6 (Solid)**: Established business with professional presence. Good reviews (4.0+ rating, 50+ reviews). Multiple employees/team visible. Some commercial clients. Broader service mix or specialization. Evidence of $2M+ revenue potential.
+- **7-8 (Strong)**: Multi-location or large operation. Excellent reputation (4.5+ rating, 100+ reviews). Visible management team beyond owner. Commercial/institutional client base. Certifications/licenses. Recurring revenue indicators (contracts, maintenance programs). Evidence of $5M+ revenue.
+- **9-10 (Exceptional)**: Market leader in their area. Strong brand. Large team with management depth. Diversified revenue. Multi-location. Clear recurring revenue model. Evidence of $10M+ revenue. Would be a premium acquisition.
+
+If there is not enough evidence to produce a real score, return -1. Do NOT guess or default to any number. A generic small business with a basic website and a few reviews is a 3-4, not a 5-6.
 
 ### 4. Sell Likelihood Score (1-10)
-Consider: succession signals (retirement language, "looking to transition"), owner age indicators, single-owner dependency, founder still operating after 20+ years, no clear next-generation leadership, lifestyle business indicators.
+How likely is the owner to sell in the next 1-3 years? Be very skeptical — most owners are NOT selling. Score based only on concrete evidence, not speculation.
 
-### 5. Priority Score & Tier
-- Priority Score = round((BQ * 0.4 + SL * 0.6) * 10)
-- Tier 1: score >= 70 (high priority)
-- Tier 2: score >= 40 (moderate)
-- Tier 3: score < 40 (low)
+- **1-2 (Very unlikely)**: No sell signals. Growing business, young/energetic leadership, recently hired staff, expanding locations, recent investments, active marketing/growth.
+- **3-4 (Unlikely)**: No sell signals but no strong counter-signals either. Long-tenured owner, business appears stable but not necessarily growing. This is where most businesses land.
+- **5-6 (Possible)**: Indirect signals present. Owner running business 20+ years AND single-owner dependency AND no visible next-gen leadership. Or: stagnant web presence suggesting disengagement. Multiple soft signals needed — a single factor is not enough for 5+.
+- **7-8 (Likely)**: Clear signals. Explicit retirement/transition language on website. "Serving the community since 1975" with founder still operating. Succession planning mentioned. Lifestyle business with aging owner showing reduced engagement.
+- **9-10 (Very likely)**: Unmistakable signals. Business listed for sale. Owner publicly discussing exit/retirement. "Looking for the right partner to carry on our legacy." Active broker listing.
 
-### 6. Supporting Evidence
+If there is not enough evidence to produce a real score, return -1. Do NOT guess or default to any number. Do NOT inflate beyond 3 without specific, concrete evidence. A business being old does not by itself mean the owner wants to sell.
+
+### 5. Supporting Evidence
 Include up to 5 URLs from the source material that best support your assessment.
 
 ## Lead Data
@@ -70,8 +87,6 @@ interface ScoringResult {
   exclusion_reason: string | null;
   business_quality_score: number;
   sell_likelihood_score: number;
-  priority_score: number;
-  priority_tier: number;
   rationale: string;
   supporting_urls: string[];
 }
@@ -105,10 +120,8 @@ async function scoreLead(leadData: Record<string, unknown>, markdown: string | n
   "ownership_type": "<type>",
   "is_excluded": <true/false>,
   "exclusion_reason": "<reason or null>",
-  "business_quality_score": <1-10>,
-  "sell_likelihood_score": <1-10>,
-  "priority_score": <0-100>,
-  "priority_tier": <1-3>,
+  "business_quality_score": <1-10 or -1>,
+  "sell_likelihood_score": <1-10 or -1>,
   "rationale": "<2-3 sentence summary>",
   "supporting_urls": ["<url1>", ...]
 }`;
@@ -141,10 +154,8 @@ async function scoreLead(leadData: Record<string, unknown>, markdown: string | n
           ownership_type: 'unknown',
           is_excluded: false,
           exclusion_reason: null,
-          business_quality_score: 5,
-          sell_likelihood_score: 5,
-          priority_score: 50,
-          priority_tier: 2,
+          business_quality_score: -1,
+          sell_likelihood_score: -1,
           rationale: 'Unable to parse Bedrock response',
           supporting_urls: [],
         };
@@ -277,8 +288,6 @@ async function main(): Promise<void> {
           exclusionReason: result.exclusion_reason,
           businessQualityScore: result.business_quality_score,
           sellLikelihoodScore: result.sell_likelihood_score,
-          priorityScore: result.priority_score,
-          priorityTier: result.priority_tier,
           scoringRationale: result.rationale,
           supportingUrls: result.supporting_urls,
           scoredAt: new Date(),
@@ -288,10 +297,13 @@ async function main(): Promise<void> {
       scored++;
       completed++;
       console.log(
-        `[${completed}/${batch.length}] Scored lead ${lead_id}: T${result.priority_tier} (BQ:${result.business_quality_score} SL:${result.sell_likelihood_score} P:${result.priority_score})${result.is_excluded ? ' [EXCLUDED]' : ''}`
+        `[${completed}/${batch.length}] Scored lead ${lead_id}: BQ:${result.business_quality_score} SL:${result.sell_likelihood_score}${result.is_excluded ? ' [EXCLUDED]' : ''}`
       );
     } catch (err) {
       console.error(`Failed to score lead ${lead_id}:`, err);
+      try {
+        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'idle' } });
+      } catch { /* best effort */ }
       failed++;
       completed++;
     }

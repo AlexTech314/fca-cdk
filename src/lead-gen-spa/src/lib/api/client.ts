@@ -125,8 +125,6 @@ function transformLead(raw: any): Lead {
     reviewCount: raw.reviewCount ?? raw.review_count ?? null,
     priceLevel: raw.priceLevel ?? raw.price_level ?? null,
     businessType: raw.businessType || raw.business_type || null,
-    priorityScore: raw.priorityScore ?? raw.priority_score ?? null,
-    priorityTier: raw.priorityTier ?? raw.priority_tier ?? null,
     businessQualityScore: raw.businessQualityScore ?? raw.business_quality_score ?? null,
     sellLikelihoodScore: raw.sellLikelihoodScore ?? raw.sell_likelihood_score ?? null,
     controllingOwner: raw.controllingOwner ?? raw.controlling_owner ?? null,
@@ -283,8 +281,6 @@ export const realApi: LeadGenApi = {
     if (filters.campaignId) qs.set('campaignId', filters.campaignId);
     if (filters.ratingMin !== undefined) qs.set('ratingMin', String(filters.ratingMin));
     if (filters.ratingMax !== undefined) qs.set('ratingMax', String(filters.ratingMax));
-    if (filters.qualificationMin !== undefined) qs.set('qualificationMin', String(filters.qualificationMin));
-    if (filters.qualificationMax !== undefined) qs.set('qualificationMax', String(filters.qualificationMax));
     if (filters.hasWebsite !== undefined) qs.set('hasWebsite', String(filters.hasWebsite));
     if (filters.hasPhone !== undefined) qs.set('hasPhone', String(filters.hasPhone));
     if (filters.franchiseId) qs.set('franchiseId', filters.franchiseId);

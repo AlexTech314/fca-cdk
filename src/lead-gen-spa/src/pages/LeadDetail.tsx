@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { QualificationBadge } from '@/components/leads/QualificationBadge';
 import { PipelineStatusDot } from '@/components/leads/PipelineStatusDot';
+import { ScoreBadge } from '@/components/leads/QualificationBadge';
 import { useLead, useQualifyLead, useDeleteScrapeRun, useDeleteScrapedPage, useDeleteLeadData, useUpdateLeadData } from '@/hooks/useLeads';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -601,15 +601,11 @@ export default function LeadDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {lead.priorityScore !== null ? (
+              {lead.scoredAt ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <QualificationBadge score={lead.priorityScore} size="lg" />
-                    {lead.priorityTier != null && (
-                      <span className="text-sm font-medium">Tier {lead.priorityTier}</span>
-                    )}
                     <span className="text-sm text-muted-foreground">
-                      Scored on {formatDate(lead.scoredAt || lead.updatedAt)}
+                      Scored on {formatDate(lead.scoredAt)}
                     </span>
                   </div>
 
@@ -624,12 +620,16 @@ export default function LeadDetail() {
 
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <div>
-                      <p className="text-xs text-muted-foreground">Business Quality</p>
-                      <p className="text-lg font-semibold">{lead.businessQualityScore ?? '—'}<span className="text-xs text-muted-foreground">/10</span></p>
+                      <p className="text-xs text-muted-foreground mb-1">Business Quality</p>
+                      {lead.businessQualityScore != null && lead.businessQualityScore !== -1
+                        ? <ScoreBadge score={lead.businessQualityScore} size="lg" />
+                        : <span className="text-muted-foreground text-sm">N/A</span>}
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Sell Likelihood</p>
-                      <p className="text-lg font-semibold">{lead.sellLikelihoodScore ?? '—'}<span className="text-xs text-muted-foreground">/10</span></p>
+                      <p className="text-xs text-muted-foreground mb-1">Sell Likelihood</p>
+                      {lead.sellLikelihoodScore != null && lead.sellLikelihoodScore !== -1
+                        ? <ScoreBadge score={lead.sellLikelihoodScore} size="lg" />
+                        : <span className="text-muted-foreground text-sm">N/A</span>}
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Owner</p>

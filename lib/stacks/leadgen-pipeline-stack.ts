@@ -396,6 +396,16 @@ export class LeadGenPipelineStack extends cdk.Stack {
       })
     );
 
+    scoringTaskDef.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'aws-marketplace:ViewSubscriptions',
+          'aws-marketplace:Subscribe',
+        ],
+        resources: ['*'],
+      })
+    );
+
     campaignDataBucket.grantRead(scoringTaskDef.taskRole);
     databaseSecret.grantRead(scoringTaskDef.taskRole);
 

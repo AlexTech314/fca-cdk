@@ -111,32 +111,6 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
             </div>
           </div>
 
-          {/* Qualification Range */}
-          <div className="space-y-2">
-            <Label>Qualification Score</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                placeholder="Min"
-                min={0}
-                max={100}
-                value={filters.qualificationMin ?? ''}
-                onChange={(e) => updateFilters({ qualificationMin: e.target.value ? parseInt(e.target.value) : undefined })}
-                className="w-20"
-              />
-              <span className="text-muted-foreground">to</span>
-              <Input
-                type="number"
-                placeholder="Max"
-                min={0}
-                max={100}
-                value={filters.qualificationMax ?? ''}
-                onChange={(e) => updateFilters({ qualificationMax: e.target.value ? parseInt(e.target.value) : undefined })}
-                className="w-20"
-              />
-            </div>
-          </div>
-
           {/* Contact Info Checkboxes */}
           <div className="space-y-3">
             <Label>Contact Info</Label>

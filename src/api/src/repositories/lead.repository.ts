@@ -14,8 +14,6 @@ const sortFieldMap: Record<string, string> = {
   createdAt: 'createdAt',
   name: 'name',
   rating: 'rating',
-  priorityScore: 'priorityScore',
-  priorityTier: 'priorityTier',
   businessQualityScore: 'businessQualityScore',
   sellLikelihoodScore: 'sellLikelihoodScore',
   businessType: 'businessType',
@@ -33,7 +31,8 @@ const defaultLeadFields: LeadListField[] = [
   'website',
   'rating',
   'businessType',
-  'priorityScore',
+  'businessQualityScore',
+  'sellLikelihoodScore',
 ];
 
 function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWithRelationInput {
@@ -303,18 +302,6 @@ function buildWhereClause(
   if (filters.ratingMax !== undefined) {
     where.rating = { ...((where.rating as object) || {}), lte: filters.ratingMax };
   }
-  if (filters.qualificationMin !== undefined) {
-    where.priorityScore = {
-      ...((where.priorityScore as object) || {}),
-      gte: filters.qualificationMin,
-    };
-  }
-  if (filters.qualificationMax !== undefined) {
-    where.priorityScore = {
-      ...((where.priorityScore as object) || {}),
-      lte: filters.qualificationMax,
-    };
-  }
   if (filters.hasWebsite !== undefined) {
     where.website = filters.hasWebsite ? { not: null } : null;
   }
@@ -374,13 +361,6 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   }
   if (fields.has('businessType')) {
     select.businessType = true;
-  }
-  if (fields.has('priorityScore')) {
-    select.priorityScore = true;
-    select.priorityTier = true;
-  }
-  if (fields.has('priorityTier')) {
-    select.priorityTier = true;
   }
   if (fields.has('businessQualityScore')) {
     select.businessQualityScore = true;

@@ -310,6 +310,9 @@ async function main(): Promise<void> {
       } catch (error) {
         failed++;
         console.error(`  ✗ Failed for ${business.business_name}:`, error);
+        try {
+          await db.lead.update({ where: { id: business.id }, data: { pipelineStatus: 'idle' } });
+        } catch { /* best effort */ }
       }
     }));
     

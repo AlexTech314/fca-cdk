@@ -94,7 +94,7 @@ export default function Leads() {
     setConfirmDialogOpen(false);
 
     const ids = [...selectedIds];
-    const BATCH_SIZE = 20;
+    const BATCH_SIZE = 100;
     const batches: string[][] = [];
     for (let i = 0; i < ids.length; i += BATCH_SIZE) {
       batches.push(ids.slice(i, i + BATCH_SIZE));

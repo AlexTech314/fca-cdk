@@ -49,11 +49,50 @@ export const leadService = {
   },
 
   async qualifyBulk(ids: string[]) {
-    const results = [];
-    for (const id of ids) {
-      const result = await this.qualify(id);
-      results.push(result);
+    if (!SCORING_QUEUE_URL) {
+      throw new Error('SCORING_QUEUE_URL is not configured');
     }
+
+    const leads = await prisma.lead.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, placeId: true, webScrapedAt: true },
+    });
+    const leadMap = new Map(leads.map(l => [l.id, l]));
+
+    const results: Array<{ id: string; status: 'queued' | 'skipped' | 'not_found'; reason?: string }> = [];
+
+    const toQueue: Array<{ id: string; placeId: string }> = [];
+    for (const id of ids) {
+      const lead = leadMap.get(id);
+      if (!lead) {
+        results.push({ id, status: 'not_found' });
+        continue;
+      }
+      if (!lead.webScrapedAt) {
+        results.push({ id, status: 'skipped', reason: 'not scraped' });
+        continue;
+      }
+      toQueue.push({ id, placeId: lead.placeId ?? '' });
+    }
+
+    // Send to SQS and update status in parallel
+    await Promise.all(toQueue.map(async ({ id, placeId }) => {
+      await sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: SCORING_QUEUE_URL,
+          MessageBody: JSON.stringify({ lead_id: id, place_id: placeId }),
+        })
+      );
+      results.push({ id, status: 'queued' });
+    }));
+
+    if (toQueue.length > 0) {
+      await prisma.lead.updateMany({
+        where: { id: { in: toQueue.map(l => l.id) } },
+        data: { pipelineStatus: 'queued_for_scoring' },
+      });
+    }
+
     return results;
   },
 

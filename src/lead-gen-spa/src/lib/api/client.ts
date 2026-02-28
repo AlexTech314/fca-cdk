@@ -354,14 +354,11 @@ export const realApi: LeadGenApi = {
     return transformLead(raw);
   },
 
-  async qualifyLeadsBulk(ids: string[]): Promise<Lead[]> {
-    // Upload IDs to S3 via presigned URL, then call bulk qualify with S3 key
-    // For now, qualify one by one (TODO: implement S3 upload pattern)
-    const results: Lead[] = [];
-    for (const id of ids) {
-      results.push(await this.qualifyLead(id));
-    }
-    return results;
+  async qualifyLeadsBulk(ids: string[]): Promise<{ results: Array<{ id: string; status: string; reason?: string }> }> {
+    return apiClient<{ results: Array<{ id: string; status: string; reason?: string }> }>('/leads/qualify-bulk', {
+      method: 'POST',
+      body: JSON.stringify({ leadIds: ids }),
+    });
   },
 
   async scrapeLeadsBulk(ids: string[]): Promise<{ results: Array<{ id: string; status: string }> }> {

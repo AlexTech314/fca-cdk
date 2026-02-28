@@ -272,6 +272,29 @@ router.post('/leads/:id/qualify', authorize('readwrite', 'admin'), async (req, r
     const lead = await leadService.qualify(String(req.params.id));
     res.json(lead);
   } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg === 'Lead not found' || msg === 'Lead has not been scraped yet') {
+      res.status(400).json({ error: msg });
+      return;
+    }
+    next(error);
+  }
+});
+
+router.post('/leads/qualify-bulk', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const { leadIds } = req.body;
+    if (!Array.isArray(leadIds) || leadIds.length === 0) {
+      res.status(400).json({ error: 'leadIds array is required and must not be empty' });
+      return;
+    }
+    if (leadIds.length > 100) {
+      res.status(400).json({ error: 'Maximum 100 leads per request' });
+      return;
+    }
+    const results = await leadService.qualifyBulk(leadIds);
+    res.json({ results });
+  } catch (error) {
     next(error);
   }
 });

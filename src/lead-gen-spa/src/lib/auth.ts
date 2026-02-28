@@ -51,11 +51,8 @@ export async function getCurrentAuthUser(): Promise<User | null> {
     return {
       id: cognitoUser.userId,
       email: cognitoUser.signInDetails?.loginId || cognitoUser.username,
-      name: null,
       cognitoSub: cognitoUser.userId,
       role,
-      invitedAt: '',
-      lastActiveAt: null,
       createdAt: '',
       updatedAt: '',
     };
@@ -184,13 +181,5 @@ export function isAdmin(user: User): boolean {
 }
 
 export function getUserInitials(user: User): string {
-  if (user.name) {
-    return user.name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  }
   return user.email.substring(0, 2).toUpperCase();
 }

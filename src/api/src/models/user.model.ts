@@ -4,7 +4,6 @@ import { z } from 'zod';
 export const userSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
-  name: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -14,14 +13,12 @@ export const userRoleSchema = z.enum(['readonly', 'readwrite', 'admin']);
 // Schema for creating a user
 export const createUserSchema = z.object({
   email: z.string().email('Invalid email address'),
-  name: z.string().min(1, 'Name is required').max(100, 'Name too long').optional(),
   role: userRoleSchema.default('readonly'),
 });
 
 // Schema for updating a user
 export const updateUserSchema = z.object({
   email: z.string().email('Invalid email address').optional(),
-  name: z.string().min(1, 'Name is required').max(100, 'Name too long').optional(),
 });
 
 // Schema for user ID param

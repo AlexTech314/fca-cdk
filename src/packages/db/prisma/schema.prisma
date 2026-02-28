@@ -18,10 +18,8 @@ datasource db {
 model User {
   id             String    @id @default(uuid())
   email          String    @unique
-  name           String?
   cognitoSub     String?   @unique @map("cognito_sub")
   role           UserRole  @default(readonly)
-  lastActiveAt   DateTime? @map("last_active_at")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 

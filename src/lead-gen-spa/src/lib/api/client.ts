@@ -213,11 +213,8 @@ function transformUser(raw: any): User {
   return {
     id: raw.id,
     email: raw.email,
-    name: raw.name || null,
     cognitoSub: raw.cognitoSub || raw.cognito_sub || null,
     role: raw.role,
-    invitedAt: raw.createdAt || raw.created_at,
-    lastActiveAt: raw.lastActiveAt || raw.last_active_at || null,
     createdAt: raw.createdAt || raw.created_at,
     updatedAt: raw.updatedAt || raw.updated_at,
   };

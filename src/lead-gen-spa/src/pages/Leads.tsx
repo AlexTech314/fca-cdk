@@ -114,8 +114,7 @@ export default function Leads() {
         setBulkProgress({ current: processed, total: ids.length });
       }
       toast({
-        title: `Bulk ${bulkAction} complete`,
-        description: `Successfully processed ${ids.length} lead${ids.length !== 1 ? 's' : ''}.`,
+        title: `Queued ${ids.length} lead${ids.length !== 1 ? 's' : ''} for ${bulkAction === 'scrape' ? 'scraping' : 'scoring'}`,
       });
     } catch (err) {
       toast({

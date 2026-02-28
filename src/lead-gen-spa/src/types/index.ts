@@ -13,11 +13,8 @@ export interface Organization {
 export interface User {
   id: string;
   email: string;
-  name: string | null;
   cognitoSub: string | null;
   role: UserRole;
-  invitedAt: string;
-  lastActiveAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -326,7 +323,6 @@ export interface UpdateCampaignInput {
 
 export interface InviteUserInput {
   email: string;
-  name?: string;
   role: UserRole;
 }
 

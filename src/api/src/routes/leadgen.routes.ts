@@ -487,12 +487,12 @@ router.get('/users', authorize('admin'), async (_req, res, next) => {
 
 router.post('/users/invite', authorize('admin'), async (req, res, next) => {
   try {
-    const { email, name, role } = req.body;
+    const { email, role } = req.body;
     if (!email) {
       res.status(400).json({ error: 'Email is required' });
       return;
     }
-    const user = await userService.create({ email, name, role });
+    const user = await userService.create({ email, role });
     res.status(201).json(user);
   } catch (error) {
     next(error);

@@ -6,7 +6,6 @@ describe('UserRepository', () => {
     it('should create a new user', async () => {
       const userData = {
         email: 'test@example.com',
-        name: 'Test User',
       };
 
       const user = await userRepository.create(userData);
@@ -14,28 +13,15 @@ describe('UserRepository', () => {
       expect(user).toBeDefined();
       expect(user.id).toBeDefined();
       expect(user.email).toBe(userData.email);
-      expect(user.name).toBe(userData.name);
       expect(user.createdAt).toBeInstanceOf(Date);
       expect(user.updatedAt).toBeInstanceOf(Date);
-    });
-
-    it('should create a user without name', async () => {
-      const userData = {
-        email: 'noname@example.com',
-      };
-
-      const user = await userRepository.create(userData);
-
-      expect(user).toBeDefined();
-      expect(user.email).toBe(userData.email);
-      expect(user.name).toBeNull();
     });
   });
 
   describe('findById', () => {
     it('should find a user by ID', async () => {
       const created = await prisma.user.create({
-        data: { email: 'find@example.com', name: 'Find Me' },
+        data: { email: 'find@example.com' },
       });
 
       const user = await userRepository.findById(created.id);
@@ -55,7 +41,7 @@ describe('UserRepository', () => {
   describe('findByEmail', () => {
     it('should find a user by email', async () => {
       const created = await prisma.user.create({
-        data: { email: 'email@example.com', name: 'Email User' },
+        data: { email: 'email@example.com' },
       });
 
       const user = await userRepository.findByEmail(created.email);
@@ -75,9 +61,9 @@ describe('UserRepository', () => {
     beforeEach(async () => {
       await prisma.user.createMany({
         data: [
-          { email: 'user1@example.com', name: 'User One' },
-          { email: 'user2@example.com', name: 'User Two' },
-          { email: 'user3@example.com', name: 'User Three' },
+          { email: 'user1@example.com' },
+          { email: 'user2@example.com' },
+          { email: 'user3@example.com' },
         ],
       });
     });
@@ -93,30 +79,29 @@ describe('UserRepository', () => {
     });
 
     it('should filter users by search term', async () => {
-      const result = await userRepository.findMany({ page: 1, limit: 10, search: 'One' });
+      const result = await userRepository.findMany({ page: 1, limit: 10, search: 'user1' });
 
       expect(result.data).toHaveLength(1);
-      expect(result.data[0].name).toBe('User One');
+      expect(result.data[0].email).toBe('user1@example.com');
     });
   });
 
   describe('update', () => {
     it('should update a user', async () => {
       const created = await prisma.user.create({
-        data: { email: 'update@example.com', name: 'Original Name' },
+        data: { email: 'update@example.com' },
       });
 
-      const updated = await userRepository.update(created.id, { name: 'Updated Name' });
+      const updated = await userRepository.update(created.id, { email: 'updated@example.com' });
 
-      expect(updated.name).toBe('Updated Name');
-      expect(updated.email).toBe(created.email);
+      expect(updated.email).toBe('updated@example.com');
     });
   });
 
   describe('delete', () => {
     it('should delete a user', async () => {
       const created = await prisma.user.create({
-        data: { email: 'delete@example.com', name: 'Delete Me' },
+        data: { email: 'delete@example.com' },
       });
 
       await userRepository.delete(created.id);
@@ -129,7 +114,7 @@ describe('UserRepository', () => {
   describe('exists', () => {
     it('should return true for existing user', async () => {
       const created = await prisma.user.create({
-        data: { email: 'exists@example.com', name: 'Exists' },
+        data: { email: 'exists@example.com' },
       });
 
       const exists = await userRepository.exists(created.id);
@@ -147,7 +132,7 @@ describe('UserRepository', () => {
   describe('emailExists', () => {
     it('should return true for existing email', async () => {
       await prisma.user.create({
-        data: { email: 'check@example.com', name: 'Check' },
+        data: { email: 'check@example.com' },
       });
 
       const exists = await userRepository.emailExists('check@example.com');
@@ -157,7 +142,7 @@ describe('UserRepository', () => {
 
     it('should exclude specified ID when checking email', async () => {
       const user = await prisma.user.create({
-        data: { email: 'exclude@example.com', name: 'Exclude' },
+        data: { email: 'exclude@example.com' },
       });
 
       const exists = await userRepository.emailExists('exclude@example.com', user.id);

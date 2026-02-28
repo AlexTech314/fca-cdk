@@ -34,10 +34,7 @@ export class UserRepository {
 
     const where = search
       ? {
-          OR: [
-            { email: { contains: search, mode: 'insensitive' as const } },
-            { name: { contains: search, mode: 'insensitive' as const } },
-          ],
+          email: { contains: search, mode: 'insensitive' as const },
         }
       : {};
 
@@ -60,7 +57,7 @@ export class UserRepository {
     };
   }
 
-  async create(data: { email: string; name?: string; cognitoSub?: string; role?: UserRole }) {
+  async create(data: { email: string; cognitoSub?: string; role?: UserRole }) {
     return prisma.user.create({
       data,
     });

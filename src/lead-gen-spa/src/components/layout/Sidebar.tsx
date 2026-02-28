@@ -100,7 +100,7 @@ export function Sidebar() {
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
-                  {user.name || user.email}
+                  {user.email}
                 </p>
                 <Badge 
                   variant={user.role === 'admin' ? 'default' : 'secondary'} 

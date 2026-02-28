@@ -54,7 +54,6 @@ export class UserService {
         UserAttributes: [
           { Name: 'email', Value: data.email },
           { Name: 'email_verified', Value: 'true' },
-          ...(data.name ? [{ Name: 'name', Value: data.name }] : []),
         ],
         DesiredDeliveryMediums: ['EMAIL'],
       })
@@ -74,7 +73,6 @@ export class UserService {
     // Create DB row
     return userRepository.create({
       email: data.email,
-      name: data.name,
       cognitoSub: cognitoSub ?? undefined,
       role,
     });

@@ -24,7 +24,6 @@ import { UserPlus } from 'lucide-react';
 
 const inviteSchema = z.object({
   email: z.string().email('Invalid email address'),
-  name: z.string().optional(),
   role: z.enum(['readonly', 'readwrite', 'admin']),
 });
 
@@ -54,7 +53,6 @@ export function InviteUserDialog({
     resolver: zodResolver(inviteSchema),
     defaultValues: {
       email: '',
-      name: '',
       role: 'readwrite',
     },
   });
@@ -64,7 +62,6 @@ export function InviteUserDialog({
   const onSubmit = async (data: InviteFormData) => {
     await onInvite({
       email: data.email,
-      name: data.name,
       role: data.role as UserRole,
     });
     reset();
@@ -101,16 +98,6 @@ export function InviteUserDialog({
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email.message}</p>
               )}
-            </div>
-
-            {/* Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Name (optional)</Label>
-              <Input
-                id="name"
-                placeholder="John Doe"
-                {...register('name')}
-              />
             </div>
 
             {/* Role */}

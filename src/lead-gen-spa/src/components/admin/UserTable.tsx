@@ -58,9 +58,8 @@ export function UserTable({ users, isLoading }: UserTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Email</TableHead>
-            <TableHead>Name</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead>Last Active</TableHead>
+            <TableHead>Joined</TableHead>
             <TableHead className="w-12"></TableHead>
           </TableRow>
         </TableHeader>
@@ -71,14 +70,11 @@ export function UserTable({ users, isLoading }: UserTableProps) {
             return (
               <TableRow key={user.id} className="hover:bg-muted/50">
                 <TableCell className="font-medium">{user.email}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {user.name || '-'}
-                </TableCell>
                 <TableCell>
                   <RoleBadge role={user.role} showIcon />
                 </TableCell>
                 <TableCell className="text-muted-foreground text-sm">
-                  {user.lastActiveAt ? formatRelativeTime(user.lastActiveAt) : 'Never'}
+                  {formatRelativeTime(user.createdAt)}
                 </TableCell>
                 <TableCell>
                   {!isCurrentUser && (

@@ -53,10 +53,9 @@ export default function Settings() {
                 </Avatar>
                 <div className="space-y-1">
                   <h3 className="text-lg font-semibold">
-                    {user.name || 'No name set'}
+                    {user.email}
                   </h3>
-                  <p className="text-muted-foreground">{user.email}</p>
-                  <Badge 
+                  <Badge
                     variant={user.role === 'admin' ? 'default' : 'secondary'}
                     className="mt-2"
                   >
@@ -72,10 +71,6 @@ export default function Settings() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Member since</span>
                 <span>{user ? formatDate(user.createdAt) : '-'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Last active</span>
-                <span>{user?.lastActiveAt ? formatDate(user.lastActiveAt) : 'Now'}</span>
               </div>
             </div>
           </CardContent>

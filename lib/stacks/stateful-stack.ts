@@ -194,6 +194,7 @@ export class StatefulStack extends cdk.Stack {
             'cognito-idp:AdminCreateUser',
             'cognito-idp:AdminSetUserPassword',
             'cognito-idp:AdminAddUserToGroup',
+            'cognito-idp:AdminGetUser',
             'cognito-idp:CreateGroup',
           ],
           resources: [

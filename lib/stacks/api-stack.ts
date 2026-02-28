@@ -26,6 +26,7 @@ export interface ApiStackProps extends cdk.StackProps {
   readonly scrapeQueueUrl?: string;
   readonly scrapeQueueArn?: string;
   readonly cognitoUserPoolId: string;
+  readonly cognitoUserPoolArn: string;
   readonly cognitoClientId: string;
 }
 
@@ -55,6 +56,7 @@ export class ApiStack extends cdk.Stack {
       scrapeQueueUrl,
       scrapeQueueArn,
       cognitoUserPoolId,
+      cognitoUserPoolArn,
       cognitoClientId,
     } = props;
 
@@ -158,6 +160,19 @@ export class ApiStack extends cdk.Stack {
       new iam.PolicyStatement({
         actions: ['ecs:StopTask'],
         resources: ['*'],
+      })
+    );
+
+    apiService.taskDefinition.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'cognito-idp:AdminCreateUser',
+          'cognito-idp:AdminDeleteUser',
+          'cognito-idp:AdminAddUserToGroup',
+          'cognito-idp:AdminRemoveUserFromGroup',
+          'cognito-idp:AdminGetUser',
+        ],
+        resources: [cognitoUserPoolArn],
       })
     );
 

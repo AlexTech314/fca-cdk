@@ -43,12 +43,12 @@ export function normalizeUrl(url: string): string | null {
  */
 export const SKIP_PATTERNS: RegExp[] = [
   // WordPress junk
-  /\/wp-json\//i,
+  /\/wp-json(\/|$)/i,
   /\/wp-includes\//i,
   /\/wp-content\/plugins\//i,
   /\/wp-content\/themes\//i,
   /\/wp-content\/uploads\//i,
-  /\/wp-admin\//i,
+  /\/wp-admin(\/|$)/i,
   /\/xmlrpc\.php/i,
   /\/wp-login\.php/i,
   /\/feed\/?$/i,

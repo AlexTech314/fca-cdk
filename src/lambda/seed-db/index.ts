@@ -47,7 +47,7 @@ function runCommand(cmd: string, cwd: string): string {
   }
 }
 
-async function runCognitoSeed(skipIfExists: boolean): Promise<void> {
+async function runCognitoSeed(skipIfExists: boolean, prisma?: PrismaClient): Promise<void> {
   const cognitoPoolId = process.env.COGNITO_USER_POOL_ID;
   if (!cognitoPoolId) {
     console.log('Cognito: COGNITO_USER_POOL_ID not set, skipping');
@@ -55,13 +55,23 @@ async function runCognitoSeed(skipIfExists: boolean): Promise<void> {
   }
   const { seedCognitoUser } = require('@fca/seed');
   for (const email of COGNITO_SEED_USERS) {
-    await seedCognitoUser({
+    const sub: string | undefined = await seedCognitoUser({
       userPoolId: cognitoPoolId,
       email,
       password: 'Admin123!',
       groups: ['admin'],
       skipIfExists,
     });
+
+    // Upsert corresponding DB row so the user appears in the app
+    if (prisma) {
+      await prisma.user.upsert({
+        where: { email },
+        update: { cognitoSub: sub ?? undefined, role: 'admin' },
+        create: { email, cognitoSub: sub ?? undefined, role: 'admin' },
+      });
+      console.log(`DB: upserted user row for ${email}`);
+    }
   }
 }
 
@@ -167,6 +177,9 @@ export async function handler(event: SeedEvent): Promise<{ status: string; actio
         await runSeed(prisma);
         console.log('=== SEED COMPLETE ===');
       }
+
+      // Cognito seed with DB upsert
+      await runCognitoSeed(true, prisma);
     } catch (err: any) {
       console.error(`[seed/wipe FAILED] ${err.constructor?.name}: ${err.message}`);
       if (err.code) console.error(`[prisma error code] ${err.code}`);
@@ -179,9 +192,14 @@ export async function handler(event: SeedEvent): Promise<{ status: string; actio
   }
 
   if (action === 'cognito-seed') {
-    await runCognitoSeed(true);
-  } else if (action === 'seed' || action === 'reset') {
-    await runCognitoSeed(true);
+    // Standalone cognito-seed: bootstrap DB so we can upsert user rows
+    await bootstrapDatabaseUrl();
+    const prisma = new PrismaClient({ log: ['warn', 'error'] });
+    try {
+      await runCognitoSeed(true, prisma);
+    } finally {
+      await prisma.$disconnect();
+    }
   }
 
   console.log(`=== seed-db lambda DONE === action=${action}`);

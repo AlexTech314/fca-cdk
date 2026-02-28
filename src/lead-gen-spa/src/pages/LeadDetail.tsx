@@ -28,6 +28,7 @@ import {
   CheckCircle2,
   Trash2,
   Pencil,
+  X,
 } from 'lucide-react';
 import type { LeadWithCampaign } from '@/types';
 
@@ -484,10 +485,11 @@ export default function LeadDetail() {
                                   <span className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center ml-1 shrink-0">
                                     <button
                                       onClick={() => handleDeletePage(p.id)}
-                                      className="text-muted-foreground hover:text-destructive p-0.5"
+                                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-0.5"
                                       disabled={isMutating}
+                                      title="Delete"
                                     >
-                                      <Trash2 className="h-3 w-3" />
+                                      <X className="h-3 w-3" />
                                     </button>
                                   </span>
                                 )}

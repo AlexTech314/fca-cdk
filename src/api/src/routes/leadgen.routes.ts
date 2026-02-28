@@ -487,12 +487,12 @@ router.get('/users', authorize('admin'), async (_req, res, next) => {
 
 router.post('/users/invite', authorize('admin'), async (req, res, next) => {
   try {
-    const { email, name } = req.body;
+    const { email, name, role } = req.body;
     if (!email) {
       res.status(400).json({ error: 'Email is required' });
       return;
     }
-    const user = await userService.create({ email, name });
+    const user = await userService.create({ email, name, role });
     res.status(201).json(user);
   } catch (error) {
     next(error);
@@ -502,13 +502,11 @@ router.post('/users/invite', authorize('admin'), async (req, res, next) => {
 router.put('/users/:id/role', authorize('admin'), async (req, res, next) => {
   try {
     const { role } = req.body;
-    if (!role) {
-      res.status(400).json({ error: 'Role is required' });
+    if (!role || !['readonly', 'readwrite', 'admin'].includes(role)) {
+      res.status(400).json({ error: 'Valid role is required (readonly, readwrite, admin)' });
       return;
     }
-    const user = await userService.update(String(req.params.id), { name: undefined });
-    // Role is managed via Cognito groups, not the user table directly
-    // The update here is a placeholder - in production, call Cognito AdminAddUserToGroup
+    const user = await userService.updateRole(String(req.params.id), role);
     res.json(user);
   } catch (error) {
     next(error);

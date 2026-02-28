@@ -1,5 +1,5 @@
-import { prisma } from '@fca/db';
-import { CreateUserInput, UpdateUserInput } from '../models/user.model';
+import { prisma, UserRole } from '@fca/db';
+import { UpdateUserInput } from '../models/user.model';
 
 export interface PaginationOptions {
   page: number;
@@ -60,7 +60,7 @@ export class UserRepository {
     };
   }
 
-  async create(data: CreateUserInput) {
+  async create(data: { email: string; name?: string; cognitoSub?: string; role?: UserRole }) {
     return prisma.user.create({
       data,
     });
@@ -70,6 +70,13 @@ export class UserRepository {
     return prisma.user.update({
       where: { id },
       data,
+    });
+  }
+
+  async updateRole(id: string, role: UserRole) {
+    return prisma.user.update({
+      where: { id },
+      data: { role },
     });
   }
 

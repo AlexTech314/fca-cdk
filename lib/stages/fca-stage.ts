@@ -75,6 +75,7 @@ export class FcaStage extends cdk.Stage {
       scrapeQueueUrl: this.pipelineStack.scrapeQueueUrl,
       scrapeQueueArn: this.pipelineStack.scrapeQueueArn,
       cognitoUserPoolId: this.cognitoStack.userPool.userPoolId,
+      cognitoUserPoolArn: this.cognitoStack.userPool.userPoolArn,
       cognitoClientId: this.cognitoStack.userPoolClient.userPoolClientId,
     });
     this.apiStack.addDependency(this.statefulStack);

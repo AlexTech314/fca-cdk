@@ -1,6 +1,17 @@
+import {
+  CognitoIdentityProviderClient,
+  AdminCreateUserCommand,
+  AdminDeleteUserCommand,
+  AdminAddUserToGroupCommand,
+  AdminRemoveUserFromGroupCommand,
+} from '@aws-sdk/client-cognito-identity-provider';
+import { UserRole } from '@fca/db';
 import { userRepository, PaginationOptions } from '../repositories/user.repository';
 import { CreateUserInput, UpdateUserInput } from '../models/user.model';
 import { NotFoundError, ConflictError } from '../lib/errors';
+
+const cognito = new CognitoIdentityProviderClient({});
+const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
 
 export class UserService {
   async getById(id: string) {
@@ -28,23 +39,53 @@ export class UserService {
   }
 
   async create(data: CreateUserInput) {
-    // Check if email already exists
     const emailExists = await userRepository.emailExists(data.email);
     if (emailExists) {
       throw new ConflictError(`User with email ${data.email} already exists`);
     }
 
-    return userRepository.create(data);
+    const role = (data.role ?? 'readonly') as UserRole;
+
+    // Create user in Cognito (sends invite email with temp password)
+    const createRes = await cognito.send(
+      new AdminCreateUserCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: data.email,
+        UserAttributes: [
+          { Name: 'email', Value: data.email },
+          { Name: 'email_verified', Value: 'true' },
+          ...(data.name ? [{ Name: 'name', Value: data.name }] : []),
+        ],
+        DesiredDeliveryMediums: ['EMAIL'],
+      })
+    );
+
+    const cognitoSub = createRes.User?.Attributes?.find((a) => a.Name === 'sub')?.Value;
+
+    // Add to the role group
+    await cognito.send(
+      new AdminAddUserToGroupCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: data.email,
+        GroupName: role,
+      })
+    );
+
+    // Create DB row
+    return userRepository.create({
+      email: data.email,
+      name: data.name,
+      cognitoSub: cognitoSub ?? undefined,
+      role,
+    });
   }
 
   async update(id: string, data: UpdateUserInput) {
-    // Check if user exists
     const exists = await userRepository.exists(id);
     if (!exists) {
       throw new NotFoundError(`User with ID ${id} not found`);
     }
 
-    // Check if email is being changed and if new email already exists
     if (data.email) {
       const emailExists = await userRepository.emailExists(data.email, id);
       if (emailExists) {
@@ -55,12 +96,48 @@ export class UserService {
     return userRepository.update(id, data);
   }
 
-  async delete(id: string) {
-    // Check if user exists
-    const exists = await userRepository.exists(id);
-    if (!exists) {
+  async updateRole(id: string, newRole: UserRole) {
+    const user = await userRepository.findById(id);
+    if (!user) {
       throw new NotFoundError(`User with ID ${id} not found`);
     }
+
+    const oldRole = user.role;
+
+    // Remove from old Cognito group
+    await cognito.send(
+      new AdminRemoveUserFromGroupCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: user.email,
+        GroupName: oldRole,
+      })
+    );
+
+    // Add to new Cognito group
+    await cognito.send(
+      new AdminAddUserToGroupCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: user.email,
+        GroupName: newRole,
+      })
+    );
+
+    return userRepository.updateRole(id, newRole);
+  }
+
+  async delete(id: string) {
+    const user = await userRepository.findById(id);
+    if (!user) {
+      throw new NotFoundError(`User with ID ${id} not found`);
+    }
+
+    // Delete from Cognito
+    await cognito.send(
+      new AdminDeleteUserCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: user.email,
+      })
+    );
 
     await userRepository.delete(id);
   }

@@ -3,7 +3,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { Button } from '@/components/ui/button';
-import { useLeads, useScrapeLeadsBulk, useQualifyLeadsBulk, defaultLeadQueryParams } from '@/hooks/useLeads';
+import { useLeads, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
 import { toast } from '@/hooks/use-toast';
 import type { LeadFilters as LeadFiltersType, LeadListField, LeadQueryParams } from '@/types';
 import {
@@ -30,7 +30,7 @@ import {
 } from '@/lib/leads/columns';
 import { ChevronDown, Filter, Globe, Sparkles, TableProperties, X } from 'lucide-react';
 
-type BulkAction = 'scrape' | 'score';
+type BulkAction = 'scrape' | 'score' | 'scrape-all' | 'score-all';
 
 const BULK_ACTION_CONFIG: Record<BulkAction, { label: string; icon: typeof Globe; confirmTitle: string; confirmBody: (n: number) => string }> = {
   scrape: {
@@ -44,6 +44,18 @@ const BULK_ACTION_CONFIG: Record<BulkAction, { label: string; icon: typeof Globe
     icon: Sparkles,
     confirmTitle: 'Confirm Bulk Score',
     confirmBody: (n) => `You are about to score ${n} lead${n !== 1 ? 's' : ''}. This will run AI qualification on the selected leads.`,
+  },
+  'scrape-all': {
+    label: 'Scrape All',
+    icon: Globe,
+    confirmTitle: 'Confirm Scrape All',
+    confirmBody: (n) => `You are about to scrape all ${n.toLocaleString()} lead${n !== 1 ? 's' : ''} matching your current filters. Leads without a website will be skipped.`,
+  },
+  'score-all': {
+    label: 'Score All',
+    icon: Sparkles,
+    confirmTitle: 'Confirm Score All',
+    confirmBody: (n) => `You are about to score all ${n.toLocaleString()} lead${n !== 1 ? 's' : ''} matching your current filters. Leads that haven't been scraped will be skipped.`,
   },
 };
 
@@ -78,10 +90,16 @@ export default function Leads() {
   const { data, isLoading } = useLeads(queryParams);
   const scrapeBulk = useScrapeLeadsBulk();
   const qualifyBulk = useQualifyLeadsBulk();
+  const scrapeAll = useScrapeAllByFilters();
+  const qualifyAll = useQualifyAllByFilters();
 
   const handleStartBulkAction = useCallback((action: BulkAction) => {
     setBulkAction(action);
-    setSelectedIds(new Set());
+    if (action === 'scrape-all' || action === 'score-all') {
+      setConfirmDialogOpen(true);
+    } else {
+      setSelectedIds(new Set());
+    }
   }, []);
 
   const handleCancelBulkAction = useCallback(() => {
@@ -92,6 +110,26 @@ export default function Leads() {
   const handleConfirmBulkAction = useCallback(async () => {
     if (!bulkAction) return;
     setConfirmDialogOpen(false);
+
+    if (bulkAction === 'scrape-all' || bulkAction === 'score-all') {
+      try {
+        const mutation = bulkAction === 'scrape-all' ? scrapeAll : qualifyAll;
+        const result = await mutation.mutateAsync(queryParams.filters);
+        toast({
+          title: `Queued ${result.queued.toLocaleString()} lead${result.queued !== 1 ? 's' : ''} for ${bulkAction === 'scrape-all' ? 'scraping' : 'scoring'}`,
+          description: result.skipped > 0 ? `${result.skipped.toLocaleString()} skipped` : undefined,
+        });
+      } catch (err) {
+        toast({
+          title: `Bulk ${bulkAction} failed`,
+          description: err instanceof Error ? err.message : 'An unexpected error occurred.',
+          variant: 'destructive',
+        });
+      } finally {
+        setBulkAction(null);
+      }
+      return;
+    }
 
     const ids = [...selectedIds];
     const BATCH_SIZE = 100;
@@ -127,7 +165,7 @@ export default function Leads() {
       setBulkAction(null);
       setSelectedIds(new Set());
     }
-  }, [bulkAction, selectedIds, scrapeBulk, qualifyBulk]);
+  }, [bulkAction, selectedIds, scrapeBulk, qualifyBulk, scrapeAll, qualifyAll, queryParams.filters]);
 
   const handleToggleRow = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -185,7 +223,8 @@ export default function Leads() {
 
   const hasActiveFilters = Object.keys(queryParams.filters).length > 0;
   const selectedColumnSet = useMemo(() => new Set(visibleColumns), [visibleColumns]);
-  const isSelecting = bulkAction !== null;
+  const isAllAction = bulkAction === 'scrape-all' || bulkAction === 'score-all';
+  const isSelecting = bulkAction !== null && !isAllAction;
   const actionConfig = bulkAction ? BULK_ACTION_CONFIG[bulkAction] : null;
 
   const descriptionText = isSelecting && selectedIds.size > 0
@@ -232,6 +271,15 @@ export default function Leads() {
                 <DropdownMenuItem onClick={() => handleStartBulkAction('score')}>
                   <Sparkles className="mr-2 h-4 w-4" />
                   Score Selected
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleStartBulkAction('scrape-all')}>
+                  <Globe className="mr-2 h-4 w-4" />
+                  Scrape All ({data?.total.toLocaleString() ?? '...'})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStartBulkAction('score-all')}>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Score All ({data?.total.toLocaleString() ?? '...'})
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -336,7 +384,7 @@ export default function Leads() {
             <DialogHeader>
               <DialogTitle>{actionConfig.confirmTitle}</DialogTitle>
               <DialogDescription>
-                {actionConfig.confirmBody(selectedIds.size)}
+                {actionConfig.confirmBody(isAllAction ? (data?.total ?? 0) : selectedIds.size)}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -345,7 +393,7 @@ export default function Leads() {
               </Button>
               <Button
                 onClick={handleConfirmBulkAction}
-                disabled={scrapeBulk.isPending || qualifyBulk.isPending}
+                disabled={scrapeBulk.isPending || qualifyBulk.isPending || scrapeAll.isPending || qualifyAll.isPending}
               >
                 Confirm
               </Button>

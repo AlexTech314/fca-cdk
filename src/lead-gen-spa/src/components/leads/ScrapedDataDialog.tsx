@@ -49,7 +49,7 @@ export function ScrapedDataDialog({ leadId, leadName, hasData }: ScrapedDataDial
             <DialogTitle>Scraped Data — {leadName}</DialogTitle>
             <DialogDescription>Combined markdown from all scraped pages</DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 min-h-0">
+          <ScrollArea className="h-[60vh]">
             {isLoading ? (
               <div className="space-y-3 p-4">
                 <Skeleton className="h-4 w-full" />
@@ -63,7 +63,7 @@ export function ScrapedDataDialog({ leadId, leadName, hasData }: ScrapedDataDial
               </p>
             ) : (
               <div className="rounded-lg border bg-muted/30 p-4">
-                <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-relaxed">
+                <pre className="whitespace-pre-wrap break-all font-mono text-sm leading-relaxed overflow-hidden">
                   {markdown}
                 </pre>
               </div>

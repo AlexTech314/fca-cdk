@@ -115,6 +115,14 @@ export const leadRepository = {
     return prisma.lead.count({ where });
   },
 
+  async findLeadsForQueue(filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>) {
+    const where = buildWhereClause(filters);
+    return prisma.lead.findMany({
+      where,
+      select: { id: true, placeId: true, website: true, webScrapedAt: true },
+    });
+  },
+
   async getDistinctBusinessTypes() {
     const results = await prisma.lead.groupBy({
       by: ['businessType'],

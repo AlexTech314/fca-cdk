@@ -121,6 +121,16 @@ export interface LeadGenApi {
    */
   scrapeLeadsBulk(ids: string[]): Promise<{ results: Array<{ id: string; status: string }> }>;
 
+  /**
+   * Scrape all leads matching filters (server-side batching)
+   */
+  scrapeAllByFilters(filters: Record<string, unknown>): Promise<{ queued: number; skipped: number; total: number }>;
+
+  /**
+   * Qualify all leads matching filters (server-side batching)
+   */
+  qualifyAllByFilters(filters: Record<string, unknown>): Promise<{ queued: number; skipped: number; total: number }>;
+
   // ===========================================
   // Campaigns
   // ===========================================

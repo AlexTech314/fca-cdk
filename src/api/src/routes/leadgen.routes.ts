@@ -9,6 +9,7 @@ import { userService } from '../services/user.service';
 import { locationService } from '../services/location.service';
 import {
   leadQuerySchema,
+  leadFiltersSchema,
   createCampaignSchema,
   updateCampaignSchema,
   confirmUploadSchema,
@@ -291,6 +292,24 @@ router.post('/leads/:id/qualify', authorize('readwrite', 'admin'), async (req, r
       res.status(400).json({ error: msg });
       return;
     }
+    next(error);
+  }
+});
+
+router.post('/leads/scrape-all', authorize('readwrite', 'admin'), validate(leadFiltersSchema), async (req, res, next) => {
+  try {
+    const result = await leadService.scrapeAllByFilters(req.body);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/leads/qualify-all', authorize('readwrite', 'admin'), validate(leadFiltersSchema), async (req, res, next) => {
+  try {
+    const result = await leadService.qualifyAllByFilters(req.body);
+    res.json(result);
+  } catch (error) {
     next(error);
   }
 });

@@ -361,6 +361,20 @@ export const realApi: LeadGenApi = {
     });
   },
 
+  async scrapeAllByFilters(filters: Record<string, unknown>): Promise<{ queued: number; skipped: number; total: number }> {
+    return apiClient<{ queued: number; skipped: number; total: number }>('/leads/scrape-all', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+  },
+
+  async qualifyAllByFilters(filters: Record<string, unknown>): Promise<{ queued: number; skipped: number; total: number }> {
+    return apiClient<{ queued: number; skipped: number; total: number }>('/leads/qualify-all', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+  },
+
   // ===========================================
   // Campaigns
   // ===========================================

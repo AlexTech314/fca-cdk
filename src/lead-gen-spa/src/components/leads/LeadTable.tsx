@@ -238,7 +238,7 @@ export function LeadTable({
         ),
     },
     googleMaps: {
-      label: 'Google Maps',
+      label: 'Maps',
       renderCell: (lead) =>
         lead.googleMapsUri ? (
           <a
@@ -268,8 +268,8 @@ export function LeadTable({
     },
     businessType: {
       label: 'Type',
-      headClassName: 'min-w-[180px]',
-      cellClassName: 'min-w-[180px]',
+      headClassName: 'min-w-[120px]',
+      cellClassName: 'min-w-[120px]',
       renderCell: (lead) =>
         lead.businessType ? <Badge variant="secondary">{lead.businessType}</Badge> : <span className="text-muted-foreground">-</span>,
     },
@@ -342,7 +342,7 @@ export function LeadTable({
           <TableHeader>
             <TableRow>
               {hasSelection && (
-                <TableHead className="w-12 !p-0">
+                <TableHead className="w-12 min-w-12 !p-0">
                   <div className="flex h-full w-full items-center justify-center">
                     <Checkbox
                       checked={allOnPageSelected ? true : someOnPageSelected ? 'indeterminate' : false}
@@ -385,7 +385,7 @@ export function LeadTable({
                 return (
                   <TableRow key={lead.id} data-state={isSelected ? 'selected' : undefined} className={isSelected ? 'bg-muted/80' : 'hover:bg-muted/50'}>
                     {hasSelection && (
-                      <TableCell className="w-12 !p-0">
+                      <TableCell className="w-12 min-w-12 !p-0">
                         <div className="flex h-full w-full items-center justify-center">
                           <Checkbox
                             checked={isSelected}

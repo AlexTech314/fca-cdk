@@ -1,4 +1,4 @@
-import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
+import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { prisma } from '@fca/db';
 import { leadRepository } from '../repositories/lead.repository';
@@ -132,6 +132,72 @@ export const leadService = {
     }
 
     return results;
+  },
+
+  async scrapeAllByFilters(filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>) {
+    if (!SCRAPE_QUEUE_URL) throw new Error('SCRAPE_QUEUE_URL is not configured');
+
+    const leads = await leadRepository.findLeadsForQueue(filters);
+    const total = leads.length;
+    const toQueue = leads.filter((l) => l.website);
+    const skipped = total - toQueue.length;
+
+    // SQS batch send (max 10 per call)
+    for (let i = 0; i < toQueue.length; i += 10) {
+      const batch = toQueue.slice(i, i + 10);
+      await sqsClient.send(
+        new SendMessageBatchCommand({
+          QueueUrl: SCRAPE_QUEUE_URL,
+          Entries: batch.map((l, idx) => ({
+            Id: String(idx),
+            MessageBody: JSON.stringify({ lead_id: l.id, place_id: l.placeId ?? '', website: l.website }),
+          })),
+        })
+      );
+    }
+
+    // Update pipelineStatus in chunks of 1000
+    const queuedIds = toQueue.map((l) => l.id);
+    for (let i = 0; i < queuedIds.length; i += 1000) {
+      await prisma.lead.updateMany({
+        where: { id: { in: queuedIds.slice(i, i + 1000) } },
+        data: { pipelineStatus: 'queued_for_scrape' },
+      });
+    }
+
+    return { queued: toQueue.length, skipped, total };
+  },
+
+  async qualifyAllByFilters(filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>) {
+    if (!SCORING_QUEUE_URL) throw new Error('SCORING_QUEUE_URL is not configured');
+
+    const leads = await leadRepository.findLeadsForQueue(filters);
+    const total = leads.length;
+    const toQueue = leads.filter((l) => l.webScrapedAt);
+    const skipped = total - toQueue.length;
+
+    for (let i = 0; i < toQueue.length; i += 10) {
+      const batch = toQueue.slice(i, i + 10);
+      await sqsClient.send(
+        new SendMessageBatchCommand({
+          QueueUrl: SCORING_QUEUE_URL,
+          Entries: batch.map((l, idx) => ({
+            Id: String(idx),
+            MessageBody: JSON.stringify({ lead_id: l.id, place_id: l.placeId ?? '' }),
+          })),
+        })
+      );
+    }
+
+    const queuedIds = toQueue.map((l) => l.id);
+    for (let i = 0; i < queuedIds.length; i += 1000) {
+      await prisma.lead.updateMany({
+        where: { id: { in: queuedIds.slice(i, i + 1000) } },
+        data: { pipelineStatus: 'queued_for_scoring' },
+      });
+    }
+
+    return { queued: toQueue.length, skipped, total };
   },
 
   // Dashboard data

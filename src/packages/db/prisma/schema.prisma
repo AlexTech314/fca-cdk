@@ -869,6 +869,103 @@ model CampaignRun {
 // ASSETS (S3 file registry)
 // ===========================================
 
+// ===========================================
+// MARKET INTELLIGENCE (scoring context)
+// ===========================================
+
+model MarketStatsByType {
+  businessType      String   @id @map("business_type")
+
+  leadCount         Int      @map("lead_count")
+  reviewCountP25    Float    @map("review_count_p25")
+  reviewCountMedian Float    @map("review_count_median")
+  reviewCountP75    Float    @map("review_count_p75")
+  reviewCountP90    Float    @map("review_count_p90")
+  reviewCountMean   Float    @map("review_count_mean")
+  ratingMean        Float    @map("rating_mean")
+  ratingMedian      Float    @map("rating_median")
+
+  scoredLeadCount   Int      @default(0) @map("scored_lead_count")
+  avgQualityScore   Float?   @map("avg_quality_score")
+  avgSellLikelihood Float?   @map("avg_sell_likelihood")
+
+  refreshedAt       DateTime @map("refreshed_at")
+
+  @@map("market_stats_by_type")
+}
+
+model MarketStatsByState {
+  locationStateId   String   @id @map("location_state_id")
+
+  leadCount         Int      @map("lead_count")
+  reviewCountP25    Float    @map("review_count_p25")
+  reviewCountMedian Float    @map("review_count_median")
+  reviewCountP75    Float    @map("review_count_p75")
+  reviewCountP90    Float    @map("review_count_p90")
+  reviewCountMean   Float    @map("review_count_mean")
+  ratingMean        Float    @map("rating_mean")
+  ratingMedian      Float    @map("rating_median")
+
+  scoredLeadCount   Int      @default(0) @map("scored_lead_count")
+  avgQualityScore   Float?   @map("avg_quality_score")
+  avgSellLikelihood Float?   @map("avg_sell_likelihood")
+
+  refreshedAt       DateTime @map("refreshed_at")
+
+  @@map("market_stats_by_state")
+}
+
+model MarketStatsByCity {
+  id                String   @id @default(uuid())
+
+  locationStateId   String   @map("location_state_id")
+  locationCityId    Int      @map("location_city_id")
+
+  leadCount         Int      @map("lead_count")
+  reviewCountP25    Float    @map("review_count_p25")
+  reviewCountMedian Float    @map("review_count_median")
+  reviewCountP75    Float    @map("review_count_p75")
+  reviewCountP90    Float    @map("review_count_p90")
+  reviewCountMean   Float    @map("review_count_mean")
+  ratingMean        Float    @map("rating_mean")
+  ratingMedian      Float    @map("rating_median")
+
+  scoredLeadCount   Int      @default(0) @map("scored_lead_count")
+  avgQualityScore   Float?   @map("avg_quality_score")
+  avgSellLikelihood Float?   @map("avg_sell_likelihood")
+
+  refreshedAt       DateTime @map("refreshed_at")
+
+  @@unique([locationStateId, locationCityId])
+  @@index([locationStateId])
+  @@map("market_stats_by_city")
+}
+
+model MarketStatsOverall {
+  id                String   @id @default("global")
+
+  leadCount         Int      @map("lead_count")
+  reviewCountP25    Float    @map("review_count_p25")
+  reviewCountMedian Float    @map("review_count_median")
+  reviewCountP75    Float    @map("review_count_p75")
+  reviewCountP90    Float    @map("review_count_p90")
+  reviewCountMean   Float    @map("review_count_mean")
+  ratingMean        Float    @map("rating_mean")
+  ratingMedian      Float    @map("rating_median")
+
+  scoredLeadCount   Int      @default(0) @map("scored_lead_count")
+  avgQualityScore   Float?   @map("avg_quality_score")
+  avgSellLikelihood Float?   @map("avg_sell_likelihood")
+
+  refreshedAt       DateTime @map("refreshed_at")
+
+  @@map("market_stats_overall")
+}
+
+// ===========================================
+// ASSETS (S3 file registry)
+// ===========================================
+
 model Asset {
   id          String      @id @default(uuid())
   fileName    String      @map("file_name")           // Original file name

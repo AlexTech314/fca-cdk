@@ -69,6 +69,28 @@ export function useScrapeLeadsBulk() {
   });
 }
 
+export function useScrapeAllByFilters() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (filters: LeadFilters) => api.scrapeAllByFilters(filters as Record<string, unknown>),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
+export function useQualifyAllByFilters() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (filters: LeadFilters) => api.qualifyAllByFilters(filters as Record<string, unknown>),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
 export function useDeleteScrapeRun() {
   const queryClient = useQueryClient();
 

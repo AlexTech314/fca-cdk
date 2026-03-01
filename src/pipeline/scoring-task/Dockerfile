@@ -26,7 +26,7 @@ COPY pipeline/scoring-task/tsconfig.json ./pipeline/scoring-task/
 RUN cd pipeline/scoring-task && npm ci --install-links --ignore-scripts
 COPY --from=db-builder /app/packages/db/node_modules/.prisma pipeline/scoring-task/node_modules/.prisma/
 
-COPY pipeline/scoring-task/index.ts ./pipeline/scoring-task/
+COPY pipeline/scoring-task/*.ts ./pipeline/scoring-task/
 RUN cd pipeline/scoring-task && npm run build
 
 # Stage 3: Production

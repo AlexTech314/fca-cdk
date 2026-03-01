@@ -391,6 +391,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
         actions: ['bedrock:InvokeModel'],
         resources: [
           `arn:aws:bedrock:${this.region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
+          `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/us.anthropic.claude-3-haiku-20240307-v1:0`,
         ],
       })
     );

@@ -158,9 +158,9 @@ DEFAULT scores: 2-3 quality, 2 sell likelihood. Justify every point above with s
 
 **5-6 (~20%):** ALL required: website_quality="professional"/"content-rich", team_members_named >= 4, reviews at 75th+ percentile, rating 4.0+, has_commercial_clients=true, services has 4+ items, years_in_business >= 5.
 
-**7-8 (~8%):** MOST required: location_count > 1, reviews at 90th+ percentile, rating 4.5+, team_members_named >= 6 (with management titles), commercial_client_names populated, certifications present, recurring_revenue_signals present.
+**7-8 (~8%):** MOST required: reviews at 90th+ percentile, rating 4.5+, team_members_named >= 6 (with management titles), commercial_client_names populated, certifications present, recurring_revenue_signals present.
 
-**9-10 (~2%):** ALL required: recognized market leader, team_member_names shows 5+ leaders, location_count > 1, diversified services + client base, strong recurring revenue, $10M+ revenue evidence.
+**9-10 (~2%):** ALL required: recognized market leader, team_member_names shows 5+ leaders, diversified services + client base, strong recurring revenue, $10M+ revenue evidence.
 
 Return -1 if insufficient evidence.
 
@@ -372,324 +372,27 @@ function buildFactsSummary(facts: ExtractionResult): string {
   return lines.join('\n');
 }
 
+/** Percentile thresholds for review counts — 23 breakpoints from p0 to p99.9 */
+const RC_PERCENTILES = [0, 1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 99, 99.9] as const;
+const RC_KEYS = ['rcP00','rcP01','rcP05','rcP10','rcP15','rcP20','rcP25','rcP30','rcP35','rcP40','rcP45','rcP50','rcP55','rcP60','rcP65','rcP70','rcP75','rcP80','rcP85','rcP90','rcP95','rcP99','rcP999'] as const;
+
 interface MarketStats {
   leadCount: number;
-  reviewCountP25: number;
-  reviewCountMedian: number;
-  reviewCountP75: number;
-  reviewCountP90: number;
-  reviewCountMean: number;
+  rcP00: number; rcP01: number; rcP05: number; rcP10: number; rcP15: number;
+  rcP20: number; rcP25: number; rcP30: number; rcP35: number; rcP40: number;
+  rcP45: number; rcP50: number; rcP55: number; rcP60: number; rcP65: number;
+  rcP70: number; rcP75: number; rcP80: number; rcP85: number; rcP90: number;
+  rcP95: number; rcP99: number; rcP999: number;
   ratingMean: number;
   ratingMedian: number;
 }
 
-const STATS_STALENESS_MS = 5 * 60 * 1000; // 5 minutes
-
-async function refreshMarketStats(db: PrismaClient, force = false): Promise<void> {
-  // Check staleness — skip if refreshed within the last hour
-  if (!force) {
-    const latest = await db.marketStatsByType.findFirst({
-      orderBy: { refreshedAt: 'desc' },
-      select: { refreshedAt: true },
-    });
-    if (latest && Date.now() - latest.refreshedAt.getTime() < STATS_STALENESS_MS) {
-      console.log('Market stats still fresh, skipping refresh');
-      return;
-    }
-  }
-
-  console.log('Refreshing market stats...');
-  const now = new Date();
-
-  // --- By business type ---
-  const byType = await db.$queryRaw<Array<{
-    business_type: string;
-    lead_count: bigint;
-    p25: number;
-    median: number;
-    p75: number;
-    p90: number;
-    mean: number;
-    rating_mean: number;
-    rating_median: number;
-    scored_count: bigint;
-    avg_quality: number | null;
-    avg_sell: number | null;
-  }>>`
-    SELECT
-      business_type,
-      COUNT(*)::bigint AS lead_count,
-      PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY review_count) AS p25,
-      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY review_count) AS median,
-      PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY review_count) AS p75,
-      PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY review_count) AS p90,
-      AVG(review_count)::double precision AS mean,
-      AVG(rating)::double precision AS rating_mean,
-      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY rating) AS rating_median,
-      COUNT(CASE WHEN business_quality_score IS NOT NULL AND business_quality_score != -1 THEN 1 END)::bigint AS scored_count,
-      AVG(CASE WHEN business_quality_score IS NOT NULL AND business_quality_score != -1 THEN business_quality_score END)::double precision AS avg_quality,
-      AVG(CASE WHEN sell_likelihood_score IS NOT NULL AND sell_likelihood_score != -1 THEN sell_likelihood_score END)::double precision AS avg_sell
-    FROM leads
-    WHERE business_type IS NOT NULL
-      AND review_count IS NOT NULL
-      AND rating IS NOT NULL
-    GROUP BY business_type
-    HAVING COUNT(*) >= 5
-  `;
-
-  for (const row of byType) {
-    await db.marketStatsByType.upsert({
-      where: { businessType: row.business_type },
-      create: {
-        businessType: row.business_type,
-        leadCount: Number(row.lead_count),
-        reviewCountP25: row.p25,
-        reviewCountMedian: row.median,
-        reviewCountP75: row.p75,
-        reviewCountP90: row.p90,
-        reviewCountMean: row.mean,
-        ratingMean: row.rating_mean,
-        ratingMedian: row.rating_median,
-        scoredLeadCount: Number(row.scored_count),
-        avgQualityScore: row.avg_quality,
-        avgSellLikelihood: row.avg_sell,
-        refreshedAt: now,
-      },
-      update: {
-        leadCount: Number(row.lead_count),
-        reviewCountP25: row.p25,
-        reviewCountMedian: row.median,
-        reviewCountP75: row.p75,
-        reviewCountP90: row.p90,
-        reviewCountMean: row.mean,
-        ratingMean: row.rating_mean,
-        ratingMedian: row.rating_median,
-        scoredLeadCount: Number(row.scored_count),
-        avgQualityScore: row.avg_quality,
-        avgSellLikelihood: row.avg_sell,
-        refreshedAt: now,
-      },
-    });
-  }
-
-  // --- By state ---
-  const byState = await db.$queryRaw<Array<{
-    location_state_id: string;
-    lead_count: bigint;
-    p25: number;
-    median: number;
-    p75: number;
-    p90: number;
-    mean: number;
-    rating_mean: number;
-    rating_median: number;
-    scored_count: bigint;
-    avg_quality: number | null;
-    avg_sell: number | null;
-  }>>`
-    SELECT
-      location_state_id,
-      COUNT(*)::bigint AS lead_count,
-      PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY review_count) AS p25,
-      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY review_count) AS median,
-      PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY review_count) AS p75,
-      PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY review_count) AS p90,
-      AVG(review_count)::double precision AS mean,
-      AVG(rating)::double precision AS rating_mean,
-      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY rating) AS rating_median,
-      COUNT(CASE WHEN business_quality_score IS NOT NULL AND business_quality_score != -1 THEN 1 END)::bigint AS scored_count,
-      AVG(CASE WHEN business_quality_score IS NOT NULL AND business_quality_score != -1 THEN business_quality_score END)::double precision AS avg_quality,
-      AVG(CASE WHEN sell_likelihood_score IS NOT NULL AND sell_likelihood_score != -1 THEN sell_likelihood_score END)::double precision AS avg_sell
-    FROM leads
-    WHERE location_state_id IS NOT NULL
-      AND review_count IS NOT NULL
-      AND rating IS NOT NULL
-    GROUP BY location_state_id
-    HAVING COUNT(*) >= 5
-  `;
-
-  for (const row of byState) {
-    await db.marketStatsByState.upsert({
-      where: { locationStateId: row.location_state_id },
-      create: {
-        locationStateId: row.location_state_id,
-        leadCount: Number(row.lead_count),
-        reviewCountP25: row.p25,
-        reviewCountMedian: row.median,
-        reviewCountP75: row.p75,
-        reviewCountP90: row.p90,
-        reviewCountMean: row.mean,
-        ratingMean: row.rating_mean,
-        ratingMedian: row.rating_median,
-        scoredLeadCount: Number(row.scored_count),
-        avgQualityScore: row.avg_quality,
-        avgSellLikelihood: row.avg_sell,
-        refreshedAt: now,
-      },
-      update: {
-        leadCount: Number(row.lead_count),
-        reviewCountP25: row.p25,
-        reviewCountMedian: row.median,
-        reviewCountP75: row.p75,
-        reviewCountP90: row.p90,
-        reviewCountMean: row.mean,
-        ratingMean: row.rating_mean,
-        ratingMedian: row.rating_median,
-        scoredLeadCount: Number(row.scored_count),
-        avgQualityScore: row.avg_quality,
-        avgSellLikelihood: row.avg_sell,
-        refreshedAt: now,
-      },
-    });
-  }
-
-  // --- By city ---
-  const byCity = await db.$queryRaw<Array<{
-    location_state_id: string;
-    location_city_id: number;
-    lead_count: bigint;
-    p25: number;
-    median: number;
-    p75: number;
-    p90: number;
-    mean: number;
-    rating_mean: number;
-    rating_median: number;
-    scored_count: bigint;
-    avg_quality: number | null;
-    avg_sell: number | null;
-  }>>`
-    SELECT
-      location_state_id,
-      location_city_id,
-      COUNT(*)::bigint AS lead_count,
-      PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY review_count) AS p25,
-      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY review_count) AS median,
-      PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY review_count) AS p75,
-      PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY review_count) AS p90,
-      AVG(review_count)::double precision AS mean,
-      AVG(rating)::double precision AS rating_mean,
-      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY rating) AS rating_median,
-      COUNT(CASE WHEN business_quality_score IS NOT NULL AND business_quality_score != -1 THEN 1 END)::bigint AS scored_count,
-      AVG(CASE WHEN business_quality_score IS NOT NULL AND business_quality_score != -1 THEN business_quality_score END)::double precision AS avg_quality,
-      AVG(CASE WHEN sell_likelihood_score IS NOT NULL AND sell_likelihood_score != -1 THEN sell_likelihood_score END)::double precision AS avg_sell
-    FROM leads
-    WHERE location_state_id IS NOT NULL
-      AND location_city_id IS NOT NULL
-      AND review_count IS NOT NULL
-      AND rating IS NOT NULL
-    GROUP BY location_state_id, location_city_id
-    HAVING COUNT(*) >= 5
-  `;
-
-  for (const row of byCity) {
-    await db.marketStatsByCity.upsert({
-      where: {
-        locationStateId_locationCityId: {
-          locationStateId: row.location_state_id,
-          locationCityId: row.location_city_id,
-        },
-      },
-      create: {
-        locationStateId: row.location_state_id,
-        locationCityId: row.location_city_id,
-        leadCount: Number(row.lead_count),
-        reviewCountP25: row.p25,
-        reviewCountMedian: row.median,
-        reviewCountP75: row.p75,
-        reviewCountP90: row.p90,
-        reviewCountMean: row.mean,
-        ratingMean: row.rating_mean,
-        ratingMedian: row.rating_median,
-        scoredLeadCount: Number(row.scored_count),
-        avgQualityScore: row.avg_quality,
-        avgSellLikelihood: row.avg_sell,
-        refreshedAt: now,
-      },
-      update: {
-        leadCount: Number(row.lead_count),
-        reviewCountP25: row.p25,
-        reviewCountMedian: row.median,
-        reviewCountP75: row.p75,
-        reviewCountP90: row.p90,
-        reviewCountMean: row.mean,
-        ratingMean: row.rating_mean,
-        ratingMedian: row.rating_median,
-        scoredLeadCount: Number(row.scored_count),
-        avgQualityScore: row.avg_quality,
-        avgSellLikelihood: row.avg_sell,
-        refreshedAt: now,
-      },
-    });
-  }
-
-  // --- Overall ---
-  const overall = await db.$queryRaw<Array<{
-    lead_count: bigint;
-    p25: number;
-    median: number;
-    p75: number;
-    p90: number;
-    mean: number;
-    rating_mean: number;
-    rating_median: number;
-    scored_count: bigint;
-    avg_quality: number | null;
-    avg_sell: number | null;
-  }>>`
-    SELECT
-      COUNT(*)::bigint AS lead_count,
-      PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY review_count) AS p25,
-      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY review_count) AS median,
-      PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY review_count) AS p75,
-      PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY review_count) AS p90,
-      AVG(review_count)::double precision AS mean,
-      AVG(rating)::double precision AS rating_mean,
-      PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY rating) AS rating_median,
-      COUNT(CASE WHEN business_quality_score IS NOT NULL AND business_quality_score != -1 THEN 1 END)::bigint AS scored_count,
-      AVG(CASE WHEN business_quality_score IS NOT NULL AND business_quality_score != -1 THEN business_quality_score END)::double precision AS avg_quality,
-      AVG(CASE WHEN sell_likelihood_score IS NOT NULL AND sell_likelihood_score != -1 THEN sell_likelihood_score END)::double precision AS avg_sell
-    FROM leads
-    WHERE review_count IS NOT NULL
-      AND rating IS NOT NULL
-  `;
-
-  if (overall.length > 0 && Number(overall[0].lead_count) >= 5) {
-    const row = overall[0];
-    await db.marketStatsOverall.upsert({
-      where: { id: 'global' },
-      create: {
-        leadCount: Number(row.lead_count),
-        reviewCountP25: row.p25,
-        reviewCountMedian: row.median,
-        reviewCountP75: row.p75,
-        reviewCountP90: row.p90,
-        reviewCountMean: row.mean,
-        ratingMean: row.rating_mean,
-        ratingMedian: row.rating_median,
-        scoredLeadCount: Number(row.scored_count),
-        avgQualityScore: row.avg_quality,
-        avgSellLikelihood: row.avg_sell,
-        refreshedAt: now,
-      },
-      update: {
-        leadCount: Number(row.lead_count),
-        reviewCountP25: row.p25,
-        reviewCountMedian: row.median,
-        reviewCountP75: row.p75,
-        reviewCountP90: row.p90,
-        reviewCountMean: row.mean,
-        ratingMean: row.rating_mean,
-        ratingMedian: row.rating_median,
-        scoredLeadCount: Number(row.scored_count),
-        avgQualityScore: row.avg_quality,
-        avgSellLikelihood: row.avg_sell,
-        refreshedAt: now,
-      },
-    });
-  }
-
-  console.log(`Market stats refreshed: ${byType.length} business types, ${byState.length} states, ${byCity.length} cities, overall`);
+async function refreshMarketStats(db: PrismaClient): Promise<void> {
+  console.log('Refreshing market stats materialized views...');
+  await db.$executeRaw`REFRESH MATERIALIZED VIEW CONCURRENTLY market_stats_by_type`;
+  await db.$executeRaw`REFRESH MATERIALIZED VIEW CONCURRENTLY market_stats_by_state`;
+  await db.$executeRaw`REFRESH MATERIALIZED VIEW CONCURRENTLY market_stats_by_city`;
+  console.log('Market stats refreshed');
 }
 
 async function refreshLeadRanks(db: PrismaClient): Promise<void> {
@@ -744,91 +447,44 @@ async function refreshLeadRanks(db: PrismaClient): Promise<void> {
 }
 
 function percentileBucket(value: number, stats: MarketStats): string {
-  if (value >= stats.reviewCountP90) return '90th+ percentile (top tier)';
-  if (value >= stats.reviewCountP75) return '75th-90th percentile (above average)';
-  if (value >= stats.reviewCountMedian) return '50th-75th percentile (above median)';
-  if (value >= stats.reviewCountP25) return '25th-50th percentile (below median)';
-  return 'below 25th percentile (bottom quartile)';
+  // Walk from highest percentile down to find where this value sits
+  for (let i = RC_KEYS.length - 1; i >= 0; i--) {
+    if (value >= stats[RC_KEYS[i]]) {
+      const pct = RC_PERCENTILES[i];
+      if (pct >= 99.9) return '99.9th+ percentile';
+      if (pct >= 99) return '99th-99.9th percentile';
+      // For the 0-95 range in steps of 5, show "Xth-Yth percentile"
+      const nextPct = i < RC_KEYS.length - 1 ? RC_PERCENTILES[i + 1] : 100;
+      return `${pct}th-${nextPct}th percentile`;
+    }
+  }
+  return 'below minimum';
 }
 
 async function buildMarketContext(
   db: PrismaClient,
   businessType: string | null,
-  locationStateId: string | null,
-  locationCityId: number | null,
   reviewCount: number | null,
   rating: number | null,
 ): Promise<string> {
-  const sections: string[] = [];
+  if (!businessType) return '';
 
-  if (businessType) {
-    const typeStats = await db.marketStatsByType.findUnique({
-      where: { businessType },
-    });
-    if (typeStats) {
-      let section = `Among ${typeStats.leadCount} "${businessType}" businesses in our database:\n`;
-      section += `- Review count: median ${Math.round(typeStats.reviewCountMedian)}, 75th pctl ${Math.round(typeStats.reviewCountP75)}, 90th pctl ${Math.round(typeStats.reviewCountP90)}\n`;
-      if (reviewCount !== null) {
-        section += `- This lead's ${reviewCount} reviews = ${percentileBucket(reviewCount, typeStats)} for this trade\n`;
-      }
-      section += `- Rating: median ${typeStats.ratingMedian.toFixed(1)}`;
-      if (rating !== null) {
-        section += ` — this lead's ${rating.toFixed(1)} = ${rating >= typeStats.ratingMedian ? 'above' : 'below'} median`;
-      }
-      sections.push(section);
-    }
-  }
-
-  if (locationStateId) {
-    const stateStats = await db.marketStatsByState.findUnique({
-      where: { locationStateId },
-    });
-    if (stateStats) {
-      let section = `Among ${stateStats.leadCount} leads in this state:\n`;
-      section += `- Review count: median ${Math.round(stateStats.reviewCountMedian)}, 75th pctl ${Math.round(stateStats.reviewCountP75)}, 90th pctl ${Math.round(stateStats.reviewCountP90)}\n`;
-      if (reviewCount !== null) {
-        section += `- This lead's ${reviewCount} reviews = ${percentileBucket(reviewCount, stateStats)} for this state\n`;
-      }
-      section += `- Rating: median ${stateStats.ratingMedian.toFixed(1)}`;
-      if (rating !== null) {
-        section += ` — this lead's ${rating.toFixed(1)} = ${rating >= stateStats.ratingMedian ? 'above' : 'below'} median`;
-      }
-      sections.push(section);
-    }
-  }
-
-  if (locationStateId && locationCityId !== null) {
-    const cityStats = await db.marketStatsByCity.findFirst({
-      where: { locationStateId, locationCityId },
-    });
-    if (cityStats) {
-      let section = `Among ${cityStats.leadCount} leads in this city/metro:\n`;
-      section += `- Review count: median ${Math.round(cityStats.reviewCountMedian)}, 75th pctl ${Math.round(cityStats.reviewCountP75)}\n`;
-      if (reviewCount !== null) {
-        section += `- This lead's ${reviewCount} reviews = ${percentileBucket(reviewCount, cityStats)} for this market`;
-      }
-      sections.push(section);
-    }
-  }
-
-  const overallStats = await db.marketStatsOverall.findUnique({
-    where: { id: 'global' },
+  const typeStats = await db.marketStatsByType.findUnique({
+    where: { businessType },
   });
-  if (overallStats) {
-    let section = `Across all ${overallStats.leadCount} leads in our database:\n`;
-    section += `- Review count: median ${Math.round(overallStats.reviewCountMedian)}, 75th pctl ${Math.round(overallStats.reviewCountP75)}, 90th pctl ${Math.round(overallStats.reviewCountP90)}\n`;
-    if (reviewCount !== null) {
-      section += `- This lead's ${reviewCount} reviews = ${percentileBucket(reviewCount, overallStats)} overall\n`;
-    }
-    section += `- Rating: median ${overallStats.ratingMedian.toFixed(1)}`;
-    if (rating !== null) {
-      section += ` — this lead's ${rating.toFixed(1)} = ${rating >= overallStats.ratingMedian ? 'above' : 'below'} median`;
-    }
-    sections.push(section);
+  if (!typeStats) return '';
+
+  let section = `Among ${typeStats.leadCount} "${businessType}" businesses in our database:\n`;
+  section += `- Review count distribution: p25=${Math.round(typeStats.rcP25)}, median=${Math.round(typeStats.rcP50)}, p75=${Math.round(typeStats.rcP75)}, p90=${Math.round(typeStats.rcP90)}, p99=${Math.round(typeStats.rcP99)}\n`;
+  if (reviewCount !== null) {
+    section += `- This lead's ${reviewCount} reviews = ${percentileBucket(reviewCount, typeStats)} for this trade\n`;
+  }
+  section += `- Rating: median ${typeStats.ratingMedian.toFixed(1)}`;
+  if (rating !== null) {
+    section += ` — this lead's ${rating.toFixed(1)} = ${rating >= typeStats.ratingMedian ? 'above' : 'below'} median`;
   }
 
-  if (sections.length === 0) return '';
-  return '## Market Context\n\n' + sections.join('\n\n');
+  return '## Market Context\n\n' + section;
 }
 
 async function scoreLead(
@@ -1034,8 +690,6 @@ async function main(): Promise<void> {
       const marketContext = await buildMarketContext(
         db,
         lead.businessType,
-        lead.locationStateId,
-        lead.locationCityId,
         lead.reviewCount,
         lead.rating,
       );
@@ -1085,7 +739,7 @@ async function main(): Promise<void> {
   }
   await Promise.all(pending);
 
-  await refreshMarketStats(db, true);
+  await refreshMarketStats(db);
   await refreshLeadRanks(db);
 
   await db.fargateTask.update({

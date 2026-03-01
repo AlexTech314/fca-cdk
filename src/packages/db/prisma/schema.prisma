@@ -2,8 +2,9 @@
 // https://pris.ly/d/prisma-schema
 
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "rhel-openssl-3.0.x"]
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "linux-arm64-openssl-3.0.x", "rhel-openssl-3.0.x"]
+  previewFeatures = ["views"]
 }
 
 datasource db {
@@ -886,93 +887,105 @@ model CampaignRun {
 // MARKET INTELLIGENCE (scoring context)
 // ===========================================
 
-model MarketStatsByType {
-  businessType      String   @id @map("business_type")
+view MarketStatsByType {
+  businessType String @id @map("business_type")
 
-  leadCount         Int      @map("lead_count")
-  reviewCountP25    Float    @map("review_count_p25")
-  reviewCountMedian Float    @map("review_count_median")
-  reviewCountP75    Float    @map("review_count_p75")
-  reviewCountP90    Float    @map("review_count_p90")
-  reviewCountMean   Float    @map("review_count_mean")
-  ratingMean        Float    @map("rating_mean")
-  ratingMedian      Float    @map("rating_median")
-
-  scoredLeadCount   Int      @default(0) @map("scored_lead_count")
-  avgQualityScore   Float?   @map("avg_quality_score")
-  avgSellLikelihood Float?   @map("avg_sell_likelihood")
-
-  refreshedAt       DateTime @map("refreshed_at")
+  leadCount    Int   @map("lead_count")
+  rcP00        Float @map("rc_p00")
+  rcP01        Float @map("rc_p01")
+  rcP05        Float @map("rc_p05")
+  rcP10        Float @map("rc_p10")
+  rcP15        Float @map("rc_p15")
+  rcP20        Float @map("rc_p20")
+  rcP25        Float @map("rc_p25")
+  rcP30        Float @map("rc_p30")
+  rcP35        Float @map("rc_p35")
+  rcP40        Float @map("rc_p40")
+  rcP45        Float @map("rc_p45")
+  rcP50        Float @map("rc_p50")
+  rcP55        Float @map("rc_p55")
+  rcP60        Float @map("rc_p60")
+  rcP65        Float @map("rc_p65")
+  rcP70        Float @map("rc_p70")
+  rcP75        Float @map("rc_p75")
+  rcP80        Float @map("rc_p80")
+  rcP85        Float @map("rc_p85")
+  rcP90        Float @map("rc_p90")
+  rcP95        Float @map("rc_p95")
+  rcP99        Float @map("rc_p99")
+  rcP999       Float @map("rc_p999")
+  ratingMean   Float @map("rating_mean")
+  ratingMedian Float @map("rating_median")
 
   @@map("market_stats_by_type")
 }
 
-model MarketStatsByState {
-  locationStateId   String   @id @map("location_state_id")
+view MarketStatsByState {
+  locationStateId String @id @map("location_state_id")
 
-  leadCount         Int      @map("lead_count")
-  reviewCountP25    Float    @map("review_count_p25")
-  reviewCountMedian Float    @map("review_count_median")
-  reviewCountP75    Float    @map("review_count_p75")
-  reviewCountP90    Float    @map("review_count_p90")
-  reviewCountMean   Float    @map("review_count_mean")
-  ratingMean        Float    @map("rating_mean")
-  ratingMedian      Float    @map("rating_median")
-
-  scoredLeadCount   Int      @default(0) @map("scored_lead_count")
-  avgQualityScore   Float?   @map("avg_quality_score")
-  avgSellLikelihood Float?   @map("avg_sell_likelihood")
-
-  refreshedAt       DateTime @map("refreshed_at")
+  leadCount       Int   @map("lead_count")
+  rcP00           Float @map("rc_p00")
+  rcP01           Float @map("rc_p01")
+  rcP05           Float @map("rc_p05")
+  rcP10           Float @map("rc_p10")
+  rcP15           Float @map("rc_p15")
+  rcP20           Float @map("rc_p20")
+  rcP25           Float @map("rc_p25")
+  rcP30           Float @map("rc_p30")
+  rcP35           Float @map("rc_p35")
+  rcP40           Float @map("rc_p40")
+  rcP45           Float @map("rc_p45")
+  rcP50           Float @map("rc_p50")
+  rcP55           Float @map("rc_p55")
+  rcP60           Float @map("rc_p60")
+  rcP65           Float @map("rc_p65")
+  rcP70           Float @map("rc_p70")
+  rcP75           Float @map("rc_p75")
+  rcP80           Float @map("rc_p80")
+  rcP85           Float @map("rc_p85")
+  rcP90           Float @map("rc_p90")
+  rcP95           Float @map("rc_p95")
+  rcP99           Float @map("rc_p99")
+  rcP999          Float @map("rc_p999")
+  ratingMean      Float @map("rating_mean")
+  ratingMedian    Float @map("rating_median")
 
   @@map("market_stats_by_state")
 }
 
-model MarketStatsByCity {
-  id                String   @id @default(uuid())
+view MarketStatsByCity {
+  locationStateId String @map("location_state_id")
+  locationCityId  Int    @map("location_city_id")
 
-  locationStateId   String   @map("location_state_id")
-  locationCityId    Int      @map("location_city_id")
+  leadCount       Int   @map("lead_count")
+  rcP00           Float @map("rc_p00")
+  rcP01           Float @map("rc_p01")
+  rcP05           Float @map("rc_p05")
+  rcP10           Float @map("rc_p10")
+  rcP15           Float @map("rc_p15")
+  rcP20           Float @map("rc_p20")
+  rcP25           Float @map("rc_p25")
+  rcP30           Float @map("rc_p30")
+  rcP35           Float @map("rc_p35")
+  rcP40           Float @map("rc_p40")
+  rcP45           Float @map("rc_p45")
+  rcP50           Float @map("rc_p50")
+  rcP55           Float @map("rc_p55")
+  rcP60           Float @map("rc_p60")
+  rcP65           Float @map("rc_p65")
+  rcP70           Float @map("rc_p70")
+  rcP75           Float @map("rc_p75")
+  rcP80           Float @map("rc_p80")
+  rcP85           Float @map("rc_p85")
+  rcP90           Float @map("rc_p90")
+  rcP95           Float @map("rc_p95")
+  rcP99           Float @map("rc_p99")
+  rcP999          Float @map("rc_p999")
+  ratingMean      Float @map("rating_mean")
+  ratingMedian    Float @map("rating_median")
 
-  leadCount         Int      @map("lead_count")
-  reviewCountP25    Float    @map("review_count_p25")
-  reviewCountMedian Float    @map("review_count_median")
-  reviewCountP75    Float    @map("review_count_p75")
-  reviewCountP90    Float    @map("review_count_p90")
-  reviewCountMean   Float    @map("review_count_mean")
-  ratingMean        Float    @map("rating_mean")
-  ratingMedian      Float    @map("rating_median")
-
-  scoredLeadCount   Int      @default(0) @map("scored_lead_count")
-  avgQualityScore   Float?   @map("avg_quality_score")
-  avgSellLikelihood Float?   @map("avg_sell_likelihood")
-
-  refreshedAt       DateTime @map("refreshed_at")
-
-  @@unique([locationStateId, locationCityId])
-  @@index([locationStateId])
+  @@id([locationStateId, locationCityId])
   @@map("market_stats_by_city")
-}
-
-model MarketStatsOverall {
-  id                String   @id @default("global")
-
-  leadCount         Int      @map("lead_count")
-  reviewCountP25    Float    @map("review_count_p25")
-  reviewCountMedian Float    @map("review_count_median")
-  reviewCountP75    Float    @map("review_count_p75")
-  reviewCountP90    Float    @map("review_count_p90")
-  reviewCountMean   Float    @map("review_count_mean")
-  ratingMean        Float    @map("rating_mean")
-  ratingMedian      Float    @map("rating_median")
-
-  scoredLeadCount   Int      @default(0) @map("scored_lead_count")
-  avgQualityScore   Float?   @map("avg_quality_score")
-  avgSellLikelihood Float?   @map("avg_sell_likelihood")
-
-  refreshedAt       DateTime @map("refreshed_at")
-
-  @@map("market_stats_overall")
 }
 
 // ===========================================

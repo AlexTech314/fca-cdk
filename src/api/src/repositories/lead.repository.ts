@@ -339,6 +339,8 @@ function buildLeadSelect(fields: Set<LeadListField>) {
     id: true,
     placeId: true,
     pipelineStatus: true,
+    scrapeError: true,
+    scoringError: true,
     createdAt: true,
     updatedAt: true,
   };

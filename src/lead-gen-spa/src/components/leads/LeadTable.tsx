@@ -166,7 +166,7 @@ export function LeadTable({
       renderCell: (lead) => (
         <>
           <div className="flex items-center gap-1.5">
-            <PipelineStatusDot status={lead.pipelineStatus} />
+            <PipelineStatusDot status={lead.pipelineStatus} scrapeError={lead.scrapeError} scoringError={lead.scoringError} />
             <Link
               to={`/leads/${lead.id}`}
               className="font-medium text-primary hover:underline"

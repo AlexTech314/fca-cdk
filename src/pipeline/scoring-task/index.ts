@@ -762,13 +762,6 @@ async function main(): Promise<void> {
         skipped++;
         return;
       }
-      if (lead.scoredAt !== null) {
-        console.log(`Lead ${lead_id} already scored, skipping`);
-        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'idle' } });
-        skipped++;
-        return;
-      }
-
       const social = Object.fromEntries(
         lead.leadSocialProfiles.map((p) => [p.platform, p.url])
       );
@@ -820,6 +813,7 @@ async function main(): Promise<void> {
           supportingEvidence: result.supporting_evidence,
           scoredAt: new Date(),
           pipelineStatus: 'idle',
+          scoringError: null,
         },
       });
       scored++;
@@ -829,8 +823,9 @@ async function main(): Promise<void> {
       );
     } catch (err) {
       console.error(`Failed to score lead ${lead_id}:`, err);
+      const errorMsg = err instanceof Error ? err.message : String(err);
       try {
-        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'idle' } });
+        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'scoring_failed', scoringError: errorMsg.slice(0, 500) } });
       } catch { /* best effort */ }
       failed++;
       completed++;

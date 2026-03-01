@@ -310,8 +310,9 @@ async function main(): Promise<void> {
       } catch (error) {
         failed++;
         console.error(`  ✗ Failed for ${business.business_name}:`, error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
         try {
-          await db.lead.update({ where: { id: business.id }, data: { pipelineStatus: 'idle' } });
+          await db.lead.update({ where: { id: business.id }, data: { pipelineStatus: 'scrape_failed', scrapeError: errorMsg.slice(0, 500) } });
         } catch { /* best effort */ }
       }
     }));

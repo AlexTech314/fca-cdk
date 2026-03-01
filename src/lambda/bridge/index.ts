@@ -57,7 +57,7 @@ export async function handler(event: TriggerEvent): Promise<{ statusCode: number
           MessageGroupId: undefined, // Standard queue, no group ID
         }));
         const db = await getDb();
-        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scrape' } });
+        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scrape', scrapeError: null } });
         console.log(`Sent lead ${lead_id} to scrape queue`);
         break;
       }
@@ -69,7 +69,7 @@ export async function handler(event: TriggerEvent): Promise<{ statusCode: number
           MessageBody: JSON.stringify({ lead_id, place_id }),
         }));
         const db = await getDb();
-        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scoring' } });
+        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scoring', scoringError: null } });
         console.log(`Sent lead ${lead_id} to scoring queue`);
         break;
       }

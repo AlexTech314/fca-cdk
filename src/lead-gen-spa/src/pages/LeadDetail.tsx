@@ -226,7 +226,7 @@ export default function LeadDetail() {
             <CardContent className="space-y-4">
               <div>
                 <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <PipelineStatusDot status={lead.pipelineStatus} />
+                  <PipelineStatusDot status={lead.pipelineStatus} scrapeError={lead.scrapeError} scoringError={lead.scoringError} />
                   {lead.name}
                 </h3>
                 {lead.franchise && (

@@ -44,7 +44,7 @@ export const leadService = {
         MessageBody: JSON.stringify({ lead_id: id, place_id: lead.placeId ?? '' }),
       })
     );
-    await prisma.lead.update({ where: { id }, data: { pipelineStatus: 'queued_for_scoring' } });
+    await prisma.lead.update({ where: { id }, data: { pipelineStatus: 'queued_for_scoring', scoringError: null } });
     return lead;
   },
 
@@ -89,7 +89,7 @@ export const leadService = {
     if (toQueue.length > 0) {
       await prisma.lead.updateMany({
         where: { id: { in: toQueue.map(l => l.id) } },
-        data: { pipelineStatus: 'queued_for_scoring' },
+        data: { pipelineStatus: 'queued_for_scoring', scoringError: null },
       });
     }
 
@@ -124,7 +124,7 @@ export const leadService = {
             }),
           })
         );
-        await prisma.lead.update({ where: { id }, data: { pipelineStatus: 'queued_for_scrape' } });
+        await prisma.lead.update({ where: { id }, data: { pipelineStatus: 'queued_for_scrape', scrapeError: null } });
         results.push({ id, status: 'queued' });
       } catch (err) {
         results.push({ id, status: 'error', error: err instanceof Error ? err.message : 'Unknown error' });
@@ -161,7 +161,7 @@ export const leadService = {
     for (let i = 0; i < queuedIds.length; i += 1000) {
       await prisma.lead.updateMany({
         where: { id: { in: queuedIds.slice(i, i + 1000) } },
-        data: { pipelineStatus: 'queued_for_scrape' },
+        data: { pipelineStatus: 'queued_for_scrape', scrapeError: null },
       });
     }
 
@@ -193,7 +193,7 @@ export const leadService = {
     for (let i = 0; i < queuedIds.length; i += 1000) {
       await prisma.lead.updateMany({
         where: { id: { in: queuedIds.slice(i, i + 1000) } },
-        data: { pipelineStatus: 'queued_for_scoring' },
+        data: { pipelineStatus: 'queued_for_scoring', scoringError: null },
       });
     }
 

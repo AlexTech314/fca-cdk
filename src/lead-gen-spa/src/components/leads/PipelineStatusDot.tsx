@@ -12,11 +12,26 @@ const STATUS_CONFIG: Record<LeadPipelineStatus, { color: string; label: string; 
   scraping:                 { color: 'bg-blue-500',   label: 'Scraping...', pulse: true },
   queued_for_scoring:       { color: 'bg-orange-400', label: 'Queued for scoring', pulse: false },
   scoring:                  { color: 'bg-purple-500', label: 'Scoring...', pulse: true },
+  scrape_failed:            { color: 'bg-red-500',    label: 'Scrape failed', pulse: false },
+  scoring_failed:           { color: 'bg-red-500',    label: 'Scoring failed', pulse: false },
 };
 
-export function PipelineStatusDot({ status }: { status: LeadPipelineStatus }) {
+interface PipelineStatusDotProps {
+  status: LeadPipelineStatus;
+  scrapeError?: string | null;
+  scoringError?: string | null;
+}
+
+export function PipelineStatusDot({ status, scrapeError, scoringError }: PipelineStatusDotProps) {
   const config = STATUS_CONFIG[status];
   if (!config) return null;
+
+  let tooltipText = config.label;
+  if (status === 'scrape_failed' && scrapeError) {
+    tooltipText = `Scrape failed: ${scrapeError}`;
+  } else if (status === 'scoring_failed' && scoringError) {
+    tooltipText = `Scoring failed: ${scoringError}`;
+  }
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -27,8 +42,8 @@ export function PipelineStatusDot({ status }: { status: LeadPipelineStatus }) {
             aria-label={config.label}
           />
         </TooltipTrigger>
-        <TooltipContent side="top">
-          <p className="text-xs">{config.label}</p>
+        <TooltipContent side="top" className="max-w-xs">
+          <p className="text-xs">{tooltipText}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

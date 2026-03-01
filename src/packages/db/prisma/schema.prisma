@@ -682,6 +682,8 @@ enum LeadPipelineStatus {
   scraping
   queued_for_scoring
   scoring
+  scrape_failed
+  scoring_failed
 }
 
 enum LeadSource {
@@ -792,6 +794,8 @@ model Lead {
   webScrapedAt         DateTime? @map("web_scraped_at")
   contactPageUrl       String?   @map("contact_page_url")
   pipelineStatus       LeadPipelineStatus @default(idle) @map("pipeline_status")
+  scrapeError          String?   @map("scrape_error")
+  scoringError         String?   @map("scoring_error")
 
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")

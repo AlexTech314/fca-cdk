@@ -75,9 +75,9 @@ export async function handler(event: SQSEvent): Promise<void> {
     const prismaEarly = await getDb();
     await prismaEarly.lead.updateMany({
       where: { id: { in: skippedLeadIds }, pipelineStatus: 'queued_for_scrape' },
-      data: { pipelineStatus: 'idle' },
+      data: { pipelineStatus: 'scrape_failed', scrapeError: 'No website URL available' },
     });
-    console.log(`Reset ${skippedLeadIds.length} lead(s) with no website back to idle`);
+    console.log(`Marked ${skippedLeadIds.length} lead(s) with no website as scrape_failed`);
   }
 
   if (batch.length === 0) {

@@ -641,6 +641,51 @@ export default function LeadDetail() {
                     </div>
                   </div>
 
+                  {lead.compositeScore != null && (
+                    <div className="rounded-lg border p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">Composite Score</p>
+                        <span className={`font-mono text-lg font-bold ${
+                          lead.compositeScore >= 75 ? 'text-green-600 dark:text-green-400' :
+                          lead.compositeScore >= 50 ? 'text-amber-600 dark:text-amber-400' :
+                          lead.compositeScore >= 25 ? 'text-orange-600 dark:text-orange-400' :
+                          'text-muted-foreground'
+                        }`}>
+                          {Math.round(lead.compositeScore)}
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            lead.compositeScore >= 75 ? 'bg-green-500' :
+                            lead.compositeScore >= 50 ? 'bg-amber-500' :
+                            lead.compositeScore >= 25 ? 'bg-orange-500' :
+                            'bg-gray-400'
+                          }`}
+                          style={{ width: `${Math.min(lead.compositeScore, 100)}%` }}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Quality (by type)</span>
+                          <span className="font-mono">{lead.qualityPercentileByType != null ? Math.round(lead.qualityPercentileByType) : '—'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Quality (by city)</span>
+                          <span className="font-mono">{lead.qualityPercentileByCity != null ? Math.round(lead.qualityPercentileByCity) : '—'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Sell (by type)</span>
+                          <span className="font-mono">{lead.sellPercentileByType != null ? Math.round(lead.sellPercentileByType) : '—'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Sell (by city)</span>
+                          <span className="font-mono">{lead.sellPercentileByCity != null ? Math.round(lead.sellPercentileByCity) : '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {lead.scoringRationale && (
                     <div className="rounded-lg bg-muted p-4">
                       <pre className="text-sm whitespace-pre-wrap font-sans">

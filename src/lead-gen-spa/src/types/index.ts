@@ -74,6 +74,11 @@ export interface Lead {
   scoringRationale: string | null;
   supportingEvidence: { url: string; snippet: string }[];
   scoredAt: string | null;
+  qualityPercentileByType: number | null;
+  qualityPercentileByCity: number | null;
+  sellPercentileByType: number | null;
+  sellPercentileByCity: number | null;
+  compositeScore: number | null;
   isExcluded: boolean;
   exclusionReason: string | null;
   source: 'google_places' | 'manual' | 'import' | null;
@@ -239,6 +244,7 @@ export type LeadListField =
   | 'extractedData'
   | 'businessQualityScore'
   | 'sellLikelihoodScore'
+  | 'compositeScore'
   | 'webScrapedAt'
   | 'createdAt';
 

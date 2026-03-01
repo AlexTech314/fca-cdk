@@ -385,15 +385,17 @@ interface MarketStats {
 
 const STATS_STALENESS_MS = 5 * 60 * 1000; // 5 minutes
 
-async function refreshMarketStats(db: PrismaClient): Promise<void> {
+async function refreshMarketStats(db: PrismaClient, force = false): Promise<void> {
   // Check staleness — skip if refreshed within the last hour
-  const latest = await db.marketStatsByType.findFirst({
-    orderBy: { refreshedAt: 'desc' },
-    select: { refreshedAt: true },
-  });
-  if (latest && Date.now() - latest.refreshedAt.getTime() < STATS_STALENESS_MS) {
-    console.log('Market stats still fresh, skipping refresh');
-    return;
+  if (!force) {
+    const latest = await db.marketStatsByType.findFirst({
+      orderBy: { refreshedAt: 'desc' },
+      select: { refreshedAt: true },
+    });
+    if (latest && Date.now() - latest.refreshedAt.getTime() < STATS_STALENESS_MS) {
+      console.log('Market stats still fresh, skipping refresh');
+      return;
+    }
   }
 
   console.log('Refreshing market stats...');
@@ -688,6 +690,57 @@ async function refreshMarketStats(db: PrismaClient): Promise<void> {
   }
 
   console.log(`Market stats refreshed: ${byType.length} business types, ${byState.length} states, ${byCity.length} cities, overall`);
+}
+
+async function refreshLeadRanks(db: PrismaClient): Promise<void> {
+  console.log('Refreshing lead percentile ranks...');
+  const result = await db.$executeRaw`
+    WITH scored AS (
+      SELECT id, business_type, location_city_id, location_state_id,
+             business_quality_score, sell_likelihood_score
+      FROM leads
+      WHERE business_quality_score IS NOT NULL AND business_quality_score != -1
+        AND sell_likelihood_score IS NOT NULL AND sell_likelihood_score != -1
+        AND is_excluded = false
+    ),
+    type_counts AS (
+      SELECT business_type, COUNT(*) AS cnt FROM scored
+      WHERE business_type IS NOT NULL GROUP BY business_type
+    ),
+    city_counts AS (
+      SELECT location_city_id, location_state_id, COUNT(*) AS cnt FROM scored
+      WHERE location_city_id IS NOT NULL GROUP BY location_city_id, location_state_id
+    ),
+    ranked AS (
+      SELECT s.id,
+        CASE WHEN tc.cnt >= 5 THEN PERCENT_RANK() OVER (PARTITION BY s.business_type ORDER BY s.business_quality_score) * 100 ELSE NULL END AS q_type,
+        CASE WHEN cc.cnt >= 5 THEN PERCENT_RANK() OVER (PARTITION BY s.location_city_id, s.location_state_id ORDER BY s.business_quality_score) * 100 ELSE NULL END AS q_city,
+        CASE WHEN tc.cnt >= 5 THEN PERCENT_RANK() OVER (PARTITION BY s.business_type ORDER BY s.sell_likelihood_score) * 100 ELSE NULL END AS s_type,
+        CASE WHEN cc.cnt >= 5 THEN PERCENT_RANK() OVER (PARTITION BY s.location_city_id, s.location_state_id ORDER BY s.sell_likelihood_score) * 100 ELSE NULL END AS s_city,
+        COALESCE(tc.cnt, 0) AS type_cnt,
+        COALESCE(cc.cnt, 0) AS city_cnt
+      FROM scored s
+      LEFT JOIN type_counts tc ON tc.business_type = s.business_type
+      LEFT JOIN city_counts cc ON cc.location_city_id = s.location_city_id AND cc.location_state_id = s.location_state_id
+    )
+    UPDATE leads SET
+      quality_percentile_by_type = ranked.q_type,
+      quality_percentile_by_city = ranked.q_city,
+      sell_percentile_by_type = ranked.s_type,
+      sell_percentile_by_city = ranked.s_city,
+      composite_score = (
+        COALESCE(q_type * type_cnt, 0) + COALESCE(q_city * city_cnt, 0) +
+        COALESCE(s_type * type_cnt, 0) + COALESCE(s_city * city_cnt, 0)
+      ) / NULLIF(
+        (CASE WHEN q_type IS NOT NULL THEN type_cnt ELSE 0 END) +
+        (CASE WHEN q_city IS NOT NULL THEN city_cnt ELSE 0 END) +
+        (CASE WHEN s_type IS NOT NULL THEN type_cnt ELSE 0 END) +
+        (CASE WHEN s_city IS NOT NULL THEN city_cnt ELSE 0 END),
+        0
+      )
+    FROM ranked WHERE leads.id = ranked.id
+  `;
+  console.log(`Lead percentile ranks refreshed: ${result} rows updated`);
 }
 
 function percentileBucket(value: number, stats: MarketStats): string {
@@ -1031,6 +1084,9 @@ async function main(): Promise<void> {
     }
   }
   await Promise.all(pending);
+
+  await refreshMarketStats(db, true);
+  await refreshLeadRanks(db);
 
   await db.fargateTask.update({
     where: { id: taskId },

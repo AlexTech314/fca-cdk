@@ -15,6 +15,7 @@ const leadListFields = [
   'extractedData',
   'businessQualityScore',
   'sellLikelihoodScore',
+  'compositeScore',
   'webScrapedAt',
   'createdAt',
 ] as const;

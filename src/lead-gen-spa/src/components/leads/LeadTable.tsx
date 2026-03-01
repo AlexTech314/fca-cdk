@@ -309,7 +309,7 @@ export function LeadTable({
       ),
     },
     businessQualityScore: {
-      label: 'Business Quality',
+      label: 'Raw BQ',
       sortColumn: 'businessQualityScore',
       headClassName: 'text-center',
       cellClassName: 'text-center',
@@ -321,7 +321,7 @@ export function LeadTable({
         ),
     },
     sellLikelihoodScore: {
-      label: 'Sell Likelihood',
+      label: 'Raw SL',
       sortColumn: 'sellLikelihoodScore',
       headClassName: 'text-center',
       cellClassName: 'text-center',
@@ -331,6 +331,18 @@ export function LeadTable({
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         ),
+    },
+    compositeScore: {
+      label: 'Composite',
+      sortColumn: 'compositeScore',
+      headClassName: 'text-center',
+      cellClassName: 'text-center',
+      renderCell: (lead) => {
+        if (lead.compositeScore == null) return <span className="text-muted-foreground text-sm">—</span>;
+        const v = Math.round(lead.compositeScore);
+        const color = v >= 75 ? 'text-green-600 dark:text-green-400' : v >= 50 ? 'text-amber-600 dark:text-amber-400' : v >= 25 ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground';
+        return <span className={`font-mono font-semibold text-sm ${color}`}>{v}</span>;
+      },
     },
     webScrapedAt: {
       label: 'Scraped',

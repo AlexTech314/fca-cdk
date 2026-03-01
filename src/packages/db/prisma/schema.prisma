@@ -791,6 +791,13 @@ model Lead {
   extractedFactsS3Key  String?   @map("extracted_facts_s3_key")
   scoredAt             DateTime? @map("scored_at")
 
+  // Relative scoring (percentile ranks within cohorts, 0-100)
+  qualityPercentileByType  Float?   @map("quality_percentile_by_type")
+  qualityPercentileByCity  Float?   @map("quality_percentile_by_city")
+  sellPercentileByType     Float?   @map("sell_percentile_by_type")
+  sellPercentileByCity     Float?   @map("sell_percentile_by_city")
+  compositeScore           Float?   @map("composite_score")
+
   // Web Scraping
   webScrapedAt         DateTime? @map("web_scraped_at")
   contactPageUrl       String?   @map("contact_page_url")
@@ -814,6 +821,7 @@ model Lead {
   @@index([scoredAt])
   @@index([createdAt])
   @@index([pipelineStatus])
+  @@index([compositeScore])
   @@map("leads")
 }
 

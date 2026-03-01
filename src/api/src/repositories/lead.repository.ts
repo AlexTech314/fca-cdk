@@ -20,6 +20,7 @@ const sortFieldMap: Record<string, string> = {
   reviewCount: 'reviewCount',
   webScrapedAt: 'webScrapedAt',
   pipelineStatus: 'pipelineStatus',
+  compositeScore: 'compositeScore',
 };
 
 const defaultLeadFields: LeadListField[] = [
@@ -32,8 +33,7 @@ const defaultLeadFields: LeadListField[] = [
   'rating',
   'businessType',
   'scrapedData',
-  'businessQualityScore',
-  'sellLikelihoodScore',
+  'compositeScore',
 ];
 
 function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWithRelationInput {
@@ -390,6 +390,9 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   }
   if (fields.has('webScrapedAt')) {
     select.webScrapedAt = true;
+  }
+  if (fields.has('compositeScore')) {
+    select.compositeScore = true;
   }
   if (fields.has('createdAt')) {
     select.createdAt = true;

@@ -36,6 +36,14 @@ const defaultLeadFields: LeadListField[] = [
   'compositeScore',
 ];
 
+const nullableNumericFields = new Set([
+  'compositeScore',
+  'rating',
+  'reviewCount',
+  'businessQualityScore',
+  'sellLikelihoodScore',
+]);
+
 function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWithRelationInput {
   if (sort === 'city') {
     return { locationCity: { name: order } };
@@ -44,6 +52,9 @@ function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWi
     return { locationState: { name: order } };
   }
   const field = sortFieldMap[sort] || 'createdAt';
+  if (nullableNumericFields.has(field)) {
+    return { [field]: { sort: order, nulls: order === 'asc' ? 'first' : 'last' } };
+  }
   return { [field]: order };
 }
 

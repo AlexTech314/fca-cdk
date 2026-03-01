@@ -368,6 +368,9 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   if (fields.has('rating')) {
     select.rating = true;
   }
+  if (fields.has('reviewCount')) {
+    select.reviewCount = true;
+  }
   if (fields.has('businessType')) {
     select.businessType = true;
   }

@@ -231,6 +231,7 @@ export type LeadListField =
   | 'website'
   | 'googleMaps'
   | 'rating'
+  | 'reviewCount'
   | 'businessType'
   | 'scrapedData'
   | 'businessQualityScore'

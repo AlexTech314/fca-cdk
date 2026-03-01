@@ -266,6 +266,16 @@ export function LeadTable({
           <span className="text-muted-foreground">-</span>
         ),
     },
+    reviewCount: {
+      label: 'Reviews',
+      sortColumn: 'reviewCount',
+      renderCell: (lead) =>
+        lead.reviewCount !== null ? (
+          <span className="font-mono">{lead.reviewCount.toLocaleString()}</span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        ),
+    },
     businessType: {
       label: 'Type',
       headClassName: 'min-w-[120px]',

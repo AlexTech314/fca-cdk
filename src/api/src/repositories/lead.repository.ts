@@ -379,6 +379,9 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   if (fields.has('scrapedData')) {
     select.webScrapedAt = true;
   }
+  if (fields.has('extractedData')) {
+    select.scoredAt = true;
+  }
   if (fields.has('businessQualityScore')) {
     select.businessQualityScore = true;
   }

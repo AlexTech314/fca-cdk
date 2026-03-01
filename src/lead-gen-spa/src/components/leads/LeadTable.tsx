@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { PipelineStatusDot } from './PipelineStatusDot';
 import { ScoreBadge } from './QualificationBadge';
 import { ScrapedDataDialog } from './ScrapedDataDialog';
+import { ExtractedDataDialog } from './ExtractedDataDialog';
 import type { Lead, LeadListField } from '@/types';
 import { formatDate } from '@/lib/utils';
 import { ChevronUp, ChevronDown, Star, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -292,6 +293,18 @@ export function LeadTable({
           leadId={lead.id}
           leadName={lead.name}
           hasData={!!lead.webScrapedAt}
+        />
+      ),
+    },
+    extractedData: {
+      label: 'Extracted Data',
+      headClassName: 'text-center',
+      cellClassName: 'text-center',
+      renderCell: (lead) => (
+        <ExtractedDataDialog
+          leadId={lead.id}
+          leadName={lead.name}
+          hasData={!!lead.scoredAt}
         />
       ),
     },

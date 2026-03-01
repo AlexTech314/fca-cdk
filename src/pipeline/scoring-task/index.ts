@@ -1,13 +1,16 @@
 /**
  * AI Scoring Fargate Task
  *
- * Reads batch of lead IDs from S3, scores each lead using AWS Bedrock
- * (Claude 3 Haiku) with rubric-based PE lead qualification.
- * Reads raw scraped markdown from S3 for direct scoring.
+ * Two-pass AI Scoring Fargate Task
+ *
+ * Pass 1 (extraction): Reads raw scraped markdown from S3 and extracts
+ * structured facts via Claude 3 Haiku on Bedrock.
+ * Pass 2 (scoring): Scores extracted facts using a compressed rubric
+ * with market context calibration.
  */
 
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { S3Client } from '@aws-sdk/client-s3';
 import { bootstrapDatabaseUrl } from '@fca/db';
 import { PrismaClient } from '@prisma/client';
@@ -22,165 +25,175 @@ const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
 const BEDROCK_MODEL_ID = 'us.anthropic.claude-3-haiku-20240307-v1:0';
 const CONCURRENCY = 5;
 
-const SCORING_PROMPT = `You are a ruthlessly honest PE deal sourcing analyst for Flatirons Capital Advisors, an investment bank specializing in lower middle market transactions ($5M-$250M enterprise value). Your reputation depends on NOT wasting partners' time with unqualified leads.
+// ---------------------------------------------------------------------------
+// Pass 1: Fact extraction — compress raw markdown into structured facts
+// ---------------------------------------------------------------------------
 
-Your job is to kill bad deals early. You are the filter — if you let a weak lead through, a senior partner wastes a week on it. Be brutally honest. Most small businesses are NOT PE-viable and you must say so clearly.
+interface ExtractionResult {
+  owner_names: string[];
+  first_name_only_contacts: string[];
+  team_members_named: number;
+  team_member_names: string[];
+  years_in_business: number | null;
+  founded_year: number | null;
+  services: string[];
+  has_commercial_clients: boolean;
+  commercial_client_names: string[];
+  certifications: string[];
+  location_count: number;
+  pricing_signals: string[];
+  copyright_year: number | null;
+  website_quality: string;
+  red_flags: string[];
+  testimonial_count: number;
+  recurring_revenue_signals: string[];
+  notable_quotes: { url: string; text: string }[];
+}
+
+const EMPTY_EXTRACTION: ExtractionResult = {
+  owner_names: [],
+  first_name_only_contacts: [],
+  team_members_named: 0,
+  team_member_names: [],
+  years_in_business: null,
+  founded_year: null,
+  services: [],
+  has_commercial_clients: false,
+  commercial_client_names: [],
+  certifications: [],
+  location_count: 0,
+  pricing_signals: [],
+  copyright_year: null,
+  website_quality: 'none',
+  red_flags: ['No website data available'],
+  testimonial_count: 0,
+  recurring_revenue_signals: [],
+  notable_quotes: [],
+};
+
+const EXTRACTION_PROMPT = `You are a data extraction assistant. Your job is to read a business's website content and extract structured facts. Do NOT interpret, score, or judge — just extract what is there and note what is absent.
+
+## What to Extract
+
+1. **Owner / contact names**: Full names (first + last) found anywhere on the site. Separately note first-name-only references ("Call Mike", "Ask for Raul") — these are different from full names.
+2. **Team members**: Count of named team members (with bios, headshots, or listed on a team page). List their actual names.
+3. **Years in business**: Look for "since XXXX", "established XXXX", "XX years of experience", "XX years in business". Distinguish between personal experience and business tenure if possible. Extract founded year if stated.
+4. **Services**: List each distinct service line offered (e.g., "lawn mowing", "irrigation repair", "tree trimming"). Keep them specific, not categories.
+5. **Commercial vs residential**: Does the site mention commercial, institutional, or government clients? List any named commercial clients (companies, municipalities, HOAs, property managers).
+6. **Certifications / licenses**: Any certifications, licenses, or industry memberships mentioned (e.g., "Licensed & Insured", "NALP Certified", "EPA Lead-Safe").
+7. **Locations**: How many office locations or branches are mentioned?
+8. **Pricing signals**: Any language about pricing — "affordable", "competitive rates", "premium", "luxury", "budget-friendly", "free estimates". Extract the exact phrases used.
+9. **Copyright year**: The year in the footer copyright notice (e.g., "© 2019").
+10. **Website quality**: Classify as one of: "none", "template/basic", "professional", "content-rich". A template site has stock photos, minimal text, and few pages. A professional site has custom design, real photos, and detailed content. Content-rich adds case studies, portfolios, blogs, video.
+11. **Red flags**: Placeholder content ("Lorem ipsum", "Your content here"), WordPress sample pages, broken links mentioned, stock photo watermarks, "under construction" pages, generic template text.
+12. **Testimonials**: Count of testimonials/reviews shown on the site. Note who they reference (owner by name, company, specific employees).
+13. **Recurring revenue signals**: Maintenance contracts, subscription programs, annual service agreements, retainer arrangements mentioned.
+14. **Notable quotes**: Up to 5 verbatim quotes from the site that are most relevant to assessing business quality and scale. Include the source page URL (from the "Source:" line preceding each page's content). Copy quotes EXACTLY — do not paraphrase.
+
+## Output Format
+
+Respond with ONLY valid JSON matching the ExtractionResult schema:
+{
+  "owner_names": ["Full Name", ...],
+  "first_name_only_contacts": ["Mike", ...],
+  "team_members_named": 3,
+  "team_member_names": ["Alice Smith", ...],
+  "years_in_business": 15,
+  "founded_year": 2009,
+  "services": ["lawn mowing", "irrigation repair", ...],
+  "has_commercial_clients": true,
+  "commercial_client_names": ["City of Springfield", ...],
+  "certifications": ["Licensed & Insured", ...],
+  "location_count": 1,
+  "pricing_signals": ["affordable", "free estimates"],
+  "copyright_year": 2023,
+  "website_quality": "professional",
+  "red_flags": [],
+  "testimonial_count": 5,
+  "recurring_revenue_signals": ["annual maintenance contracts"],
+  "notable_quotes": [{"url": "https://example.com/about", "text": "exact quote here"}, ...]
+}
+
+Use null for numbers you cannot determine, empty arrays for lists with no items, and 0 for counts with no evidence.`;
+
+// ---------------------------------------------------------------------------
+// Pass 2: Scoring — operates on extracted facts, not raw markdown
+// ---------------------------------------------------------------------------
+
+const SCORING_PROMPT_V2 = `You are a ruthlessly honest PE deal sourcing analyst for Flatirons Capital Advisors, an investment bank specializing in lower middle market transactions ($5M-$250M enterprise value). Your reputation depends on NOT wasting partners' time with unqualified leads.
+
+Your job is to kill bad deals early. Most small businesses are NOT PE-viable and you must say so clearly.
 
 ## Hard Rules
 
-- Absence of evidence IS evidence of absence. If a business doesn't show team members, it's because they don't have them. If they don't list commercial clients, they don't have them. If their website is basic, their business is basic. Do NOT give credit for things that MIGHT exist but aren't shown.
-- Personal experience ≠ business tenure. "20 years of experience" means the PERSON has worked in the trade for 20 years, often across multiple jobs. It does NOT mean the business has operated for 20 years or has any institutional value.
-- "Affordable" / "competitive pricing" = low margins. This is a negative signal for PE, not a positive one. PE wants pricing power, not price competition.
-- A website that merely exists is not "professional presence." A professional web presence means: polished design, staff/team pages, case studies or portfolio with descriptions, client testimonials integrated into the site, clear service pages with detail. A template site with stock photos and a phone number is the bare minimum — it's a 1-3.
-- Google reviews are external validation. Use the Market Context section to determine whether review count is meaningful for its trade and location. Below 25th percentile = minimal market presence. If no Market Context is provided, fall back to <30 reviews as minimal. A 4.8 rating with 12 reviews means nothing — it's friends and family.
-- First-name-only identification (e.g., "Call Raul", "Ask for Mike") is a strong indicator of a sole proprietor / one-person operation. This is a 1-2 business.
+- Absence of evidence IS evidence of absence. If the extracted facts show no team members, the business has none. If no commercial clients are listed, they don't have them. Do NOT give credit for things that MIGHT exist.
+- Personal experience ≠ business tenure. "20 years of experience" ≠ 20-year-old business.
+- "Affordable" / "competitive pricing" in pricing_signals = low margins = negative for PE.
+- website_quality of "template/basic" or "none" is a 1-3 business. Only "professional" or "content-rich" can score higher.
+- Google reviews are external validation. Use Market Context percentiles to judge review count. Below 25th percentile = minimal presence. No Market Context → fall back to <30 as minimal.
+- first_name_only_contacts (e.g., "Call Mike") = strong sole proprietor signal = 1-2 business.
 
 ## Calibration (MANDATORY)
 
-Your scores MUST approximate these distributions across batches. If you find yourself scoring most businesses 4-6, you are being too generous.
-
-Business Quality distribution:
-- 1-2: ~35% of businesses (sole proprietors, one-truck operations, minimal web presence, <$1M revenue)
-- 3-4: ~35% of businesses (small local businesses with basic presence, residential-focused, few employees)
-- 5-6: ~20% of businesses (genuinely established, multiple employees visible, some commercial work, $2M+ evidence)
-- 7-8: ~8% of businesses (multi-location, management team, commercial contracts, $5M+ evidence)
-- 9-10: ~2% of businesses (regional leaders, deep management, diversified revenue, $10M+ evidence)
+Business Quality distribution across batches:
+- 1-2: ~35% (sole proprietors, one-truck, minimal web, <$1M revenue)
+- 3-4: ~35% (small local, basic presence, residential, few employees)
+- 5-6: ~20% (established, multiple employees, some commercial, $2M+ evidence)
+- 7-8: ~8% (multi-location, management team, commercial contracts, $5M+)
+- 9-10: ~2% (regional leaders, deep management, diversified revenue, $10M+)
 
 Sell Likelihood distribution:
-- 1-3: ~65% of businesses (no sell signals — this is the default, not 4-5)
-- 4-5: ~20% of businesses (one or two soft indirect signals)
-- 6-7: ~10% of businesses (multiple concrete signals converging)
-- 8-10: ~5% of businesses (explicit exit language, broker listing, or unmistakable retirement signals)
+- 1-3: ~65% (no sell signals — this is the DEFAULT)
+- 4-5: ~20% (one or two soft indirect signals)
+- 6-7: ~10% (multiple concrete signals converging)
+- 8-10: ~5% (explicit exit language, broker listing, retirement signals)
 
-The DEFAULT score for a business with no notable signals is 2-3 for quality and 2 for sell likelihood. You must justify every point above these defaults with specific evidence.
+DEFAULT scores: 2-3 quality, 2 sell likelihood. Justify every point above with specific evidence from the extracted facts.
+
+## Business Quality Score (1-10)
+
+**1-2 (~35%):** ANY of: team_members_named=0, website_quality="none"/"template/basic", first_name_only_contacts present, reviews below 25th percentile, rating <3.5, pricing_signals include "affordable"/"competitive"/"budget", services has only 1 item, no commercial clients, residential-only.
+
+**3-4 (~35%):** ALL required: website_quality >= "professional", reviews near/above median, team_members_named >= 2, services has 3+ items, serves meaningful area. Still missing: commercial clients, management depth, recurring revenue.
+
+**5-6 (~20%):** ALL required: website_quality="professional"/"content-rich", team_members_named >= 4, reviews at 75th+ percentile, rating 4.0+, has_commercial_clients=true, services has 4+ items, years_in_business >= 5.
+
+**7-8 (~8%):** MOST required: location_count > 1, reviews at 90th+ percentile, rating 4.5+, team_members_named >= 6 (with management titles), commercial_client_names populated, certifications present, recurring_revenue_signals present.
+
+**9-10 (~2%):** ALL required: recognized market leader, team_member_names shows 5+ leaders, location_count > 1, diversified services + client base, strong recurring revenue, $10M+ revenue evidence.
+
+Return -1 if insufficient evidence.
+
+## Sell Likelihood Score (1-10)
+
+If business_quality_score is 1-3, sell_likelihood is almost always 1-2 (too small for PE exit).
+
+**1-2 (DEFAULT ~65%):** No sell signals.
+**3-4 (~20%):** years_in_business >= 15 AND team_members_named <= 1, OR copyright_year stale (2+ years old), OR plateaued presence.
+**5-6 (~10%):** MULTIPLE: years_in_business >= 20 AND sole owner dependency AND stale web AND legacy-focused language.
+**7-8 (~4%):** EXPLICIT: retirement/transition language, founder past retirement age, owner disengagement signals.
+**9-10 (~1%):** Business listed for sale, public exit discussion, broker engagement.
+
+Return -1 if insufficient evidence.
 
 ## Evaluation Steps
 
-### 1. Identify Ownership
-- Determine the controlling owner name (full name, not first-name-only) if identifiable
-- Classify ownership type: "founder-owned", "family-owned", "partner-owned", "PE-backed", "corporate subsidiary", "franchise", or "unknown"
-- If only a first name is visible with no last name, that itself is a red flag for a micro-operation
+1. Identify ownership from owner_names / first_name_only_contacts. Classify: "founder-owned", "family-owned", "partner-owned", "PE-backed", "corporate subsidiary", "franchise", or "unknown".
+2. Exclusion check — is_excluded=true if PE-backed, acquired, government, non-profit, or franchise location.
+3. Score business quality using extracted facts against the tiers above.
+4. Score sell likelihood.
+5. Write a 2-3 sentence brutally honest rationale. No softening.
 
-### 2. Exclusion Check
-Set is_excluded=true if ANY of these apply:
-- Already acquired by or subsidiary of a PE firm or larger platform
-- Active M&A process underway (e.g., "we've been acquired by...")
-- Government entity or non-profit organization
-- Franchise location (not the franchisor)
-Provide a brief exclusion_reason if excluded.
-
-### 3. Business Quality Score (1-10)
-How attractive is this as a PE acquisition target? Score based ONLY on concrete evidence. Every point above 3 requires specific justification.
-
-**1-2 (Not PE-viable — ~35% of businesses):**
-ANY of the following puts a business here:
-- Sole proprietor / owner-operator with no visible employees
-- No website OR a bare-minimum / template website with little real content
-- First-name-only contact ("Call Mike", "Ask for Raul") — signals one-person shop
-- Below 25th percentile for reviews in its business type (fall back to <30 if no Market Context)
-- Rating below 3.5
-- Emphasizes "affordable" or "low prices" (signals low margins, commodity positioning)
-- No service area breadth — single trade, single offering
-- No visible equipment, fleet, or infrastructure beyond the owner
-- Residential-only with no evidence of commercial work
-This is where most landscapers, handymen, solo contractors, and one-truck operations land. Be honest about it.
-
-**3-4 (Small local business, not yet PE-scale — ~35%):**
-ALL of the following must be true to score 3-4 (not just one):
-- Functional website with real content (not just a landing page)
-- Near or above median for reviews in its business type (fall back to 30-75 if no Market Context), 3.5+ rating
-- Evidence of at least a few employees (team photo, "our team", staff bios)
-- Multiple distinct service lines listed with detail
-- Serves a meaningful geographic area
-Still missing: commercial clients, management depth, scale indicators, recurring revenue
-
-**5-6 (Established, approaching PE-relevance — ~20%):**
-REQUIRES concrete evidence of ALL of the following:
-- Professional, content-rich website with team/about pages showing multiple named employees
-- 75th+ percentile for reviews in its business type (fall back to 75+ if no Market Context), 4.0+ rating
-- Some commercial or institutional clients (named or referenced)
-- Broader service mix OR clear specialization with pricing power
-- Evidence suggesting $2M+ annual revenue (fleet size, employee count, project scale, service area)
-- Has been operating as a business (not just the owner's experience) for 5+ years
-
-**7-8 (Strong PE target — ~8%):**
-REQUIRES evidence of MOST of the following:
-- Multi-location or large service territory with infrastructure to support it
-- 90th+ percentile for reviews in its business type (fall back to 100+ if no Market Context), 4.5+ rating
-- Named management team beyond the owner (GM, ops manager, sales director, etc.)
-- Commercial/institutional client base explicitly shown (municipalities, HOAs, property management companies)
-- Certifications, licenses, industry memberships prominently displayed
-- Recurring revenue indicators: maintenance contracts, subscription programs, retainer clients
-- Evidence suggesting $5M+ annual revenue
-- Professional marketing: case studies, project portfolios with detail, video content
-
-**9-10 (Premium acquisition — ~2%):**
-REQUIRES clear evidence of ALL:
-- Recognized market leader / dominant brand in their region
-- Deep management team with org chart or leadership page showing 5+ named leaders
-- Diversified revenue: multiple service lines, commercial + residential, geographic diversity
-- Multi-location with visible infrastructure (offices, yards, fleet)
-- Clear recurring revenue model comprising significant portion of business
-- Evidence suggesting $10M+ annual revenue
-- Would command a premium multiple in an M&A process
-
-If there is not enough evidence to produce a real score, return -1. A generic small business with a basic website and a handful of reviews is a 2-3, not a 4-5.
-
-### 4. Sell Likelihood Score (1-10)
-How likely is the owner to sell in the next 1-3 years? The DEFAULT answer is "not likely" (2). Most owners are NOT selling and you must not pretend otherwise.
-
-**CRITICAL: A business that is too small for PE is also too small to sell to PE.** If business_quality_score is 1-3, sell_likelihood is almost always irrelevant — but still score it honestly. A sole proprietor "retiring" is not a PE exit, it's just closing up shop.
-
-**1-2 (Not selling — ~65% of businesses, this is the DEFAULT):**
-- No sell signals present. This is where you start, not 3-4.
-- Active growth signals: recently hired staff, new locations, active marketing, new equipment/fleet
-- Young or energetic leadership with long runway
-- Recent investments in the business (remodel, new website, expanded services)
-
-**3-4 (Unlikely but not impossible — ~20%):**
-Requires at least ONE concrete soft signal:
-- Owner has been operating 15+ years AND is the sole key person (no #2 visible)
-- Website hasn't been updated in 2+ years (check copyright dates, blog posts, "latest news")
-- Business appears to have plateaued (same services, same area, no visible growth)
-- Owner is visibly older with no next-generation involvement
-One factor alone only gets you to 3, not 4. Multiple factors required for 4.
-
-**5-6 (Possible — ~10%):**
-Requires MULTIPLE converging signals:
-- Owner operating 20+ years AND single-owner dependency AND no visible next-gen leadership
-- Stagnant web presence AND reduced marketing activity
-- Language suggesting legacy focus: "serving since 19XX", emphasis on history vs. future
-- Business model is mature/stable but not growing
-All of these together might justify a 5-6. Any single one alone is a 3-4 at best.
-
-**7-8 (Likely — rare, ~4%):**
-Requires EXPLICIT signals:
-- Retirement or transition language on website or in communications
-- "Looking for the right partner" / "next chapter" / succession language
-- Founder clearly at or past retirement age with no succession plan visible
-- Lifestyle business showing signs of owner disengagement (unmaintained website, declining review frequency)
-
-**9-10 (Actively exiting — ~1%):**
-Requires UNMISTAKABLE evidence:
-- Business explicitly listed for sale (broker listing, BizBuySell, etc.)
-- Owner publicly discussing exit or retirement
-- "Under new management" transition in progress
-- Active broker or M&A advisor engagement referenced
-
-If there is not enough evidence to produce a real score, return -1. Do NOT score above 2 without citing the specific evidence that justifies it.
-
-### 5. Supporting Evidence
-Provide up to 5 pieces of evidence from the source material. For each, include:
-- The source page URL (from the "Source:" line in the website content)
-- A verbatim snippet copied exactly from the source — do NOT paraphrase, edit, or summarize the snippet. Copy it character-for-character.
-
-### 6. Rationale
-Write a 2-3 sentence brutally honest assessment. Do not soften language. If it's a one-person operation say "one-person operation." If the website is bad say "poor website." If there's no evidence of scale say "no evidence of scale." The partners reading this want the truth, not diplomacy.
-
-## Using Market Context
-
-When a "Market Context" section is provided below, USE IT to calibrate your review count and rating assessments. The context shows percentiles at four levels: by business type, by state, by city, and overall. Prioritize the most specific level available (business type > city > state > overall). A lead at the 75th percentile for reviews in its business type is genuinely above average even if the raw number seems low — and a lead at the 25th percentile is below average even if the raw number seems high. When no Market Context is provided (insufficient data), fall back to the absolute thresholds given in the scoring tiers above.
-`;
+Respond with ONLY valid JSON:
+{
+  "controlling_owner": "<name or null>",
+  "ownership_type": "<type>",
+  "is_excluded": <true/false>,
+  "exclusion_reason": "<reason or null>",
+  "business_quality_score": <1-10 or -1>,
+  "sell_likelihood_score": <1-10 or -1>,
+  "rationale": "<2-3 sentence summary>"
+}`;
 
 interface BatchItem {
   lead_id: string;
@@ -212,6 +225,151 @@ async function fetchMarkdownFromS3(s3Key: string): Promise<string | null> {
     console.warn(`Failed to fetch markdown from S3 (${s3Key}):`, err);
     return null;
   }
+}
+
+async function extractFacts(
+  leadData: Record<string, unknown>,
+  markdown: string,
+): Promise<ExtractionResult> {
+  const backoffMs = [5000, 15000, 45000];
+
+  const content =
+    EXTRACTION_PROMPT +
+    '\n\n## Lead Basic Info\n\n' +
+    JSON.stringify(
+      { name: leadData.name, business_type: leadData.business_type, city: leadData.city, state: leadData.state },
+      null,
+      2,
+    ) +
+    '\n\n## Raw Website Content\n\n' +
+    markdown;
+
+  for (let attempt = 0; attempt <= backoffMs.length; attempt++) {
+    try {
+      const response = await bedrockClient.send(
+        new InvokeModelCommand({
+          modelId: BEDROCK_MODEL_ID,
+          contentType: 'application/json',
+          accept: 'application/json',
+          body: JSON.stringify({
+            anthropic_version: 'bedrock-2023-05-31',
+            max_tokens: 1024,
+            messages: [{ role: 'user', content: [{ type: 'text', text: content }] }],
+          }),
+        }),
+      );
+
+      const decoded = JSON.parse(new TextDecoder().decode(response.body));
+      const text = decoded.content?.[0]?.text || '';
+
+      try {
+        return JSON.parse(text);
+      } catch {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) return JSON.parse(jsonMatch[0]);
+        console.warn('Failed to parse extraction response, using empty extraction');
+        return EMPTY_EXTRACTION;
+      }
+    } catch (err) {
+      const isThrottle =
+        err instanceof Error &&
+        (err.name === 'ThrottlingException' || err.message?.includes('Throttling'));
+      if (isThrottle && attempt < backoffMs.length) {
+        const waitMs = backoffMs[attempt];
+        console.log(
+          `Bedrock throttled (extraction), waiting ${waitMs / 1000}s before retry (attempt ${attempt + 1}/${backoffMs.length})`,
+        );
+        await sleep(waitMs);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('Max retries exceeded for Bedrock (extraction)');
+}
+
+function buildFactsSummary(facts: ExtractionResult): string {
+  const lines: string[] = [];
+
+  // Owner
+  if (facts.owner_names.length > 0) {
+    lines.push(`Owner: ${facts.owner_names.join(', ')} (full name).${facts.first_name_only_contacts.length > 0 ? ` Also "${facts.first_name_only_contacts.join('", "')}" (first name only).` : ''}`);
+  } else if (facts.first_name_only_contacts.length > 0) {
+    lines.push(`Owner: Unknown. First-name-only contacts: "${facts.first_name_only_contacts.join('", "')}".`);
+  } else {
+    lines.push('Owner: Not identified.');
+  }
+
+  // Team
+  if (facts.team_members_named > 0) {
+    lines.push(`Team: ${facts.team_members_named} named member${facts.team_members_named !== 1 ? 's' : ''}${facts.team_member_names.length > 0 ? ` (${facts.team_member_names.join(', ')})` : ''}.`);
+  } else {
+    lines.push('Team: No named team members.');
+  }
+
+  // Years / founded
+  if (facts.years_in_business !== null) {
+    lines.push(`Years: ${facts.years_in_business} years in business${facts.founded_year ? ` (founded ${facts.founded_year})` : ''}.`);
+  } else if (facts.founded_year !== null) {
+    lines.push(`Founded: ${facts.founded_year}.`);
+  } else {
+    lines.push('Years: Not stated.');
+  }
+
+  // Services
+  if (facts.services.length > 0) {
+    lines.push(`Services: ${facts.services.join(', ')} (${facts.services.length} line${facts.services.length !== 1 ? 's' : ''}).`);
+  } else {
+    lines.push('Services: None listed.');
+  }
+
+  // Clients
+  if (facts.has_commercial_clients) {
+    lines.push(`Clients: Commercial${facts.commercial_client_names.length > 0 ? ` — ${facts.commercial_client_names.join(', ')}` : ''}.`);
+  } else {
+    lines.push('Clients: Residential only, no commercial mentions.');
+  }
+
+  // Certifications
+  if (facts.certifications.length > 0) {
+    lines.push(`Certs: ${facts.certifications.join(', ')}.`);
+  } else {
+    lines.push('Certs: None.');
+  }
+
+  // Locations
+  lines.push(`Locations: ${facts.location_count || 1}.`);
+
+  // Pricing
+  if (facts.pricing_signals.length > 0) {
+    lines.push(`Pricing: ${facts.pricing_signals.join(', ')}.`);
+  } else {
+    lines.push('Pricing: No signals.');
+  }
+
+  // Website quality & red flags
+  lines.push(`Website: ${facts.website_quality}.${facts.red_flags.length > 0 ? ` Red flags: ${facts.red_flags.join('; ')}.` : ''}`);
+
+  // Copyright
+  if (facts.copyright_year !== null) {
+    lines.push(`Copyright year: ${facts.copyright_year}.`);
+  }
+
+  // Testimonials
+  if (facts.testimonial_count > 0) {
+    lines.push(`Testimonials: ${facts.testimonial_count} on site.`);
+  } else {
+    lines.push('Testimonials: None on site.');
+  }
+
+  // Recurring revenue
+  if (facts.recurring_revenue_signals.length > 0) {
+    lines.push(`Recurring revenue: ${facts.recurring_revenue_signals.join(', ')}.`);
+  } else {
+    lines.push('Recurring revenue: None.');
+  }
+
+  return lines.join('\n');
 }
 
 interface MarketStats {
@@ -620,28 +778,20 @@ async function buildMarketContext(
   return '## Market Context\n\n' + sections.join('\n\n');
 }
 
-async function scoreLead(leadData: Record<string, unknown>, markdown: string | null, marketContext: string): Promise<ScoringResult> {
+async function scoreLead(
+  leadData: Record<string, unknown>,
+  facts: ExtractionResult,
+  factsSummary: string,
+  marketContext: string,
+): Promise<ScoringResult> {
   const backoffMs = [5000, 15000, 45000];
 
-  let content = SCORING_PROMPT;
+  let content = SCORING_PROMPT_V2;
   if (marketContext) {
     content += `\n\n${marketContext}\n\n`;
   }
-  content += '## Lead Data\n\n' + JSON.stringify(leadData, null, 2);
-  if (markdown) {
-    content += `\n\n## Raw Website Content\n\n${markdown}`;
-  }
-  content += `\n\nRespond with ONLY valid JSON matching this schema:
-{
-  "controlling_owner": "<name or null>",
-  "ownership_type": "<type>",
-  "is_excluded": <true/false>,
-  "exclusion_reason": "<reason or null>",
-  "business_quality_score": <1-10 or -1>,
-  "sell_likelihood_score": <1-10 or -1>,
-  "rationale": "<2-3 sentence summary>",
-  "supporting_evidence": [{"url": "<source page url>", "snippet": "<exact verbatim quote>"}, ...]
-}`;
+  content += '## Extracted Facts\n\n' + factsSummary;
+  content += '\n\n## Lead Data\n\n' + JSON.stringify(leadData, null, 2);
 
   for (let attempt = 0; attempt <= backoffMs.length; attempt++) {
     try {
@@ -655,28 +805,43 @@ async function scoreLead(leadData: Record<string, unknown>, markdown: string | n
             max_tokens: 1024,
             messages: [{ role: 'user', content: [{ type: 'text', text: content }] }],
           }),
-        })
+        }),
       );
 
       const decoded = JSON.parse(new TextDecoder().decode(response.body));
       const text = decoded.content?.[0]?.text || '';
 
+      // Parse the scoring result (no supporting_evidence in V2 output)
+      let parsed: Omit<ScoringResult, 'supporting_evidence'>;
       try {
-        return JSON.parse(text);
+        parsed = JSON.parse(text);
       } catch {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) return JSON.parse(jsonMatch[0]);
-        return {
-          controlling_owner: null,
-          ownership_type: 'unknown',
-          is_excluded: false,
-          exclusion_reason: null,
-          business_quality_score: -1,
-          sell_likelihood_score: -1,
-          rationale: 'Unable to parse Bedrock response',
-          supporting_evidence: [],
-        };
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        } else {
+          return {
+            controlling_owner: null,
+            ownership_type: 'unknown',
+            is_excluded: false,
+            exclusion_reason: null,
+            business_quality_score: -1,
+            sell_likelihood_score: -1,
+            rationale: 'Unable to parse Bedrock response',
+            supporting_evidence: [],
+          };
+        }
       }
+
+      // Use notable_quotes from extraction pass as supporting_evidence
+      // (these are verbatim from the raw markdown, not hallucinated by pass 2)
+      return {
+        ...parsed,
+        supporting_evidence: facts.notable_quotes.map((q) => ({
+          url: q.url,
+          snippet: q.text,
+        })),
+      };
     } catch (err) {
       const isThrottle =
         err instanceof Error &&
@@ -684,7 +849,7 @@ async function scoreLead(leadData: Record<string, unknown>, markdown: string | n
       if (isThrottle && attempt < backoffMs.length) {
         const waitMs = backoffMs[attempt];
         console.log(
-          `Bedrock throttled, waiting ${waitMs / 1000}s before retry (attempt ${attempt + 1}/${backoffMs.length})`
+          `Bedrock throttled (scoring), waiting ${waitMs / 1000}s before retry (attempt ${attempt + 1}/${backoffMs.length})`,
         );
         await sleep(waitMs);
         continue;
@@ -692,7 +857,7 @@ async function scoreLead(leadData: Record<string, unknown>, markdown: string | n
       throw err;
     }
   }
-  throw new Error('Max retries exceeded for Bedrock');
+  throw new Error('Max retries exceeded for Bedrock (scoring)');
 }
 
 async function main(): Promise<void> {
@@ -789,6 +954,30 @@ async function main(): Promise<void> {
         markdown = await fetchMarkdownFromS3(lead.scrapeMarkdownS3Key);
       }
 
+      await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'scoring' } });
+
+      // Pass 1: Extract structured facts from raw markdown
+      let facts: ExtractionResult;
+      if (markdown) {
+        facts = await extractFacts(leadData, markdown);
+      } else {
+        facts = EMPTY_EXTRACTION;
+      }
+
+      // Persist extraction results to S3
+      const extractedFactsS3Key = `extracted-facts/${lead_id}.json`;
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: CAMPAIGN_DATA_BUCKET,
+          Key: extractedFactsS3Key,
+          Body: JSON.stringify(facts, null, 2),
+          ContentType: 'application/json',
+        }),
+      );
+
+      const factsSummary = buildFactsSummary(facts);
+
+      // Pass 2: Score using extracted facts + market context
       const marketContext = await buildMarketContext(
         db,
         lead.businessType,
@@ -798,8 +987,7 @@ async function main(): Promise<void> {
         lead.rating,
       );
 
-      await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'scoring' } });
-      const result = await scoreLead(leadData, markdown, marketContext);
+      const result = await scoreLead(leadData, facts, factsSummary, marketContext);
       await db.lead.update({
         where: { id: lead_id },
         data: {
@@ -811,6 +999,7 @@ async function main(): Promise<void> {
           sellLikelihoodScore: result.sell_likelihood_score,
           scoringRationale: result.rationale,
           supportingEvidence: result.supporting_evidence,
+          extractedFactsS3Key,
           scoredAt: new Date(),
           pipelineStatus: 'idle',
           scoringError: null,

@@ -788,6 +788,7 @@ model Lead {
   scoringRationale     String?   @map("scoring_rationale")
   supportingEvidence   Json?     @map("supporting_evidence")
   scrapeMarkdownS3Key  String?   @map("scrape_markdown_s3_key")
+  extractedFactsS3Key  String?   @map("extracted_facts_s3_key")
   scoredAt             DateTime? @map("scored_at")
 
   // Web Scraping

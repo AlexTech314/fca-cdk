@@ -12,6 +12,7 @@ const leadListFields = [
   'reviewCount',
   'businessType',
   'scrapedData',
+  'extractedData',
   'businessQualityScore',
   'sellLikelihoodScore',
   'webScrapedAt',

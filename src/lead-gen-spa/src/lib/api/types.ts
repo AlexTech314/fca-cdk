@@ -255,6 +255,11 @@ export interface LeadGenApi {
   // ===========================================
 
   /**
+   * Get extracted facts JSON for a lead
+   */
+  getLeadExtractedFacts(leadId: string): Promise<Record<string, unknown>>;
+
+  /**
    * Get combined scraped markdown for a lead
    */
   getLeadScrapedMarkdown(leadId: string): Promise<string>;

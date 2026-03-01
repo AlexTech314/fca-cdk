@@ -186,6 +186,19 @@ router.delete('/scrape-runs/:runId', authorize('readwrite', 'admin'), async (req
   }
 });
 
+router.get('/leads/:id/extracted-facts', async (req, res, next) => {
+  try {
+    const facts = await leadService.getLeadExtractedFacts(String(req.params.id));
+    if (!facts) {
+      res.status(404).json({ error: 'Extracted facts not available for this lead' });
+      return;
+    }
+    res.json(facts);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/leads/:id/scraped-markdown', async (req, res, next) => {
   try {
     const markdown = await leadService.getLeadScrapedMarkdown(String(req.params.id));

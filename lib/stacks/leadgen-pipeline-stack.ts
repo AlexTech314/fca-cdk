@@ -406,7 +406,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       })
     );
 
-    campaignDataBucket.grantRead(scoringTaskDef.taskRole);
+    campaignDataBucket.grantReadWrite(scoringTaskDef.taskRole);
     databaseSecret.grantRead(scoringTaskDef.taskRole);
 
     // ============================================================

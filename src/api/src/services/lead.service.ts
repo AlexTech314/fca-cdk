@@ -257,6 +257,23 @@ export const leadService = {
     return true;
   },
 
+  async getLeadExtractedFacts(leadId: string): Promise<Record<string, unknown> | null> {
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { extractedFactsS3Key: true },
+    });
+    if (!lead?.extractedFactsS3Key || !CAMPAIGN_DATA_BUCKET) return null;
+
+    const response = await s3Client.send(new GetObjectCommand({
+      Bucket: CAMPAIGN_DATA_BUCKET,
+      Key: lead.extractedFactsS3Key,
+    }));
+
+    const body = await response.Body?.transformToString();
+    if (!body) return null;
+    return JSON.parse(body);
+  },
+
   async getLeadScrapedMarkdown(leadId: string): Promise<string | null> {
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },

@@ -603,6 +603,17 @@ export const realApi: LeadGenApi = {
   // Scraped Page / Lead Data CRUD
   // ===========================================
 
+  async getLeadExtractedFacts(leadId: string): Promise<Record<string, unknown>> {
+    const token = await getIdToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(`${API_BASE_URL}/leads/${leadId}/extracted-facts`, { headers });
+    if (!response.ok) {
+      throw new Error(response.status === 404 ? 'Extracted data not available' : 'Failed to fetch extracted data');
+    }
+    return response.json();
+  },
+
   async getLeadScrapedMarkdown(leadId: string): Promise<string> {
     const token = await getIdToken();
     const headers: Record<string, string> = {};

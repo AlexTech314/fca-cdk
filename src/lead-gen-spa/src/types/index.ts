@@ -236,6 +236,7 @@ export type LeadListField =
   | 'reviewCount'
   | 'businessType'
   | 'scrapedData'
+  | 'extractedData'
   | 'businessQualityScore'
   | 'sellLikelihoodScore'
   | 'webScrapedAt'

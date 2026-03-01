@@ -60,7 +60,7 @@ export default async function TeamPage() {
       />
 
       {/* Leadership */}
-      <section className="py-16 md:py-24">
+      <section className="pt-16 pb-8 md:pt-24 md:pb-12">
         <Container>
           <SectionHeading
             subtitle={meta.leadershipSubtitle}
@@ -68,7 +68,60 @@ export default async function TeamPage() {
             description={meta.leadershipDescription}
           />
 
-          <div className="grid gap-8 lg:grid-cols-2">
+          {/* Mobile: compact analyst-style cards */}
+          <div className="grid gap-6 sm:grid-cols-2 lg:hidden">
+            {leadership.map((member) => (
+              <div
+                key={member.id}
+                className="group relative overflow-hidden rounded-lg border border-border bg-white"
+              >
+                <ExpandBioButton
+                  name={member.name}
+                  title={member.title}
+                  bio={member.bio}
+                  email={member.email ?? undefined}
+                  linkedIn={member.linkedIn ?? undefined}
+                />
+                {member.image && (
+                  <div className="relative aspect-square w-full">
+                    <Image
+                      src={member.image}
+                      alt={member.name}
+                      fill
+                      className="object-cover object-top"
+                      sizes="(max-width: 640px) 100vw, 50vw"
+                    />
+                  </div>
+                )}
+                <div className="p-4">
+                  <h4 className="font-semibold text-text">{member.name}</h4>
+                  <p className="text-sm text-secondary">{member.title}</p>
+                  <p className="mt-2 text-xs text-text-muted line-clamp-3">
+                    {member.bio}
+                  </p>
+                  <div className="mt-3 flex items-center gap-3">
+                    {member.email && (
+                      <a href={`mailto:${member.email}`} className="text-text-muted transition-colors hover:text-primary">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                        </svg>
+                      </a>
+                    )}
+                    {member.linkedIn && (
+                      <a href={member.linkedIn} target="_blank" rel="noopener noreferrer" className="text-text-muted transition-colors hover:text-primary">
+                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: large horizontal cards */}
+          <div className="hidden gap-8 lg:grid lg:grid-cols-2">
             {leadership.map((member) => (
               <div
                 key={member.id}
@@ -82,15 +135,15 @@ export default async function TeamPage() {
                   linkedIn={member.linkedIn ?? undefined}
                 />
 
-                <div className="flex flex-col sm:flex-row">
+                <div className="flex flex-row">
                   {member.image && (
-                    <div className="relative h-48 w-full shrink-0 sm:h-auto sm:w-40">
+                    <div className="relative h-auto w-40 shrink-0">
                       <Image
                         src={member.image}
                         alt={member.name}
                         fill
                         className="object-cover object-top"
-                        sizes="(max-width: 640px) 100vw, 160px"
+                        sizes="160px"
                       />
                     </div>
                   )}
@@ -140,7 +193,7 @@ export default async function TeamPage() {
 
       {/* Analysts */}
       {analysts.length > 0 && (
-        <section className="bg-surface py-16 md:py-24">
+        <section className="bg-surface pt-8 pb-16 md:pt-12 md:pb-24">
           <Container>
             <SectionHeading subtitle={meta.analystSubtitle} title={meta.analystTitle} />
 

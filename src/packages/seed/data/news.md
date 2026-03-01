@@ -19,10 +19,10 @@ EAS Tire & Auto, a Straightaway brand, acquires 5th Gear Automotive in Broomfiel
 
 ---
 
-#### Azureon Has Acquired Precision Tool
+#### Azureon Has Acquired Precision Pool
 **December 2025**
 O2 Investment Partners is pleased to announce that, through its pool care platform Azureon, it has invested in and partnered with Precision Pool & Spa, a Fairport, NY–based company.
-[Read More](/news/azureon-has-acquired-precision-tool.md)
+[Read More](/news/azureon-has-acquired-precision-pool.md)
 
 ---
 

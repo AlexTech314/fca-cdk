@@ -11,6 +11,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -27,6 +28,7 @@ const USCITIES_CSV = path.join(SEED_DATA_DIR, 'uscities.csv');
 const INDUSTRY_TAGS_CSV = path.join(SEED_DATA_DIR, 'industry-tags.csv');
 const NEWS_DIR = path.join(SEED_DATA_DIR, 'news');
 const ARTICLES_DIR = path.join(SEED_DATA_DIR, 'articles');
+const ASSETS_DIR = path.resolve(__dirname, '../assets');
 
 // ============================================
 // UTILITY FUNCTIONS
@@ -384,6 +386,7 @@ async function seedSiteConfig(prisma: PrismaClient): Promise<void> {
       { city: 'Dallas', state: 'Texas' },
       { city: 'Miami', state: 'Florida' },
       { city: 'Chicago', state: 'Illinois' },
+      { city: 'Milwaukee', state: 'Wisconsin' },
     ],
     navItems: [
       { name: 'About', href: '/about' },
@@ -607,8 +610,70 @@ async function seedDealTypes(prisma: PrismaClient): Promise<void> {
   log.info(`  Seeded ${DEAL_TYPE_NAMES.length} deal types`);
 }
 
+const CONTENT_TYPES: Record<string, string> = {
+  '.webp': 'image/webp',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+};
+
+async function uploadAssetsToS3(): Promise<void> {
+  const bucketName = process.env.ASSETS_BUCKET_NAME;
+  if (!bucketName) {
+    log.info('ASSETS_BUCKET_NAME not set — skipping S3 asset uploads');
+    return;
+  }
+
+  if (!fs.existsSync(ASSETS_DIR)) {
+    log.info('No assets/ directory found — skipping S3 asset uploads');
+    return;
+  }
+
+  const s3 = new S3Client({});
+  let uploaded = 0;
+  let skipped = 0;
+
+  const files = fs.readdirSync(ASSETS_DIR, { recursive: true, encoding: 'utf-8' });
+
+  for (const relPath of files) {
+    const fullPath = path.join(ASSETS_DIR, relPath);
+    if (!fs.statSync(fullPath).isFile()) continue;
+
+    // Skip .gitkeep files
+    if (path.basename(relPath) === '.gitkeep') continue;
+
+    const s3Key = relPath.replace(/\\/g, '/'); // normalize Windows paths
+    const ext = path.extname(relPath).toLowerCase();
+    const contentType = CONTENT_TYPES[ext];
+    if (!contentType) continue; // skip non-image files
+
+    // Check if already exists in S3
+    try {
+      await s3.send(new HeadObjectCommand({ Bucket: bucketName, Key: s3Key }));
+      skipped++;
+      continue;
+    } catch {
+      // Object doesn't exist — proceed to upload
+    }
+
+    const body = fs.readFileSync(fullPath);
+    await s3.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: s3Key,
+      Body: body,
+      ContentType: contentType,
+    }));
+    uploaded++;
+  }
+
+  log.info(`  S3 uploads: ${uploaded} uploaded, ${skipped} already existed`);
+}
+
 async function seedAssets(prisma: PrismaClient): Promise<void> {
-  log.info('Seeding assets from existing S3 references...');
+  log.info('Seeding assets...');
+
+  // Upload local asset files to S3 first
+  await uploadAssetsToS3();
 
   const tombstoneImages = loadTombstoneImages();
   let count = 0;
@@ -1373,6 +1438,8 @@ async function seedIndustrySectors(prisma: PrismaClient): Promise<void> {
     { name: 'Manufacturing', description: 'Specialty Machinery, Aerospace, Fabricated Metal Products, Semiconductor, Surgical/Medical Equipment, Pharmaceutical', sortOrder: 3 },
     { name: 'Healthcare', description: 'Medical and Diagnostic Laboratories, Home Health Care Services, Specialized Urgent Care, Pharmacies', sortOrder: 4 },
     { name: 'Business Services', description: 'Fire and Life Safety, HVAC, Specialty Construction, Supply Chain', sortOrder: 5 },
+    { name: 'Professional, Scientific, and Technical Services', description: 'Advertising and Media Buying, Weapons Defense R&D, Precision Equipment Repair and Maintenance', sortOrder: 6 },
+    { name: 'Transportation & Logistics', description: 'LTL, 3PL, Supply Chain & Warehousing', sortOrder: 7 },
   ];
 
   for (const sector of sectors) {
@@ -1707,7 +1774,7 @@ Finally, the business owner can feel confident with the ultimate sale price beca
       title: "We'd love to hear from you!",
       content: '',
       metadata: {
-        metaDescription: 'Contact Flatirons Capital Advisors for M&A advisory services. Offices in Denver, Dallas, Miami, and Chicago. Call 303.319.4540.',
+        metaDescription: 'Contact Flatirons Capital Advisors for M&A advisory services. Offices in Denver, Dallas, Miami, Chicago, and Milwaukee. Call 303.319.4540.',
         description: "Let's explore how we can help you achieve your goals.",
       },
     },

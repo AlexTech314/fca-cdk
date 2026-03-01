@@ -80,7 +80,7 @@ function TeamPageContent({
       </section>
 
       {/* Leadership Section */}
-      <section className="py-16 md:py-24">
+      <section className="pt-16 pb-8 md:pt-24 md:pb-12">
         <div className="container-max">
           <div className="mb-12 text-center">
             <EditableField
@@ -121,7 +121,7 @@ function TeamPageContent({
       </section>
 
       {/* Analysts Section */}
-      <section className="bg-surface py-16 md:py-24">
+      <section className="bg-surface pt-8 pb-16 md:pt-12 md:pb-24">
         <div className="container-max">
           <div className="mb-12 text-center">
             <EditableField

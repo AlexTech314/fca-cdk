@@ -181,11 +181,13 @@ export class StatefulStack extends cdk.Stack {
       environment: {
         DATABASE_SECRET_ARN: this.databaseSecret.secretArn,
         DATABASE_HOST: this.database.dbInstanceEndpointAddress,
+        ASSETS_BUCKET_NAME: this.campaignDataBucket.bucketName,
         ...(cognitoUserPoolId ? { COGNITO_USER_POOL_ID: cognitoUserPoolId } : {}),
       },
     });
 
     this.databaseSecret.grantRead(this.seedLambda);
+    this.campaignDataBucket.grantReadWrite(this.seedLambda);
 
     if (cognitoUserPoolId) {
       this.seedLambda.addToRolePolicy(

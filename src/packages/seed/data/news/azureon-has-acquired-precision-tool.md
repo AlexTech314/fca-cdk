@@ -1,6 +1,6 @@
-# Azureon Has Acquired Precision Tool
+# Azureon Has Acquired Precision Pool
 
-**URL:** https://flatironscap.com/azureon-has-acquired-precision-tool/
+**URL:** https://flatironscap.com/news/azureon-has-acquired-precision-pool/
 
 **Author:** Keith Wegen
 

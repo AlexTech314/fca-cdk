@@ -225,7 +225,7 @@ export function EditableTeamGrid({ initialMembers, category, changeKey }: Editab
 
   return (
     <>
-      <div className={`grid gap-6 ${isLeadership ? 'lg:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
+      <div className={`grid gap-6 ${isLeadership ? 'sm:grid-cols-2 lg:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
         {currentMembers.map((member) => {
           const status = getStatus(member);
           const isDeleted = status === 'deleted';
@@ -270,9 +270,10 @@ export function EditableTeamGrid({ initialMembers, category, changeKey }: Editab
               {/* Leadership photo */}
               {isLeadership && (
                 <>
-                  <div className="group/photo relative h-40 w-full cursor-pointer bg-gray-100 sm:hidden" onClick={() => !isDeleted && setPickerTarget(member.id)}>
+                  {/* Mobile: analyst-style square photo on top */}
+                  <div className="group/photo relative aspect-square w-full cursor-pointer bg-gray-100 lg:hidden" onClick={() => !isDeleted && setPickerTarget(member.id)}>
                     {member.image ? (
-                      <Image src={member.image} alt={member.name || 'Team member'} fill className={`object-cover object-top ${isDeleted ? 'grayscale' : ''}`} sizes="100vw" />
+                      <Image src={member.image} alt={member.name || 'Team member'} fill className={`object-cover object-top ${isDeleted ? 'grayscale' : ''}`} sizes="(max-width: 640px) 100vw, 50vw" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-gray-300">
                         <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" strokeWidth="1" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
@@ -284,7 +285,8 @@ export function EditableTeamGrid({ initialMembers, category, changeKey }: Editab
                       </div>
                     )}
                   </div>
-                  <div className="group/photo absolute inset-y-0 left-0 hidden w-36 cursor-pointer bg-gray-100 sm:block" onClick={() => !isDeleted && setPickerTarget(member.id)}>
+                  {/* Desktop: side panel photo */}
+                  <div className="group/photo absolute inset-y-0 left-0 hidden w-36 cursor-pointer bg-gray-100 lg:block" onClick={() => !isDeleted && setPickerTarget(member.id)}>
                     {member.image ? (
                       <Image src={member.image} alt={member.name || 'Team member'} fill className={`object-cover object-top ${isDeleted ? 'grayscale' : ''}`} sizes="144px" />
                     ) : (
@@ -320,7 +322,7 @@ export function EditableTeamGrid({ initialMembers, category, changeKey }: Editab
               )}
 
               {/* Content */}
-              <div className={`flex-1 p-3 ${isLeadership ? 'sm:ml-36' : ''}`}>
+              <div className={`flex-1 p-3 ${isLeadership ? 'lg:ml-36' : ''}`}>
                 <EditableInlineField
                   value={member.name}
                   onChangeValue={(v) => updateMemberField(member.id, 'name', v)}

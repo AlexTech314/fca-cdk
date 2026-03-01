@@ -81,8 +81,8 @@ Advertising and Media Buying, Weapons Defense R&D, Precision Equipment Repair an
 ### Manufacturing
 Specialty Machinery, Aerospace, Oil Tank/Container and Petroleum Products, Fabricated Metal Products, Semiconductor and Other Electronic Components, Surgical/Medical Equipment, Pharmaceutical and Medicine, Engine/Turbine/Power Transmission, Pet Food
 
-### Transportation
-Oil & Gas Support Services and Manufacturing
+### Transportation & Logistics
+LTL, 3PL, Supply Chain & Warehousing
 
 ### Healthcare
 Medical and Diagnostic Laboratories, Home Health Care Services, Specialized Urgent Care, Pharmacies and Drug Stores
@@ -132,7 +132,7 @@ We will deliver a compelling, shared vision that passes the elevator test of sim
 
 **Email:** info@flatironscap.com
 
-**Locations:** Denver | Dallas | Miami | Chicago
+**Locations:** Denver | Dallas | Miami | Chicago | Milwaukee
 
 ---
 

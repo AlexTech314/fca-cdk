@@ -38,7 +38,7 @@ current-site/
 ├── buy-side.md                 # Buy-Side M&A services
 ├── privacy-policy.md           # Privacy Policy
 ├── news/                       # News articles
-│   ├── azureon-has-acquired-precision-tool.md
+│   ├── azureon-has-acquired-precision-pool.md
 │   ├── aeg-petroleum-partners-with-plexus-capital.md
 │   ├── straightaway-acquires-stillwater-auto-clinic.md
 │   ├── classic-collision-acquires-2-colorado-locations.md

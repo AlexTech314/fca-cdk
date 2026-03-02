@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Container } from '@/components/ui/Container';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 import { Hero } from '@/components/sections/Hero';
@@ -162,18 +163,37 @@ export default async function AboutPage() {
           <h3 className="mb-6 text-center text-xl font-semibold text-text">
             {meta.industrySectorsHeading || 'Industry Sectors'}
           </h3>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {industrySectors.map((sector) => (
-              <div
-                key={sector.id}
-                className="rounded-lg border border-border bg-surface p-5"
-              >
-                <h4 className="mb-2 font-semibold text-primary">
-                  {sector.name}
-                </h4>
-                <p className="text-sm text-text-muted">{sector.description}</p>
-              </div>
-            ))}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {industrySectors.map((sector) => {
+              const Wrapper = sector.industry ? Link : 'div';
+              const wrapperProps = sector.industry
+                ? { href: `/transactions/industry/${sector.industry.slug}` }
+                : {};
+              return (
+                <Wrapper
+                  key={sector.id}
+                  {...wrapperProps}
+                  className="group relative min-h-[240px] overflow-hidden rounded-lg"
+                >
+                  {sector.image ? (
+                    <Image
+                      src={sector.image}
+                      alt={sector.name}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="(max-width: 640px) 100vw, 50vw"
+                    />
+                  ) : null}
+                  <div className="hero-gradient absolute inset-0" />
+                  <div className="relative flex h-full min-h-[240px] flex-col justify-end p-6">
+                    <h4 className="mb-1 text-lg font-semibold text-white">
+                      {sector.name}
+                    </h4>
+                    <p className="text-sm text-white/80">{sector.description}</p>
+                  </div>
+                </Wrapper>
+              );
+            })}
           </div>
         </Container>
       </section>

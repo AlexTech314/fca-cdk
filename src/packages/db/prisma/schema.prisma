@@ -141,8 +141,9 @@ model Industry {
   slug      String   @unique
   createdAt DateTime @default(now()) @map("created_at")
 
-  tombstones TombstoneIndustry[]
-  blogPosts  BlogPostIndustry[]
+  tombstones      TombstoneIndustry[]
+  blogPosts       BlogPostIndustry[]
+  industrySectors IndustrySector[]
 
   @@map("industries")
 }
@@ -439,13 +440,16 @@ model CoreValue {
 }
 
 model IndustrySector {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
   description String
-  sortOrder   Int      @default(0) @map("sort_order")
-  isPublished Boolean  @default(true) @map("is_published")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  image       String?
+  industryId  String?   @map("industry_id")
+  industry    Industry? @relation(fields: [industryId], references: [id])
+  sortOrder   Int       @default(0) @map("sort_order")
+  isPublished Boolean   @default(true) @map("is_published")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@map("industry_sectors")
 }

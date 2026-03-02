@@ -115,6 +115,8 @@ export interface CoreValue {
 export interface IndustrySector {
   name: string;
   description: string;
+  image?: string | null;
+  industry?: { id: string; name: string; slug: string } | null;
 }
 
 // Office Location

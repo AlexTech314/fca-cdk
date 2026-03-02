@@ -205,11 +205,15 @@ export const industrySectorRepository = {
     return prisma.industrySector.findMany({
       where: published !== undefined ? { isPublished: published } : undefined,
       orderBy: { sortOrder: 'asc' },
+      include: { industry: { select: { id: true, name: true, slug: true } } },
     });
   },
 
   async findById(id: string) {
-    return prisma.industrySector.findUnique({ where: { id } });
+    return prisma.industrySector.findUnique({
+      where: { id },
+      include: { industry: { select: { id: true, name: true, slug: true } } },
+    });
   },
 
   async create(data: CreateIndustrySectorInput) {

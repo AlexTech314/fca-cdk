@@ -8,6 +8,7 @@ import { EditableField } from '@/components/admin/EditableField';
 import { EditableInlineField } from '@/components/admin/EditableInlineField';
 import { EditableServicesGrid } from '@/components/admin/sections/EditableServicesGrid';
 import { EditableAboutCTA } from '@/components/admin/sections/EditableAboutCTA';
+import { AssetPickerModal } from '@/components/admin/AssetPickerModal';
 import { useAdminPage } from '@/components/admin/AdminPageContext';
 import { toAssetUrl } from '@/lib/utils';
 import { authedApiFetch } from '@/lib/admin/admin-fetch';
@@ -28,10 +29,18 @@ interface ServiceOffering {
   sortOrder?: number;
 }
 
+interface IndustryRef {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface IndustrySector {
   id: string;
   name: string;
   description: string;
+  image: string | null;
+  industry: IndustryRef | null;
 }
 
 interface CoreValue {
@@ -237,30 +246,36 @@ interface SectorItem {
   id: string;
   name: string;
   description: string;
+  image: string | null;
+  industry: IndustryRef | null;
 }
 
-function EditableIndustrySectors({ initialSectors }: { initialSectors: IndustrySector[] }) {
+function EditableIndustrySectors({ initialSectors, industries }: { initialSectors: IndustrySector[]; industries: IndustryRef[] }) {
   const { registerChanges, unregisterChanges } = useAdminPage();
 
   const [originalSectors, setOriginalSectors] = useState<SectorItem[]>(initialSectors);
   const [currentSectors, setCurrentSectors] = useState<SectorItem[]>(initialSectors);
+  const [pickerTarget, setPickerTarget] = useState<string | null>(null);
 
   const currentRef = useRef(currentSectors);
   const originalRef = useRef(originalSectors);
   currentRef.current = currentSectors;
   originalRef.current = originalSectors;
 
+  const sectorChanged = (a: SectorItem, b: SectorItem): boolean =>
+    a.name !== b.name || a.description !== b.description || a.image !== b.image || a.industry?.id !== b.industry?.id;
+
   const isModified = (sector: SectorItem): boolean => {
     const orig = originalSectors.find((s) => s.id === sector.id);
     if (!orig) return false;
-    return orig.name !== sector.name || orig.description !== sector.description;
+    return sectorChanged(sector, orig);
   };
 
   const computeDirtyCount = useCallback((): number => {
     let count = 0;
     for (const c of currentRef.current) {
       const o = originalRef.current.find((s) => s.id === c.id);
-      if (o && (o.name !== c.name || o.description !== c.description)) count++;
+      if (o && sectorChanged(c, o)) count++;
     }
     return count;
   }, []);
@@ -271,11 +286,16 @@ function EditableIndustrySectors({ initialSectors }: { initialSectors: IndustryS
 
     for (const c of curr) {
       const o = orig.find((s) => s.id === c.id);
-      if (o && (o.name !== c.name || o.description !== c.description)) {
+      if (o && sectorChanged(c, o)) {
         const res = await authedApiFetch(`/api/admin/industry-sectors/${c.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: c.name, description: c.description }),
+          body: JSON.stringify({
+            name: c.name,
+            description: c.description,
+            image: c.image,
+            industryId: c.industry?.id ?? null,
+          }),
         });
         if (!res.ok) throw new Error('Failed to update industry sector');
       }
@@ -306,43 +326,103 @@ function EditableIndustrySectors({ initialSectors }: { initialSectors: IndustryS
     );
   };
 
+  const handleImageSelected = (s3Url: string) => {
+    if (pickerTarget) {
+      setCurrentSectors((prev) =>
+        prev.map((s) => (s.id === pickerTarget ? { ...s, image: s3Url } : s))
+      );
+      setPickerTarget(null);
+    }
+  };
+
+  const updateSectorIndustry = (sectorId: string, industryId: string) => {
+    const industry = industryId ? industries.find((i) => i.id === industryId) ?? null : null;
+    setCurrentSectors((prev) =>
+      prev.map((s) => (s.id === sectorId ? { ...s, industry } : s))
+    );
+  };
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {currentSectors.map((sector) => {
-        const modified = isModified(sector);
-        const orig = originalSectors.find((s) => s.id === sector.id);
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {currentSectors.map((sector) => {
+          const modified = isModified(sector);
+          const orig = originalSectors.find((s) => s.id === sector.id);
+          const displayImage = sector.image ? toAssetUrl(sector.image) || sector.image : null;
 
-        return (
-          <div
-            key={sector.id}
-            className={`rounded-lg bg-surface p-5 transition-all ${
-              modified ? 'border-2 border-dashed border-amber-400' : 'border border-border'
-            }`}
-          >
-            <EditableInlineField
-              value={sector.name}
-              onChangeValue={(v) => updateSectorField(sector.id, 'name', v)}
-              originalValue={orig?.name}
-              as="h4"
-              className="mb-2 font-semibold text-primary"
-              placeholder="Sector name..."
-            />
+          return (
+            <div
+              key={sector.id}
+              className={`group relative min-h-[240px] overflow-hidden rounded-lg ${
+                modified ? 'ring-2 ring-dashed ring-amber-400' : ''
+              }`}
+            >
+              {displayImage ? (
+                <Image
+                  src={displayImage}
+                  alt={sector.name}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 100vw, 50vw"
+                />
+              ) : null}
+              <div className="hero-gradient absolute inset-0" />
+              <div className="relative flex h-full min-h-[240px] flex-col justify-end p-6">
+                <EditableInlineField
+                  value={sector.name}
+                  onChangeValue={(v) => updateSectorField(sector.id, 'name', v)}
+                  originalValue={orig?.name}
+                  as="h4"
+                  className="mb-1 text-lg font-semibold text-white"
+                  placeholder="Sector name..."
+                />
 
-            <EditableInlineField
-              value={sector.description}
-              onChangeValue={(v) => updateSectorField(sector.id, 'description', v)}
-              originalValue={orig?.description}
-              as="p"
-              multiline
-              className="text-sm text-text-muted"
-              placeholder="Description..."
-            />
+                <EditableInlineField
+                  value={sector.description}
+                  onChangeValue={(v) => updateSectorField(sector.id, 'description', v)}
+                  originalValue={orig?.description}
+                  as="p"
+                  multiline
+                  className="text-sm text-white/80"
+                  placeholder="Description..."
+                />
 
-            {modified && <p className="mt-1 text-[9px] font-medium text-amber-600">Modified</p>}
-          </div>
-        );
-      })}
-    </div>
+                {/* Industry link dropdown */}
+                <select
+                  value={sector.industry?.id ?? ''}
+                  onChange={(e) => updateSectorIndustry(sector.id, e.target.value)}
+                  className="mt-2 w-full rounded bg-white/20 px-2 py-1 text-xs text-white/90 backdrop-blur-sm [&>option]:text-gray-900"
+                >
+                  <option value="">No linked industry</option>
+                  {industries.map((ind) => (
+                    <option key={ind.id} value={ind.id}>{ind.name}</option>
+                  ))}
+                </select>
+
+                {modified && <p className="mt-1 text-[9px] font-medium text-amber-300">Modified</p>}
+              </div>
+
+              {/* Image picker overlay */}
+              <div
+                className="absolute right-3 top-3 cursor-pointer opacity-0 transition-opacity group-hover:opacity-100"
+                onClick={() => setPickerTarget(sector.id)}
+              >
+                <span className="rounded bg-white/90 px-2 py-1 text-xs font-medium text-gray-700">
+                  {sector.image ? 'Change Image' : 'Add Image'}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <AssetPickerModal
+        isOpen={pickerTarget !== null}
+        onClose={() => setPickerTarget(null)}
+        onSelect={handleImageSelected}
+        currentValue={pickerTarget ? currentSectors.find((s) => s.id === pickerTarget)?.image ?? undefined : undefined}
+      />
+    </>
   );
 }
 
@@ -487,9 +567,11 @@ function EditableCoreValues({ initialValues }: { initialValues: CoreValue[] }) {
 function AboutPageContent({
   industrySectors,
   coreValues,
+  industries,
 }: {
   industrySectors: IndustrySector[];
   coreValues: CoreValue[];
+  industries: IndustryRef[];
 }) {
   const { data, updateField, dirtyFields, saveStatus } = useAdminPage();
   const meta = data.metadata;
@@ -650,7 +732,7 @@ function AboutPageContent({
             isDirty={dirtyFields.has('industrySectorsHeading')}
             placeholder="Heading..."
           />
-          <EditableIndustrySectors initialSectors={industrySectors} />
+          <EditableIndustrySectors initialSectors={industrySectors} industries={industries} />
         </div>
       </section>
 
@@ -704,6 +786,7 @@ export default function AdminAboutPage() {
   const [sellSideServices, setSellSideServices] = useState<ServiceOffering[]>([]);
   const [strategicServices, setStrategicServices] = useState<ServiceOffering[]>([]);
   const [industrySectors, setIndustrySectors] = useState<IndustrySector[]>([]);
+  const [industries, setIndustries] = useState<IndustryRef[]>([]);
   const [coreValues, setCoreValues] = useState<CoreValue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -711,7 +794,7 @@ export default function AdminAboutPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [pageRes, buyRes, sellRes, stratRes, sectorsRes, valuesRes] =
+        const [pageRes, buyRes, sellRes, stratRes, sectorsRes, valuesRes, industriesRes] =
           await Promise.all([
             authedApiFetch('/api/admin/pages/about'),
             fetch(`${API_URL}/service-offerings?category=buy-side&type=service`),
@@ -719,6 +802,7 @@ export default function AdminAboutPage() {
             fetch(`${API_URL}/service-offerings?category=strategic&type=service`),
             fetch(`${API_URL}/industry-sectors`),
             fetch(`${API_URL}/core-values`),
+            fetch(`${API_URL}/industries`),
           ]);
 
         if (!pageRes.ok) throw new Error('Failed to fetch page data');
@@ -729,6 +813,7 @@ export default function AdminAboutPage() {
         const strategic = stratRes.ok ? await stratRes.json() : [];
         const sectors = sectorsRes.ok ? await sectorsRes.json() : [];
         const values = valuesRes.ok ? await valuesRes.json() : [];
+        const allIndustries: IndustryRef[] = industriesRes.ok ? await industriesRes.json() : [];
 
         // Transform metadata to strings
         const metadata: Record<string, string> = {};
@@ -747,7 +832,13 @@ export default function AdminAboutPage() {
         setBuySideServices(buySide);
         setSellSideServices(sellSide);
         setStrategicServices(strategic);
-        setIndustrySectors(sectors);
+        setIndustrySectors(
+          sectors.map((s: IndustrySector) => ({
+            ...s,
+            image: s.image ? toAssetUrl(s.image) || s.image : null,
+          }))
+        );
+        setIndustries(allIndustries);
 
         // Resolve core value icon URLs
         setCoreValues(
@@ -809,6 +900,7 @@ export default function AdminAboutPage() {
         <AboutPageContent
           industrySectors={industrySectors}
           coreValues={coreValues}
+          industries={industries}
         />
 
         {/* M&A Services (reuses staged EditableServicesGrid) */}

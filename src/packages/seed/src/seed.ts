@@ -795,7 +795,35 @@ async function seedAssets(prisma: PrismaClient): Promise<void> {
     count++;
   }
 
-  // 5. Seed OG image asset
+  // 5. Seed industry sector images
+  const industrySectorImages = [
+    { s3Key: 'industries/information-technology.webp', title: 'Information Technology' },
+    { s3Key: 'industries/distribution.webp', title: 'Distribution' },
+    { s3Key: 'industries/energy.webp', title: 'Energy' },
+    { s3Key: 'industries/manufacturing.webp', title: 'Manufacturing' },
+    { s3Key: 'industries/healthcare.webp', title: 'Healthcare' },
+    { s3Key: 'industries/business-services.webp', title: 'Business Services' },
+    { s3Key: 'industries/professional-services.webp', title: 'Professional Services' },
+    { s3Key: 'industries/transportation-logistics.webp', title: 'Transportation & Logistics' },
+  ];
+
+  for (const img of industrySectorImages) {
+    const fileName = img.s3Key.split('/').pop() || img.s3Key;
+    await prisma.asset.upsert({
+      where: { s3Key: img.s3Key },
+      update: {},
+      create: {
+        fileName,
+        s3Key: img.s3Key,
+        fileType: 'image/webp',
+        category: 'photo',
+        title: img.title,
+      },
+    });
+    count++;
+  }
+
+  // 6. Seed OG image asset
   await prisma.asset.upsert({
     where: { s3Key: 'meta/og-image.jpg' },
     update: {},
@@ -1436,25 +1464,29 @@ async function seedCoreValues(prisma: PrismaClient): Promise<void> {
 async function seedIndustrySectors(prisma: PrismaClient): Promise<void> {
   log.info('Seeding industry sectors...');
 
-  const sectors = [
-    { name: 'Information Technology', description: 'Hardware, Software (Big Data Business Analytics, ERP, etc.), Professional Services, Telecommunications, Biotech and Biomed Manufacturing Technologies', sortOrder: 0 },
-    { name: 'Distribution', description: 'Food & Beverage Services, Consumer Products', sortOrder: 1 },
-    { name: 'Energy', description: 'Oil & Gas Support Services and Manufacturing', sortOrder: 2 },
-    { name: 'Manufacturing', description: 'Specialty Machinery, Aerospace, Fabricated Metal Products, Semiconductor, Surgical/Medical Equipment, Pharmaceutical', sortOrder: 3 },
-    { name: 'Healthcare', description: 'Medical and Diagnostic Laboratories, Home Health Care Services, Specialized Urgent Care, Pharmacies', sortOrder: 4 },
-    { name: 'Business Services', description: 'Fire and Life Safety, HVAC, Specialty Construction, Supply Chain', sortOrder: 5 },
-    { name: 'Professional, Scientific, and Technical Services', description: 'Advertising and Media Buying, Weapons Defense R&D, Precision Equipment Repair and Maintenance', sortOrder: 6 },
-    { name: 'Transportation & Logistics', description: 'LTL, 3PL, Supply Chain & Warehousing', sortOrder: 7 },
+  // Map each sector to its closest Industry slug and background image S3 key
+  const sectors: { name: string; description: string; sortOrder: number; industrySlug: string; image: string }[] = [
+    { name: 'Information Technology', description: 'Hardware, Software (Big Data Business Analytics, ERP, etc.), Professional Services, Telecommunications, Biotech and Biomed Manufacturing Technologies', sortOrder: 0, industrySlug: 'it-technology', image: 'industries/information-technology.webp' },
+    { name: 'Distribution', description: 'Food & Beverage Services, Consumer Products', sortOrder: 1, industrySlug: 'distribution', image: 'industries/distribution.webp' },
+    { name: 'Energy', description: 'Oil & Gas Support Services and Manufacturing', sortOrder: 2, industrySlug: 'oil-gas', image: 'industries/energy.webp' },
+    { name: 'Manufacturing', description: 'Specialty Machinery, Aerospace, Fabricated Metal Products, Semiconductor, Surgical/Medical Equipment, Pharmaceutical', sortOrder: 3, industrySlug: 'manufacturing', image: 'industries/manufacturing.webp' },
+    { name: 'Healthcare', description: 'Medical and Diagnostic Laboratories, Home Health Care Services, Specialized Urgent Care, Pharmacies', sortOrder: 4, industrySlug: 'healthcare', image: 'industries/healthcare.webp' },
+    { name: 'Business Services', description: 'Fire and Life Safety, HVAC, Specialty Construction, Supply Chain', sortOrder: 5, industrySlug: 'business-services', image: 'industries/business-services.webp' },
+    { name: 'Professional, Scientific, and Technical Services', description: 'Advertising and Media Buying, Weapons Defense R&D, Precision Equipment Repair and Maintenance', sortOrder: 6, industrySlug: 'engineering', image: 'industries/professional-services.webp' },
+    { name: 'Transportation & Logistics', description: 'LTL, 3PL, Supply Chain & Warehousing', sortOrder: 7, industrySlug: 'transportation-logistics', image: 'industries/transportation-logistics.webp' },
   ];
 
-  for (const sector of sectors) {
+  // Resolve industry slugs to IDs
+  const industries = await prisma.industry.findMany({ select: { id: true, slug: true } });
+  const slugToId = new Map(industries.map((i) => [i.slug, i.id]));
+
+  for (const { industrySlug, ...sector } of sectors) {
+    const industryId = slugToId.get(industrySlug) ?? null;
+    const data = { name: sector.name, description: sector.description, sortOrder: sector.sortOrder, image: sector.image, industryId };
     await prisma.industrySector.upsert({
       where: { id: generateSlug(sector.name) },
-      update: sector,
-      create: {
-        id: generateSlug(sector.name),
-        ...sector,
-      },
+      update: data,
+      create: { id: generateSlug(sector.name), ...data },
     });
   }
 

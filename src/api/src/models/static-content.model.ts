@@ -84,6 +84,8 @@ export type UpdateCoreValueInput = z.infer<typeof updateCoreValueSchema>;
 export const createIndustrySectorSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().min(1, 'Description is required'),
+  image: z.string().optional().nullable(),
+  industryId: z.string().uuid().optional().nullable(),
   sortOrder: z.number().int().default(0),
   isPublished: z.boolean().default(true),
 });

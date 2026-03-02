@@ -199,6 +199,8 @@ export interface ApiIndustrySector {
   id: string;
   name: string;
   description: string;
+  image: string | null;
+  industry: { id: string; name: string; slug: string } | null;
   sortOrder: number;
   isPublished: boolean;
 }

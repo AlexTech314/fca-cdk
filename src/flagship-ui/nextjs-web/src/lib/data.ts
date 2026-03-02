@@ -468,7 +468,11 @@ export async function getAllCoreValues(): Promise<ApiCoreValue[]> {
  */
 export async function getAllIndustrySectors(): Promise<ApiIndustrySector[]> {
   try {
-    return await getIndustrySectors();
+    const sectors = await getIndustrySectors();
+    return sectors.map((sector) => ({
+      ...sector,
+      image: sector.image ? toAssetUrl(sector.image) || sector.image : null,
+    }));
   } catch {
     return [];
   }

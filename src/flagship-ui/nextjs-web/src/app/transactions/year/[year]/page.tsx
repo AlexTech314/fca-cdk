@@ -13,10 +13,7 @@ interface PageProps {
   params: Promise<{ year: string }>;
 }
 
-export async function generateStaticParams() {
-  const filters = await getTombstoneFilterOptions();
-  return filters.years.map((year) => ({ year: year.toString() }));
-}
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { year } = await params;

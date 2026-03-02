@@ -8,7 +8,6 @@ import { ContentExplorer } from '@/components/sections/ContentExplorer';
 import { RelatedNewsSection } from '@/components/sections/RelatedNewsSection';
 import {
   getTombstone,
-  getTombstones,
   findPressReleaseForTombstone,
   getRelatedNewsForTombstone,
   getTombstoneFilterOptions,
@@ -20,12 +19,7 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  const tombstones = await getTombstones();
-  return tombstones.map((tombstone) => ({
-    slug: tombstone.slug,
-  }));
-}
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;

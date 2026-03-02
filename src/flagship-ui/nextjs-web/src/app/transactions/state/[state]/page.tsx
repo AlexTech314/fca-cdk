@@ -18,10 +18,7 @@ interface PageProps {
   params: Promise<{ state: string }>;
 }
 
-export async function generateStaticParams() {
-  const filters = await getTombstoneFilterOptions();
-  return filters.states.map((s) => ({ state: s.id.toLowerCase() }));
-}
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { state } = await params;

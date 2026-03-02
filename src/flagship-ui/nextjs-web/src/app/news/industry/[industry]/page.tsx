@@ -17,10 +17,7 @@ interface PageProps {
   params: Promise<{ industry: string }>;
 }
 
-export async function generateStaticParams() {
-  const industries = await getAllNewsIndustries();
-  return industries.map((i) => ({ industry: i.slug }));
-}
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { industry } = await params;

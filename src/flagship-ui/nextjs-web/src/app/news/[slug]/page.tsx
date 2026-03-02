@@ -6,7 +6,6 @@ import { CTASection } from '@/components/sections/CTASection';
 import { ContentExplorer } from '@/components/sections/ContentExplorer';
 import {
   getNewsArticle,
-  getNewsArticles,
   getRelatedTombstonesForNews,
   getRelatedNewsForNews,
   getAdjacentArticles,
@@ -23,12 +22,7 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  const articles = await getNewsArticles();
-  return articles.map((article) => ({
-    slug: article.slug,
-  }));
-}
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;

@@ -13,10 +13,7 @@ interface PageProps {
   params: Promise<{ industry: string }>;
 }
 
-export async function generateStaticParams() {
-  const filters = await getTombstoneFilterOptions();
-  return filters.industries.map((i) => ({ industry: i.slug }));
-}
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { industry } = await params;

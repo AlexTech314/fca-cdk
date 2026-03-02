@@ -68,7 +68,7 @@ export interface Lead {
   priceLevel: number | null;
   businessType: string | null;
   businessQualityScore: number | null;
-  sellLikelihoodScore: number | null;
+  exitReadinessScore: number | null;
   controllingOwner: string | null;
   ownershipType: string | null;
   scoringRationale: string | null;
@@ -76,8 +76,8 @@ export interface Lead {
   scoredAt: string | null;
   qualityPercentileByType: number | null;
   qualityPercentileByCity: number | null;
-  sellPercentileByType: number | null;
-  sellPercentileByCity: number | null;
+  exitPercentileByType: number | null;
+  exitPercentileByCity: number | null;
   compositeScore: number | null;
   isExcluded: boolean;
   exclusionReason: string | null;
@@ -243,7 +243,7 @@ export type LeadListField =
   | 'scrapedData'
   | 'extractedData'
   | 'businessQualityScore'
-  | 'sellLikelihoodScore'
+  | 'exitReadinessScore'
   | 'compositeScore'
   | 'webScrapedAt'
   | 'createdAt';

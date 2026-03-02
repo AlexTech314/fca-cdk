@@ -626,9 +626,9 @@ export default function LeadDetail() {
                         : <span className="text-muted-foreground text-sm">N/A</span>}
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Sell Likelihood</p>
-                      {lead.sellLikelihoodScore != null && lead.sellLikelihoodScore !== -1
-                        ? <ScoreBadge score={lead.sellLikelihoodScore} size="lg" />
+                      <p className="text-xs text-muted-foreground mb-1">Exit Readiness</p>
+                      {lead.exitReadinessScore != null && lead.exitReadinessScore !== -1
+                        ? <ScoreBadge score={lead.exitReadinessScore} size="lg" />
                         : <span className="text-muted-foreground text-sm">N/A</span>}
                     </div>
                     <div>
@@ -675,12 +675,12 @@ export default function LeadDetail() {
                           <span className="font-mono">{lead.qualityPercentileByCity != null ? Math.round(lead.qualityPercentileByCity) : '—'}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Sell (by type)</span>
-                          <span className="font-mono">{lead.sellPercentileByType != null ? Math.round(lead.sellPercentileByType) : '—'}</span>
+                          <span className="text-muted-foreground">Exit (by type)</span>
+                          <span className="font-mono">{lead.exitPercentileByType != null ? Math.round(lead.exitPercentileByType) : '—'}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Sell (by city)</span>
-                          <span className="font-mono">{lead.sellPercentileByCity != null ? Math.round(lead.sellPercentileByCity) : '—'}</span>
+                          <span className="text-muted-foreground">Exit (by city)</span>
+                          <span className="font-mono">{lead.exitPercentileByCity != null ? Math.round(lead.exitPercentileByCity) : '—'}</span>
                         </div>
                       </div>
                     </div>

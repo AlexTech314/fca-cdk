@@ -15,7 +15,7 @@ const sortFieldMap: Record<string, string> = {
   name: 'name',
   rating: 'rating',
   businessQualityScore: 'businessQualityScore',
-  sellLikelihoodScore: 'sellLikelihoodScore',
+  exitReadinessScore: 'exitReadinessScore',
   businessType: 'businessType',
   reviewCount: 'reviewCount',
   webScrapedAt: 'webScrapedAt',
@@ -41,7 +41,7 @@ const nullableNumericFields = new Set([
   'rating',
   'reviewCount',
   'businessQualityScore',
-  'sellLikelihoodScore',
+  'exitReadinessScore',
 ]);
 
 function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWithRelationInput {
@@ -396,8 +396,8 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   if (fields.has('businessQualityScore')) {
     select.businessQualityScore = true;
   }
-  if (fields.has('sellLikelihoodScore')) {
-    select.sellLikelihoodScore = true;
+  if (fields.has('exitReadinessScore')) {
+    select.exitReadinessScore = true;
   }
   if (fields.has('webScrapedAt')) {
     select.webScrapedAt = true;

@@ -22,10 +22,10 @@ export async function refreshLeadRanks(db: PrismaClient): Promise<void> {
     await tx.$executeRaw`
       CREATE TEMP TABLE _scored ON COMMIT DROP AS
       SELECT id, business_type, location_city_id, location_state_id,
-             business_quality_score, sell_likelihood_score
+             business_quality_score, exit_readiness_score
       FROM leads
       WHERE business_quality_score IS NOT NULL AND business_quality_score != -1
-        AND sell_likelihood_score IS NOT NULL AND sell_likelihood_score != -1
+        AND exit_readiness_score IS NOT NULL AND exit_readiness_score != -1
         AND is_excluded = false`;
     await tx.$executeRaw`CREATE INDEX ON _scored (business_type)`;
     await tx.$executeRaw`CREATE INDEX ON _scored (location_city_id, location_state_id)`;
@@ -45,10 +45,10 @@ export async function refreshLeadRanks(db: PrismaClient): Promise<void> {
         FROM q_freq GROUP BY business_type
       ),
       s_freq AS (
-        SELECT business_type, sell_likelihood_score,
+        SELECT business_type, exit_readiness_score,
                COUNT(*)::float / SUM(COUNT(*)) OVER (PARTITION BY business_type) AS p
         FROM _scored WHERE business_type IS NOT NULL
-        GROUP BY business_type, sell_likelihood_score
+        GROUP BY business_type, exit_readiness_score
       ),
       s_ent AS (
         SELECT business_type,
@@ -77,10 +77,10 @@ export async function refreshLeadRanks(db: PrismaClient): Promise<void> {
         FROM q_freq GROUP BY location_city_id, location_state_id
       ),
       s_freq AS (
-        SELECT location_city_id, location_state_id, sell_likelihood_score,
+        SELECT location_city_id, location_state_id, exit_readiness_score,
                COUNT(*)::float / SUM(COUNT(*)) OVER (PARTITION BY location_city_id, location_state_id) AS p
         FROM _scored WHERE location_city_id IS NOT NULL
-        GROUP BY location_city_id, location_state_id, sell_likelihood_score
+        GROUP BY location_city_id, location_state_id, exit_readiness_score
       ),
       s_ent AS (
         SELECT location_city_id, location_state_id,
@@ -100,8 +100,8 @@ export async function refreshLeadRanks(db: PrismaClient): Promise<void> {
         SELECT s.id,
           CASE WHEN tw.cnt >= 5 THEN PERCENT_RANK() OVER (PARTITION BY s.business_type ORDER BY s.business_quality_score) * 100 ELSE NULL END AS q_type,
           CASE WHEN cw.cnt >= 5 THEN PERCENT_RANK() OVER (PARTITION BY s.location_city_id, s.location_state_id ORDER BY s.business_quality_score) * 100 ELSE NULL END AS q_city,
-          CASE WHEN tw.cnt >= 5 THEN PERCENT_RANK() OVER (PARTITION BY s.business_type ORDER BY s.sell_likelihood_score) * 100 ELSE NULL END AS s_type,
-          CASE WHEN cw.cnt >= 5 THEN PERCENT_RANK() OVER (PARTITION BY s.location_city_id, s.location_state_id ORDER BY s.sell_likelihood_score) * 100 ELSE NULL END AS s_city,
+          CASE WHEN tw.cnt >= 5 THEN PERCENT_RANK() OVER (PARTITION BY s.business_type ORDER BY s.exit_readiness_score) * 100 ELSE NULL END AS s_type,
+          CASE WHEN cw.cnt >= 5 THEN PERCENT_RANK() OVER (PARTITION BY s.location_city_id, s.location_state_id ORDER BY s.exit_readiness_score) * 100 ELSE NULL END AS s_city,
           COALESCE(tw.q_w, 0) AS q_type_w, COALESCE(cw.q_w, 0) AS q_city_w,
           COALESCE(tw.s_w, 0) AS s_type_w, COALESCE(cw.s_w, 0) AS s_city_w
         FROM _scored s
@@ -111,8 +111,8 @@ export async function refreshLeadRanks(db: PrismaClient): Promise<void> {
       UPDATE leads SET
         quality_percentile_by_type = ranked.q_type,
         quality_percentile_by_city = ranked.q_city,
-        sell_percentile_by_type = ranked.s_type,
-        sell_percentile_by_city = ranked.s_city,
+        exit_percentile_by_type = ranked.s_type,
+        exit_percentile_by_city = ranked.s_city,
         composite_score = (
           COALESCE(q_type * q_type_w, 0) + COALESCE(q_city * q_city_w, 0) +
           COALESCE(s_type * s_type_w, 0) + COALESCE(s_city * s_city_w, 0)

@@ -85,6 +85,37 @@ export function buildFactsSummary(facts: ExtractionResult): string {
     lines.push('Recurring revenue: None.');
   }
 
+  // Management titles
+  if (facts.management_titles.length > 0) {
+    lines.push(`Management titles: ${facts.management_titles.map((m) => `${m.name} (${m.title})`).join(', ')}.`);
+  } else {
+    lines.push('Management titles: No formal management titles found.');
+  }
+
+  // Succession signals
+  if (facts.succession_signals.length > 0) {
+    lines.push(`Succession signals: ${facts.succession_signals.join('; ')}.`);
+  } else {
+    lines.push('Succession signals: None.');
+  }
+
+  // Process/governance
+  if (facts.process_governance_signals.length > 0) {
+    lines.push(`Process/governance: ${facts.process_governance_signals.join(', ')}.`);
+  } else {
+    lines.push('Process/governance: None.');
+  }
+
+  // Competitive pressure
+  if (facts.competitive_pressure_signals.length > 0) {
+    lines.push(`Competitive pressure: ${facts.competitive_pressure_signals.join('; ')}.`);
+  } else {
+    lines.push('Competitive pressure: None.');
+  }
+
+  // Business tone
+  lines.push(`Business tone: ${facts.growth_vs_maintenance_language}.`);
+
   return lines.join('\n');
 }
 

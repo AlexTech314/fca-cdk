@@ -31,10 +31,10 @@ export const LEAD_COLUMN_OPTIONS: LeadColumnOption[] = [
   { key: 'scrapedData', label: 'Scraped Data' },
   { key: 'extractedData', label: 'Extracted Data' },
   { key: 'businessQualityScore', label: 'Raw BQ' },
-  { key: 'sellLikelihoodScore', label: 'Raw SL' },
+  { key: 'exitReadinessScore', label: 'Raw ER' },
   { key: 'compositeScore', label: 'Composite' },
   { key: 'webScrapedAt', label: 'Scraped' },
   { key: 'createdAt', label: 'Added' },
 ];
 
-export const LEAD_COLUMNS_STORAGE_KEY = 'lead-table-columns-v9';
+export const LEAD_COLUMNS_STORAGE_KEY = 'lead-table-columns-v10';

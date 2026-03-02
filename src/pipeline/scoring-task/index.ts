@@ -156,7 +156,7 @@ async function main(): Promise<void> {
           isExcluded: result.is_excluded,
           exclusionReason: result.exclusion_reason,
           businessQualityScore: result.business_quality_score,
-          sellLikelihoodScore: result.sell_likelihood_score,
+          exitReadinessScore: result.exit_readiness_score,
           scoringRationale: result.rationale,
           supportingEvidence: result.supporting_evidence,
           extractedFactsS3Key,
@@ -168,7 +168,7 @@ async function main(): Promise<void> {
       scored++;
       completed++;
       console.log(
-        `[${completed}/${batch.length}] Scored lead ${lead_id}: BQ:${result.business_quality_score} SL:${result.sell_likelihood_score}${result.is_excluded ? ' [EXCLUDED]' : ''}`
+        `[${completed}/${batch.length}] Scored lead ${lead_id}: BQ:${result.business_quality_score} ER:${result.exit_readiness_score}${result.is_excluded ? ' [EXCLUDED]' : ''}`
       );
     } catch (err) {
       console.error(`Failed to score lead ${lead_id}:`, err);

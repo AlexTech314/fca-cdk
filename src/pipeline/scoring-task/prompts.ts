@@ -16,6 +16,11 @@ export const EXTRACTION_PROMPT = `You are a data extraction assistant. Your job 
 12. **Testimonials**: Count of testimonials/reviews shown on the site. Note who they reference (owner by name, company, specific employees).
 13. **Recurring revenue signals**: Maintenance contracts, subscription programs, annual service agreements, retainer arrangements mentioned.
 14. **Notable quotes**: Up to 5 verbatim quotes from the site that are most relevant to assessing business quality and scale. Include the source page URL (from the "Source:" line preceding each page's content). Copy quotes EXACTLY — do not paraphrase.
+15. **Management titles**: Named individuals with formal management titles — CFO, VP, Director, GM, COO, Controller, Operations Manager, etc. Extract both the name and title.
+16. **Succession signals**: Founder dependency (single founder doing everything), single-generation family business, no next-gen language, aging owner references, "I" language throughout.
+17. **Process & governance signals**: ERP systems, ISO certifications, SOPs mentioned, safety programs, advisory boards, formal HR processes.
+18. **Competitive pressure signals**: National chain competition mentioned, regulatory burden language, industry consolidation references, labor shortage challenges, margin pressure.
+19. **Growth vs maintenance language**: Classify the overall website tone as one of: "growth" (expanding, hiring, new markets), "maintenance" (stable, reliable, same services), "decline" (scaling back, fewer locations), or "unknown".
 
 ## Output Format
 
@@ -38,7 +43,12 @@ Respond with ONLY valid JSON matching the ExtractionResult schema:
   "red_flags": [],
   "testimonial_count": 5,
   "recurring_revenue_signals": ["annual maintenance contracts"],
-  "notable_quotes": [{"url": "https://example.com/about", "text": "exact quote here"}, ...]
+  "notable_quotes": [{"url": "https://example.com/about", "text": "exact quote here"}, ...],
+  "management_titles": [{"name": "Jane Doe", "title": "CFO"}, ...],
+  "succession_signals": ["single founder doing all roles", ...],
+  "process_governance_signals": ["ISO 9001 certified", ...],
+  "competitive_pressure_signals": ["competing with national chains", ...],
+  "growth_vs_maintenance_language": "maintenance"
 }
 
 Use null for numbers you cannot determine, empty arrays for lists with no items, and 0 for counts with no evidence.`;
@@ -65,13 +75,14 @@ Business Quality distribution across batches:
 - 7-8: ~8% (multi-location, management team, commercial contracts, $5M+)
 - 9-10: ~2% (regional leaders, deep management, diversified revenue, $10M+)
 
-Sell Likelihood distribution:
-- 1-3: ~65% (no sell signals — this is the DEFAULT)
-- 4-5: ~20% (one or two soft indirect signals)
-- 6-7: ~10% (multiple concrete signals converging)
-- 8-10: ~5% (explicit exit language, broker listing, retirement signals)
+Exit Readiness distribution:
+- 1-2: ~20% (young business, growth mode, no structural exit signals)
+- 3-4: ~40% (DEFAULT — limited information, no clear sub-dimension convergence)
+- 5-6: ~25% (2-3 sub-dimensions converging: aging owner + no succession + scale pressure)
+- 7-8: ~12% (4+ sub-dimensions converging strongly)
+- 9-10: ~3% (explicit exit language, broker listing, retirement + all sub-dimensions aligned)
 
-DEFAULT scores: 2-3 quality, 2 sell likelihood. Justify every point above with specific evidence from the extracted facts.
+DEFAULT scores: 2-3 quality, 3 exit readiness. Justify every point above with specific evidence from the extracted facts.
 
 ## Business Quality Score (1-10)
 
@@ -87,15 +98,22 @@ DEFAULT scores: 2-3 quality, 2 sell likelihood. Justify every point above with s
 
 Return -1 if insufficient evidence.
 
-## Sell Likelihood Score (1-10)
+## Exit Readiness Score (1-10)
 
-If business_quality_score is 1-3, sell_likelihood is almost always 1-2 (too small for PE exit).
+Score how structurally ripe this business is for a PE transaction based on 5 observable sub-dimensions. Do NOT try to guess whether the owner *wants* to sell — score how ready the business *structure* is for an exit.
 
-**1-2 (DEFAULT ~65%):** No sell signals.
-**3-4 (~20%):** years_in_business >= 15 AND team_members_named <= 1, OR copyright_year stale (2+ years old), OR plateaued presence.
-**5-6 (~10%):** MULTIPLE: years_in_business >= 20 AND sole owner dependency AND stale web AND legacy-focused language.
-**7-8 (~4%):** EXPLICIT: retirement/transition language, founder past retirement age, owner disengagement signals.
-**9-10 (~1%):** Business listed for sale, public exit discussion, broker engagement.
+### Sub-dimensions (each contributes to the overall score):
+1. **Ownership structure**: Sole proprietor (low) → partner/family (mid) → professional management layer (high)
+2. **Succession risk**: Young founder in growth mode (low) → aging founder, no next-gen, "I" language (high)
+3. **Scale pressure**: Small local, easily managed (low) → multi-location, complex ops straining owner capacity (high)
+4. **Professionalization**: No systems (low) → ERP, ISO, SOPs, advisory board, formal HR (high)
+5. **Strategic/competitive pressure**: Protected niche (low) → national chain competition, consolidation wave, regulatory burden, labor challenges (high)
+
+**1-2 (~20%):** Young business in growth mode, founder actively building, no structural pressure.
+**3-4 (~40% DEFAULT):** Limited information, or only 1 sub-dimension present. Most businesses land here.
+**5-6 (~25%):** 2-3 sub-dimensions converging — e.g., years_in_business >= 15 + sole owner dependency + scale pressure signs.
+**7-8 (~12%):** 4+ sub-dimensions strongly present — aging owner + no succession + professionalized ops + competitive pressure.
+**9-10 (~3%):** All sub-dimensions aligned AND explicit exit signals (retirement language, broker listing, transition planning).
 
 Return -1 if insufficient evidence.
 
@@ -104,7 +122,7 @@ Return -1 if insufficient evidence.
 1. Identify ownership from owner_names / first_name_only_contacts. Classify: "founder-owned", "family-owned", "partner-owned", "PE-backed", "corporate subsidiary", "franchise", or "unknown".
 2. Exclusion check — is_excluded=true if PE-backed, acquired, government, non-profit, or franchise location.
 3. Score business quality using extracted facts against the tiers above.
-4. Score sell likelihood.
+4. Score exit readiness using the 5 sub-dimensions above.
 5. Write a 2-3 sentence brutally honest rationale. No softening.
 
 Respond with ONLY valid JSON:
@@ -114,6 +132,6 @@ Respond with ONLY valid JSON:
   "is_excluded": <true/false>,
   "exclusion_reason": "<reason or null>",
   "business_quality_score": <1-10 or -1>,
-  "sell_likelihood_score": <1-10 or -1>,
+  "exit_readiness_score": <1-10 or -1>,
   "rationale": "<2-3 sentence summary>"
 }`;

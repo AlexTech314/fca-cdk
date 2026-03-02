@@ -14,7 +14,7 @@ const leadListFields = [
   'scrapedData',
   'extractedData',
   'businessQualityScore',
-  'sellLikelihoodScore',
+  'exitReadinessScore',
   'compositeScore',
   'webScrapedAt',
   'createdAt',

@@ -785,7 +785,7 @@ model Lead {
   isExcluded           Boolean   @default(false) @map("is_excluded")
   exclusionReason      String?   @map("exclusion_reason")
   businessQualityScore Int?      @map("business_quality_score")
-  sellLikelihoodScore  Int?      @map("sell_likelihood_score")
+  exitReadinessScore   Int?      @map("exit_readiness_score")
   scoringRationale     String?   @map("scoring_rationale")
   supportingEvidence   Json?     @map("supporting_evidence")
   scrapeMarkdownS3Key  String?   @map("scrape_markdown_s3_key")
@@ -795,8 +795,8 @@ model Lead {
   // Relative scoring (percentile ranks within cohorts, 0-100)
   qualityPercentileByType  Float?   @map("quality_percentile_by_type")
   qualityPercentileByCity  Float?   @map("quality_percentile_by_city")
-  sellPercentileByType     Float?   @map("sell_percentile_by_type")
-  sellPercentileByCity     Float?   @map("sell_percentile_by_city")
+  exitPercentileByType     Float?   @map("exit_percentile_by_type")
+  exitPercentileByCity     Float?   @map("exit_percentile_by_city")
   compositeScore           Float?   @map("composite_score")
 
   // Web Scraping

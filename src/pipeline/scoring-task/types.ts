@@ -17,6 +17,11 @@ export interface ExtractionResult {
   testimonial_count: number;
   recurring_revenue_signals: string[];
   notable_quotes: { url: string; text: string }[];
+  management_titles: { name: string; title: string }[];
+  succession_signals: string[];
+  process_governance_signals: string[];
+  competitive_pressure_signals: string[];
+  growth_vs_maintenance_language: string;
 }
 
 export const EMPTY_EXTRACTION: ExtractionResult = {
@@ -38,6 +43,11 @@ export const EMPTY_EXTRACTION: ExtractionResult = {
   testimonial_count: 0,
   recurring_revenue_signals: [],
   notable_quotes: [],
+  management_titles: [],
+  succession_signals: [],
+  process_governance_signals: [],
+  competitive_pressure_signals: [],
+  growth_vs_maintenance_language: 'unknown',
 };
 
 export interface BatchItem {
@@ -51,7 +61,7 @@ export interface ScoringResult {
   is_excluded: boolean;
   exclusion_reason: string | null;
   business_quality_score: number;
-  sell_likelihood_score: number;
+  exit_readiness_score: number;
   rationale: string;
   supporting_evidence: { url: string; snippet: string }[];
 }

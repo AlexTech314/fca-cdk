@@ -320,14 +320,14 @@ export function LeadTable({
           <span className="text-muted-foreground text-sm">—</span>
         ),
     },
-    sellLikelihoodScore: {
-      label: 'Raw SL',
-      sortColumn: 'sellLikelihoodScore',
+    exitReadinessScore: {
+      label: 'Raw ER',
+      sortColumn: 'exitReadinessScore',
       headClassName: 'text-center',
       cellClassName: 'text-center',
       renderCell: (lead) =>
-        lead.sellLikelihoodScore != null && lead.sellLikelihoodScore !== -1 ? (
-          <ScoreBadge score={lead.sellLikelihoodScore} size="sm" />
+        lead.exitReadinessScore != null && lead.exitReadinessScore !== -1 ? (
+          <ScoreBadge score={lead.exitReadinessScore} size="sm" />
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         ),

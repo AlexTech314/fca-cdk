@@ -111,7 +111,7 @@ export async function ContactInfo() {
               </svg>
             </div>
             <h3 className="mb-2 font-semibold text-text">Offices</h3>
-            <p className="text-text-muted">
+            <p className="whitespace-nowrap text-text-muted">
               {config.locations.map((loc) => loc.city).join(' • ')}
             </p>
           </div>

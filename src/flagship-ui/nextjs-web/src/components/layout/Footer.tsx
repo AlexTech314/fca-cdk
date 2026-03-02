@@ -103,7 +103,7 @@ export async function Footer() {
               )}
               <li className="pt-2">
                 <p className="text-xs text-gray-300">Offices</p>
-                <p className="text-sm text-gray-400">
+                <p className="whitespace-nowrap text-sm text-gray-400">
                   {config.locations.map((loc) => loc.city).join(' | ')}
                 </p>
               </li>

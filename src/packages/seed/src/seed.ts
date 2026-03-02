@@ -1093,9 +1093,14 @@ async function linkPressReleases(prisma: PrismaClient): Promise<void> {
 
   let linkedCount = 0;
   // Track which blog posts have already been linked (unique constraint)
-  const linkedBlogPostIds = new Set<string>();
+  const linkedBlogPostIds = new Set<string>(
+    tombstones.filter((t) => t.pressReleaseId).map((t) => t.pressReleaseId!)
+  );
 
   for (const tombstone of tombstones) {
+    // Skip if this tombstone already has a press release linked
+    if (tombstone.pressReleaseId) continue;
+
     // Try to find a matching press release by company name
     const normalizedName = tombstone.name.toLowerCase().replace(/[^a-z0-9]/g, '');
 

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import type { Metadata } from 'next';
 import { Hero } from '@/components/sections/Hero';
 import { ServicesGrid } from '@/components/sections/ServicesGrid';

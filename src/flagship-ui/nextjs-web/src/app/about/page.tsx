@@ -160,7 +160,7 @@ export default async function AboutPage() {
           </div>
           )}
 
-          <h3 className="mb-6 text-center text-xl font-semibold text-text">
+          <h3 className="mb-6 text-center text-2xl font-bold text-text">
             {meta.industrySectorsHeading || 'Industry Sectors'}
           </h3>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -186,7 +186,7 @@ export default async function AboutPage() {
                   ) : null}
                   <div className="hero-gradient absolute inset-0" />
                   <div className="relative flex h-full min-h-[240px] flex-col justify-end p-6">
-                    <h4 className="mb-1 text-lg font-semibold text-white">
+                    <h4 className="mb-1 text-[1.375rem] font-bold text-white">
                       {sector.name}
                     </h4>
                     <p className="text-sm text-white/80">{sector.description}</p>

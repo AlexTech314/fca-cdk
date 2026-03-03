@@ -51,6 +51,7 @@ interface UnsavedChangesContextValue {
 const pageNameMap: Record<string, string> = {
   '/admin': 'Home',
   '/admin/about': 'About',
+  '/admin/buy-side': 'Buy-Side',
   '/admin/team': 'Team',
   '/admin/transactions': 'Transactions',
   '/admin/news': 'News',

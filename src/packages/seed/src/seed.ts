@@ -1747,30 +1747,23 @@ Our buyer relationships are crucial to our ongoing success in making markets for
     },
     {
       pageKey: 'buy-side',
-      title: 'Buy-Side M&A Advisory',
-      content: `Flatirons Capital Advisors loves finding the simplest, shortest and most efficient solutions for our clients' desired outcomes. With our extensive knowledge of a broad range of industries and expansive relationships with strategic buyers across North America, in certain situations a possible solution for a business owner looking to retire or take some chips off the table is to take a buy-side approach to the sale.
+      title: 'Buy-Side Acquisition Search Advisory',
+      content: `Flatirons Capital Advisors is a leading buy-side acquisition search and advisory firm, advising private equity sponsors, family offices, and strategic acquirers on targeted investment and platform expansion opportunities. Since our founding in 2014, we have supported more than 100 successful transactions, leveraging deep sector expertise and disciplined transaction execution across industrials, business and financial services, manufacturing, healthcare, distribution, consumer, technology, education, and energy. Our process is data-driven, thesis-led, and designed to originate proprietary deal flow in competitive markets.
 
 ---
 
-Whether it's a buy-side or sell-side engagement, a key part of Flatirons Capital Advisors' expertise lies with identifying and maintaining relationships with key strategic buyers that have the cash on hand and are actively acquiring businesses in the same industry as the business owner's operations.
+Flatirons Capital Advisors partners with a select group of private equity firms to originate and execute proprietary acquisition opportunities. Firms engage us for the depth of sector expertise within our deal teams and our demonstrated track record advising buyers through disciplined, end-to-end transaction execution.
 
-This reduces the chances of deal fatigue and any surprises the buyer might have if they didn't intimately understand the owner's business/industry.
-
-The due diligence process/timeline is usually more efficient because the buyer understands the industry/business operations, thus reducing friction points and the time to close. Further, it elevates the chances of a successful post-merger integration.
-
-Finally, the business owner can feel confident with the ultimate sale price because in this highly competitive market these buyers understand they must present strong, fair-market-values up front in order to consistently complete acquisitions.`,
+In addition to advisory services, we selectively co-invest alongside our private equity partners and actively support value creation through add-on acquisitions and strategic expansion initiatives. This hands-on investment experience enhances our ability to design and implement proactive, thesis-driven acquisition strategies that drive platform scale and long-term equity value.`,
       metadata: {
-        metaDescription: 'Buy-side M&A advisory services from Flatirons Capital Advisors. Acquisition search, sponsor services, and buy-side representation for strategic buyers.',
-        subtitle: 'A Free Look',
+        metaDescription: 'Buy-side acquisition search advisory services from Flatirons Capital Advisors. Advising PE sponsors, family offices, and strategic acquirers on targeted investment opportunities.',
+        subtitle: '',
         description: "Finding the simplest, shortest and most efficient solutions for our clients' desired outcomes.",
-        processHeading: 'Understanding the Process',
-        benefitsHeading: 'Potential Benefits to the Business Owner',
-        disadvantagesHeading: 'Key Disadvantages to the Business Owner',
-        approachSubtitle: 'How We Work',
-        approachTitle: 'Our Approach',
-        processBullets: "The buyer is our client and pays our fees\nA high-level description of the business owner's operations is required\nA 30-minute conference call takes place to determine if next steps are warranted",
-        ctaTitle: 'Interested in a buy-side approach?',
-        ctaDescription: 'Contact us to discuss whether a buy-side engagement might be the right fit for your situation.',
+        searchHeading: 'Acquisition Search',
+        servicesLabel: 'Our services include:',
+        serviceBullets: 'Working with management to identify the most strategic and accretive acquisitions\nManage the process of discreet and professional outreach to primarily founder-and family-owned businesses\nFacilitate discussions and analysis of attractive opportunities\nLeverage our industry experience and connections',
+        ctaTitle: 'Ready to explore acquisition opportunities?',
+        ctaDescription: 'Contact us to discuss how our buy-side advisory services can support your acquisition strategy.',
         ctaText: 'Contact Us',
       },
     },

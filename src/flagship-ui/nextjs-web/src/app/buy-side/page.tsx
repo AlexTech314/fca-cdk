@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const meta = (pageContent?.metadata || {}) as BuySideMetadata;
   return pageMetadata(config, {
     title: 'Buy-Side Advisory',
-    description: meta.metaDescription || 'Buy-side acquisition search advisory services from Flatirons Capital Advisors. Advising PE sponsors, family offices, and strategic acquirers on targeted investment opportunities.',
+    description: meta.metaDescription ?? '',
     canonical: `${config.url}/buy-side`,
   });
 }
@@ -49,14 +49,14 @@ export default async function BuySidePage() {
   return (
     <>
       <Hero
-        title={pageContent?.title || 'Buy-Side Acquisition Search Advisory'}
+        title={pageContent?.title || 'Buy-Side Acquisition Search'}
         subtitle={meta.subtitle}
         description={meta.description}
         compact
       />
 
       {/* Introduction */}
-      <section className="py-16 md:py-24">
+      <section className="py-10 md:py-14">
         <Container>
           <div className="mx-auto max-w-3xl">
             {introParagraphs.map((p, i) => (
@@ -82,7 +82,7 @@ export default async function BuySidePage() {
                 </p>
               ))}
               {serviceBullets.length > 0 && (
-                <div className="mt-8">
+                <div className="mt-8 rounded-xl border border-border bg-white p-8 shadow-sm">
                   <p className="mb-4 font-semibold text-text">
                     {meta.servicesLabel || 'Our services include:'}
                   </p>

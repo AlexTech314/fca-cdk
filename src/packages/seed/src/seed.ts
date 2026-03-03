@@ -1747,7 +1747,7 @@ Our buyer relationships are crucial to our ongoing success in making markets for
     },
     {
       pageKey: 'buy-side',
-      title: 'Buy-Side Acquisition Search Advisory',
+      title: 'Buy-Side Acquisition Search',
       content: `Flatirons Capital Advisors is a leading buy-side acquisition search and advisory firm, advising private equity sponsors, family offices, and strategic acquirers on targeted investment and platform expansion opportunities. Since our founding in 2014, we have supported more than 100 successful transactions, leveraging deep sector expertise and disciplined transaction execution across industrials, business and financial services, manufacturing, healthcare, distribution, consumer, technology, education, and energy. Our process is data-driven, thesis-led, and designed to originate proprietary deal flow in competitive markets.
 
 ---
@@ -1758,7 +1758,7 @@ In addition to advisory services, we selectively co-invest alongside our private
       metadata: {
         metaDescription: 'Buy-side acquisition search advisory services from Flatirons Capital Advisors. Advising PE sponsors, family offices, and strategic acquirers on targeted investment opportunities.',
         subtitle: '',
-        description: '',
+        description: 'Driving Proprietary Deal Flow and Strategic Growth for Private Equity Firms',
         searchHeading: 'Acquisition Search',
         servicesLabel: 'Our services include:',
         serviceBullets: 'Working with management to identify the most strategic and accretive acquisitions\nManage the process of discreet and professional outreach to primarily founder-and family-owned businesses\nFacilitate discussions and analysis of attractive opportunities\nLeverage our industry experience and connections',

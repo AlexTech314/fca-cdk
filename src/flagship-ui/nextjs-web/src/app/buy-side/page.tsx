@@ -51,7 +51,7 @@ export default async function BuySidePage() {
       <Hero
         title={pageContent?.title || 'Buy-Side Acquisition Search Advisory'}
         subtitle={meta.subtitle}
-        description={meta.description || "Finding the simplest, shortest and most efficient solutions for our clients' desired outcomes."}
+        description={meta.description}
         compact
       />
 

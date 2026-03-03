@@ -1758,7 +1758,7 @@ In addition to advisory services, we selectively co-invest alongside our private
       metadata: {
         metaDescription: 'Buy-side acquisition search advisory services from Flatirons Capital Advisors. Advising PE sponsors, family offices, and strategic acquirers on targeted investment opportunities.',
         subtitle: '',
-        description: "Finding the simplest, shortest and most efficient solutions for our clients' desired outcomes.",
+        description: '',
         searchHeading: 'Acquisition Search',
         servicesLabel: 'Our services include:',
         serviceBullets: 'Working with management to identify the most strategic and accretive acquisitions\nManage the process of discreet and professional outreach to primarily founder-and family-owned businesses\nFacilitate discussions and analysis of attractive opportunities\nLeverage our industry experience and connections',

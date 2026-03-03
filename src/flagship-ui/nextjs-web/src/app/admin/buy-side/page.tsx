@@ -364,16 +364,20 @@ function BuySidePageContent() {
       </section>
 
       {/* CTA */}
-      <section className="py-16 md:py-24">
+      <section
+        className="py-16 md:py-20"
+        style={{ background: 'linear-gradient(135deg, #0f2744 0%, #1e3a5f 50%, #0f2744 100%)' }}
+      >
         <div className="container-max">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="mb-4 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Call to Action</p>
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="mb-4 text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.5)' }}>Call to Action</p>
             <EditableField
               fieldKey="ctaTitle"
               value={meta.ctaTitle || ''}
               onChange={updateField}
               as="h2"
-              className="text-2xl font-bold text-primary md:text-3xl"
+              className="text-3xl font-bold md:text-4xl"
+              style={{ color: '#ffffff' }}
               isDirty={dirtyFields.has('ctaTitle')}
               placeholder="CTA title..."
             />
@@ -382,19 +386,30 @@ function BuySidePageContent() {
               value={meta.ctaDescription || ''}
               onChange={updateField}
               as="p"
-              className="mt-4 text-lg text-text-muted"
+              className="mt-4 text-lg"
+              style={{ color: 'rgba(255, 255, 255, 0.85)' }}
               isDirty={dirtyFields.has('ctaDescription')}
               placeholder="CTA description..."
             />
-            <EditableField
-              fieldKey="ctaText"
-              value={meta.ctaText || ''}
-              onChange={updateField}
-              as="span"
-              className="mt-6 inline-block rounded-md bg-primary px-6 py-3 text-sm font-semibold text-white"
-              isDirty={dirtyFields.has('ctaText')}
-              placeholder="Button text..."
-            />
+            <div className="mt-8">
+              <span
+                className="inline-flex items-center justify-center rounded-md border-2 px-6 py-3 text-base font-semibold"
+                style={{
+                  borderColor: '#ffffff',
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  color: '#ffffff',
+                }}
+              >
+                <EditableField
+                  fieldKey="ctaText"
+                  value={meta.ctaText || ''}
+                  onChange={updateField}
+                  as="span"
+                  isDirty={dirtyFields.has('ctaText')}
+                  placeholder="Button text..."
+                />
+              </span>
+            </div>
           </div>
         </div>
       </section>

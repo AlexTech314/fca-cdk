@@ -165,16 +165,8 @@ export default async function AboutPage() {
           </h3>
           <div className="grid gap-4 sm:grid-cols-2">
             {industrySectors.map((sector) => {
-              const Wrapper = sector.industry ? Link : 'div';
-              const wrapperProps = sector.industry
-                ? { href: `/transactions/industry/${sector.industry.slug}` }
-                : {};
-              return (
-                <Wrapper
-                  key={sector.id}
-                  {...wrapperProps}
-                  className="group relative min-h-[240px] overflow-hidden rounded-lg"
-                >
+              const cardContent = (
+                <>
                   {sector.image ? (
                     <Image
                       src={sector.image}
@@ -191,7 +183,23 @@ export default async function AboutPage() {
                     </h4>
                     <p className="text-sm text-white/80">{sector.description}</p>
                   </div>
-                </Wrapper>
+                </>
+              );
+
+              const className = "group relative min-h-[240px] overflow-hidden rounded-lg";
+
+              return sector.industry ? (
+                <Link
+                  key={sector.id}
+                  href={`/transactions/industry/${sector.industry.slug}`}
+                  className={className}
+                >
+                  {cardContent}
+                </Link>
+              ) : (
+                <div key={sector.id} className={className}>
+                  {cardContent}
+                </div>
               );
             })}
           </div>

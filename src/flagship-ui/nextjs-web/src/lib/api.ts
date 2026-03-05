@@ -84,7 +84,6 @@ export interface ApiSiteConfig {
   locations: { city: string; state: string }[];
   navItems: { name: string; href: string }[];
   footerNav: {
-    services: { name: string; href: string }[];
     company: { name: string; href: string }[];
     resources: { name: string; href: string }[];
   };

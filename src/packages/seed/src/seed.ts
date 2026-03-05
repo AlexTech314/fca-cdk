@@ -398,12 +398,9 @@ async function seedSiteConfig(prisma: PrismaClient): Promise<void> {
       { name: 'Contact', href: '/contact' },
     ],
     footerNav: {
-      services: [
+      company: [
         { name: 'Sell-Side Advisory', href: '/sell-side' },
         { name: 'Buy-Side Advisory', href: '/buy-side' },
-        { name: 'Strategic Consulting', href: '/about' },
-      ],
-      company: [
         { name: 'About', href: '/about' },
         { name: 'Team', href: '/team' },
         { name: 'Transactions', href: '/transactions' },
@@ -1873,6 +1870,27 @@ In addition to advisory services, we selectively co-invest alongside our private
 // ============================================
 // EXPORTED SEED / WIPE FUNCTIONS
 // ============================================
+
+export async function runSeedWebContent(prisma: PrismaClient): Promise<void> {
+  log.info('Starting website content seed...\n');
+
+  try {
+    await seedSiteConfig(prisma);
+    await seedIndustrySectors(prisma);
+    await seedServiceOfferings(prisma);
+    await seedPageContent(prisma);
+    await seedCoreValues(prisma);
+    await seedFAQs(prisma);
+    await seedTeamMembers(prisma);
+    await seedCommunityServices(prisma);
+    await seedAwards(prisma);
+
+    log.info('\nWebsite content seed completed successfully!');
+  } catch (error) {
+    log.error('Website content seed failed:', error);
+    throw error;
+  }
+}
 
 export async function runSeed(prisma: PrismaClient): Promise<void> {
   log.info('Starting database seed...\n');

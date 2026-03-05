@@ -99,7 +99,6 @@ export interface SiteConfigData {
   ogImage: string;
   navItems: { name: string; href: string }[];
   footerNav: {
-    services: { name: string; href: string }[];
     company: { name: string; href: string }[];
     resources: { name: string; href: string }[];
   };
@@ -144,12 +143,9 @@ export const siteConfigDefaults: SiteConfigData = {
     { name: 'Contact', href: '/contact' },
   ],
   footerNav: {
-    services: [
+    company: [
       { name: 'Sell-Side Advisory', href: '/sell-side' },
       { name: 'Buy-Side Advisory', href: '/buy-side' },
-      { name: 'Strategic Consulting', href: '/about' },
-    ],
-    company: [
       { name: 'About', href: '/about' },
       { name: 'Team', href: '/team' },
       { name: 'Transactions', href: '/transactions' },

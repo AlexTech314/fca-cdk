@@ -14,46 +14,29 @@ export async function Footer() {
     <footer className="border-t border-border bg-primary-dark text-white">
       {/* Main Footer */}
       <div className="container-max py-12 md:py-16">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-8 lg:grid-cols-4">
           {/* Company Info */}
-          <div className="lg:col-span-1">
-            <Link href="/" className="inline-flex items-center gap-3">
+          <div className="lg:col-span-2">
+            <Link href="/" className="flex items-center gap-3">
               <Image
                 src="https://d1bjh7dvpwoxii.cloudfront.net/logos/fca-mountain-on-white.png"
                 alt={config.name}
                 width={120}
                 height={42}
-                className="h-8 w-auto brightness-0 invert"
+                className="h-8 w-auto brightness-0 invert md:h-10"
               />
-              <span className="text-lg font-semibold">
-                {config.name}
-              </span>
+              <div className="min-w-0">
+                <span className="block whitespace-nowrap text-sm font-semibold sm:text-lg md:text-xl">
+                  {config.name}
+                </span>
+                <span className="block text-[10px] text-gray-300 sm:text-xs">
+                  {config.tagline}
+                </span>
+              </div>
             </Link>
-            <p className="mt-4 text-sm text-gray-300">
-              {config.tagline}
-            </p>
-            <p className="mt-4 text-sm text-gray-400">
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-gray-400">
               {config.description}
             </p>
-          </div>
-
-          {/* Services */}
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-300">
-              Services
-            </h3>
-            <ul className="mt-4 space-y-3">
-              {config.footerNav.services.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className="text-sm text-gray-400 transition-colors hover:text-white"
-                  >
-                    {item.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </div>
 
           {/* Company */}
@@ -61,7 +44,7 @@ export async function Footer() {
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-300">
               Company
             </h3>
-            <ul className="mt-4 space-y-3">
+            <ul className="mt-4 space-y-2">
               {config.footerNav.company.map((item) => (
                 <li key={item.href}>
                   <Link
@@ -80,7 +63,7 @@ export async function Footer() {
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-300">
               Contact
             </h3>
-            <ul className="mt-4 space-y-3">
+            <ul className="mt-4 space-y-2">
               {config.phone && (
                 <li>
                   <a
@@ -103,7 +86,7 @@ export async function Footer() {
               )}
               <li className="pt-2">
                 <p className="text-xs text-gray-300">Offices</p>
-                <p className="whitespace-nowrap text-sm text-gray-400">
+                <p className="whitespace-nowrap text-[clamp(0.65rem,2.5vw,0.875rem)] text-gray-400">
                   {config.locations.map((loc) => loc.city).join(' | ')}
                 </p>
               </li>

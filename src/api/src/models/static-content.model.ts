@@ -136,7 +136,6 @@ const locationSchema = z.object({
 });
 
 const footerNavSchema = z.object({
-  services: z.array(navItemSchema).default([]),
   company: z.array(navItemSchema).default([]),
   resources: z.array(navItemSchema).default([]),
 });

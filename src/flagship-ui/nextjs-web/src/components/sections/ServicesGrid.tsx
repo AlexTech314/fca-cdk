@@ -12,7 +12,6 @@ interface ServiceCategory {
 }
 
 interface ServicesGridProps {
-  /** Override the default service categories. If not provided, uses hardcoded defaults. */
   buySideServices?: ApiServiceOffering[];
   sellSideServices?: ApiServiceOffering[];
   strategicServices?: ApiServiceOffering[];
@@ -90,9 +89,9 @@ export function ServicesGrid({
           {categories.map((category) => (
             <div
               key={category.title}
-              className="group flex h-full flex-col rounded-xl border border-border bg-white p-8 shadow-sm transition-all duration-200 hover:border-secondary/30 hover:shadow-lg hover:shadow-primary/10"
+              className="group relative flex h-full flex-col rounded-xl border border-primary/10 bg-primary/[0.02] p-8 shadow-sm transition-all duration-300 before:absolute before:inset-y-0 before:left-0 before:w-1 before:rounded-l-xl before:bg-gradient-to-b before:from-primary before:to-secondary hover:bg-primary/[0.04] hover:shadow-md"
             >
-              <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-secondary/10 text-primary">
+              <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 {category.icon}
               </div>
               <h3 className="mb-3 text-xl font-semibold text-primary">

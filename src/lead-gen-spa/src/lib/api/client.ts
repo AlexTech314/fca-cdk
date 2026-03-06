@@ -307,6 +307,14 @@ export const realApi: LeadGenApi = {
     };
   },
 
+  async updateLead(id: string, data: { name: string }): Promise<Lead> {
+    const raw = await apiClient<any>(`/leads/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    return transformLead(raw);
+  },
+
   async getLead(id: string): Promise<LeadWithCampaign> {
     const raw = await apiClient<any>(`/leads/${id}`);
     const lead = transformLead(raw) as LeadWithCampaign;

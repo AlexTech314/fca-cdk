@@ -80,7 +80,12 @@ export interface LeadGenApi {
    * Get a single lead by ID
    */
   getLead(id: string): Promise<LeadWithCampaign>;
-  
+
+  /**
+   * Update a lead (e.g. rename)
+   */
+  updateLead(id: string, data: { name: string }): Promise<Lead>;
+
   /**
    * Get count of leads matching filters
    */

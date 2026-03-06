@@ -151,6 +151,24 @@ router.get('/leads/:id', async (req, res, next) => {
   }
 });
 
+router.patch('/leads/:id', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const { name } = req.body;
+    if (typeof name !== 'string' || !name.trim()) {
+      res.status(400).json({ error: 'name is required and must be a non-empty string' });
+      return;
+    }
+    const lead = await leadService.updateLead(String(req.params.id), { name: name.trim() });
+    if (!lead) {
+      res.status(404).json({ error: 'Lead not found' });
+      return;
+    }
+    res.json(lead);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/leads/:id/scrape-runs', async (req, res, next) => {
   try {
     const runs = await leadService.getLeadScrapeRuns(String(req.params.id));

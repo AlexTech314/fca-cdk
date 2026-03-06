@@ -35,6 +35,18 @@ export function useLeadCount(filters: LeadFilters) {
   });
 }
 
+export function useUpdateLead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name: string } }) =>
+      api.updateLead(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
 export function useQualifyLead() {
   const queryClient = useQueryClient();
 

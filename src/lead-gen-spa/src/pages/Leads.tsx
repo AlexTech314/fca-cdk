@@ -3,7 +3,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { Button } from '@/components/ui/button';
-import { useLeads, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
+import { useLeads, useUpdateLead, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
 import { toast } from '@/hooks/use-toast';
 import type { LeadFilters as LeadFiltersType, LeadListField, LeadQueryParams } from '@/types';
 import {
@@ -88,10 +88,26 @@ export default function Leads() {
   const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
 
   const { data, isLoading } = useLeads(queryParams);
+  const updateLead = useUpdateLead();
   const scrapeBulk = useScrapeLeadsBulk();
   const qualifyBulk = useQualifyLeadsBulk();
   const scrapeAll = useScrapeAllByFilters();
   const qualifyAll = useQualifyAllByFilters();
+
+  const handleRenameLead = useCallback((id: string, name: string) => {
+    updateLead.mutate(
+      { id, data: { name } },
+      {
+        onError: (err) => {
+          toast({
+            title: 'Failed to rename lead',
+            description: err instanceof Error ? err.message : 'An unexpected error occurred.',
+            variant: 'destructive',
+          });
+        },
+      },
+    );
+  }, [updateLead]);
 
   const handleStartBulkAction = useCallback((action: BulkAction) => {
     setBulkAction(action);
@@ -366,6 +382,7 @@ export default function Leads() {
         onToggleAllOnPage={isSelecting ? handleToggleAllOnPage : undefined}
         onPageChange={handlePageChange}
         onSortChange={handleSortChange}
+        onRenameLead={handleRenameLead}
       />
 
       {/* Bulk Progress */}

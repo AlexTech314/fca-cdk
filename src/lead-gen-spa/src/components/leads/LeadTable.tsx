@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import {
   Table,
@@ -12,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { PipelineStatusDot } from './PipelineStatusDot';
+import { NameCell } from './NameCell';
 import { ScoreBadge } from './QualificationBadge';
 import { ScrapedDataDialog } from './ScrapedDataDialog';
 import { ExtractedDataDialog } from './ExtractedDataDialog';
@@ -39,6 +38,7 @@ interface LeadTableProps {
   onToggleAllOnPage?: (ids: string[], checked: boolean) => void;
   onPageChange: (page: number) => void;
   onSortChange: (sort: string, order: 'asc' | 'desc') => void;
+  onRenameLead: (id: string, name: string) => void;
 }
 
 interface SortableHeaderProps {
@@ -146,6 +146,7 @@ export function LeadTable({
   onToggleAllOnPage,
   onPageChange,
   onSortChange,
+  onRenameLead,
 }: LeadTableProps) {
   const hasSelection = !!(selectedIds && onToggleRow && onToggleAllOnPage);
   const pageIds = data.map((l) => l.id);
@@ -165,22 +166,7 @@ export function LeadTable({
       label: 'Name',
       sortColumn: 'name',
       renderCell: (lead) => (
-        <>
-          <div className="flex items-center gap-1.5">
-            <PipelineStatusDot status={lead.pipelineStatus} scrapeError={lead.scrapeError} scoringError={lead.scoringError} />
-            <Link
-              to={`/leads/${lead.id}`}
-              className="font-medium text-primary hover:underline"
-            >
-              {lead.name}
-            </Link>
-          </div>
-          {lead.franchise && (
-            <div className="text-xs text-muted-foreground mt-0.5">
-              Location of: {lead.franchise.displayName ?? lead.franchise.name}
-            </div>
-          )}
-        </>
+        <NameCell lead={lead} onRename={onRenameLead} />
       ),
     },
     city: {

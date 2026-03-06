@@ -82,9 +82,19 @@ export interface LeadGenApi {
   getLead(id: string): Promise<LeadWithCampaign>;
 
   /**
-   * Update a lead (e.g. rename)
+   * Update a lead (e.g. rename, change city)
    */
-  updateLead(id: string, data: { name: string }): Promise<Lead>;
+  updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null }): Promise<Lead>;
+
+  /**
+   * Get distinct business types (skip-scan optimized)
+   */
+  getBusinessTypes(): Promise<string[]>;
+
+  /**
+   * Search cities by name prefix
+   */
+  searchCities(q: string): Promise<Array<{ id: number; name: string; state: { id: string; name: string } }>>;
 
   /**
    * Get count of leads matching filters

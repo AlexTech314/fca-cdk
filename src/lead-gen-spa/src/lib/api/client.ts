@@ -268,6 +268,19 @@ export const realApi: LeadGenApi = {
     return states.map((s) => ({ id: s.id, name: s.name }));
   },
 
+  async getBusinessTypes(): Promise<string[]> {
+    return apiClient<string[]>('/leads/business-types');
+  },
+
+  async searchCities(q: string): Promise<Array<{ id: number; name: string; state: { id: string; name: string } }>> {
+    if (!q.trim()) return [];
+    const qs = new URLSearchParams({ q, type: 'city', limit: '15' });
+    const result = await apiClient<{ cities: Array<{ id: number; name: string; state: { id: string; name: string } }> }>(
+      `/locations/search?${qs}`
+    );
+    return result.cities ?? [];
+  },
+
   // ===========================================
   // Leads
   // ===========================================
@@ -307,7 +320,7 @@ export const realApi: LeadGenApi = {
     };
   },
 
-  async updateLead(id: string, data: { name: string }): Promise<Lead> {
+  async updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null }): Promise<Lead> {
     const raw = await apiClient<any>(`/leads/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

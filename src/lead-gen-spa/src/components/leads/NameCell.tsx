@@ -1,45 +1,58 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Pencil } from 'lucide-react';
 import { PipelineStatusDot } from './PipelineStatusDot';
 import type { Lead } from '@/types';
 
 interface NameCellProps {
   lead: Lead;
-  onRename: (id: string, name: string) => void;
+  onRename: (id: string, name: string, onError: () => void) => void;
 }
 
 export function NameCell({ lead, onRename }: NameCellProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [optimisticName, setOptimisticName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState(lead.name);
+  const [history, setHistory] = useState<string[]>([]);
   const editRef = useRef<HTMLSpanElement>(null);
 
-  // Sync if lead.name changes externally (e.g. after refetch)
+  // Clear optimistic override once the server value catches up
   useEffect(() => {
-    if (!isEditing) setEditValue(lead.name);
-  }, [lead.name, isEditing]);
+    if (optimisticName !== null && lead.name === optimisticName) {
+      setOptimisticName(null);
+    }
+  }, [lead.name, optimisticName]);
+
+  const displayName = optimisticName ?? lead.name;
 
   const startEditing = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setEditValue(lead.name);
+    setEditValue(displayName);
     setIsEditing(true);
-  }, [lead.name]);
+  }, [displayName]);
 
   const save = useCallback(() => {
     const trimmed = editValue.trim();
     setIsEditing(false);
-    if (trimmed && trimmed !== lead.name) {
-      onRename(lead.id, trimmed);
-    } else {
-      setEditValue(lead.name);
+    if (trimmed && trimmed !== displayName) {
+      setHistory((prev) => [...prev, displayName]);
+      setOptimisticName(trimmed);
+      onRename(lead.id, trimmed, () => setOptimisticName(null));
     }
-  }, [editValue, lead.id, lead.name, onRename]);
+  }, [editValue, displayName, lead.id, onRename]);
 
   const cancel = useCallback(() => {
-    setEditValue(lead.name);
+    setEditValue(displayName);
     setIsEditing(false);
-  }, [lead.name]);
+  }, [displayName]);
+
+  const undo = useCallback(() => {
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setHistory((h) => h.slice(0, -1));
+    setOptimisticName(prev);
+    onRename(lead.id, prev, () => setOptimisticName(null));
+  }, [history, lead.id, onRename]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -49,9 +62,12 @@ export function NameCell({ lead, onRename }: NameCellProps) {
       } else if (e.key === 'Escape') {
         e.preventDefault();
         cancel();
+      } else if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+        e.preventDefault();
+        undo();
       }
     },
-    [save, cancel],
+    [save, cancel, undo],
   );
 
   // Focus + select text on edit start
@@ -69,31 +85,33 @@ export function NameCell({ lead, onRename }: NameCellProps) {
 
   if (isEditing) {
     return (
-      <div className="flex items-center gap-1.5">
-        <PipelineStatusDot
-          status={lead.pipelineStatus}
-          scrapeError={lead.scrapeError}
-          scoringError={lead.scoringError}
-        />
-        <span
-          ref={editRef}
-          role="textbox"
-          contentEditable
-          suppressContentEditableWarning
-          className="font-medium text-foreground outline-none caret-foreground rounded px-1 -mx-1 ring-1 ring-ring"
-          onInput={(e) => setEditValue(e.currentTarget.textContent ?? '')}
-          onBlur={save}
-          onKeyDown={handleKeyDown}
-        >
-          {lead.name}
-        </span>
+      <div className="-m-4 p-4 ring-1 ring-inset ring-ring z-10 relative">
+        <div className="flex items-center gap-1.5">
+          <PipelineStatusDot
+            status={lead.pipelineStatus}
+            scrapeError={lead.scrapeError}
+            scoringError={lead.scoringError}
+          />
+          <span
+            ref={editRef}
+            role="textbox"
+            contentEditable
+            suppressContentEditableWarning
+            className="font-medium text-foreground outline-none caret-foreground"
+            onInput={(e) => setEditValue(e.currentTarget.textContent ?? '')}
+            onBlur={save}
+            onKeyDown={handleKeyDown}
+          >
+            {displayName}
+          </span>
+        </div>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="group/name flex items-center gap-1.5">
+    <div className="-m-4 p-4" onDoubleClick={startEditing}>
+      <div className="flex items-center gap-1.5">
         <PipelineStatusDot
           status={lead.pipelineStatus}
           scrapeError={lead.scrapeError}
@@ -103,21 +121,14 @@ export function NameCell({ lead, onRename }: NameCellProps) {
           to={`/leads/${lead.id}`}
           className="font-medium text-primary hover:underline"
         >
-          {lead.name}
+          {displayName}
         </Link>
-        <button
-          onClick={startEditing}
-          className="ml-auto opacity-0 group-hover/name:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
-          aria-label={`Rename ${lead.name}`}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
       </div>
       {lead.franchise && (
         <div className="text-xs text-muted-foreground mt-0.5">
           Location of: {lead.franchise.displayName ?? lead.franchise.name}
         </div>
       )}
-    </>
+    </div>
   );
 }

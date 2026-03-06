@@ -20,7 +20,22 @@ export const leadService = {
     return leadRepository.findById(id);
   },
 
-  async updateLead(id: string, data: { name: string }) {
+  async getDistinctBusinessTypes(): Promise<string[]> {
+    const rows = await prisma.$queryRaw<Array<{ business_type: string }>>`
+      WITH RECURSIVE distinct_types AS (
+        SELECT MIN(business_type) AS business_type FROM leads
+        UNION ALL
+        SELECT (SELECT MIN(business_type) FROM leads WHERE business_type > dt.business_type)
+        FROM distinct_types dt
+        WHERE dt.business_type IS NOT NULL
+      )
+      SELECT business_type FROM distinct_types WHERE business_type IS NOT NULL
+      ORDER BY business_type
+    `;
+    return rows.map((r) => r.business_type);
+  },
+
+  async updateLead(id: string, data: Record<string, unknown>) {
     return prisma.lead.update({ where: { id }, data });
   },
 

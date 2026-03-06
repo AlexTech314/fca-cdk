@@ -115,6 +115,15 @@ router.get('/locations/states/:stateId/cities', async (req, res, next) => {
   }
 });
 
+router.get('/leads/business-types', async (_req, res, next) => {
+  try {
+    const types = await leadService.getDistinctBusinessTypes();
+    res.json(types);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ============================================
 // LEADS
 // ============================================
@@ -153,12 +162,40 @@ router.get('/leads/:id', async (req, res, next) => {
 
 router.patch('/leads/:id', authorize('readwrite', 'admin'), async (req, res, next) => {
   try {
-    const { name } = req.body;
-    if (typeof name !== 'string' || !name.trim()) {
-      res.status(400).json({ error: 'name is required and must be a non-empty string' });
+    const patch: Record<string, unknown> = {};
+    if (req.body.name !== undefined) {
+      if (typeof req.body.name !== 'string' || !req.body.name.trim()) {
+        res.status(400).json({ error: 'name must be a non-empty string' });
+        return;
+      }
+      patch.name = req.body.name.trim();
+    }
+    if (req.body.locationCityId !== undefined) {
+      if (req.body.locationCityId !== null && typeof req.body.locationCityId !== 'number') {
+        res.status(400).json({ error: 'locationCityId must be a number or null' });
+        return;
+      }
+      patch.locationCityId = req.body.locationCityId;
+    }
+    if (req.body.locationStateId !== undefined) {
+      if (req.body.locationStateId !== null && typeof req.body.locationStateId !== 'string') {
+        res.status(400).json({ error: 'locationStateId must be a string or null' });
+        return;
+      }
+      patch.locationStateId = req.body.locationStateId;
+    }
+    if (req.body.businessType !== undefined) {
+      if (req.body.businessType !== null && typeof req.body.businessType !== 'string') {
+        res.status(400).json({ error: 'businessType must be a string or null' });
+        return;
+      }
+      patch.businessType = req.body.businessType;
+    }
+    if (Object.keys(patch).length === 0) {
+      res.status(400).json({ error: 'No valid fields to update' });
       return;
     }
-    const lead = await leadService.updateLead(String(req.params.id), { name: name.trim() });
+    const lead = await leadService.updateLead(String(req.params.id), patch);
     if (!lead) {
       res.status(404).json({ error: 'Lead not found' });
       return;

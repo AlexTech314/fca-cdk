@@ -94,13 +94,62 @@ export default function Leads() {
   const scrapeAll = useScrapeAllByFilters();
   const qualifyAll = useQualifyAllByFilters();
 
-  const handleRenameLead = useCallback((id: string, name: string) => {
+  const handleRenameLead = useCallback((id: string, name: string, onError: () => void) => {
     updateLead.mutate(
       { id, data: { name } },
       {
         onError: (err) => {
+          onError();
           toast({
             title: 'Failed to rename lead',
+            description: err instanceof Error ? err.message : 'An unexpected error occurred.',
+            variant: 'destructive',
+          });
+        },
+      },
+    );
+  }, [updateLead]);
+
+  const handleChangeCity = useCallback((id: string, cityId: number, _cityName: string, onError: () => void) => {
+    updateLead.mutate(
+      { id, data: { locationCityId: cityId } },
+      {
+        onError: (err) => {
+          onError();
+          toast({
+            title: 'Failed to update city',
+            description: err instanceof Error ? err.message : 'An unexpected error occurred.',
+            variant: 'destructive',
+          });
+        },
+      },
+    );
+  }, [updateLead]);
+
+  const handleChangeState = useCallback((id: string, stateId: string, onError: () => void) => {
+    updateLead.mutate(
+      { id, data: { locationStateId: stateId } },
+      {
+        onError: (err) => {
+          onError();
+          toast({
+            title: 'Failed to update state',
+            description: err instanceof Error ? err.message : 'An unexpected error occurred.',
+            variant: 'destructive',
+          });
+        },
+      },
+    );
+  }, [updateLead]);
+
+  const handleChangeType = useCallback((id: string, type: string, onError: () => void) => {
+    updateLead.mutate(
+      { id, data: { businessType: type } },
+      {
+        onError: (err) => {
+          onError();
+          toast({
+            title: 'Failed to update business type',
             description: err instanceof Error ? err.message : 'An unexpected error occurred.',
             variant: 'destructive',
           });
@@ -383,6 +432,9 @@ export default function Leads() {
         onPageChange={handlePageChange}
         onSortChange={handleSortChange}
         onRenameLead={handleRenameLead}
+        onChangeCity={handleChangeCity}
+        onChangeState={handleChangeState}
+        onChangeType={handleChangeType}
       />
 
       {/* Bulk Progress */}

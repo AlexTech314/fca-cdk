@@ -12,6 +12,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { NameCell } from './NameCell';
+import { CityCell } from './CityCell';
+import { StateCell } from './StateCell';
+import { TypeCell } from './TypeCell';
 import { ScoreBadge } from './QualificationBadge';
 import { ScrapedDataDialog } from './ScrapedDataDialog';
 import { ExtractedDataDialog } from './ExtractedDataDialog';
@@ -38,7 +41,10 @@ interface LeadTableProps {
   onToggleAllOnPage?: (ids: string[], checked: boolean) => void;
   onPageChange: (page: number) => void;
   onSortChange: (sort: string, order: 'asc' | 'desc') => void;
-  onRenameLead: (id: string, name: string) => void;
+  onRenameLead: (id: string, name: string, onError: () => void) => void;
+  onChangeCity: (id: string, cityId: number, cityName: string, onError: () => void) => void;
+  onChangeState: (id: string, stateId: string, onError: () => void) => void;
+  onChangeType: (id: string, type: string, onError: () => void) => void;
 }
 
 interface SortableHeaderProps {
@@ -47,64 +53,6 @@ interface SortableHeaderProps {
   currentSort: string;
   currentOrder: 'asc' | 'desc';
   onSort: (column: string, order: 'asc' | 'desc') => void;
-}
-
-const US_STATE_ABBREVIATIONS: Record<string, string> = {
-  Alabama: 'AL',
-  Alaska: 'AK',
-  Arizona: 'AZ',
-  Arkansas: 'AR',
-  California: 'CA',
-  Colorado: 'CO',
-  Connecticut: 'CT',
-  Delaware: 'DE',
-  Florida: 'FL',
-  Georgia: 'GA',
-  Hawaii: 'HI',
-  Idaho: 'ID',
-  Illinois: 'IL',
-  Indiana: 'IN',
-  Iowa: 'IA',
-  Kansas: 'KS',
-  Kentucky: 'KY',
-  Louisiana: 'LA',
-  Maine: 'ME',
-  Maryland: 'MD',
-  Massachusetts: 'MA',
-  Michigan: 'MI',
-  Minnesota: 'MN',
-  Mississippi: 'MS',
-  Missouri: 'MO',
-  Montana: 'MT',
-  Nebraska: 'NE',
-  Nevada: 'NV',
-  'New Hampshire': 'NH',
-  'New Jersey': 'NJ',
-  'New Mexico': 'NM',
-  'New York': 'NY',
-  'North Carolina': 'NC',
-  'North Dakota': 'ND',
-  Ohio: 'OH',
-  Oklahoma: 'OK',
-  Oregon: 'OR',
-  Pennsylvania: 'PA',
-  'Rhode Island': 'RI',
-  'South Carolina': 'SC',
-  'South Dakota': 'SD',
-  Tennessee: 'TN',
-  Texas: 'TX',
-  Utah: 'UT',
-  Vermont: 'VT',
-  Virginia: 'VA',
-  Washington: 'WA',
-  'West Virginia': 'WV',
-  Wisconsin: 'WI',
-  Wyoming: 'WY',
-};
-
-function getStateAbbreviation(state: string): string {
-  if (state.length === 2) return state.toUpperCase();
-  return US_STATE_ABBREVIATIONS[state] ?? state;
 }
 
 function SortableHeader({ column, label, currentSort, currentOrder, onSort }: SortableHeaderProps) {
@@ -147,6 +95,9 @@ export function LeadTable({
   onPageChange,
   onSortChange,
   onRenameLead,
+  onChangeCity,
+  onChangeState,
+  onChangeType,
 }: LeadTableProps) {
   const hasSelection = !!(selectedIds && onToggleRow && onToggleAllOnPage);
   const pageIds = data.map((l) => l.id);
@@ -172,13 +123,16 @@ export function LeadTable({
     city: {
       label: 'City',
       sortColumn: 'city',
-      cellClassName: 'text-muted-foreground',
-      renderCell: (lead) => lead.city || '-',
+      renderCell: (lead) => (
+        <CityCell lead={lead} onChangeCity={onChangeCity} />
+      ),
     },
     state: {
       label: 'State',
       sortColumn: 'state',
-      renderCell: (lead) => (lead.state ? <Badge variant="outline">{getStateAbbreviation(lead.state)}</Badge> : <span className="text-muted-foreground">-</span>),
+      renderCell: (lead) => (
+        <StateCell lead={lead} onChangeState={onChangeState} />
+      ),
     },
     phone: {
       label: 'Phone',
@@ -267,8 +221,9 @@ export function LeadTable({
       label: 'Type',
       headClassName: 'min-w-[120px]',
       cellClassName: 'min-w-[120px]',
-      renderCell: (lead) =>
-        lead.businessType ? <Badge variant="secondary">{lead.businessType}</Badge> : <span className="text-muted-foreground">-</span>,
+      renderCell: (lead) => (
+        <TypeCell lead={lead} onChangeType={onChangeType} />
+      ),
     },
     scrapedData: {
       label: 'Scraped Data',

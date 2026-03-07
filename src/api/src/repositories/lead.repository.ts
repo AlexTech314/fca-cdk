@@ -374,7 +374,7 @@ function buildLeadSelect(fields: Set<LeadListField>) {
     select.phone = true;
   }
   if (fields.has('emails')) {
-    select.leadEmails = { select: { value: true } };
+    select.leadEmails = { select: { id: true, value: true } };
   }
   if (fields.has('website')) {
     select.website = true;

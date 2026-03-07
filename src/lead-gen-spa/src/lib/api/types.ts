@@ -93,6 +93,16 @@ export interface LeadGenApi {
   getNeighborSortIndex(sortIndex: number, direction: 'above' | 'below', filters?: LeadFilters): Promise<number | null>;
 
   /**
+   * Delete a lead by ID
+   */
+  deleteLead(id: string): Promise<void>;
+
+  /**
+   * Bulk delete multiple leads
+   */
+  deleteLeadsBulk(ids: string[]): Promise<{ deleted: number }>;
+
+  /**
    * Update a lead (e.g. rename, change city)
    */
   updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null; sortIndex?: number | null }): Promise<Lead>;

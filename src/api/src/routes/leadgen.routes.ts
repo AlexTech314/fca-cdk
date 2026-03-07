@@ -163,6 +163,37 @@ router.get('/leads/count', validate(leadQuerySchema, 'query'), async (req, res, 
   }
 });
 
+router.delete('/leads/:id', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    await leadService.deleteLead(String(req.params.id));
+    res.status(204).send();
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      res.status(404).json({ error: 'Lead not found' });
+      return;
+    }
+    next(error);
+  }
+});
+
+router.post('/leads/delete-bulk', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const { leadIds } = req.body;
+    if (!Array.isArray(leadIds) || leadIds.length === 0) {
+      res.status(400).json({ error: 'leadIds array is required and must not be empty' });
+      return;
+    }
+    if (leadIds.length > 100) {
+      res.status(400).json({ error: 'Maximum 100 leads per request' });
+      return;
+    }
+    const result = await leadService.deleteLeadsBulk(leadIds);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/leads/:id', async (req, res, next) => {
   try {
     const lead = await leadService.getById(String(req.params.id));
@@ -183,7 +214,7 @@ router.post('/leads', authorize('readwrite', 'admin'), async (req, res, next) =>
       res.status(400).json({ error: 'sortIndex must be a number' });
       return;
     }
-    const leadName = (typeof name === 'string' && name.trim()) ? name.trim() : 'New Lead';
+    const leadName = (typeof name === 'string' && name.trim()) ? name.trim() : '-';
     const lead = await leadService.createLead({ name: leadName, sortIndex });
     res.status(201).json(lead);
   } catch (error) {

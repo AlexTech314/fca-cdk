@@ -25,11 +25,12 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import type { Lead, LeadListField } from '@/types';
 import { formatDate } from '@/lib/utils';
-import { ChevronUp, ChevronDown, Star, ExternalLink, MapPin, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronUp, ChevronDown, Star, ExternalLink, MapPin, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
 interface LeadTableProps {
   data: Lead[];
@@ -64,6 +65,7 @@ interface LeadTableProps {
   onChangeReviews: (id: string, value: number | null, onError: () => void) => void;
   onInsertRowAbove?: (currentSortIndex: number, prevSortIndex: number | null) => void;
   onInsertRowBelow?: (currentSortIndex: number, nextSortIndex: number | null) => void;
+  onDeleteLead?: (id: string) => void;
 }
 
 interface SortableHeaderProps {
@@ -127,6 +129,7 @@ export function LeadTable({
   onChangeReviews,
   onInsertRowAbove,
   onInsertRowBelow,
+  onDeleteLead,
 }: LeadTableProps) {
   const hasSelection = !!(selectedIds && onToggleRow && onToggleAllOnPage);
   const pageIds = data.map((l) => l.id);
@@ -388,7 +391,7 @@ export function LeadTable({
             ) : (
               data.map((lead, index) => {
                 const isSelected = hasSelection && selectedIds!.has(lead.id);
-                const hasContextMenu = (onInsertRowAbove || onInsertRowBelow) && lead.sortIndex != null;
+                const hasContextMenu = !!(onInsertRowAbove || onInsertRowBelow || onDeleteLead);
                 const rowContent = (
                   <TableRow key={lead.id} data-state={isSelected ? 'selected' : undefined} className={isSelected ? 'bg-muted/80' : 'hover:bg-muted/50'}>
                     {hasSelection && (
@@ -421,7 +424,7 @@ export function LeadTable({
                       {rowContent}
                     </ContextMenuTrigger>
                     <ContextMenuContent>
-                      {onInsertRowAbove && (
+                      {onInsertRowAbove && lead.sortIndex != null && (
                         <ContextMenuItem
                           onClick={() => onInsertRowAbove(lead.sortIndex!, prevLead?.sortIndex ?? null)}
                         >
@@ -429,12 +432,24 @@ export function LeadTable({
                           Insert Row Above
                         </ContextMenuItem>
                       )}
-                      {onInsertRowBelow && (
+                      {onInsertRowBelow && lead.sortIndex != null && (
                         <ContextMenuItem
                           onClick={() => onInsertRowBelow(lead.sortIndex!, nextLead?.sortIndex ?? null)}
                         >
                           <Plus className="mr-2 h-4 w-4" />
                           Insert Row Below
+                        </ContextMenuItem>
+                      )}
+                      {onDeleteLead && (onInsertRowAbove || onInsertRowBelow) && lead.sortIndex != null && (
+                        <ContextMenuSeparator />
+                      )}
+                      {onDeleteLead && (
+                        <ContextMenuItem
+                          onClick={() => onDeleteLead(lead.id)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Lead
                         </ContextMenuItem>
                       )}
                     </ContextMenuContent>

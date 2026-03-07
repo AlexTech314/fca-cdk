@@ -297,6 +297,15 @@ export const leadRepository = {
       })),
     };
   },
+  async deleteLead(id: string) {
+    return prisma.lead.delete({ where: { id } });
+  },
+
+  async deleteLeads(ids: string[]) {
+    const result = await prisma.lead.deleteMany({ where: { id: { in: ids } } });
+    return result.count;
+  },
+
   async findNeighbor(
     sortIndex: number,
     direction: 'above' | 'below',

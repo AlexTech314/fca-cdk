@@ -3,7 +3,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { Button } from '@/components/ui/button';
-import { useLeads, useUpdateLead, useCreateLead, useCreateLeadEmail, useUpdateLeadData, useDeleteLeadData, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
+import { useLeads, useUpdateLead, useCreateLead, useCreateLeadEmail, useUpdateLeadData, useDeleteLeadData, useDeleteLead, useDeleteLeadsBulk, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
 import { api } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import type { LeadFilters as LeadFiltersType, LeadListField, LeadQueryParams } from '@/types';
@@ -29,9 +29,9 @@ import {
   LEAD_COLUMNS_STORAGE_KEY,
   LEAD_COLUMN_OPTIONS,
 } from '@/lib/leads/columns';
-import { ChevronDown, Filter, Globe, Sparkles, TableProperties, X } from 'lucide-react';
+import { ChevronDown, Filter, Globe, Sparkles, TableProperties, Trash2, X } from 'lucide-react';
 
-type BulkAction = 'scrape' | 'score' | 'scrape-all' | 'score-all';
+type BulkAction = 'scrape' | 'score' | 'delete' | 'scrape-all' | 'score-all';
 
 const BULK_ACTION_CONFIG: Record<BulkAction, { label: string; icon: typeof Globe; confirmTitle: string; confirmBody: (n: number) => string }> = {
   scrape: {
@@ -45,6 +45,12 @@ const BULK_ACTION_CONFIG: Record<BulkAction, { label: string; icon: typeof Globe
     icon: Sparkles,
     confirmTitle: 'Confirm Bulk Score',
     confirmBody: (n) => `You are about to score ${n} lead${n !== 1 ? 's' : ''}. This will run AI qualification on the selected leads.`,
+  },
+  delete: {
+    label: 'Delete',
+    icon: Trash2,
+    confirmTitle: 'Confirm Bulk Delete',
+    confirmBody: (n) => `You are about to permanently delete ${n} lead${n !== 1 ? 's' : ''}. This action cannot be undone.`,
   },
   'scrape-all': {
     label: 'Scrape All',
@@ -96,8 +102,12 @@ export default function Leads() {
   const deleteEmailData = useDeleteLeadData();
   const scrapeBulk = useScrapeLeadsBulk();
   const qualifyBulk = useQualifyLeadsBulk();
+  const deleteLead = useDeleteLead();
+  const deleteLeadsBulk = useDeleteLeadsBulk();
   const scrapeAll = useScrapeAllByFilters();
   const qualifyAll = useQualifyAllByFilters();
+
+  const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
 
   // ── Undo / Redo ──────────────────────────────────────────────
   type Patch = { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null; website?: string | null; googleMapsUri?: string | null; rating?: number | null; reviewCount?: number | null };
@@ -348,6 +358,23 @@ export default function Leads() {
     }
   }, [computeSortIndex, createLead]);
 
+  const handleDeleteLead = useCallback((id: string) => {
+    setDeleteLeadId(id);
+  }, []);
+
+  const handleConfirmDeleteLead = useCallback(() => {
+    if (!deleteLeadId) return;
+    deleteLead.mutate(deleteLeadId, {
+      onSuccess: () => {
+        toast({ title: 'Lead deleted' });
+        setDeleteLeadId(null);
+      },
+      onError: (err) => {
+        toast({ title: 'Failed to delete lead', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
+      },
+    });
+  }, [deleteLeadId, deleteLead]);
+
   const handleStartBulkAction = useCallback((action: BulkAction) => {
     setBulkAction(action);
     if (action === 'scrape-all' || action === 'score-all') {
@@ -400,14 +427,18 @@ export default function Leads() {
       for (const batch of batches) {
         if (bulkAction === 'scrape') {
           await scrapeBulk.mutateAsync(batch);
-        } else {
+        } else if (bulkAction === 'score') {
           await qualifyBulk.mutateAsync(batch);
+        } else if (bulkAction === 'delete') {
+          await deleteLeadsBulk.mutateAsync(batch);
         }
         processed += batch.length;
         setBulkProgress({ current: processed, total: ids.length });
       }
       toast({
-        title: `Queued ${ids.length} lead${ids.length !== 1 ? 's' : ''} for ${bulkAction === 'scrape' ? 'scraping' : 'scoring'}`,
+        title: bulkAction === 'delete'
+          ? `Deleted ${ids.length} lead${ids.length !== 1 ? 's' : ''}`
+          : `Queued ${ids.length} lead${ids.length !== 1 ? 's' : ''} for ${bulkAction === 'scrape' ? 'scraping' : 'scoring'}`,
       });
     } catch (err) {
       toast({
@@ -420,7 +451,7 @@ export default function Leads() {
       setBulkAction(null);
       setSelectedIds(new Set());
     }
-  }, [bulkAction, selectedIds, scrapeBulk, qualifyBulk, scrapeAll, qualifyAll, queryParams.filters]);
+  }, [bulkAction, selectedIds, scrapeBulk, qualifyBulk, deleteLeadsBulk, scrapeAll, qualifyAll, queryParams.filters]);
 
   const handleToggleRow = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -526,6 +557,10 @@ export default function Leads() {
                 <DropdownMenuItem onClick={() => handleStartBulkAction('score')}>
                   <Sparkles className="mr-2 h-4 w-4" />
                   Score Selected
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStartBulkAction('delete')} className="text-destructive focus:text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => handleStartBulkAction('scrape-all')}>
@@ -635,6 +670,7 @@ export default function Leads() {
         onDeleteEmail={handleDeleteEmail}
         onInsertRowAbove={handleInsertRowAbove}
         onInsertRowBelow={handleInsertRowBelow}
+        onDeleteLead={handleDeleteLead}
       />
 
       {/* Bulk Progress */}
@@ -648,7 +684,7 @@ export default function Leads() {
 
       {/* Confirmation Dialog */}
       {actionConfig && (
-        <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <Dialog open={confirmDialogOpen} onOpenChange={(open) => { if (!open) { setConfirmDialogOpen(false); handleCancelBulkAction(); } }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{actionConfig.confirmTitle}</DialogTitle>
@@ -657,19 +693,44 @@ export default function Leads() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmDialogOpen(false)}>
+              <Button variant="outline" onClick={() => { setConfirmDialogOpen(false); handleCancelBulkAction(); }}>
                 Cancel
               </Button>
               <Button
+                variant={bulkAction === 'delete' ? 'destructive' : 'default'}
                 onClick={handleConfirmBulkAction}
-                disabled={scrapeBulk.isPending || qualifyBulk.isPending || scrapeAll.isPending || qualifyAll.isPending}
+                disabled={scrapeBulk.isPending || qualifyBulk.isPending || deleteLeadsBulk.isPending || scrapeAll.isPending || qualifyAll.isPending}
               >
-                Confirm
+                {bulkAction === 'delete' ? 'Delete' : 'Confirm'}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Single Delete Confirmation Dialog */}
+      <Dialog open={deleteLeadId !== null} onOpenChange={(open) => { if (!open) setDeleteLeadId(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Lead</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this lead? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteLeadId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDeleteLead}
+              disabled={deleteLead.isPending}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 }

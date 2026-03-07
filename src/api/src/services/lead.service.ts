@@ -349,6 +349,15 @@ export const leadService = {
     return leadRepository.createLeadEmail(leadId, value);
   },
 
+  async deleteLead(id: string) {
+    return leadRepository.deleteLead(id);
+  },
+
+  async deleteLeadsBulk(ids: string[]) {
+    const count = await leadRepository.deleteLeads(ids);
+    return { deleted: count };
+  },
+
   async createLead(data: { name: string; sortIndex: number }) {
     return prisma.lead.create({
       data: {

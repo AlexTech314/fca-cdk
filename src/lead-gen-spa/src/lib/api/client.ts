@@ -106,7 +106,7 @@ function transformLead(raw: any): Lead {
   const googleMapsUri =
     raw.googleMapsUri ||
     raw.google_maps_uri ||
-    (placeId ? `https://www.google.com/maps/place/?q=place_id:${placeId}` : null);
+    (placeId && !placeId.startsWith('manual_') ? `https://www.google.com/maps/place/?q=place_id:${placeId}` : null);
   return {
     id: raw.id,
     placeId,
@@ -321,6 +321,17 @@ export const realApi: LeadGenApi = {
       limit: result.limit,
       totalPages: result.totalPages,
     };
+  },
+
+  async deleteLead(id: string): Promise<void> {
+    await apiClient(`/leads/${id}`, { method: 'DELETE' });
+  },
+
+  async deleteLeadsBulk(ids: string[]): Promise<{ deleted: number }> {
+    return apiClient<{ deleted: number }>('/leads/delete-bulk', {
+      method: 'POST',
+      body: JSON.stringify({ leadIds: ids }),
+    });
   },
 
   async updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null; sortIndex?: number | null }): Promise<Lead> {

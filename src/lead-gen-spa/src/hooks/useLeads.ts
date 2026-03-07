@@ -58,6 +58,28 @@ export function useCreateLead() {
   });
 }
 
+export function useDeleteLead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.deleteLead(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
+export function useDeleteLeadsBulk() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => api.deleteLeadsBulk(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
 export function useQualifyLead() {
   const queryClient = useQueryClient();
 

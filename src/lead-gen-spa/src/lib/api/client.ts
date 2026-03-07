@@ -320,7 +320,7 @@ export const realApi: LeadGenApi = {
     };
   },
 
-  async updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null }): Promise<Lead> {
+  async updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null }): Promise<Lead> {
     const raw = await apiClient<any>(`/leads/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

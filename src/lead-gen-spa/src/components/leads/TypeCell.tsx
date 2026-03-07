@@ -99,58 +99,62 @@ export function TypeCell({ lead, onChangeType }: TypeCellProps) {
     setHighlightIndex(0);
   }, [results]);
 
-  if (isEditing) {
-    return (
-      <div className="-m-4 p-4 ring-1 ring-inset ring-ring z-10 relative">
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={(e) => {
-              if (e.relatedTarget?.closest('[data-type-list]')) return;
-              close();
-            }}
-            placeholder={displayType || 'Search types...'}
-            className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-          />
-          {results.length > 0 && (
-            <div
-              data-type-list
-              ref={listRef}
-              className="absolute left-0 top-full mt-2 w-56 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 shadow-md z-50"
-            >
-              {results.map((type, i) => (
-                <button
-                  key={type}
-                  tabIndex={-1}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    selectType(type);
-                  }}
-                  onMouseEnter={() => setHighlightIndex(i)}
-                  className={`w-full text-left rounded-sm px-2 py-1.5 text-sm cursor-pointer ${
-                    i === highlightIndex ? 'bg-accent text-accent-foreground' : 'text-popover-foreground'
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
+  const displayContent = displayType ? (
+    <Badge variant="secondary">{displayType}</Badge>
+  ) : (
+    <span className="text-muted-foreground">-</span>
+  );
 
   return (
-    <div className="-m-4 p-4" onDoubleClick={startEditing}>
-      {displayType ? (
-        <Badge variant="secondary">{displayType}</Badge>
-      ) : (
-        <span className="text-muted-foreground">-</span>
+    <div
+      className={`-m-4 p-4 relative ${isEditing ? 'ring-1 ring-inset ring-ring z-10' : ''}`}
+      onDoubleClick={!isEditing ? startEditing : undefined}
+    >
+      {/* Always rendered for stable sizing */}
+      <div className={isEditing ? 'invisible' : ''}>{displayContent}</div>
+
+      {isEditing && (
+        <div className="absolute inset-0 p-4">
+          <div className="relative">
+            <input
+              ref={inputRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={(e) => {
+                if (e.relatedTarget?.closest('[data-type-list]')) return;
+                close();
+              }}
+              placeholder={displayType || 'Search types...'}
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            {results.length > 0 && (
+              <div
+                data-type-list
+                ref={listRef}
+                className="absolute left-0 top-full mt-2 w-56 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 shadow-md z-50"
+              >
+                {results.map((type, i) => (
+                  <button
+                    key={type}
+                    tabIndex={-1}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      selectType(type);
+                    }}
+                    onMouseEnter={() => setHighlightIndex(i)}
+                    className={`w-full text-left rounded-sm px-2 py-1.5 text-sm cursor-pointer ${
+                      i === highlightIndex ? 'bg-accent text-accent-foreground' : 'text-popover-foreground'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

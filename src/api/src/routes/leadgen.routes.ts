@@ -191,6 +191,13 @@ router.patch('/leads/:id', authorize('readwrite', 'admin'), async (req, res, nex
       }
       patch.businessType = req.body.businessType;
     }
+    if (req.body.phone !== undefined) {
+      if (req.body.phone !== null && typeof req.body.phone !== 'string') {
+        res.status(400).json({ error: 'phone must be a string or null' });
+        return;
+      }
+      patch.phone = req.body.phone;
+    }
     if (Object.keys(patch).length === 0) {
       res.status(400).json({ error: 'No valid fields to update' });
       return;

@@ -15,6 +15,7 @@ import { NameCell } from './NameCell';
 import { CityCell } from './CityCell';
 import { StateCell } from './StateCell';
 import { TypeCell } from './TypeCell';
+import { PhoneCell } from './PhoneCell';
 import { ScoreBadge } from './QualificationBadge';
 import { ScrapedDataDialog } from './ScrapedDataDialog';
 import { ExtractedDataDialog } from './ExtractedDataDialog';
@@ -45,6 +46,7 @@ interface LeadTableProps {
   onChangeCity: (id: string, cityId: number, cityName: string, onError: () => void) => void;
   onChangeState: (id: string, stateId: string, onError: () => void) => void;
   onChangeType: (id: string, type: string, onError: () => void) => void;
+  onChangePhone: (id: string, phone: string, onError: () => void) => void;
 }
 
 interface SortableHeaderProps {
@@ -98,6 +100,7 @@ export function LeadTable({
   onChangeCity,
   onChangeState,
   onChangeType,
+  onChangePhone,
 }: LeadTableProps) {
   const hasSelection = !!(selectedIds && onToggleRow && onToggleAllOnPage);
   const pageIds = data.map((l) => l.id);
@@ -137,8 +140,10 @@ export function LeadTable({
     phone: {
       label: 'Phone',
       headClassName: 'min-w-[150px]',
-      cellClassName: 'font-mono text-sm min-w-[150px] whitespace-nowrap',
-      renderCell: (lead) => lead.phone || <span className="text-muted-foreground">-</span>,
+      cellClassName: 'min-w-[150px]',
+      renderCell: (lead) => (
+        <PhoneCell lead={lead} onChangePhone={onChangePhone} />
+      ),
     },
     emails: {
       label: 'Emails',

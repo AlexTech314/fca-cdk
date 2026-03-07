@@ -84,7 +84,7 @@ export interface LeadGenApi {
   /**
    * Update a lead (e.g. rename, change city)
    */
-  updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null }): Promise<Lead>;
+  updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null }): Promise<Lead>;
 
   /**
    * Get distinct business types (skip-scan optimized)

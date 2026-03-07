@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
@@ -94,69 +94,126 @@ export default function Leads() {
   const scrapeAll = useScrapeAllByFilters();
   const qualifyAll = useQualifyAllByFilters();
 
+  // ── Undo / Redo ──────────────────────────────────────────────
+  type Patch = { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null };
+  type UndoEntry = { leadId: string; prev: Patch; next: Patch };
+
+  const undoStackRef = useRef<UndoEntry[]>([]);
+  const redoStackRef = useRef<UndoEntry[]>([]);
+  // Force re-render isn't needed — stacks are only consumed inside callbacks
+
+  const findLead = useCallback((id: string) => data?.data.find((l) => l.id === id), [data]);
+
+  const applyPatch = useCallback((leadId: string, patch: Patch) => {
+    updateLead.mutate(
+      { id: leadId, data: patch },
+      {
+        onError: (err) => {
+          toast({
+            title: 'Failed to update lead',
+            description: err instanceof Error ? err.message : 'An unexpected error occurred.',
+            variant: 'destructive',
+          });
+        },
+      },
+    );
+  }, [updateLead]);
+
+  const pushUndo = useCallback((entry: UndoEntry) => {
+    undoStackRef.current = [...undoStackRef.current, entry];
+    redoStackRef.current = [];  // new edit wipes redo
+  }, []);
+
+  const describePatch = useCallback((patch: Patch): string => {
+    if (patch.name !== undefined) return `name to "${patch.name}"`;
+    if (patch.locationCityId !== undefined) return 'city';
+    if (patch.locationStateId !== undefined) return 'state';
+    if (patch.businessType !== undefined) return `type to "${patch.businessType}"`;
+    if (patch.phone !== undefined) return `phone to "${patch.phone}"`;
+    return 'field';
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    const stack = undoStackRef.current;
+    if (stack.length === 0) return;
+    const entry = stack[stack.length - 1];
+    undoStackRef.current = stack.slice(0, -1);
+    redoStackRef.current = [...redoStackRef.current, entry];
+    applyPatch(entry.leadId, entry.prev);
+    const { dismiss } = toast({ title: `Undo: reverted ${describePatch(entry.next)}` });
+    setTimeout(dismiss, 2000);
+  }, [applyPatch, describePatch]);
+
+  const handleRedo = useCallback(() => {
+    const stack = redoStackRef.current;
+    if (stack.length === 0) return;
+    const entry = stack[stack.length - 1];
+    redoStackRef.current = stack.slice(0, -1);
+    undoStackRef.current = [...undoStackRef.current, entry];
+    applyPatch(entry.leadId, entry.next);
+    const { dismiss } = toast({ title: `Redo: changed ${describePatch(entry.next)}` });
+    setTimeout(dismiss, 2000);
+  }, [applyPatch, describePatch]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== 'z') return;
+      // Don't intercept when user is typing in an input/contentEditable
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as HTMLElement).isContentEditable)) return;
+      e.preventDefault();
+      if (e.shiftKey) handleRedo();
+      else handleUndo();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [handleUndo, handleRedo]);
+
+  // ── Cell change handlers ─────────────────────────────────────
   const handleRenameLead = useCallback((id: string, name: string, onError: () => void) => {
+    const lead = findLead(id);
+    pushUndo({ leadId: id, prev: { name: lead?.name ?? '' }, next: { name } });
     updateLead.mutate(
       { id, data: { name } },
-      {
-        onError: (err) => {
-          onError();
-          toast({
-            title: 'Failed to rename lead',
-            description: err instanceof Error ? err.message : 'An unexpected error occurred.',
-            variant: 'destructive',
-          });
-        },
-      },
+      { onError: (err) => { onError(); toast({ title: 'Failed to rename lead', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
     );
-  }, [updateLead]);
+  }, [updateLead, findLead, pushUndo]);
 
   const handleChangeCity = useCallback((id: string, cityId: number, _cityName: string, onError: () => void) => {
+    const lead = findLead(id);
+    pushUndo({ leadId: id, prev: { locationCityId: lead?.locationCity?.id ?? null }, next: { locationCityId: cityId } });
     updateLead.mutate(
       { id, data: { locationCityId: cityId } },
-      {
-        onError: (err) => {
-          onError();
-          toast({
-            title: 'Failed to update city',
-            description: err instanceof Error ? err.message : 'An unexpected error occurred.',
-            variant: 'destructive',
-          });
-        },
-      },
+      { onError: (err) => { onError(); toast({ title: 'Failed to update city', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
     );
-  }, [updateLead]);
+  }, [updateLead, findLead, pushUndo]);
 
   const handleChangeState = useCallback((id: string, stateId: string, onError: () => void) => {
+    const lead = findLead(id);
+    pushUndo({ leadId: id, prev: { locationStateId: lead?.locationState?.id ?? null }, next: { locationStateId: stateId } });
     updateLead.mutate(
       { id, data: { locationStateId: stateId } },
-      {
-        onError: (err) => {
-          onError();
-          toast({
-            title: 'Failed to update state',
-            description: err instanceof Error ? err.message : 'An unexpected error occurred.',
-            variant: 'destructive',
-          });
-        },
-      },
+      { onError: (err) => { onError(); toast({ title: 'Failed to update state', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
     );
-  }, [updateLead]);
+  }, [updateLead, findLead, pushUndo]);
 
   const handleChangeType = useCallback((id: string, type: string, onError: () => void) => {
+    const lead = findLead(id);
+    pushUndo({ leadId: id, prev: { businessType: lead?.businessType ?? null }, next: { businessType: type } });
     updateLead.mutate(
       { id, data: { businessType: type } },
-      {
-        onError: (err) => {
-          onError();
-          toast({
-            title: 'Failed to update business type',
-            description: err instanceof Error ? err.message : 'An unexpected error occurred.',
-            variant: 'destructive',
-          });
-        },
-      },
+      { onError: (err) => { onError(); toast({ title: 'Failed to update business type', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
     );
-  }, [updateLead]);
+  }, [updateLead, findLead, pushUndo]);
+
+  const handleChangePhone = useCallback((id: string, phone: string, onError: () => void) => {
+    const lead = findLead(id);
+    pushUndo({ leadId: id, prev: { phone: lead?.phone ?? null }, next: { phone } });
+    updateLead.mutate(
+      { id, data: { phone } },
+      { onError: (err) => { onError(); toast({ title: 'Failed to update phone', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
+    );
+  }, [updateLead, findLead, pushUndo]);
 
   const handleStartBulkAction = useCallback((action: BulkAction) => {
     setBulkAction(action);
@@ -435,6 +492,7 @@ export default function Leads() {
         onChangeCity={handleChangeCity}
         onChangeState={handleChangeState}
         onChangeType={handleChangeType}
+        onChangePhone={handleChangePhone}
       />
 
       {/* Bulk Progress */}

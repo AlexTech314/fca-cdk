@@ -53,7 +53,7 @@ export function CityCell({ lead, onChangeCity }: CityCellProps) {
 
   const selectCity = useCallback(
     (city: CityOption) => {
-      const name = `${city.name}, ${city.state.id}`;
+      const name = city.state ? `${city.name}, ${city.state.id}` : city.name;
       setOptimisticCity(city.name);
       setIsEditing(false);
       setSearch('');
@@ -103,57 +103,60 @@ export function CityCell({ lead, onChangeCity }: CityCellProps) {
     setHighlightIndex(0);
   }, [results]);
 
-  if (isEditing) {
-    return (
-      <div className="-m-4 p-4 ring-1 ring-inset ring-ring z-10 relative">
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={(e) => {
-              // Don't close if clicking inside the dropdown
-              if (e.relatedTarget?.closest('[data-city-list]')) return;
-              close();
-            }}
-            placeholder={displayCity || 'Search cities...'}
-            className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-          />
-          {search.length >= 1 && results.length > 0 && (
-            <div
-              data-city-list
-              ref={listRef}
-              className="absolute left-0 top-full mt-2 w-64 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 shadow-md z-50"
-            >
-              {results.map((city, i) => (
-                <button
-                  key={city.id}
-                  tabIndex={-1}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    selectCity(city);
-                  }}
-                  onMouseEnter={() => setHighlightIndex(i)}
-                  className={`w-full text-left rounded-sm px-2 py-1.5 text-sm cursor-pointer ${
-                    i === highlightIndex ? 'bg-accent text-accent-foreground' : 'text-popover-foreground'
-                  }`}
-                >
-                  {city.name}
-                  <span className="text-muted-foreground ml-1">{city.state.id}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="-m-4 p-4" onDoubleClick={startEditing}>
-      <span className="text-muted-foreground">{displayCity || '-'}</span>
+    <div
+      className={`-m-4 p-4 relative ${isEditing ? 'ring-1 ring-inset ring-ring z-10' : ''}`}
+      onDoubleClick={!isEditing ? startEditing : undefined}
+    >
+      {/* Always rendered for stable sizing */}
+      <span className={`text-muted-foreground ${isEditing ? 'invisible' : ''}`}>
+        {displayCity || '-'}
+      </span>
+
+      {isEditing && (
+        <div className="absolute inset-0 p-4">
+          <div className="relative">
+            <input
+              ref={inputRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={(e) => {
+                if (e.relatedTarget?.closest('[data-city-list]')) return;
+                close();
+              }}
+              placeholder={displayCity || 'Search cities...'}
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            {search.length >= 1 && results.length > 0 && (
+              <div
+                data-city-list
+                ref={listRef}
+                className="absolute left-0 top-full mt-2 w-64 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 shadow-md z-50"
+              >
+                {results.map((city, i) => (
+                  <button
+                    key={city.id}
+                    tabIndex={-1}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      selectCity(city);
+                    }}
+                    onMouseEnter={() => setHighlightIndex(i)}
+                    className={`w-full text-left rounded-sm px-2 py-1.5 text-sm cursor-pointer ${
+                      i === highlightIndex ? 'bg-accent text-accent-foreground' : 'text-popover-foreground'
+                    }`}
+                  >
+                    {city.name}
+                    {city.state && <span className="text-muted-foreground ml-1">{city.state.id}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

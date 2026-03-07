@@ -39,7 +39,7 @@ export function useUpdateLead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null } }) =>
       api.updateLead(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });

@@ -12,7 +12,6 @@ export function NameCell({ lead, onRename }: NameCellProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [optimisticName, setOptimisticName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState(lead.name);
-  const [history, setHistory] = useState<string[]>([]);
   const editRef = useRef<HTMLSpanElement>(null);
 
   // Clear optimistic override once the server value catches up
@@ -35,7 +34,6 @@ export function NameCell({ lead, onRename }: NameCellProps) {
     const trimmed = editValue.trim();
     setIsEditing(false);
     if (trimmed && trimmed !== displayName) {
-      setHistory((prev) => [...prev, displayName]);
       setOptimisticName(trimmed);
       onRename(lead.id, trimmed, () => setOptimisticName(null));
     }
@@ -46,14 +44,6 @@ export function NameCell({ lead, onRename }: NameCellProps) {
     setIsEditing(false);
   }, [displayName]);
 
-  const undo = useCallback(() => {
-    if (history.length === 0) return;
-    const prev = history[history.length - 1];
-    setHistory((h) => h.slice(0, -1));
-    setOptimisticName(prev);
-    onRename(lead.id, prev, () => setOptimisticName(null));
-  }, [history, lead.id, onRename]);
-
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter') {
@@ -62,12 +52,9 @@ export function NameCell({ lead, onRename }: NameCellProps) {
       } else if (e.key === 'Escape') {
         e.preventDefault();
         cancel();
-      } else if (e.key === 'z' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-        e.preventDefault();
-        undo();
       }
     },
-    [save, cancel, undo],
+    [save, cancel],
   );
 
   // Focus + select text on edit start

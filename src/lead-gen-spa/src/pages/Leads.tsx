@@ -99,42 +99,80 @@ export default function Leads() {
 
   // ── Undo / Redo ──────────────────────────────────────────────
   type Patch = { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null };
-  type UndoEntry = { leadId: string; prev: Patch; next: Patch };
+  type UndoEntry =
+    | { kind: 'field'; leadId: string; prev: Patch; next: Patch }
+    | { kind: 'emailUpdate'; leadId: string; emailId: string; prev: string; next: string }
+    | { kind: 'emailCreate'; leadId: string; emailId: string; value: string }
+    | { kind: 'emailDelete'; leadId: string; emailId: string; value: string };
 
   const undoStackRef = useRef<UndoEntry[]>([]);
   const redoStackRef = useRef<UndoEntry[]>([]);
-  // Force re-render isn't needed — stacks are only consumed inside callbacks
 
   const findLead = useCallback((id: string) => data?.data.find((l) => l.id === id), [data]);
 
+  const mutateError = useCallback((title: string) => (err: Error) => {
+    toast({ title, description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' });
+  }, []);
+
   const applyPatch = useCallback((leadId: string, patch: Patch) => {
-    updateLead.mutate(
-      { id: leadId, data: patch },
-      {
-        onError: (err) => {
-          toast({
-            title: 'Failed to update lead',
-            description: err instanceof Error ? err.message : 'An unexpected error occurred.',
-            variant: 'destructive',
-          });
-        },
-      },
-    );
-  }, [updateLead]);
+    updateLead.mutate({ id: leadId, data: patch }, { onError: mutateError('Failed to update lead') });
+  }, [updateLead, mutateError]);
 
   const pushUndo = useCallback((entry: UndoEntry) => {
     undoStackRef.current = [...undoStackRef.current, entry];
-    redoStackRef.current = [];  // new edit wipes redo
+    redoStackRef.current = [];
   }, []);
 
-  const describePatch = useCallback((patch: Patch): string => {
-    if (patch.name !== undefined) return `name to "${patch.name}"`;
-    if (patch.locationCityId !== undefined) return 'city';
-    if (patch.locationStateId !== undefined) return 'state';
-    if (patch.businessType !== undefined) return `type to "${patch.businessType}"`;
-    if (patch.phone !== undefined) return `phone to "${patch.phone}"`;
-    return 'field';
+  const describeEntry = useCallback((entry: UndoEntry, direction: 'undo' | 'redo'): string => {
+    switch (entry.kind) {
+      case 'field': {
+        const patch = direction === 'undo' ? entry.next : entry.next;
+        if (patch.name !== undefined) return `name to "${patch.name}"`;
+        if (patch.locationCityId !== undefined) return 'city';
+        if (patch.locationStateId !== undefined) return 'state';
+        if (patch.businessType !== undefined) return `type to "${patch.businessType}"`;
+        if (patch.phone !== undefined) return `phone to "${patch.phone}"`;
+        return 'field';
+      }
+      case 'emailUpdate': return `email to "${direction === 'undo' ? entry.prev : entry.next}"`;
+      case 'emailCreate': return `email "${entry.value}"`;
+      case 'emailDelete': return `email "${entry.value}"`;
+    }
   }, []);
+
+  const applyEntry = useCallback((entry: UndoEntry, direction: 'undo' | 'redo') => {
+    switch (entry.kind) {
+      case 'field':
+        applyPatch(entry.leadId, direction === 'undo' ? entry.prev : entry.next);
+        break;
+      case 'emailUpdate':
+        updateEmailData.mutate(
+          { type: 'email', id: entry.emailId, data: { value: direction === 'undo' ? entry.prev : entry.next } },
+          { onError: mutateError('Failed to update email') },
+        );
+        break;
+      case 'emailCreate':
+        if (direction === 'undo') {
+          deleteEmailData.mutate({ type: 'email', id: entry.emailId }, { onError: mutateError('Failed to delete email') });
+        } else {
+          createEmail.mutate({ leadId: entry.leadId, value: entry.value }, {
+            onSuccess: (result) => { entry.emailId = result.id; },
+            onError: mutateError('Failed to create email'),
+          });
+        }
+        break;
+      case 'emailDelete':
+        if (direction === 'undo') {
+          createEmail.mutate({ leadId: entry.leadId, value: entry.value }, {
+            onSuccess: (result) => { entry.emailId = result.id; },
+            onError: mutateError('Failed to create email'),
+          });
+        } else {
+          deleteEmailData.mutate({ type: 'email', id: entry.emailId }, { onError: mutateError('Failed to delete email') });
+        }
+        break;
+    }
+  }, [applyPatch, updateEmailData, deleteEmailData, createEmail, mutateError]);
 
   const handleUndo = useCallback(() => {
     const stack = undoStackRef.current;
@@ -142,10 +180,10 @@ export default function Leads() {
     const entry = stack[stack.length - 1];
     undoStackRef.current = stack.slice(0, -1);
     redoStackRef.current = [...redoStackRef.current, entry];
-    applyPatch(entry.leadId, entry.prev);
-    const { dismiss } = toast({ title: `Undo: reverted ${describePatch(entry.next)}` });
+    applyEntry(entry, 'undo');
+    const { dismiss } = toast({ title: `Undo: reverted ${describeEntry(entry, 'undo')}` });
     setTimeout(dismiss, 2000);
-  }, [applyPatch, describePatch]);
+  }, [applyEntry, describeEntry]);
 
   const handleRedo = useCallback(() => {
     const stack = redoStackRef.current;
@@ -153,10 +191,10 @@ export default function Leads() {
     const entry = stack[stack.length - 1];
     redoStackRef.current = stack.slice(0, -1);
     undoStackRef.current = [...undoStackRef.current, entry];
-    applyPatch(entry.leadId, entry.next);
-    const { dismiss } = toast({ title: `Redo: changed ${describePatch(entry.next)}` });
+    applyEntry(entry, 'redo');
+    const { dismiss } = toast({ title: `Redo: changed ${describeEntry(entry, 'redo')}` });
     setTimeout(dismiss, 2000);
-  }, [applyPatch, describePatch]);
+  }, [applyEntry, describeEntry]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -175,70 +213,66 @@ export default function Leads() {
   // ── Cell change handlers ─────────────────────────────────────
   const handleRenameLead = useCallback((id: string, name: string, onError: () => void) => {
     const lead = findLead(id);
-    pushUndo({ leadId: id, prev: { name: lead?.name ?? '' }, next: { name } });
-    updateLead.mutate(
-      { id, data: { name } },
-      { onError: (err) => { onError(); toast({ title: 'Failed to rename lead', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
-    );
-  }, [updateLead, findLead, pushUndo]);
+    pushUndo({ kind: 'field', leadId: id, prev: { name: lead?.name ?? '' }, next: { name } });
+    updateLead.mutate({ id, data: { name } }, { onError: (err) => { onError(); mutateError('Failed to rename lead')(err as Error); } });
+  }, [updateLead, findLead, pushUndo, mutateError]);
 
   const handleChangeCity = useCallback((id: string, cityId: number, _cityName: string, onError: () => void) => {
     const lead = findLead(id);
-    pushUndo({ leadId: id, prev: { locationCityId: lead?.locationCity?.id ?? null }, next: { locationCityId: cityId } });
-    updateLead.mutate(
-      { id, data: { locationCityId: cityId } },
-      { onError: (err) => { onError(); toast({ title: 'Failed to update city', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
-    );
-  }, [updateLead, findLead, pushUndo]);
+    pushUndo({ kind: 'field', leadId: id, prev: { locationCityId: lead?.locationCity?.id ?? null }, next: { locationCityId: cityId } });
+    updateLead.mutate({ id, data: { locationCityId: cityId } }, { onError: (err) => { onError(); mutateError('Failed to update city')(err as Error); } });
+  }, [updateLead, findLead, pushUndo, mutateError]);
 
   const handleChangeState = useCallback((id: string, stateId: string, onError: () => void) => {
     const lead = findLead(id);
-    pushUndo({ leadId: id, prev: { locationStateId: lead?.locationState?.id ?? null }, next: { locationStateId: stateId } });
-    updateLead.mutate(
-      { id, data: { locationStateId: stateId } },
-      { onError: (err) => { onError(); toast({ title: 'Failed to update state', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
-    );
-  }, [updateLead, findLead, pushUndo]);
+    pushUndo({ kind: 'field', leadId: id, prev: { locationStateId: lead?.locationState?.id ?? null }, next: { locationStateId: stateId } });
+    updateLead.mutate({ id, data: { locationStateId: stateId } }, { onError: (err) => { onError(); mutateError('Failed to update state')(err as Error); } });
+  }, [updateLead, findLead, pushUndo, mutateError]);
 
   const handleChangeType = useCallback((id: string, type: string, onError: () => void) => {
     const lead = findLead(id);
-    pushUndo({ leadId: id, prev: { businessType: lead?.businessType ?? null }, next: { businessType: type } });
-    updateLead.mutate(
-      { id, data: { businessType: type } },
-      { onError: (err) => { onError(); toast({ title: 'Failed to update business type', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
-    );
-  }, [updateLead, findLead, pushUndo]);
+    pushUndo({ kind: 'field', leadId: id, prev: { businessType: lead?.businessType ?? null }, next: { businessType: type } });
+    updateLead.mutate({ id, data: { businessType: type } }, { onError: (err) => { onError(); mutateError('Failed to update type')(err as Error); } });
+  }, [updateLead, findLead, pushUndo, mutateError]);
 
   const handleChangePhone = useCallback((id: string, phone: string, onError: () => void) => {
     const lead = findLead(id);
-    pushUndo({ leadId: id, prev: { phone: lead?.phone ?? null }, next: { phone } });
-    updateLead.mutate(
-      { id, data: { phone } },
-      { onError: (err) => { onError(); toast({ title: 'Failed to update phone', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
-    );
-  }, [updateLead, findLead, pushUndo]);
+    pushUndo({ kind: 'field', leadId: id, prev: { phone: lead?.phone ?? null }, next: { phone } });
+    updateLead.mutate({ id, data: { phone } }, { onError: (err) => { onError(); mutateError('Failed to update phone')(err as Error); } });
+  }, [updateLead, findLead, pushUndo, mutateError]);
 
   // ── Email cell handlers ─────────────────────────────────
-  const handleUpdateEmail = useCallback((_leadId: string, emailId: string, value: string, onError: () => void) => {
+  const handleUpdateEmail = useCallback((leadId: string, emailId: string, value: string, onError: () => void) => {
+    const lead = findLead(leadId);
+    const prevValue = lead?.leadEmails?.find((e) => e.id === emailId)?.value ?? '';
+    pushUndo({ kind: 'emailUpdate', leadId, emailId, prev: prevValue, next: value });
     updateEmailData.mutate(
       { type: 'email', id: emailId, data: { value } },
-      { onError: (err) => { onError(); toast({ title: 'Failed to update email', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
+      { onError: (err) => { onError(); mutateError('Failed to update email')(err as Error); } },
     );
-  }, [updateEmailData]);
+  }, [updateEmailData, findLead, pushUndo, mutateError]);
 
   const handleCreateEmail = useCallback((leadId: string, value: string, onError: () => void) => {
+    const entry: UndoEntry = { kind: 'emailCreate', leadId, emailId: '', value };
+    pushUndo(entry);
     createEmail.mutate(
       { leadId, value },
-      { onError: (err) => { onError(); toast({ title: 'Failed to create email', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
+      {
+        onSuccess: (result) => { entry.emailId = result.id; },
+        onError: (err) => { onError(); mutateError('Failed to create email')(err as Error); },
+      },
     );
-  }, [createEmail]);
+  }, [createEmail, pushUndo, mutateError]);
 
-  const handleDeleteEmail = useCallback((_leadId: string, emailId: string, onError: () => void) => {
+  const handleDeleteEmail = useCallback((leadId: string, emailId: string, onError: () => void) => {
+    const lead = findLead(leadId);
+    const prevValue = lead?.leadEmails?.find((e) => e.id === emailId)?.value ?? '';
+    pushUndo({ kind: 'emailDelete', leadId, emailId, value: prevValue });
     deleteEmailData.mutate(
       { type: 'email', id: emailId },
-      { onError: (err) => { onError(); toast({ title: 'Failed to delete email', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
+      { onError: (err) => { onError(); mutateError('Failed to delete email')(err as Error); } },
     );
-  }, [deleteEmailData]);
+  }, [deleteEmailData, findLead, pushUndo, mutateError]);
 
   const handleStartBulkAction = useCallback((action: BulkAction) => {
     setBulkAction(action);

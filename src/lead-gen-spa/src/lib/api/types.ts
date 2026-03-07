@@ -1,5 +1,6 @@
 import type {
   Lead,
+  LeadFilters,
   Franchise,
   FranchiseWithLeads,
   Campaign,
@@ -82,9 +83,19 @@ export interface LeadGenApi {
   getLead(id: string): Promise<LeadWithCampaign>;
 
   /**
+   * Create a new lead with a given sortIndex
+   */
+  createLead(data: { name?: string; sortIndex: number }): Promise<Lead>;
+
+  /**
+   * Get the sortIndex of the adjacent lead in a given direction
+   */
+  getNeighborSortIndex(sortIndex: number, direction: 'above' | 'below', filters?: LeadFilters): Promise<number | null>;
+
+  /**
    * Update a lead (e.g. rename, change city)
    */
-  updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null }): Promise<Lead>;
+  updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null; sortIndex?: number | null }): Promise<Lead>;
 
   /**
    * Get distinct business types (skip-scan optimized)

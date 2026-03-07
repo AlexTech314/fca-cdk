@@ -8,6 +8,7 @@
 import type { LeadGenApi, LeadDataType } from './types';
 import type {
   Lead,
+  LeadFilters,
   Franchise,
   FranchiseWithLeads,
   Campaign,
@@ -146,6 +147,7 @@ function transformLead(raw: any): Lead {
     editorialSummary: extractJsonText(raw.editorialSummary ?? raw.editorial_summary),
     reviewSummary: extractJsonText(raw.reviewSummary ?? raw.review_summary),
     contactPageUrl: raw.contactPageUrl ?? raw.contact_page_url ?? null,
+    sortIndex: raw.sortIndex ?? raw.sort_index ?? null,
     pipelineStatus: raw.pipelineStatus ?? raw.pipeline_status ?? 'idle',
     scrapeError: raw.scrapeError ?? raw.scrape_error ?? null,
     scoringError: raw.scoringError ?? raw.scoring_error ?? null,
@@ -321,12 +323,38 @@ export const realApi: LeadGenApi = {
     };
   },
 
-  async updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null }): Promise<Lead> {
+  async updateLead(id: string, data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null; sortIndex?: number | null }): Promise<Lead> {
     const raw = await apiClient<any>(`/leads/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
     return transformLead(raw);
+  },
+
+  async createLead(data: { name?: string; sortIndex: number }): Promise<Lead> {
+    const raw = await apiClient<any>('/leads', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return transformLead(raw);
+  },
+
+  async getNeighborSortIndex(sortIndex: number, direction: 'above' | 'below', filters?: LeadFilters): Promise<number | null> {
+    const qs = new URLSearchParams();
+    qs.set('sortIndex', String(sortIndex));
+    qs.set('direction', direction);
+    if (filters) {
+      if (filters.name) qs.set('name', filters.name);
+      if (filters.cityId) qs.set('cityId', String(filters.cityId));
+      if (filters.stateIds?.length) qs.set('stateIds', filters.stateIds.join(','));
+      if (filters.businessTypes?.length) qs.set('businessTypes', filters.businessTypes.join(','));
+      if (filters.campaignId) qs.set('campaignId', filters.campaignId);
+      if (filters.franchiseId) qs.set('franchiseId', filters.franchiseId);
+      if (filters.hasExtractedEmail !== undefined) qs.set('hasExtractedEmail', String(filters.hasExtractedEmail));
+      if (filters.hasExtractedPhone !== undefined) qs.set('hasExtractedPhone', String(filters.hasExtractedPhone));
+    }
+    const result = await apiClient<{ sortIndex: number | null }>(`/leads/neighbor?${qs}`);
+    return result.sortIndex;
   },
 
   async getLead(id: string): Promise<LeadWithCampaign> {

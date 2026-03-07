@@ -20,6 +20,7 @@ const sortFieldMap: Record<string, string> = {
   webScrapedAt: 'webScrapedAt',
   pipelineStatus: 'pipelineStatus',
   compositeScore: 'compositeScore',
+  sortIndex: 'sortIndex',
 };
 
 const defaultLeadFields: LeadListField[] = [
@@ -41,6 +42,7 @@ const nullableNumericFields = new Set([
   'reviewCount',
   'businessQualityScore',
   'exitReadinessScore',
+  'sortIndex',
 ]);
 
 function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWithRelationInput {
@@ -50,7 +52,7 @@ function buildOrderBy(sort: string, order: 'asc' | 'desc'): Prisma.LeadOrderByWi
   if (sort === 'state') {
     return { locationState: { name: order } };
   }
-  const field = sortFieldMap[sort] || 'createdAt';
+  const field = sortFieldMap[sort] || 'sortIndex';
   if (nullableNumericFields.has(field)) {
     return { [field]: { sort: order, nulls: order === 'asc' ? 'first' : 'last' } };
   }
@@ -295,6 +297,30 @@ export const leadRepository = {
       })),
     };
   },
+  async findNeighbor(
+    sortIndex: number,
+    direction: 'above' | 'below',
+    filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>
+  ): Promise<{ sortIndex: number } | null> {
+    const where = buildWhereClause(filters);
+    if (direction === 'above') {
+      where.sortIndex = { gt: sortIndex };
+      const result = await prisma.lead.findFirst({
+        where,
+        orderBy: { sortIndex: { sort: 'asc', nulls: 'last' } },
+        select: { sortIndex: true },
+      });
+      return result?.sortIndex != null ? { sortIndex: result.sortIndex } : null;
+    } else {
+      where.sortIndex = { lt: sortIndex };
+      const result = await prisma.lead.findFirst({
+        where,
+        orderBy: { sortIndex: { sort: 'desc', nulls: 'last' } },
+        select: { sortIndex: true },
+      });
+      return result?.sortIndex != null ? { sortIndex: result.sortIndex } : null;
+    }
+  },
 };
 
 function buildWhereClause(
@@ -352,6 +378,7 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   const select: Record<string, unknown> = {
     id: true,
     placeId: true,
+    sortIndex: true,
     pipelineStatus: true,
     scrapeError: true,
     scoringError: true,

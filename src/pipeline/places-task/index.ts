@@ -309,6 +309,7 @@ async function main() {
     let queriesExecuted = 0;
     let errors = 0;
     const seenPlaceIds = new Set<string>();
+    let sortBase = Date.now() * 1000;
     const CACHE_DAYS = 30;
     const requestBudget = typeof maxTotalRequests === 'number' && maxTotalRequests > 0
       ? { remaining: maxTotalRequests }
@@ -413,6 +414,7 @@ async function main() {
         try {
           const googleMapsUri =
             place.googleMapsUri ?? `https://www.google.com/maps/place/?q=place_id:${place.id}`;
+          const leadSortIndex = sortBase--;
           const result = await prisma.$executeRaw`
             INSERT INTO leads (
               id, place_id, campaign_id, campaign_run_id, search_query_id, franchise_id,
@@ -421,6 +423,7 @@ async function main() {
               rating, review_count, price_level, business_type, source,
               business_status, latitude, longitude, primary_type, opening_hours,
               editorial_summary, review_summary, google_maps_uri,
+              sort_index,
               created_at, updated_at
             ) VALUES (
               gen_random_uuid(), ${place.id}, ${campaignId}, ${campaignRunId ?? null},
@@ -437,6 +440,7 @@ async function main() {
               ${place.location?.latitude ?? null}, ${place.location?.longitude ?? null},
               ${place.primaryType ?? null}, ${openingHours},
               ${editorialSummary}, ${reviewSummary}, ${googleMapsUri},
+              ${leadSortIndex},
               NOW(), NOW()
             )
             ON CONFLICT (place_id) DO NOTHING`;

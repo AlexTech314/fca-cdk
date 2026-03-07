@@ -1,5 +1,6 @@
 import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { randomUUID } from 'crypto';
 import { prisma } from '@fca/db';
 import { leadRepository } from '../repositories/lead.repository';
 import { campaignRunRepository } from '../repositories/campaign.repository';
@@ -346,5 +347,25 @@ export const leadService = {
 
   async createLeadEmail(leadId: string, value: string) {
     return leadRepository.createLeadEmail(leadId, value);
+  },
+
+  async createLead(data: { name: string; sortIndex: number }) {
+    return prisma.lead.create({
+      data: {
+        placeId: `manual_${randomUUID()}`,
+        name: data.name,
+        source: 'manual',
+        sortIndex: data.sortIndex,
+      },
+    });
+  },
+
+  async getNeighborSortIndex(
+    sortIndex: number,
+    direction: 'above' | 'below',
+    filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>
+  ): Promise<number | null> {
+    const result = await leadRepository.findNeighbor(sortIndex, direction, filters);
+    return result?.sortIndex ?? null;
   },
 };

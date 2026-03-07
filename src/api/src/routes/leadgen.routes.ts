@@ -115,6 +115,22 @@ router.get('/locations/states/:stateId/cities', async (req, res, next) => {
   }
 });
 
+router.get('/leads/neighbor', async (req, res, next) => {
+  try {
+    const sortIndex = Number(req.query.sortIndex);
+    const direction = req.query.direction as string;
+    if (isNaN(sortIndex) || (direction !== 'above' && direction !== 'below')) {
+      res.status(400).json({ error: 'sortIndex (number) and direction (above|below) are required' });
+      return;
+    }
+    const { sortIndex: _si, direction: _d, ...filterParams } = req.query as any;
+    const result = await leadService.getNeighborSortIndex(sortIndex, direction, filterParams);
+    res.json({ sortIndex: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/leads/business-types', async (_req, res, next) => {
   try {
     const types = await leadService.getDistinctBusinessTypes();
@@ -155,6 +171,21 @@ router.get('/leads/:id', async (req, res, next) => {
       return;
     }
     res.json(lead);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/leads', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const { sortIndex, name } = req.body;
+    if (typeof sortIndex !== 'number' || isNaN(sortIndex)) {
+      res.status(400).json({ error: 'sortIndex must be a number' });
+      return;
+    }
+    const leadName = (typeof name === 'string' && name.trim()) ? name.trim() : 'New Lead';
+    const lead = await leadService.createLead({ name: leadName, sortIndex });
+    res.status(201).json(lead);
   } catch (error) {
     next(error);
   }
@@ -225,6 +256,13 @@ router.patch('/leads/:id', authorize('readwrite', 'admin'), async (req, res, nex
         return;
       }
       patch.reviewCount = req.body.reviewCount;
+    }
+    if (req.body.sortIndex !== undefined) {
+      if (req.body.sortIndex !== null && (typeof req.body.sortIndex !== 'number' || isNaN(req.body.sortIndex))) {
+        res.status(400).json({ error: 'sortIndex must be a number or null' });
+        return;
+      }
+      patch.sortIndex = req.body.sortIndex;
     }
     if (Object.keys(patch).length === 0) {
       res.status(400).json({ error: 'No valid fields to update' });

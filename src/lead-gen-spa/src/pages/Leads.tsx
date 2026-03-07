@@ -3,7 +3,8 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { Button } from '@/components/ui/button';
-import { useLeads, useUpdateLead, useCreateLeadEmail, useUpdateLeadData, useDeleteLeadData, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
+import { useLeads, useUpdateLead, useCreateLead, useCreateLeadEmail, useUpdateLeadData, useDeleteLeadData, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
+import { api } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import type { LeadFilters as LeadFiltersType, LeadListField, LeadQueryParams } from '@/types';
 import {
@@ -89,6 +90,7 @@ export default function Leads() {
 
   const { data, isLoading } = useLeads(queryParams);
   const updateLead = useUpdateLead();
+  const createLead = useCreateLead();
   const createEmail = useCreateLeadEmail();
   const updateEmailData = useUpdateLeadData();
   const deleteEmailData = useDeleteLeadData();
@@ -301,6 +303,50 @@ export default function Leads() {
       { onError: (err) => { onError(); mutateError('Failed to delete email')(err as Error); } },
     );
   }, [deleteEmailData, findLead, pushUndo, mutateError]);
+
+  // ── Insert row handlers ─────────────────────────────────
+  const computeSortIndex = useCallback(async (
+    anchorIndex: number,
+    neighborIndex: number | null,
+    direction: 'above' | 'below'
+  ): Promise<number> => {
+    if (neighborIndex != null) {
+      return (anchorIndex + neighborIndex) / 2;
+    }
+    // Neighbor not on current page — fetch from API
+    const fetched = await api.getNeighborSortIndex(anchorIndex, direction, queryParams.filters);
+    if (fetched != null) {
+      return (anchorIndex + fetched) / 2;
+    }
+    // Absolute boundary — generous gap
+    return direction === 'above' ? anchorIndex + 1000000 : anchorIndex - 1000000;
+  }, [queryParams.filters]);
+
+  const handleInsertRowAbove = useCallback(async (currentSortIndex: number, prevSortIndex: number | null) => {
+    try {
+      const sortIndex = await computeSortIndex(currentSortIndex, prevSortIndex, 'above');
+      createLead.mutate({ sortIndex }, {
+        onError: (err) => {
+          toast({ title: 'Failed to insert row', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
+        },
+      });
+    } catch (err) {
+      toast({ title: 'Failed to insert row', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
+    }
+  }, [computeSortIndex, createLead]);
+
+  const handleInsertRowBelow = useCallback(async (currentSortIndex: number, nextSortIndex: number | null) => {
+    try {
+      const sortIndex = await computeSortIndex(currentSortIndex, nextSortIndex, 'below');
+      createLead.mutate({ sortIndex }, {
+        onError: (err) => {
+          toast({ title: 'Failed to insert row', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
+        },
+      });
+    } catch (err) {
+      toast({ title: 'Failed to insert row', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
+    }
+  }, [computeSortIndex, createLead]);
 
   const handleStartBulkAction = useCallback((action: BulkAction) => {
     setBulkAction(action);
@@ -587,6 +633,8 @@ export default function Leads() {
         onUpdateEmail={handleUpdateEmail}
         onCreateEmail={handleCreateEmail}
         onDeleteEmail={handleDeleteEmail}
+        onInsertRowAbove={handleInsertRowAbove}
+        onInsertRowBelow={handleInsertRowBelow}
       />
 
       {/* Bulk Progress */}

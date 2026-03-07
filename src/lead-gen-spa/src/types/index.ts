@@ -90,6 +90,7 @@ export interface Lead {
   /** Email objects with IDs (for inline editing) */
   leadEmails?: Array<{ id: string; value: string }>;
   contactPageUrl?: string | null;
+  sortIndex: number | null;
   pipelineStatus: LeadPipelineStatus;
   scrapeError?: string | null;
   scoringError?: string | null;

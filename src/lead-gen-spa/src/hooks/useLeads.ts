@@ -39,8 +39,19 @@ export function useUpdateLead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null; website?: string | null; googleMapsUri?: string | null; rating?: number | null; reviewCount?: number | null } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null; website?: string | null; googleMapsUri?: string | null; rating?: number | null; reviewCount?: number | null; sortIndex?: number | null } }) =>
       api.updateLead(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
+export function useCreateLead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { name?: string; sortIndex: number }) => api.createLead(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     },
@@ -164,7 +175,7 @@ export function useUpdateLeadData() {
 export const defaultLeadQueryParams: LeadQueryParams = {
   page: 1,
   limit: 25,
-  sort: 'createdAt',
+  sort: 'sortIndex',
   order: 'desc',
   filters: {},
   fields: DEFAULT_LEAD_COLUMNS,

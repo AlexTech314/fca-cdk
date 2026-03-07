@@ -21,9 +21,15 @@ import { NumericCell } from './NumericCell';
 import { ScoreBadge } from './QualificationBadge';
 import { ScrapedDataDialog } from './ScrapedDataDialog';
 import { ExtractedDataDialog } from './ExtractedDataDialog';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import type { Lead, LeadListField } from '@/types';
 import { formatDate } from '@/lib/utils';
-import { ChevronUp, ChevronDown, Star, ExternalLink, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronUp, ChevronDown, Star, ExternalLink, MapPin, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 
 interface LeadTableProps {
   data: Lead[];
@@ -56,6 +62,8 @@ interface LeadTableProps {
   onChangeMaps: (id: string, value: string | null, onError: () => void) => void;
   onChangeRating: (id: string, value: number | null, onError: () => void) => void;
   onChangeReviews: (id: string, value: number | null, onError: () => void) => void;
+  onInsertRowAbove?: (currentSortIndex: number, prevSortIndex: number | null) => void;
+  onInsertRowBelow?: (currentSortIndex: number, nextSortIndex: number | null) => void;
 }
 
 interface SortableHeaderProps {
@@ -117,6 +125,8 @@ export function LeadTable({
   onChangeMaps,
   onChangeRating,
   onChangeReviews,
+  onInsertRowAbove,
+  onInsertRowBelow,
 }: LeadTableProps) {
   const hasSelection = !!(selectedIds && onToggleRow && onToggleAllOnPage);
   const pageIds = data.map((l) => l.id);
@@ -376,9 +386,10 @@ export function LeadTable({
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((lead) => {
+              data.map((lead, index) => {
                 const isSelected = hasSelection && selectedIds!.has(lead.id);
-                return (
+                const hasContextMenu = (onInsertRowAbove || onInsertRowBelow) && lead.sortIndex != null;
+                const rowContent = (
                   <TableRow key={lead.id} data-state={isSelected ? 'selected' : undefined} className={isSelected ? 'bg-muted/80' : 'hover:bg-muted/50'}>
                     {hasSelection && (
                       <TableCell className="w-12 min-w-12 !p-0">
@@ -400,6 +411,34 @@ export function LeadTable({
                       );
                     })}
                   </TableRow>
+                );
+                if (!hasContextMenu) return rowContent;
+                const prevLead = data[index - 1];
+                const nextLead = data[index + 1];
+                return (
+                  <ContextMenu key={lead.id}>
+                    <ContextMenuTrigger asChild>
+                      {rowContent}
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      {onInsertRowAbove && (
+                        <ContextMenuItem
+                          onClick={() => onInsertRowAbove(lead.sortIndex!, prevLead?.sortIndex ?? null)}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Insert Row Above
+                        </ContextMenuItem>
+                      )}
+                      {onInsertRowBelow && (
+                        <ContextMenuItem
+                          onClick={() => onInsertRowBelow(lead.sortIndex!, nextLead?.sortIndex ?? null)}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Insert Row Below
+                        </ContextMenuItem>
+                      )}
+                    </ContextMenuContent>
+                  </ContextMenu>
                 );
               })
             )}

@@ -810,6 +810,9 @@ model Lead {
   scrapeError          String?   @map("scrape_error")
   scoringError         String?   @map("scoring_error")
 
+  // Custom row ordering
+  sortIndex            Float?    @map("sort_index")
+
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
@@ -827,6 +830,7 @@ model Lead {
   @@index([createdAt])
   @@index([pipelineStatus])
   @@index([compositeScore])
+  @@index([sortIndex])
   @@map("leads")
 }
 

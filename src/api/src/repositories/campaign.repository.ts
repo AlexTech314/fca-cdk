@@ -125,15 +125,15 @@ export const campaignRunRepository = {
   },
 
   async getCampaignsOverTime(startDate: Date, endDate: Date) {
-    const results = await prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
-      SELECT DATE(started_at) as date, COUNT(*) as count
+    const results = await prisma.$queryRaw<Array<{ bucket: Date; count: bigint }>>`
+      SELECT DATE_TRUNC('day', started_at) as bucket, COUNT(*) as count
       FROM campaign_runs
       WHERE started_at >= ${startDate} AND started_at <= ${endDate}
-      GROUP BY DATE(started_at)
-      ORDER BY date ASC
+      GROUP BY 1
+      ORDER BY 1 ASC
     `;
     return results.map((r) => ({
-      timestamp: r.date,
+      timestamp: r.bucket instanceof Date ? r.bucket.toISOString() : String(r.bucket),
       value: Number(r.count),
     }));
   },

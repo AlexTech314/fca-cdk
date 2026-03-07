@@ -16,12 +16,14 @@ import { StateCell } from './StateCell';
 import { TypeCell } from './TypeCell';
 import { PhoneCell } from './PhoneCell';
 import { MultiEmailCell } from './MultiEmailCell';
+import { UrlCell } from './UrlCell';
+import { NumericCell } from './NumericCell';
 import { ScoreBadge } from './QualificationBadge';
 import { ScrapedDataDialog } from './ScrapedDataDialog';
 import { ExtractedDataDialog } from './ExtractedDataDialog';
 import type { Lead, LeadListField } from '@/types';
 import { formatDate } from '@/lib/utils';
-import { ChevronUp, ChevronDown, Star, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronUp, ChevronDown, Star, ExternalLink, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface LeadTableProps {
   data: Lead[];
@@ -50,6 +52,10 @@ interface LeadTableProps {
   onUpdateEmail: (leadId: string, emailId: string, value: string, onError: () => void) => void;
   onCreateEmail: (leadId: string, value: string, onError: () => void) => void;
   onDeleteEmail: (leadId: string, emailId: string, onError: () => void) => void;
+  onChangeWebsite: (id: string, value: string | null, onError: () => void) => void;
+  onChangeMaps: (id: string, value: string | null, onError: () => void) => void;
+  onChangeRating: (id: string, value: number | null, onError: () => void) => void;
+  onChangeReviews: (id: string, value: number | null, onError: () => void) => void;
 }
 
 interface SortableHeaderProps {
@@ -107,6 +113,10 @@ export function LeadTable({
   onUpdateEmail,
   onCreateEmail,
   onDeleteEmail,
+  onChangeWebsite,
+  onChangeMaps,
+  onChangeRating,
+  onChangeReviews,
 }: LeadTableProps) {
   const hasSelection = !!(selectedIds && onToggleRow && onToggleAllOnPage);
   const pageIds = data.map((l) => l.id);
@@ -166,58 +176,66 @@ export function LeadTable({
     },
     website: {
       label: 'Website',
-      renderCell: (lead) =>
-        lead.website ? (
-          <a
-            href={lead.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline inline-flex items-center gap-1"
-          >
-            Site <ExternalLink className="h-3 w-3" />
-          </a>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        ),
+      headClassName: 'text-center',
+      cellClassName: 'text-center',
+      renderCell: (lead) => (
+        <UrlCell
+          lead={lead}
+          field="website"
+          icon={<ExternalLink className="h-3.5 w-3.5" />}
+          onChange={onChangeWebsite}
+        />
+      ),
     },
     googleMaps: {
       label: 'Maps',
-      renderCell: (lead) =>
-        lead.googleMapsUri ? (
-          <a
-            href={lead.googleMapsUri}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline inline-flex items-center gap-1"
-          >
-            Maps <ExternalLink className="h-3 w-3" />
-          </a>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        ),
+      headClassName: 'text-center',
+      cellClassName: 'text-center',
+      renderCell: (lead) => (
+        <UrlCell
+          lead={lead}
+          field="googleMapsUri"
+          icon={<MapPin className="h-3.5 w-3.5" />}
+          onChange={onChangeMaps}
+        />
+      ),
     },
     rating: {
       label: 'Rating',
       sortColumn: 'rating',
-      renderCell: (lead) =>
-        lead.rating !== null ? (
-          <div className="flex items-center gap-1">
-            <Star className="h-3 w-3 text-warning fill-warning" />
-            <span className="font-mono">{lead.rating}</span>
-          </div>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        ),
+      renderCell: (lead) => (
+        <NumericCell
+          lead={lead}
+          field="rating"
+          icon={<Star className="h-3 w-3 text-warning fill-warning" />}
+          inputMode="decimal"
+          validate={(s) => {
+            const n = parseFloat(s);
+            if (isNaN(n) || n < 0 || n > 5) return null;
+            return Math.round(n * 10) / 10;
+          }}
+          placeholder="0.0–5.0"
+          onChange={onChangeRating}
+        />
+      ),
     },
     reviewCount: {
       label: 'Reviews',
       sortColumn: 'reviewCount',
-      renderCell: (lead) =>
-        lead.reviewCount !== null ? (
-          <span className="font-mono">{lead.reviewCount.toLocaleString()}</span>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        ),
+      renderCell: (lead) => (
+        <NumericCell
+          lead={lead}
+          field="reviewCount"
+          format={(n) => n.toLocaleString()}
+          validate={(s) => {
+            const n = parseInt(s, 10);
+            if (isNaN(n) || n < 0) return null;
+            return n;
+          }}
+          placeholder="0"
+          onChange={onChangeReviews}
+        />
+      ),
     },
     businessType: {
       label: 'Type',

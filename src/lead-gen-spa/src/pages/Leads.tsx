@@ -98,7 +98,7 @@ export default function Leads() {
   const qualifyAll = useQualifyAllByFilters();
 
   // ── Undo / Redo ──────────────────────────────────────────────
-  type Patch = { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null };
+  type Patch = { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null; website?: string | null; googleMapsUri?: string | null; rating?: number | null; reviewCount?: number | null };
   type UndoEntry =
     | { kind: 'field'; leadId: string; prev: Patch; next: Patch }
     | { kind: 'emailUpdate'; leadId: string; emailId: string; prev: string; next: string }
@@ -132,6 +132,10 @@ export default function Leads() {
         if (patch.locationStateId !== undefined) return 'state';
         if (patch.businessType !== undefined) return `type to "${patch.businessType}"`;
         if (patch.phone !== undefined) return `phone to "${patch.phone}"`;
+        if (patch.website !== undefined) return 'website';
+        if (patch.googleMapsUri !== undefined) return 'maps URL';
+        if (patch.rating !== undefined) return `rating to ${patch.rating}`;
+        if (patch.reviewCount !== undefined) return `reviews to ${patch.reviewCount}`;
         return 'field';
       }
       case 'emailUpdate': return `email to "${direction === 'undo' ? entry.prev : entry.next}"`;
@@ -239,6 +243,30 @@ export default function Leads() {
     const lead = findLead(id);
     pushUndo({ kind: 'field', leadId: id, prev: { phone: lead?.phone ?? null }, next: { phone } });
     updateLead.mutate({ id, data: { phone } }, { onError: (err) => { onError(); mutateError('Failed to update phone')(err as Error); } });
+  }, [updateLead, findLead, pushUndo, mutateError]);
+
+  const handleChangeWebsite = useCallback((id: string, value: string | null, onError: () => void) => {
+    const lead = findLead(id);
+    pushUndo({ kind: 'field', leadId: id, prev: { website: lead?.website ?? null }, next: { website: value } });
+    updateLead.mutate({ id, data: { website: value } }, { onError: (err) => { onError(); mutateError('Failed to update website')(err as Error); } });
+  }, [updateLead, findLead, pushUndo, mutateError]);
+
+  const handleChangeMaps = useCallback((id: string, value: string | null, onError: () => void) => {
+    const lead = findLead(id);
+    pushUndo({ kind: 'field', leadId: id, prev: { googleMapsUri: lead?.googleMapsUri ?? null }, next: { googleMapsUri: value } });
+    updateLead.mutate({ id, data: { googleMapsUri: value } }, { onError: (err) => { onError(); mutateError('Failed to update maps URL')(err as Error); } });
+  }, [updateLead, findLead, pushUndo, mutateError]);
+
+  const handleChangeRating = useCallback((id: string, value: number | null, onError: () => void) => {
+    const lead = findLead(id);
+    pushUndo({ kind: 'field', leadId: id, prev: { rating: lead?.rating ?? null }, next: { rating: value } });
+    updateLead.mutate({ id, data: { rating: value } }, { onError: (err) => { onError(); mutateError('Failed to update rating')(err as Error); } });
+  }, [updateLead, findLead, pushUndo, mutateError]);
+
+  const handleChangeReviews = useCallback((id: string, value: number | null, onError: () => void) => {
+    const lead = findLead(id);
+    pushUndo({ kind: 'field', leadId: id, prev: { reviewCount: lead?.reviewCount ?? null }, next: { reviewCount: value } });
+    updateLead.mutate({ id, data: { reviewCount: value } }, { onError: (err) => { onError(); mutateError('Failed to update reviews')(err as Error); } });
   }, [updateLead, findLead, pushUndo, mutateError]);
 
   // ── Email cell handlers ─────────────────────────────────
@@ -552,6 +580,10 @@ export default function Leads() {
         onChangeState={handleChangeState}
         onChangeType={handleChangeType}
         onChangePhone={handleChangePhone}
+        onChangeWebsite={handleChangeWebsite}
+        onChangeMaps={handleChangeMaps}
+        onChangeRating={handleChangeRating}
+        onChangeReviews={handleChangeReviews}
         onUpdateEmail={handleUpdateEmail}
         onCreateEmail={handleCreateEmail}
         onDeleteEmail={handleDeleteEmail}

@@ -1,5 +1,4 @@
-import { prisma } from '@fca/db';
-import type { Prisma } from '@fca/db';
+import { prisma, Prisma } from '@fca/db';
 import type { LeadListField, LeadQuery, LeadDataType } from '../models/lead.model';
 
 /** Maps the generic type param to the corresponding Prisma delegate name */
@@ -167,13 +166,13 @@ export const leadRepository = {
   },
 
   async getLeadsOverTime(startDate: Date, endDate: Date, granularity: 'hour' | 'day' = 'day') {
-    const trunc = granularity === 'hour' ? 'hour' : 'day';
+    const trunc = Prisma.raw(granularity === 'hour' ? "'hour'" : "'day'");
     const results = await prisma.$queryRaw<Array<{ bucket: Date; count: bigint }>>`
       SELECT DATE_TRUNC(${trunc}, created_at) as bucket, COUNT(*) as count
       FROM leads
       WHERE created_at >= ${startDate} AND created_at <= ${endDate}
-      GROUP BY bucket
-      ORDER BY bucket ASC
+      GROUP BY 1
+      ORDER BY 1 ASC
     `;
     return results.map((r) => ({
       timestamp: r.bucket instanceof Date ? r.bucket.toISOString() : String(r.bucket),

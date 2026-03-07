@@ -198,6 +198,34 @@ router.patch('/leads/:id', authorize('readwrite', 'admin'), async (req, res, nex
       }
       patch.phone = req.body.phone;
     }
+    if (req.body.website !== undefined) {
+      if (req.body.website !== null && typeof req.body.website !== 'string') {
+        res.status(400).json({ error: 'website must be a string or null' });
+        return;
+      }
+      patch.website = req.body.website;
+    }
+    if (req.body.googleMapsUri !== undefined) {
+      if (req.body.googleMapsUri !== null && typeof req.body.googleMapsUri !== 'string') {
+        res.status(400).json({ error: 'googleMapsUri must be a string or null' });
+        return;
+      }
+      patch.googleMapsUri = req.body.googleMapsUri;
+    }
+    if (req.body.rating !== undefined) {
+      if (req.body.rating !== null && (typeof req.body.rating !== 'number' || req.body.rating < 0 || req.body.rating > 5)) {
+        res.status(400).json({ error: 'rating must be a number between 0 and 5, or null' });
+        return;
+      }
+      patch.rating = req.body.rating;
+    }
+    if (req.body.reviewCount !== undefined) {
+      if (req.body.reviewCount !== null && (typeof req.body.reviewCount !== 'number' || !Number.isInteger(req.body.reviewCount) || req.body.reviewCount < 0)) {
+        res.status(400).json({ error: 'reviewCount must be a non-negative integer or null' });
+        return;
+      }
+      patch.reviewCount = req.body.reviewCount;
+    }
     if (Object.keys(patch).length === 0) {
       res.status(400).json({ error: 'No valid fields to update' });
       return;

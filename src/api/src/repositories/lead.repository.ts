@@ -259,6 +259,10 @@ export const leadRepository = {
     return (prisma as any)[model].update({ where: { id }, data });
   },
 
+  async createLeadEmail(leadId: string, value: string) {
+    return prisma.leadEmail.create({ data: { leadId, value } });
+  },
+
   /** Field-level provenance: value-to-source mappings for audit */
   async getLeadProvenance(leadId: string) {
     const lead = await prisma.lead.findUnique({

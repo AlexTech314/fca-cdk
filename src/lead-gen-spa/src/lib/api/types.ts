@@ -290,6 +290,11 @@ export interface LeadGenApi {
   deleteScrapedPage(pageId: string): Promise<void>;
 
   /**
+   * Create a new email for a lead
+   */
+  createLeadEmail(leadId: string, value: string): Promise<{ id: string; value: string }>;
+
+  /**
    * Delete an individual extracted data item
    */
   deleteLeadData(type: LeadDataType, id: string): Promise<void>;

@@ -152,6 +152,7 @@ function transformLead(raw: any): Lead {
     webScrapedAt: raw.webScrapedAt ?? raw.web_scraped_at ?? null,
     lastScrapePagesCount: raw.scrapeRuns?.[0]?.pagesCount ?? null,
     emails: (raw.leadEmails ?? []).map((e: { value: string }) => e.value),
+    leadEmails: (raw.leadEmails ?? []).map((e: { id: string; value: string }) => ({ id: e.id, value: e.value })),
     createdAt: raw.createdAt || raw.created_at,
     updatedAt: raw.updatedAt || raw.updated_at,
   };
@@ -664,6 +665,13 @@ export const realApi: LeadGenApi = {
 
   async deleteScrapedPage(pageId: string): Promise<void> {
     await apiClient(`/scraped-pages/${pageId}`, { method: 'DELETE' });
+  },
+
+  async createLeadEmail(leadId: string, value: string): Promise<{ id: string; value: string }> {
+    return apiClient<{ id: string; value: string }>(`/leads/${leadId}/emails`, {
+      method: 'POST',
+      body: JSON.stringify({ value }),
+    });
   },
 
   async deleteLeadData(type: LeadDataType, id: string): Promise<void> {

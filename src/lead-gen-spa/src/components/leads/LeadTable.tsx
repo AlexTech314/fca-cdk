@@ -9,13 +9,13 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { NameCell } from './NameCell';
 import { CityCell } from './CityCell';
 import { StateCell } from './StateCell';
 import { TypeCell } from './TypeCell';
 import { PhoneCell } from './PhoneCell';
+import { MultiEmailCell } from './MultiEmailCell';
 import { ScoreBadge } from './QualificationBadge';
 import { ScrapedDataDialog } from './ScrapedDataDialog';
 import { ExtractedDataDialog } from './ExtractedDataDialog';
@@ -47,6 +47,9 @@ interface LeadTableProps {
   onChangeState: (id: string, stateId: string, onError: () => void) => void;
   onChangeType: (id: string, type: string, onError: () => void) => void;
   onChangePhone: (id: string, phone: string, onError: () => void) => void;
+  onUpdateEmail: (leadId: string, emailId: string, value: string, onError: () => void) => void;
+  onCreateEmail: (leadId: string, value: string, onError: () => void) => void;
+  onDeleteEmail: (leadId: string, emailId: string, onError: () => void) => void;
 }
 
 interface SortableHeaderProps {
@@ -101,6 +104,9 @@ export function LeadTable({
   onChangeState,
   onChangeType,
   onChangePhone,
+  onUpdateEmail,
+  onCreateEmail,
+  onDeleteEmail,
 }: LeadTableProps) {
   const hasSelection = !!(selectedIds && onToggleRow && onToggleAllOnPage);
   const pageIds = data.map((l) => l.id);
@@ -149,23 +155,14 @@ export function LeadTable({
       label: 'Emails',
       headClassName: 'min-w-[200px]',
       cellClassName: 'text-sm min-w-[200px]',
-      renderCell: (lead) =>
-        lead.emails?.length ? (
-          <div className="flex flex-wrap items-center gap-1">
-            <a href={`mailto:${lead.emails[0]}`} className="inline-flex">
-              <Badge variant="secondary" className="text-xs font-normal hover:bg-accent cursor-pointer whitespace-nowrap">
-                {lead.emails[0]}
-              </Badge>
-            </a>
-            {lead.emails.length > 1 && (
-              <Badge variant="outline" className="text-xs font-normal shrink-0">
-                +{lead.emails.length - 1}
-              </Badge>
-            )}
-          </div>
-        ) : (
-          <span className="text-muted-foreground">-</span>
-        ),
+      renderCell: (lead) => (
+        <MultiEmailCell
+          lead={lead}
+          onUpdateEmail={onUpdateEmail}
+          onCreateEmail={onCreateEmail}
+          onDeleteEmail={onDeleteEmail}
+        />
+      ),
     },
     website: {
       label: 'Website',

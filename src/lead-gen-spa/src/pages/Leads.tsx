@@ -3,7 +3,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { Button } from '@/components/ui/button';
-import { useLeads, useUpdateLead, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
+import { useLeads, useUpdateLead, useCreateLeadEmail, useUpdateLeadData, useDeleteLeadData, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
 import { toast } from '@/hooks/use-toast';
 import type { LeadFilters as LeadFiltersType, LeadListField, LeadQueryParams } from '@/types';
 import {
@@ -89,6 +89,9 @@ export default function Leads() {
 
   const { data, isLoading } = useLeads(queryParams);
   const updateLead = useUpdateLead();
+  const createEmail = useCreateLeadEmail();
+  const updateEmailData = useUpdateLeadData();
+  const deleteEmailData = useDeleteLeadData();
   const scrapeBulk = useScrapeLeadsBulk();
   const qualifyBulk = useQualifyLeadsBulk();
   const scrapeAll = useScrapeAllByFilters();
@@ -214,6 +217,28 @@ export default function Leads() {
       { onError: (err) => { onError(); toast({ title: 'Failed to update phone', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
     );
   }, [updateLead, findLead, pushUndo]);
+
+  // ── Email cell handlers ─────────────────────────────────
+  const handleUpdateEmail = useCallback((_leadId: string, emailId: string, value: string, onError: () => void) => {
+    updateEmailData.mutate(
+      { type: 'email', id: emailId, data: { value } },
+      { onError: (err) => { onError(); toast({ title: 'Failed to update email', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
+    );
+  }, [updateEmailData]);
+
+  const handleCreateEmail = useCallback((leadId: string, value: string, onError: () => void) => {
+    createEmail.mutate(
+      { leadId, value },
+      { onError: (err) => { onError(); toast({ title: 'Failed to create email', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
+    );
+  }, [createEmail]);
+
+  const handleDeleteEmail = useCallback((_leadId: string, emailId: string, onError: () => void) => {
+    deleteEmailData.mutate(
+      { type: 'email', id: emailId },
+      { onError: (err) => { onError(); toast({ title: 'Failed to delete email', description: err instanceof Error ? err.message : 'An unexpected error occurred.', variant: 'destructive' }); } },
+    );
+  }, [deleteEmailData]);
 
   const handleStartBulkAction = useCallback((action: BulkAction) => {
     setBulkAction(action);
@@ -493,6 +518,9 @@ export default function Leads() {
         onChangeState={handleChangeState}
         onChangeType={handleChangeType}
         onChangePhone={handleChangePhone}
+        onUpdateEmail={handleUpdateEmail}
+        onCreateEmail={handleCreateEmail}
+        onDeleteEmail={handleDeleteEmail}
       />
 
       {/* Bulk Progress */}

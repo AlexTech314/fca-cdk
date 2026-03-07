@@ -125,6 +125,18 @@ export function useDeleteScrapedPage() {
   });
 }
 
+export function useCreateLeadEmail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ leadId, value }: { leadId: string; value: string }) =>
+      api.createLeadEmail(leadId, value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
 export function useDeleteLeadData() {
   const queryClient = useQueryClient();
 

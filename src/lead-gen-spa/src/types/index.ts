@@ -87,6 +87,8 @@ export interface Lead {
   campaign?: { id: string; name: string } | null;
   /** Emails from leadEmails (for list display) */
   emails?: string[];
+  /** Email objects with IDs (for inline editing) */
+  leadEmails?: Array<{ id: string; value: string }>;
   contactPageUrl?: string | null;
   pipelineStatus: LeadPipelineStatus;
   scrapeError?: string | null;

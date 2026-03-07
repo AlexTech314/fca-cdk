@@ -343,4 +343,8 @@ export const leadService = {
       return null;
     }
   },
+
+  async createLeadEmail(leadId: string, value: string) {
+    return leadRepository.createLeadEmail(leadId, value);
+  },
 };

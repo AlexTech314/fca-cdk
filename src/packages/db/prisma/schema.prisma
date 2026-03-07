@@ -615,9 +615,9 @@ model LeadEmail {
   leadId         String      @map("lead_id")
   lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
   value          String
-  sourcePageId   String      @map("source_page_id")
-  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
-  sourceRunId    String      @map("source_run_id")
+  sourcePageId   String?     @map("source_page_id")
+  sourcePage     ScrapedPage? @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
+  sourceRunId    String?     @map("source_run_id")
   createdAt      DateTime    @default(now()) @map("created_at")
 
   @@unique([leadId, value], name: "leadId_value")

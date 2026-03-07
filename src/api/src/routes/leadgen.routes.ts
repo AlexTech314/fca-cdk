@@ -344,6 +344,24 @@ router.patch('/lead-data/:type/:id', authorize('readwrite', 'admin'), async (req
   }
 });
 
+router.post('/leads/:id/emails', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const { value } = req.body;
+    if (!value || typeof value !== 'string' || !value.trim()) {
+      res.status(400).json({ error: 'Email value is required' });
+      return;
+    }
+    const email = await leadService.createLeadEmail(String(req.params.id), value.trim());
+    res.status(201).json(email);
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      res.status(409).json({ error: 'Email already exists for this lead' });
+      return;
+    }
+    next(error);
+  }
+});
+
 router.get('/leads/:id/provenance', async (req, res, next) => {
   try {
     const provenance = await leadService.getLeadProvenance(String(req.params.id));

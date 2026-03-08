@@ -208,7 +208,7 @@ export function MultiEmailCell({ lead, onUpdateEmail, onCreateEmail, onDeleteEma
           {expanded && hiddenCount > 0 && (
             <button
               onClick={handleExpandClick}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer italic"
+              className="absolute right-2 bottom-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer italic"
             >
               collapse
             </button>

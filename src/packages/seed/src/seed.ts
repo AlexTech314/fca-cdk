@@ -28,6 +28,7 @@ const USCITIES_CSV = path.join(SEED_DATA_DIR, 'uscities.csv');
 const INDUSTRY_TAGS_CSV = path.join(SEED_DATA_DIR, 'industry-tags.csv');
 const NEWS_DIR = path.join(SEED_DATA_DIR, 'news');
 const ARTICLES_DIR = path.join(SEED_DATA_DIR, 'articles');
+const TRANSACTIONS_JSON = path.join(SEED_DATA_DIR, 'flatirons_capital_transactions.json');
 const ASSETS_DIR = path.resolve(__dirname, '../assets');
 
 // ============================================
@@ -1868,6 +1869,117 @@ In addition to advisory services, we selectively co-invest alongside our private
 }
 
 // ============================================
+// SEED TRANSACTION LEADS
+// ============================================
+
+interface TransactionRecord {
+  placeId: string | null;
+  name: string;
+  nameNormalized: string;
+  address: string | null;
+  zipCode: string | null;
+  city: string | null;
+  state: string | null;
+  phone: string | null;
+  website: string | null;
+  rating: number | null;
+  reviewCount: number | null;
+  priceLevel: number | null;
+  businessType: string | null;
+  primaryType: string | null;
+  source: string;
+  businessStatus: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  openingHours: string | null;
+  editorialSummary: string | null;
+  reviewSummary: string | null;
+  googleMapsUri: string | null;
+}
+
+async function seedTransactionLeads(prisma: PrismaClient): Promise<void> {
+  log.info('Seeding transaction leads...');
+
+  const raw: TransactionRecord[] = JSON.parse(fs.readFileSync(TRANSACTIONS_JSON, 'utf-8'));
+  const records = raw.filter((r) => r.placeId);
+
+  // Pre-load geography lookups
+  const allStates = await prisma.state.findMany({ select: { id: true, name: true } });
+  const stateById = new Map(allStates.map((s) => [s.id.toLowerCase(), s]));
+
+  const allCities = await prisma.city.findMany({ select: { id: true, name: true, stateId: true } });
+  const cityByStateAndName = new Map(
+    allCities.map((c) => [`${c.stateId.toLowerCase()}:${c.name.toLowerCase()}`, c])
+  );
+
+  // Use a very high sortBase so these appear at the top of the list.
+  // Normal leads use Date.now() * 1000 (~1.7e15). We use 9e15 to stay above.
+  let sortBase = 9_000_000_000_000_000;
+  let inserted = 0;
+  let skipped = 0;
+
+  for (const rec of records) {
+    // Resolve geography FKs
+    let locationStateId: string | null = null;
+    let locationCityId: number | null = null;
+
+    if (rec.state) {
+      const stateRecord = stateById.get(rec.state.toLowerCase());
+      if (stateRecord) {
+        locationStateId = stateRecord.id;
+        if (rec.city) {
+          const cityRecord = cityByStateAndName.get(
+            `${stateRecord.id.toLowerCase()}:${rec.city.toLowerCase()}`
+          );
+          locationCityId = cityRecord?.id ?? null;
+        }
+      }
+    }
+
+    const leadSortIndex = sortBase--;
+
+    try {
+      const result = await prisma.$executeRaw`
+        INSERT INTO leads (
+          id, place_id,
+          location_state_id, location_city_id,
+          name, name_normalized, address, zip_code, phone, website,
+          rating, review_count, price_level, business_type, source,
+          business_status, latitude, longitude, primary_type, opening_hours,
+          editorial_summary, review_summary, google_maps_uri,
+          sort_index,
+          created_at, updated_at
+        ) VALUES (
+          gen_random_uuid(), ${rec.placeId},
+          ${locationStateId}, ${locationCityId},
+          ${rec.name}, ${rec.nameNormalized}, ${rec.address},
+          ${rec.zipCode},
+          ${rec.phone}, ${rec.website},
+          ${rec.rating}, ${rec.reviewCount},
+          ${rec.priceLevel},
+          ${rec.businessType},
+          'import',
+          ${rec.businessStatus},
+          ${rec.latitude}, ${rec.longitude},
+          ${rec.primaryType}, ${rec.openingHours},
+          ${rec.editorialSummary}, ${rec.reviewSummary}, ${rec.googleMapsUri},
+          ${leadSortIndex},
+          NOW(), NOW()
+        )
+        ON CONFLICT (place_id) DO NOTHING`;
+
+      if (result > 0) inserted++;
+      else skipped++;
+    } catch (e) {
+      log.error(`  Failed to insert lead ${rec.placeId} (${rec.name}):`, e);
+      skipped++;
+    }
+  }
+
+  log.info(`  Seeded ${inserted} transaction leads (${skipped} skipped/duplicate)`);
+}
+
+// ============================================
 // EXPORTED SEED / WIPE FUNCTIONS
 // ============================================
 
@@ -1913,6 +2025,7 @@ export async function runSeed(prisma: PrismaClient): Promise<void> {
     await seedServiceOfferings(prisma);
     await seedAwards(prisma);
     await seedPageContent(prisma);
+    await seedTransactionLeads(prisma);
 
     log.info('\nDatabase seed completed successfully!');
   } catch (error) {

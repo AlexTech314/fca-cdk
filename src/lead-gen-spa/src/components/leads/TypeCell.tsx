@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
+import { ALL_PLACE_TYPES, formatPlaceType } from '@/lib/constants/place-types';
 import type { Lead } from '@/types';
 
 interface TypeCellProps {
@@ -32,11 +33,19 @@ export function TypeCell({ lead, onChangeType }: TypeCellProps) {
     staleTime: 0,
   });
 
+  const placeTypeLabels = useMemo(
+    () => ALL_PLACE_TYPES.map((t) => formatPlaceType(t)),
+    [],
+  );
+
   const results = useMemo(() => {
-    if (!search.trim()) return allTypes;
+    // Merge DB types + place type labels, deduplicated
+    const merged = new Set([...allTypes, ...placeTypeLabels]);
+    const all = Array.from(merged).sort((a, b) => a.localeCompare(b));
+    if (!search.trim()) return all;
     const q = search.toLowerCase();
-    return allTypes.filter((t) => t.toLowerCase().includes(q));
-  }, [allTypes, search]);
+    return all.filter((t) => t.toLowerCase().includes(q));
+  }, [allTypes, placeTypeLabels, search]);
 
   const startEditing = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -74,8 +83,10 @@ export function TypeCell({ lead, onChangeType }: TypeCellProps) {
         setHighlightIndex((i) => Math.max(i - 1, 0));
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (results[highlightIndex]) {
+        if (highlightIndex >= 0 && results[highlightIndex]) {
           selectType(results[highlightIndex]);
+        } else if (search.trim()) {
+          selectType(search.trim());
         }
       }
     },
@@ -129,30 +140,43 @@ export function TypeCell({ lead, onChangeType }: TypeCellProps) {
               placeholder={displayType || 'Search types...'}
               className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
             />
-            {results.length > 0 && (
-              <div
-                data-type-list
-                ref={listRef}
-                className="absolute left-0 top-full mt-2 w-56 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 shadow-md z-50"
-              >
-                {results.map((type, i) => (
-                  <button
-                    key={type}
-                    tabIndex={-1}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      selectType(type);
-                    }}
-                    onMouseEnter={() => setHighlightIndex(i)}
-                    className={`w-full text-left rounded-sm px-2 py-1.5 text-sm cursor-pointer ${
-                      i === highlightIndex ? 'bg-accent text-accent-foreground' : 'text-popover-foreground'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div
+              data-type-list
+              ref={listRef}
+              className="absolute left-0 top-full mt-2 w-56 max-h-48 overflow-y-auto rounded-md border bg-popover p-1 shadow-md z-50"
+            >
+              {results.map((type, i) => (
+                <button
+                  key={type}
+                  tabIndex={-1}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    selectType(type);
+                  }}
+                  onMouseEnter={() => setHighlightIndex(i)}
+                  className={`w-full text-left rounded-sm px-2 py-1.5 text-sm cursor-pointer ${
+                    i === highlightIndex ? 'bg-accent text-accent-foreground' : 'text-popover-foreground'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+              {search.trim() && !results.some((t) => t.toLowerCase() === search.trim().toLowerCase()) && (
+                <button
+                  tabIndex={-1}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    selectType(search.trim());
+                  }}
+                  className="w-full text-left rounded-sm px-2 py-1.5 text-sm cursor-pointer text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                >
+                  Use "{search.trim()}"
+                </button>
+              )}
+              {results.length === 0 && !search.trim() && (
+                <p className="px-2 py-1.5 text-sm text-muted-foreground">No types found</p>
+              )}
+            </div>
           </div>
         </div>
       )}

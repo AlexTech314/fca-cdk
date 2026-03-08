@@ -28,7 +28,7 @@ import {
   formatPlaceType,
   REGIONAL_PRESETS,
   CITY_LIMITS,
-} from '@/lib/campaigns/place-types';
+} from '@/lib/constants/place-types';
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface GenerateQueriesModalProps {

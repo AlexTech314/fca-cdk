@@ -30,9 +30,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Download and extract CloakBrowser (stealth Chromium with anti-detection patches)
+# Retry up to 3 times with resume support to handle CDN drops
 ARG CLOAKBROWSER_URL=https://cloakbrowser.dev/chromium-v145.0.7632.159.2/cloakbrowser-linux-x64.tar.gz
 RUN mkdir -p /opt/cloakbrowser && \
-    curl -fSL "${CLOAKBROWSER_URL}" -o /tmp/cloakbrowser.tar.gz && \
+    curl -fSL --retry 3 --retry-delay 5 -C - "${CLOAKBROWSER_URL}" -o /tmp/cloakbrowser.tar.gz && \
     tar -xzf /tmp/cloakbrowser.tar.gz -C /opt/cloakbrowser && \
     rm /tmp/cloakbrowser.tar.gz && \
     chmod +x /opt/cloakbrowser/chrome

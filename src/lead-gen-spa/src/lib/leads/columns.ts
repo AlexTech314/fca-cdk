@@ -14,7 +14,7 @@ export const DEFAULT_LEAD_COLUMNS: LeadListField[] = [
   'rating',
   'reviewCount',
   'businessType',
-  'compositeScore',
+  'tier',
 ];
 
 export const LEAD_COLUMN_OPTIONS: LeadColumnOption[] = [
@@ -32,9 +32,10 @@ export const LEAD_COLUMN_OPTIONS: LeadColumnOption[] = [
   { key: 'extractedData', label: 'Extracted Data' },
   { key: 'businessQualityScore', label: 'Raw BQ' },
   { key: 'exitReadinessScore', label: 'Raw ER' },
-  { key: 'compositeScore', label: 'Composite' },
+  { key: 'compositeScore', label: 'Priority' },
+  { key: 'tier', label: 'Tier' },
   { key: 'webScrapedAt', label: 'Scraped' },
   { key: 'createdAt', label: 'Added' },
 ];
 
-export const LEAD_COLUMNS_STORAGE_KEY = 'lead-table-columns-v10';
+export const LEAD_COLUMNS_STORAGE_KEY = 'lead-table-columns-v11';

@@ -22,6 +22,7 @@ export interface ExtractionResult {
   process_governance_signals: string[];
   competitive_pressure_signals: string[];
   growth_vs_maintenance_language: string;
+  intermediation_signals: string[];
 }
 
 export const EMPTY_EXTRACTION: ExtractionResult = {
@@ -48,6 +49,7 @@ export const EMPTY_EXTRACTION: ExtractionResult = {
   process_governance_signals: [],
   competitive_pressure_signals: [],
   growth_vs_maintenance_language: 'unknown',
+  intermediation_signals: [],
 };
 
 export interface BatchItem {
@@ -64,6 +66,12 @@ export interface ScoringResult {
   exit_readiness_score: number;
   rationale: string;
   supporting_evidence: { url: string; snippet: string }[];
+  is_intermediated: boolean;
+  intermediation_signals_summary: string | null;
+  owner_email: string | null;
+  owner_phone: string | null;
+  owner_linkedin: string | null;
+  contact_confidence: 'confirmed' | 'likely' | 'research_required' | null;
 }
 
 /** Percentile thresholds for review counts — 23 breakpoints from p0 to p99.9 */

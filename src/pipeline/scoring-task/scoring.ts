@@ -113,6 +113,13 @@ export function buildFactsSummary(facts: ExtractionResult): string {
     lines.push('Competitive pressure: None.');
   }
 
+  // Intermediation signals
+  if (facts.intermediation_signals.length > 0) {
+    lines.push(`Intermediation signals: ${facts.intermediation_signals.join('; ')}.`);
+  } else {
+    lines.push('Intermediation signals: None.');
+  }
+
   // Business tone
   lines.push(`Business tone: ${facts.growth_vs_maintenance_language}.`);
 

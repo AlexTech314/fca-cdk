@@ -641,48 +641,67 @@ export default function LeadDetail() {
                     </div>
                   </div>
 
-                  {lead.compositeScore != null && (
+                  {(lead.compositeScore != null || lead.tier != null) && (
                     <div className="rounded-lg border p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">Composite Score</p>
-                        <span className={`font-mono text-lg font-bold ${
-                          lead.compositeScore >= 75 ? 'text-green-600 dark:text-green-400' :
-                          lead.compositeScore >= 50 ? 'text-amber-600 dark:text-amber-400' :
-                          lead.compositeScore >= 25 ? 'text-orange-600 dark:text-orange-400' :
-                          'text-muted-foreground'
-                        }`}>
-                          {Math.round(lead.compositeScore)}
-                        </span>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            lead.compositeScore >= 75 ? 'bg-green-500' :
-                            lead.compositeScore >= 50 ? 'bg-amber-500' :
-                            lead.compositeScore >= 25 ? 'bg-orange-500' :
-                            'bg-gray-400'
-                          }`}
-                          style={{ width: `${Math.min(lead.compositeScore, 100)}%` }}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Quality (by type)</span>
-                          <span className="font-mono">{lead.qualityPercentileByType != null ? Math.round(lead.qualityPercentileByType) : '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Quality (by city)</span>
-                          <span className="font-mono">{lead.qualityPercentileByCity != null ? Math.round(lead.qualityPercentileByCity) : '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Exit (by type)</span>
-                          <span className="font-mono">{lead.exitPercentileByType != null ? Math.round(lead.exitPercentileByType) : '—'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Exit (by city)</span>
-                          <span className="font-mono">{lead.exitPercentileByCity != null ? Math.round(lead.exitPercentileByCity) : '—'}</span>
+                        <p className="text-sm font-medium">Priority Score</p>
+                        <div className="flex items-center gap-3">
+                          {lead.tier != null && (
+                            <span className={`inline-flex items-center justify-center h-7 w-7 rounded-full text-xs font-bold ${
+                              lead.tier === 1 ? 'bg-green-600 text-white' :
+                              lead.tier === 2 ? 'bg-amber-500 text-white' :
+                              'bg-gray-400 text-white'
+                            }`}>
+                              T{lead.tier}
+                            </span>
+                          )}
+                          {lead.compositeScore != null && (
+                            <span className={`font-mono text-lg font-bold ${
+                              lead.compositeScore >= 700 ? 'text-green-600 dark:text-green-400' :
+                              lead.compositeScore >= 500 ? 'text-amber-600 dark:text-amber-400' :
+                              lead.compositeScore >= 300 ? 'text-orange-600 dark:text-orange-400' :
+                              'text-muted-foreground'
+                            }`}>
+                              {Math.round(lead.compositeScore)}
+                            </span>
+                          )}
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {(lead.ownerEmail || lead.ownerPhone || lead.ownerLinkedin) && (
+                    <div className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">Owner Contact</p>
+                        {lead.contactConfidence && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            lead.contactConfidence === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
+                            lead.contactConfidence === 'likely' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' :
+                            'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                          }`}>
+                            {lead.contactConfidence}
+                          </span>
+                        )}
+                      </div>
+                      {lead.ownerEmail && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Email</span>
+                          <a href={`mailto:${lead.ownerEmail}`} className="text-blue-600 hover:underline dark:text-blue-400">{lead.ownerEmail}</a>
+                        </div>
+                      )}
+                      {lead.ownerPhone && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Phone</span>
+                          <a href={`tel:${lead.ownerPhone}`} className="text-blue-600 hover:underline dark:text-blue-400">{lead.ownerPhone}</a>
+                        </div>
+                      )}
+                      {lead.ownerLinkedin && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">LinkedIn</span>
+                          <a href={lead.ownerLinkedin} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline dark:text-blue-400 truncate max-w-[200px]">{lead.ownerLinkedin}</a>
+                        </div>
+                      )}
                     </div>
                   )}
 

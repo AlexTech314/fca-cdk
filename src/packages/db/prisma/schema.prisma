@@ -796,12 +796,15 @@ model Lead {
   extractedFactsS3Key  String?   @map("extracted_facts_s3_key")
   scoredAt             DateTime? @map("scored_at")
 
-  // Relative scoring (percentile ranks within cohorts, 0-100)
-  qualityPercentileByType  Float?   @map("quality_percentile_by_type")
-  qualityPercentileByCity  Float?   @map("quality_percentile_by_city")
-  exitPercentileByType     Float?   @map("exit_percentile_by_type")
-  exitPercentileByCity     Float?   @map("exit_percentile_by_city")
+  // Priority scoring (weighted average of BQ/ER, 0-1000)
   compositeScore           Float?   @map("composite_score")
+  tier                     Int?     @map("tier")
+  isIntermediated          Boolean  @default(false) @map("is_intermediated")
+  intermediationSignals    String?  @map("intermediation_signals")
+  ownerEmail               String?  @map("owner_email")
+  ownerPhone               String?  @map("owner_phone")
+  ownerLinkedin            String?  @map("owner_linkedin")
+  contactConfidence        String?  @map("contact_confidence")
 
   // Web Scraping
   webScrapedAt         DateTime? @map("web_scraped_at")
@@ -830,6 +833,8 @@ model Lead {
   @@index([createdAt])
   @@index([pipelineStatus])
   @@index([compositeScore])
+  @@index([tier])
+  @@index([isIntermediated])
   @@index([sortIndex])
   @@map("leads")
 }

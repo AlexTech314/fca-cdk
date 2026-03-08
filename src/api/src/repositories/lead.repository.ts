@@ -20,6 +20,7 @@ const sortFieldMap: Record<string, string> = {
   webScrapedAt: 'webScrapedAt',
   pipelineStatus: 'pipelineStatus',
   compositeScore: 'compositeScore',
+  tier: 'tier',
   sortIndex: 'sortIndex',
 };
 
@@ -42,6 +43,7 @@ const nullableNumericFields = new Set([
   'reviewCount',
   'businessQualityScore',
   'exitReadinessScore',
+  'tier',
   'sortIndex',
 ]);
 
@@ -460,6 +462,9 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   }
   if (fields.has('compositeScore')) {
     select.compositeScore = true;
+  }
+  if (fields.has('tier')) {
+    select.tier = true;
   }
   if (fields.has('createdAt')) {
     select.createdAt = true;

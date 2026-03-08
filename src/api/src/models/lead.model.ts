@@ -16,6 +16,7 @@ const leadListFields = [
   'businessQualityScore',
   'exitReadinessScore',
   'compositeScore',
+  'tier',
   'webScrapedAt',
   'createdAt',
 ] as const;

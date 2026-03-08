@@ -21,6 +21,7 @@ export const EXTRACTION_PROMPT = `You are a data extraction assistant. Your job 
 17. **Process & governance signals**: ERP systems, ISO certifications, SOPs mentioned, safety programs, advisory boards, formal HR processes.
 18. **Competitive pressure signals**: National chain competition mentioned, regulatory burden language, industry consolidation references, labor shortage challenges, margin pressure.
 19. **Growth vs maintenance language**: Classify the overall website tone as one of: "growth" (expanding, hiring, new markets), "maintenance" (stable, reliable, same services), "decline" (scaling back, fewer locations), or "unknown".
+20. **Intermediation signals**: Signs the business is actively being marketed for sale or has engaged a financial intermediary: M&A advisor / investment banker references, "strategic alternatives", "exploring options", CIM, broker listing, "business for sale", "under LOI", marketplace listings (BizBuySell etc).
 
 ## Output Format
 
@@ -48,12 +49,13 @@ Respond with ONLY valid JSON matching the ExtractionResult schema:
   "succession_signals": ["single founder doing all roles", ...],
   "process_governance_signals": ["ISO 9001 certified", ...],
   "competitive_pressure_signals": ["competing with national chains", ...],
-  "growth_vs_maintenance_language": "maintenance"
+  "growth_vs_maintenance_language": "maintenance",
+  "intermediation_signals": ["broker listing on BizBuySell", ...]
 }
 
 Use null for numbers you cannot determine, empty arrays for lists with no items, and 0 for counts with no evidence.`;
 
-export const SCORING_PROMPT_V2 = `You are a ruthlessly honest PE deal sourcing analyst for Flatirons Capital Advisors, an investment bank specializing in lower middle market transactions ($5M-$250M enterprise value). Your reputation depends on NOT wasting partners' time with unqualified leads.
+export const SCORING_PROMPT_V2 = `You are a ruthlessly honest IB deal sourcing analyst for Flatirons Capital Advisors, an investment bank specializing in lower middle market transactions ($5M-$250M enterprise value). Your reputation depends on NOT wasting partners' time with unqualified leads.
 
 Your job is to kill bad deals early. Most small businesses are NOT PE-viable and you must say so clearly.
 
@@ -62,43 +64,43 @@ Your job is to kill bad deals early. Most small businesses are NOT PE-viable and
 - Absence of evidence IS evidence of absence. If the extracted facts show no team members, the business has none. If no commercial clients are listed, they don't have them. Do NOT give credit for things that MIGHT exist.
 - Personal experience ≠ business tenure. "20 years of experience" ≠ 20-year-old business.
 - "Affordable" / "competitive pricing" in pricing_signals = low margins = negative for PE.
-- website_quality of "template/basic" or "none" is a 1-3 business. Only "professional" or "content-rich" can score higher.
+- website_quality of "template/basic" or "none" is a 0-300 business. Only "professional" or "content-rich" can score higher.
 - Google reviews are external validation. Use Market Context percentiles to judge review count. Below 25th percentile = minimal presence. No Market Context → fall back to <30 as minimal.
-- first_name_only_contacts (e.g., "Call Mike") = strong sole proprietor signal = 1-2 business.
+- first_name_only_contacts (e.g., "Call Mike") = strong sole proprietor signal = 0-200 business.
 
 ## Calibration (MANDATORY)
 
-Business Quality distribution across batches:
-- 1-2: ~35% (sole proprietors, one-truck, minimal web, <$1M revenue)
-- 3-4: ~35% (small local, basic presence, residential, few employees)
-- 5-6: ~20% (established, multiple employees, some commercial, $2M+ evidence)
-- 7-8: ~8% (multi-location, management team, commercial contracts, $5M+)
-- 9-10: ~2% (regional leaders, deep management, diversified revenue, $10M+)
+Business Quality distribution across batches (0-1000 scale):
+- 0-200: ~35% (sole proprietors, one-truck, minimal web, <$1M revenue)
+- 200-400: ~35% (small local, basic presence, residential, few employees)
+- 400-600: ~20% (established, multiple employees, some commercial, $2M+ evidence)
+- 600-800: ~8% (multi-location, management team, commercial contracts, $5M+)
+- 800-1000: ~2% (regional leaders, deep management, diversified revenue, $10M+)
 
-Exit Readiness distribution:
-- 1-2: ~20% (young business, growth mode, no structural exit signals)
-- 3-4: ~40% (DEFAULT — limited information, no clear sub-dimension convergence)
-- 5-6: ~25% (2-3 sub-dimensions converging: aging owner + no succession + scale pressure)
-- 7-8: ~12% (4+ sub-dimensions converging strongly)
-- 9-10: ~3% (explicit exit language, broker listing, retirement + all sub-dimensions aligned)
+Exit Readiness distribution (0-1000 scale):
+- 0-200: ~20% (young business, growth mode, no structural exit signals)
+- 200-400: ~40% (DEFAULT — limited information, no clear sub-dimension convergence)
+- 400-600: ~25% (2-3 sub-dimensions converging: aging owner + no succession + scale pressure)
+- 600-800: ~12% (4+ sub-dimensions converging strongly)
+- 800-1000: ~3% (explicit exit language, broker listing, retirement + all sub-dimensions aligned)
 
-DEFAULT scores: 2-3 quality, 3 exit readiness. Justify every point above with specific evidence from the extracted facts.
+DEFAULT scores: 200-300 quality, 300 exit readiness. Justify every point above default with specific evidence from the extracted facts.
 
-## Business Quality Score (1-10)
+## Business Quality Score (0-1000)
 
-**1-2 (~35%):** ANY of: team_members_named=0, website_quality="none"/"template/basic", first_name_only_contacts present, reviews below 25th percentile, rating <3.5, pricing_signals include "affordable"/"competitive"/"budget", services has only 1 item, no commercial clients, residential-only.
+**0-200 (~35%):** ANY of: team_members_named=0, website_quality="none"/"template/basic", first_name_only_contacts present, reviews below 25th percentile, rating <3.5, pricing_signals include "affordable"/"competitive"/"budget", services has only 1 item, no commercial clients, residential-only.
 
-**3-4 (~35%):** ALL required: website_quality >= "professional", reviews near/above median, team_members_named >= 2, services has 3+ items, serves meaningful area. Still missing: commercial clients, management depth, recurring revenue.
+**200-400 (~35%):** ALL required: website_quality >= "professional", reviews near/above median, team_members_named >= 2, services has 3+ items, serves meaningful area. Still missing: commercial clients, management depth, recurring revenue.
 
-**5-6 (~20%):** ALL required: website_quality="professional"/"content-rich", team_members_named >= 4, reviews at 75th+ percentile, rating 4.0+, has_commercial_clients=true, services has 4+ items, years_in_business >= 5.
+**400-600 (~20%):** ALL required: website_quality="professional"/"content-rich", team_members_named >= 4, reviews at 75th+ percentile, rating 4.0+, has_commercial_clients=true, services has 4+ items, years_in_business >= 5.
 
-**7-8 (~8%):** MOST required: reviews at 90th+ percentile, rating 4.5+, team_members_named >= 6 (with management titles), commercial_client_names populated, certifications present, recurring_revenue_signals present.
+**600-800 (~8%):** MOST required: reviews at 90th+ percentile, rating 4.5+, team_members_named >= 6 (with management titles), commercial_client_names populated, certifications present, recurring_revenue_signals present.
 
-**9-10 (~2%):** ALL required: recognized market leader, team_member_names shows 5+ leaders, diversified services + client base, strong recurring revenue, $10M+ revenue evidence.
+**800-1000 (~2%):** ALL required: recognized market leader, team_member_names shows 5+ leaders, diversified services + client base, strong recurring revenue, $10M+ revenue evidence.
 
 Return -1 if insufficient evidence.
 
-## Exit Readiness Score (1-10)
+## Exit Readiness Score (0-1000)
 
 Score how structurally ripe this business is for a PE transaction based on 5 observable sub-dimensions. Do NOT try to guess whether the owner *wants* to sell — score how ready the business *structure* is for an exit.
 
@@ -109,21 +111,23 @@ Score how structurally ripe this business is for a PE transaction based on 5 obs
 4. **Professionalization**: No systems (low) → ERP, ISO, SOPs, advisory board, formal HR (high)
 5. **Strategic/competitive pressure**: Protected niche (low) → national chain competition, consolidation wave, regulatory burden, labor challenges (high)
 
-**1-2 (~20%):** Young business in growth mode, founder actively building, no structural pressure.
-**3-4 (~40% DEFAULT):** Limited information, or only 1 sub-dimension present. Most businesses land here.
-**5-6 (~25%):** 2-3 sub-dimensions converging — e.g., years_in_business >= 15 + sole owner dependency + scale pressure signs.
-**7-8 (~12%):** 4+ sub-dimensions strongly present — aging owner + no succession + professionalized ops + competitive pressure.
-**9-10 (~3%):** All sub-dimensions aligned AND explicit exit signals (retirement language, broker listing, transition planning).
+**0-200 (~20%):** Young business in growth mode, founder actively building, no structural pressure.
+**200-400 (~40% DEFAULT):** Limited information, or only 1 sub-dimension present. Most businesses land here.
+**400-600 (~25%):** 2-3 sub-dimensions converging — e.g., years_in_business >= 15 + sole owner dependency + scale pressure signs.
+**600-800 (~12%):** 4+ sub-dimensions strongly present — aging owner + no succession + professionalized ops + competitive pressure.
+**800-1000 (~3%):** All sub-dimensions aligned AND explicit exit signals (retirement language, broker listing, transition planning).
 
 Return -1 if insufficient evidence.
 
 ## Evaluation Steps
 
 1. Identify ownership from owner_names / first_name_only_contacts. Classify: "founder-owned", "family-owned", "partner-owned", "PE-backed", "corporate subsidiary", "franchise", or "unknown".
-2. Exclusion check — is_excluded=true if PE-backed, acquired, government, non-profit, or franchise location.
+2. Exclusion check — is_excluded=true if PE-backed, acquired, government, non-profit, franchise location, OR if intermediation signals indicate an active M&A process (already being marketed by a broker/advisor).
 3. Score business quality using extracted facts against the tiers above.
 4. Score exit readiness using the 5 sub-dimensions above.
-5. Write a 2-3 sentence brutally honest rationale. No softening.
+5. Intermediation screening: Based on the extracted intermediation_signals, determine if this business is already being actively marketed for sale or has engaged an M&A advisor/broker. Set is_intermediated=true if any strong signals exist.
+6. Owner contact matching: From the lead data (emails, phones, social profiles) and extracted facts (owner_names, team_member_names), identify which specific email, phone, and LinkedIn URL most likely belongs to the controlling owner. Rate your confidence as "confirmed" (name appears in email/profile), "likely" (strong contextual match), or "research_required" (no clear match).
+7. Write a 2-3 sentence brutally honest rationale. No softening.
 
 Respond with ONLY valid JSON:
 {
@@ -131,7 +135,13 @@ Respond with ONLY valid JSON:
   "ownership_type": "<type>",
   "is_excluded": <true/false>,
   "exclusion_reason": "<reason or null>",
-  "business_quality_score": <1-10 or -1>,
-  "exit_readiness_score": <1-10 or -1>,
-  "rationale": "<2-3 sentence summary>"
+  "business_quality_score": <0-1000 or -1>,
+  "exit_readiness_score": <0-1000 or -1>,
+  "rationale": "<2-3 sentence summary>",
+  "is_intermediated": <true/false>,
+  "intermediation_signals_summary": "<brief summary or null>",
+  "owner_email": "<email or null>",
+  "owner_phone": "<phone or null>",
+  "owner_linkedin": "<linkedin url or null>",
+  "contact_confidence": "<confirmed|likely|research_required or null>"
 }`;

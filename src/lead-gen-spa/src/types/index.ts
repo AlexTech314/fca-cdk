@@ -74,11 +74,14 @@ export interface Lead {
   scoringRationale: string | null;
   supportingEvidence: { url: string; snippet: string }[];
   scoredAt: string | null;
-  qualityPercentileByType: number | null;
-  qualityPercentileByCity: number | null;
-  exitPercentileByType: number | null;
-  exitPercentileByCity: number | null;
   compositeScore: number | null;
+  tier: number | null;
+  isIntermediated: boolean;
+  intermediationSignals: string | null;
+  ownerEmail: string | null;
+  ownerPhone: string | null;
+  ownerLinkedin: string | null;
+  contactConfidence: string | null;
   isExcluded: boolean;
   exclusionReason: string | null;
   source: 'google_places' | 'manual' | 'import' | null;
@@ -248,6 +251,7 @@ export type LeadListField =
   | 'businessQualityScore'
   | 'exitReadinessScore'
   | 'compositeScore'
+  | 'tier'
   | 'webScrapedAt'
   | 'createdAt';
 

@@ -307,15 +307,26 @@ export function LeadTable({
         ),
     },
     compositeScore: {
-      label: 'Composite',
+      label: 'Priority',
       sortColumn: 'compositeScore',
       headClassName: 'text-center',
       cellClassName: 'text-center',
       renderCell: (lead) => {
         if (lead.compositeScore == null) return <span className="text-muted-foreground text-sm">—</span>;
         const v = Math.round(lead.compositeScore);
-        const color = v >= 75 ? 'text-green-600 dark:text-green-400' : v >= 50 ? 'text-amber-600 dark:text-amber-400' : v >= 25 ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground';
+        const color = v >= 700 ? 'text-green-600 dark:text-green-400' : v >= 500 ? 'text-amber-600 dark:text-amber-400' : v >= 300 ? 'text-orange-600 dark:text-orange-400' : 'text-muted-foreground';
         return <span className={`font-mono font-semibold text-sm ${color}`}>{v}</span>;
+      },
+    },
+    tier: {
+      label: 'Tier',
+      sortColumn: 'tier',
+      headClassName: 'text-center',
+      cellClassName: 'text-center',
+      renderCell: (lead) => {
+        if (lead.tier == null) return <span className="text-muted-foreground text-sm">—</span>;
+        const color = lead.tier === 1 ? 'bg-green-600 text-white' : lead.tier === 2 ? 'bg-amber-500 text-white' : 'bg-gray-400 text-white';
+        return <span className={`inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-bold ${color}`}>{lead.tier}</span>;
       },
     },
     webScrapedAt: {

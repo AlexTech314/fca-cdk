@@ -92,7 +92,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
     const node20Slim = ecrNodeSlim(this.account, this.region);
-    const baseImage = `${this.account}.dkr.ecr.${this.region}.amazonaws.com/ghcr/puppeteer/puppeteer:24.0.0`;
 
     // ============================================================
     // Bridge Lambda (PG trigger -> SQS)
@@ -259,18 +258,15 @@ export class LeadGenPipelineStack extends cdk.Stack {
     this.startPlacesLambdaArn = startPlacesLambda.functionArn;
 
     // ============================================================
-    // Scrape Fargate Task (x86 - Puppeteer/Chromium)
+    // Scrape Fargate Task (x86 - CloakBrowser stealth Chromium)
     // ============================================================
     const scrapeImage = new TokenInjectableDockerBuilder(this, 'ScrapeImage', {
       path: path.join(__dirname, '../../src'),
       file: 'pipeline/scrape-task/Dockerfile',
       platform: 'linux/amd64',
       provider,
-      buildArgs: {
-        BASE_IMAGE: baseImage,
-        NODE_20_SLIM: node20Slim,
-      },
-      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
+      buildArgs: { NODE_20_SLIM: node20Slim },
+      ecrPullThroughCachePrefixes: ['docker-hub'],
       retainBuildLogs: true,
     });
 

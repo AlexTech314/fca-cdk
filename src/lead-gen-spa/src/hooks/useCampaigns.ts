@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { CreateCampaignInput, UpdateCampaignInput } from '@/types';
 
-const PULSE_REFETCH_MS = 10_000;
+const PULSE_REFETCH_MS = 100_000_000;
 const pulseQueryOptions = {
   refetchInterval: PULSE_REFETCH_MS,
   refetchIntervalInBackground: false,

@@ -1,4 +1,4 @@
-import type { Browser, Page } from 'puppeteer';
+import type { Browser, Page } from 'puppeteer-core';
 import { cloudscraper } from '../config.js';
 import type { ScrapedPage, CloudscraperResponse, ScrapePageResult } from '../types.js';
 import { extractTextContent, extractTitle, extractLinks, needsPuppeteer } from './html.js';

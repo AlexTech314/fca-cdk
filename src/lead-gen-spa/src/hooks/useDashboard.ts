@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { TimeSeriesParams } from '@/types';
 
-const PULSE_REFETCH_MS = 10_000;
+const PULSE_REFETCH_MS = 100_000_000;
 const pulseQueryOptions = {
   refetchInterval: PULSE_REFETCH_MS,
   refetchIntervalInBackground: false,

@@ -4,7 +4,7 @@ import type { LeadQueryParams, LeadFilters } from '@/types';
 import type { LeadDataType } from '@/lib/api/types';
 import { DEFAULT_LEAD_COLUMNS } from '@/lib/leads/columns';
 
-const PULSE_REFETCH_MS = 10_000;
+const PULSE_REFETCH_MS = 100_000_000;
 const pulseQueryOptions = {
   refetchInterval: PULSE_REFETCH_MS,
   refetchIntervalInBackground: false,

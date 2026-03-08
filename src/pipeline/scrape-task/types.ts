@@ -1,4 +1,4 @@
-import { Browser } from 'puppeteer';
+import type { Browser } from 'puppeteer-core';
 
 // ============ Filter and Job Types ============
 

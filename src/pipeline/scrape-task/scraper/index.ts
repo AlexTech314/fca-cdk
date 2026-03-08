@@ -1,4 +1,4 @@
-import type { Browser } from 'puppeteer';
+import type { Browser } from 'puppeteer-core';
 import type { ScrapedPage, ScrapeWebsiteResult } from '../types.js';
 import { scrapePage, PagePool, ScrapeError } from './page.js';
 import { isSameDomain, normalizeUrl, shouldSkipUrl, sortByPriority } from './url.js';

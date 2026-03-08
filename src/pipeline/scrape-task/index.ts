@@ -1,4 +1,4 @@
-import puppeteer, { Browser } from 'puppeteer';
+import puppeteer, { Browser } from 'puppeteer-core';
 import { randomUUID } from 'crypto';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { bootstrapDatabaseUrl } from '@fca/db';
@@ -169,8 +169,9 @@ async function main(): Promise<void> {
   
   async function ensureBrowser(): Promise<{ browser: Browser; pagePool: PagePool }> {
     if (browser && pagePool) return { browser, pagePool };
-    console.log('  [Puppeteer] Launching browser for SPA fallback...');
+    console.log('  [CloakBrowser] Launching stealth browser...');
     const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    const fingerprintSeed = Math.floor(Math.random() * 90000) + 10000;
     browser = await puppeteer.launch({
       headless: true,
       executablePath: executablePath || undefined,
@@ -178,11 +179,16 @@ async function main(): Promise<void> {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu',
+        // CloakBrowser stealth flags
+        '--disable-blink-features=AutomationControlled',
+        `--fingerprint=${fingerprintSeed}`,
+        '--fingerprint-platform=windows',
+        '--fingerprint-gpu-vendor=NVIDIA Corporation',
+        '--fingerprint-gpu-renderer=NVIDIA GeForce RTX 3070',
       ],
     });
     pagePool = new PagePool(browser, 3);
-    console.log('  [Puppeteer] Browser ready');
+    console.log(`  [CloakBrowser] Browser ready (fingerprint seed: ${fingerprintSeed})`);
     return { browser, pagePool };
   }
   

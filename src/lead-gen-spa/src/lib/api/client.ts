@@ -728,4 +728,11 @@ export const realApi: LeadGenApi = {
       body: JSON.stringify(data),
     });
   },
+
+  async exportLeads(filters: LeadFilters, columns: string[]): Promise<{ downloadUrl: string; leadCount: number; fileName: string }> {
+    return apiClient<{ downloadUrl: string; leadCount: number; fileName: string }>('/leads/export', {
+      method: 'POST',
+      body: JSON.stringify({ filters, columns }),
+    });
+  },
 };

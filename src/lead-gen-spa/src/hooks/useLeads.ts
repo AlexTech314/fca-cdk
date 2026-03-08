@@ -193,6 +193,13 @@ export function useUpdateLeadData() {
   });
 }
 
+export function useExportLeads() {
+  return useMutation({
+    mutationFn: ({ filters, columns }: { filters: LeadFilters; columns: string[] }) =>
+      api.exportLeads(filters, columns),
+  });
+}
+
 // Default query params
 export const defaultLeadQueryParams: LeadQueryParams = {
   page: 1,

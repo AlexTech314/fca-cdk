@@ -135,6 +135,23 @@ export const leadRepository = {
     });
   },
 
+  async findForExport(filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>) {
+    const where = buildWhereClause(filters);
+    return prisma.lead.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        locationCity: { select: { id: true, name: true } },
+        locationState: { select: { id: true, name: true } },
+        leadEmails: { select: { value: true } },
+        leadPhones: { select: { value: true } },
+        leadSocialProfiles: { select: { platform: true, url: true } },
+        franchise: { select: { id: true, name: true, displayName: true } },
+        campaign: { select: { id: true, name: true } },
+      },
+    });
+  },
+
   async getDistinctBusinessTypes() {
     const results = await prisma.lead.groupBy({
       by: ['businessType'],

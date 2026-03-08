@@ -329,4 +329,9 @@ export interface LeadGenApi {
    * Update an individual extracted data item
    */
   updateLeadData(type: LeadDataType, id: string, data: Record<string, unknown>): Promise<unknown>;
+
+  /**
+   * Export leads to CSV: generates file on server, returns presigned download URL
+   */
+  exportLeads(filters: LeadFilters, columns: string[]): Promise<{ downloadUrl: string; leadCount: number; fileName: string }>;
 }

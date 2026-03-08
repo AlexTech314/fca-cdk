@@ -1,9 +1,11 @@
 import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 import { prisma } from '@fca/db';
 import { leadRepository } from '../repositories/lead.repository';
 import { campaignRunRepository } from '../repositories/campaign.repository';
+import { generateCsv } from '../lib/csv';
+import { generatePresignedDownloadUrl, ASSETS_BUCKET_NAME } from '../lib/s3';
 import type { LeadQuery, LeadDataType } from '../models/lead.model';
 
 const SCORING_QUEUE_URL = process.env.SCORING_QUEUE_URL || '';
@@ -376,5 +378,30 @@ export const leadService = {
   ): Promise<number | null> {
     const result = await leadRepository.findNeighbor(sortIndex, direction, filters);
     return result?.sortIndex ?? null;
+  },
+
+  async exportLeads(
+    filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>,
+    columns: string[]
+  ): Promise<{ downloadUrl: string; leadCount: number; fileName: string }> {
+    const leads = await leadRepository.findForExport(filters);
+    const csv = generateCsv(leads, columns);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileName = `leads-export-${timestamp}.csv`;
+    const s3Key = `exports/${fileName}`;
+
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: ASSETS_BUCKET_NAME,
+        Key: s3Key,
+        Body: csv,
+        ContentType: 'text/csv',
+        ContentDisposition: `attachment; filename="${fileName}"`,
+      })
+    );
+
+    const downloadUrl = await generatePresignedDownloadUrl(s3Key);
+    return { downloadUrl, leadCount: leads.length, fileName };
   },
 };

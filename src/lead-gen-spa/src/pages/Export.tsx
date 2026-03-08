@@ -6,36 +6,111 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { LeadFilters } from '@/components/leads/LeadFilters';
-import { useLeadCount } from '@/hooks/useLeads';
+import { useLeadCount, useExportLeads } from '@/hooks/useLeads';
 import type { LeadFilters as LeadFiltersType } from '@/types';
-import { Download, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Loader2 } from 'lucide-react';
 import { cn, formatNumber } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 type Step = 'filters' | 'columns' | 'preview' | 'download';
 
-const availableColumns = [
-  { key: 'name', label: 'Business Name', default: true },
-  { key: 'address', label: 'Address', default: true },
-  { key: 'city', label: 'City', default: true },
-  { key: 'state', label: 'State', default: true },
-  { key: 'zipCode', label: 'Zip Code', default: true },
-  { key: 'phone', label: 'Phone', default: true },
-  { key: 'website', label: 'Website', default: true },
-  { key: 'rating', label: 'Rating', default: true },
-  { key: 'reviewCount', label: 'Review Count', default: false },
-  { key: 'businessType', label: 'Business Type', default: true },
-  { key: 'scoringRationale', label: 'Scoring Rationale', default: false },
-  { key: 'createdAt', label: 'Date Added', default: true },
+interface ColumnGroup {
+  label: string;
+  columns: { key: string; label: string; default: boolean }[];
+}
+
+const columnGroups: ColumnGroup[] = [
+  {
+    label: 'Core Info',
+    columns: [
+      { key: 'name', label: 'Business Name', default: true },
+      { key: 'address', label: 'Address', default: true },
+      { key: 'city', label: 'City', default: true },
+      { key: 'state', label: 'State', default: true },
+      { key: 'zipCode', label: 'Zip Code', default: true },
+      { key: 'phone', label: 'Phone', default: true },
+      { key: 'website', label: 'Website', default: true },
+      { key: 'googleMapsUri', label: 'Google Maps URL', default: false },
+    ],
+  },
+  {
+    label: 'Google Places',
+    columns: [
+      { key: 'rating', label: 'Rating', default: true },
+      { key: 'reviewCount', label: 'Review Count', default: false },
+      { key: 'priceLevel', label: 'Price Level', default: false },
+      { key: 'businessType', label: 'Business Type', default: true },
+      { key: 'businessStatus', label: 'Business Status', default: false },
+      { key: 'latitude', label: 'Latitude', default: false },
+      { key: 'longitude', label: 'Longitude', default: false },
+      { key: 'editorialSummary', label: 'Editorial Summary', default: false },
+      { key: 'reviewSummary', label: 'Review Summary', default: false },
+      { key: 'source', label: 'Source', default: false },
+    ],
+  },
+  {
+    label: 'AI Scoring',
+    columns: [
+      { key: 'compositeScore', label: 'Composite Score', default: false },
+      { key: 'businessQualityScore', label: 'Business Quality Score', default: false },
+      { key: 'exitReadinessScore', label: 'Exit Readiness Score', default: false },
+      { key: 'qualityPercentileByType', label: 'Quality Percentile (Type)', default: false },
+      { key: 'qualityPercentileByCity', label: 'Quality Percentile (City)', default: false },
+      { key: 'exitPercentileByType', label: 'Exit Percentile (Type)', default: false },
+      { key: 'exitPercentileByCity', label: 'Exit Percentile (City)', default: false },
+      { key: 'controllingOwner', label: 'Controlling Owner', default: false },
+      { key: 'ownershipType', label: 'Ownership Type', default: false },
+      { key: 'isExcluded', label: 'Is Excluded', default: false },
+      { key: 'exclusionReason', label: 'Exclusion Reason', default: false },
+      { key: 'scoringRationale', label: 'Scoring Rationale', default: false },
+      { key: 'scoredAt', label: 'Scored At', default: false },
+    ],
+  },
+  {
+    label: 'Scraping',
+    columns: [
+      { key: 'webScrapedAt', label: 'Web Scraped At', default: false },
+      { key: 'contactPageUrl', label: 'Contact Page URL', default: false },
+      { key: 'pipelineStatus', label: 'Pipeline Status', default: false },
+    ],
+  },
+  {
+    label: 'Extracted Data',
+    columns: [
+      { key: 'emails', label: 'Emails', default: false },
+      { key: 'phones', label: 'Phones', default: false },
+      { key: 'socialProfiles', label: 'Social Profiles', default: false },
+    ],
+  },
+  {
+    label: 'Relations',
+    columns: [
+      { key: 'campaignName', label: 'Campaign', default: false },
+      { key: 'franchiseName', label: 'Franchise', default: false },
+    ],
+  },
+  {
+    label: 'Metadata',
+    columns: [
+      { key: 'createdAt', label: 'Date Added', default: false },
+      { key: 'updatedAt', label: 'Last Updated', default: false },
+    ],
+  },
 ];
+
+const allColumns = columnGroups.flatMap((g) => g.columns);
 
 export default function Export() {
   const [step, setStep] = useState<Step>('filters');
   const [filters, setFilters] = useState<LeadFiltersType>({});
   const [selectedColumns, setSelectedColumns] = useState<string[]>(
-    availableColumns.filter(c => c.default).map(c => c.key)
+    allColumns.filter((c) => c.default).map((c) => c.key)
   );
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const { data: leadCount } = useLeadCount(filters);
+  const exportMutation = useExportLeads();
+  const { toast } = useToast();
 
   const steps: { key: Step; label: string }[] = [
     { key: 'filters', label: 'Select Filters' },
@@ -44,7 +119,7 @@ export default function Export() {
     { key: 'download', label: 'Download' },
   ];
 
-  const currentStepIndex = steps.findIndex(s => s.key === step);
+  const currentStepIndex = steps.findIndex((s) => s.key === step);
 
   const handleNext = () => {
     const nextIndex = currentStepIndex + 1;
@@ -61,25 +136,50 @@ export default function Export() {
   };
 
   const toggleColumn = (key: string) => {
-    setSelectedColumns(prev =>
-      prev.includes(key)
-        ? prev.filter(k => k !== key)
-        : [...prev, key]
+    setSelectedColumns((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
   };
 
+  const toggleGroup = (group: ColumnGroup) => {
+    const groupKeys = group.columns.map((c) => c.key);
+    const allSelected = groupKeys.every((k) => selectedColumns.includes(k));
+    if (allSelected) {
+      setSelectedColumns((prev) => prev.filter((k) => !groupKeys.includes(k)));
+    } else {
+      setSelectedColumns((prev) => [...new Set([...prev, ...groupKeys])]);
+    }
+  };
+
   const handleDownload = () => {
-    // Placeholder for download functionality
-    console.log('Downloading with filters:', filters);
-    console.log('Selected columns:', selectedColumns);
-    alert('Export functionality will be implemented when the backend is ready.');
+    setExportError(null);
+    exportMutation.mutate(
+      { filters, columns: selectedColumns },
+      {
+        onSuccess: (data) => {
+          // Trigger browser download via anchor click
+          const a = document.createElement('a');
+          a.href = data.downloadUrl;
+          a.download = data.fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          toast({
+            title: 'Export complete',
+            description: `Downloaded ${formatNumber(data.leadCount)} leads`,
+          });
+        },
+        onError: (error) => {
+          const msg = error instanceof Error ? error.message : 'Export failed';
+          setExportError(msg);
+          toast({ title: 'Export failed', description: msg, variant: 'destructive' });
+        },
+      }
+    );
   };
 
   return (
-    <PageContainer 
-      title="Export Leads"
-      description="Export leads to CSV file"
-    >
+    <PageContainer title="Export Leads" description="Export leads to CSV file">
       {/* Step Indicator */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -92,8 +192,8 @@ export default function Export() {
                     index < currentStepIndex
                       ? 'bg-primary text-primary-foreground'
                       : index === currentStepIndex
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
                   )}
                 >
                   {index < currentStepIndex ? (
@@ -148,29 +248,53 @@ export default function Export() {
           )}
 
           {step === 'columns' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <p className="text-muted-foreground">
                 Select which columns to include in your export.
               </p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {availableColumns.map((column) => (
-                  <div key={column.key} className="flex items-center gap-2">
-                    <Checkbox
-                      id={column.key}
-                      checked={selectedColumns.includes(column.key)}
-                      onCheckedChange={() => toggleColumn(column.key)}
-                    />
-                    <Label htmlFor={column.key} className="cursor-pointer">
-                      {column.label}
-                    </Label>
+              {columnGroups.map((group) => {
+                const groupKeys = group.columns.map((c) => c.key);
+                const selectedInGroup = groupKeys.filter((k) => selectedColumns.includes(k)).length;
+                return (
+                  <div key={group.label}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Checkbox
+                        id={`group-${group.label}`}
+                        checked={selectedInGroup === groupKeys.length}
+                        onCheckedChange={() => toggleGroup(group)}
+                      />
+                      <Label
+                        htmlFor={`group-${group.label}`}
+                        className="cursor-pointer font-medium text-sm"
+                      >
+                        {group.label}
+                        <span className="text-muted-foreground font-normal ml-2">
+                          ({selectedInGroup}/{groupKeys.length})
+                        </span>
+                      </Label>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 ml-6">
+                      {group.columns.map((column) => (
+                        <div key={column.key} className="flex items-center gap-2">
+                          <Checkbox
+                            id={column.key}
+                            checked={selectedColumns.includes(column.key)}
+                            onCheckedChange={() => toggleColumn(column.key)}
+                          />
+                          <Label htmlFor={column.key} className="cursor-pointer text-sm">
+                            {column.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
               <div className="mt-4 flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSelectedColumns(availableColumns.map(c => c.key))}
+                  onClick={() => setSelectedColumns(allColumns.map((c) => c.key))}
                 >
                   Select All
                 </Button>
@@ -190,7 +314,7 @@ export default function Export() {
               <p className="text-muted-foreground">
                 Review your export settings before downloading.
               </p>
-              
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="p-4 bg-muted rounded-lg">
                   <h4 className="font-medium mb-2">Leads to Export</h4>
@@ -209,8 +333,8 @@ export default function Export() {
               <div>
                 <h4 className="font-medium mb-2">Selected Columns</h4>
                 <div className="flex flex-wrap gap-2">
-                  {selectedColumns.map(key => {
-                    const column = availableColumns.find(c => c.key === key);
+                  {selectedColumns.map((key) => {
+                    const column = allColumns.find((c) => c.key === key);
                     return (
                       <Badge key={key} variant="secondary">
                         {column?.label || key}
@@ -229,11 +353,24 @@ export default function Export() {
               </div>
               <h3 className="text-xl font-semibold mb-2">Ready to Download</h3>
               <p className="text-muted-foreground mb-6">
-                Your export file is ready. Click the button below to download.
+                Your export file will be generated and downloaded automatically.
               </p>
-              <Button size="lg" onClick={handleDownload}>
-                <Download className="mr-2 h-4 w-4" />
-                Download CSV ({formatNumber(leadCount || 0)} leads)
+              {exportError && (
+                <p className="text-destructive text-sm mb-4">{exportError}</p>
+              )}
+              <Button
+                size="lg"
+                onClick={handleDownload}
+                disabled={exportMutation.isPending || selectedColumns.length === 0}
+              >
+                {exportMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                {exportMutation.isPending
+                  ? 'Generating...'
+                  : `Download CSV (${formatNumber(leadCount || 0)} leads)`}
               </Button>
             </div>
           )}
@@ -251,7 +388,10 @@ export default function Export() {
           Back
         </Button>
         {step !== 'download' && (
-          <Button onClick={handleNext}>
+          <Button
+            onClick={handleNext}
+            disabled={step === 'columns' && selectedColumns.length === 0}
+          >
             Next
             <ChevronRight className="ml-2 h-4 w-4" />
           </Button>

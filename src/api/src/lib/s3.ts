@@ -1,4 +1,4 @@
-import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -65,6 +65,21 @@ export async function generatePresignedUploadUrl(
   const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn });
 
   return { uploadUrl, s3Key, expiresIn };
+}
+
+/**
+ * Generate a presigned GET URL for downloading a file from S3.
+ */
+export async function generatePresignedDownloadUrl(
+  s3Key: string,
+  expiresIn = 3600 // 1 hour
+): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: ASSETS_BUCKET_NAME,
+    Key: s3Key,
+  });
+
+  return getSignedUrl(s3Client, command, { expiresIn });
 }
 
 /**

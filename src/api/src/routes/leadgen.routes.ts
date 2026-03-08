@@ -7,6 +7,7 @@ import { franchiseService } from '../services/franchise.service';
 import { taskService } from '../services/task.service';
 import { userService } from '../services/user.service';
 import { locationService } from '../services/location.service';
+import { z } from 'zod';
 import {
   leadQuerySchema,
   leadFiltersSchema,
@@ -18,6 +19,7 @@ import {
   leadDataUpdateSchemas,
 } from '../models';
 import type { LeadDataType } from '../models';
+import { exportColumnKeys } from '../lib/csv';
 
 const router = Router();
 
@@ -541,10 +543,21 @@ router.post('/leads/scrape-bulk', authorize('readwrite', 'admin'), async (req, r
   }
 });
 
-router.post('/leads/export', authorize('readwrite', 'admin'), async (_req, res, next) => {
+const exportBodySchema = z.object({
+  filters: leadFiltersSchema.default({}),
+  columns: z.array(z.enum(exportColumnKeys as [string, ...string[]])).min(1, 'At least one column is required'),
+});
+
+router.post('/leads/export', authorize('readwrite', 'admin'), async (req, res, next) => {
   try {
-    // TODO: Generate CSV export, upload to S3, return presigned download URL
-    res.json({ message: 'Export started', downloadUrl: null });
+    const parsed = exportBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid export request', details: parsed.error.flatten() });
+      return;
+    }
+    const { filters, columns } = parsed.data;
+    const result = await leadService.exportLeads(filters, columns);
+    res.json(result);
   } catch (error) {
     next(error);
   }

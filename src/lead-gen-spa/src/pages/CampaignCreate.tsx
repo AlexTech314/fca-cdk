@@ -4,19 +4,22 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Header } from '@/components/layout/Header';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { QueryEditor } from '@/components/campaigns/QueryEditor';
+import { GenerateQueriesModal } from '@/components/campaigns/GenerateQueriesModal';
 import { useCampaign, useCreateCampaign, useUpdateCampaign } from '@/hooks/useCampaigns';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Wand2 } from 'lucide-react';
+import { formatNumber } from '@/lib/utils';
 
 const campaignSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
-  queries: z.string().min(1, 'At least one query is required'),
+  queries: z.array(z.string()).min(1, 'At least one query is required'),
   maxResultsPerSearch: z.number().int().min(1).max(60).optional(),
   maxTotalRequests: z.number().int().min(1).optional(),
   enableWebScraping: z.boolean().optional(),
@@ -29,6 +32,7 @@ export default function CampaignCreate() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditing = !!id;
+  const [generateOpen, setGenerateOpen] = useState(false);
 
   const { data: campaign, isLoading } = useCampaign(id || '');
   const createMutation = useCreateCampaign();
@@ -45,7 +49,7 @@ export default function CampaignCreate() {
     defaultValues: {
       name: '',
       description: '',
-      queries: '',
+      queries: [],
       maxResultsPerSearch: 60,
       maxTotalRequests: 500,
       enableWebScraping: true,
@@ -58,7 +62,7 @@ export default function CampaignCreate() {
     if (campaign && isEditing) {
       setValue('name', campaign.name);
       setValue('description', campaign.description || '');
-      setValue('queries', campaign.queries.join('\n'));
+      setValue('queries', campaign.queries);
       setValue('maxResultsPerSearch', campaign.maxResultsPerSearch ?? 60);
       setValue('maxTotalRequests', campaign.maxTotalRequests ?? 500);
       setValue('enableWebScraping', campaign.enableWebScraping ?? true);
@@ -66,19 +70,16 @@ export default function CampaignCreate() {
     }
   }, [campaign, isEditing, setValue]);
 
-  const onSubmit = async (data: CampaignFormData) => {
-    const queries = data.queries
-      .split('\n')
-      .map(q => q.trim())
-      .filter(q => q.length > 0);
+  const queries = watch('queries');
 
+  const onSubmit = async (data: CampaignFormData) => {
     if (isEditing && id) {
       await updateMutation.mutateAsync({
         id,
         data: {
           name: data.name,
           description: data.description,
-          queries,
+          queries: data.queries,
           maxResultsPerSearch: data.maxResultsPerSearch && !Number.isNaN(data.maxResultsPerSearch) ? data.maxResultsPerSearch : undefined,
           maxTotalRequests: data.maxTotalRequests && !Number.isNaN(data.maxTotalRequests) ? data.maxTotalRequests : undefined,
           enableWebScraping: data.enableWebScraping,
@@ -90,7 +91,7 @@ export default function CampaignCreate() {
       const campaign = await createMutation.mutateAsync({
         name: data.name,
         description: data.description,
-        queries,
+        queries: data.queries,
         maxResultsPerSearch: data.maxResultsPerSearch && !Number.isNaN(data.maxResultsPerSearch) ? data.maxResultsPerSearch : undefined,
         maxTotalRequests: data.maxTotalRequests && !Number.isNaN(data.maxTotalRequests) ? data.maxTotalRequests : undefined,
         enableWebScraping: data.enableWebScraping,
@@ -100,10 +101,10 @@ export default function CampaignCreate() {
     }
   };
 
-  const queriesValue = watch('queries');
-  const queryCount = queriesValue
-    .split('\n')
-    .filter(q => q.trim().length > 0).length;
+  const handleGenerateQueries = (generated: string[]) => {
+    const current = watch('queries');
+    setValue('queries', [...current, ...generated], { shouldValidate: true });
+  };
 
   if (isEditing && isLoading) {
     return (
@@ -118,20 +119,23 @@ export default function CampaignCreate() {
 
   return (
     <>
-      <Header 
+      <Header
         breadcrumbs={[
           { label: 'Campaigns', href: '/campaigns' },
           { label: isEditing ? 'Edit Campaign' : 'New Campaign' },
         ]}
       />
-      <PageContainer 
+      <PageContainer
         title={isEditing ? 'Edit Campaign' : 'Create Campaign'}
         description={isEditing ? 'Update campaign details and queries' : 'Set up a new lead generation campaign'}
       >
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Card 1: Campaign Info */}
           <Card>
-            <CardContent className="pt-6 space-y-6">
-              {/* Name */}
+            <CardHeader>
+              <CardTitle className="text-base">Campaign Info</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Campaign Name</Label>
                 <Input
@@ -143,8 +147,6 @@ export default function CampaignCreate() {
                   <p className="text-sm text-destructive">{errors.name.message}</p>
                 )}
               </div>
-
-              {/* Description */}
               <div className="space-y-2">
                 <Label htmlFor="description">Description (optional)</Label>
                 <Input
@@ -153,8 +155,49 @@ export default function CampaignCreate() {
                   {...register('description')}
                 />
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Request Limits */}
+          {/* Card 2: Search Queries */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">
+                  Search Queries
+                  {queries.length > 0 && (
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      ({formatNumber(queries.length)})
+                    </span>
+                  )}
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setGenerateOpen(true)}
+                >
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Generate Queries
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <QueryEditor
+                queries={queries}
+                onChange={(q) => setValue('queries', q, { shouldValidate: true })}
+              />
+              {errors.queries && (
+                <p className="text-sm text-destructive mt-2">{errors.queries.message}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Card 3: Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="maxResultsPerSearch">Max Results Per Query (1-60)</Label>
@@ -177,8 +220,6 @@ export default function CampaignCreate() {
                   />
                 </div>
               </div>
-
-              {/* Pipeline Toggles */}
               <div className="flex flex-col gap-4 rounded-lg border p-4">
                 <Label>Pipeline Options</Label>
                 <div className="flex items-center space-x-2">
@@ -202,44 +243,37 @@ export default function CampaignCreate() {
                   </Label>
                 </div>
               </div>
-
-              {/* Queries */}
-              <div className="space-y-2">
-                <Label>Search Queries</Label>
-                <QueryEditor
-                  value={queriesValue}
-                  onChange={(value) => setValue('queries', value)}
-                  queryCount={queryCount}
-                />
-                {errors.queries && (
-                  <p className="text-sm text-destructive">{errors.queries.message}</p>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate('/campaigns')}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending}
-                >
-                  {createMutation.isPending || updateMutation.isPending
-                    ? 'Saving...'
-                    : isEditing
-                    ? 'Update Campaign'
-                    : 'Create Campaign'}
-                </Button>
-              </div>
             </CardContent>
           </Card>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate('/campaigns')}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              {createMutation.isPending || updateMutation.isPending
+                ? 'Saving...'
+                : isEditing
+                ? 'Update Campaign'
+                : 'Create Campaign'}
+            </Button>
+          </div>
         </form>
       </PageContainer>
+
+      <GenerateQueriesModal
+        open={generateOpen}
+        onOpenChange={setGenerateOpen}
+        onGenerate={handleGenerateQueries}
+      />
     </>
   );
 }

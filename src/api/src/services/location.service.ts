@@ -29,7 +29,7 @@ export const locationService = {
     return locationRepository.getAllStates();
   },
 
-  async getCitiesByState(stateId: string) {
-    return locationRepository.getCitiesByState(stateId);
+  async getCitiesByState(stateId: string, limit?: number) {
+    return locationRepository.getCitiesByState(stateId, limit);
   },
 };

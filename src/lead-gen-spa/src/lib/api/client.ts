@@ -271,6 +271,11 @@ export const realApi: LeadGenApi = {
     return states.map((s) => ({ id: s.id, name: s.name }));
   },
 
+  async getCitiesByState(stateId: string, limit?: number): Promise<Array<{ id: number; name: string; stateId: string }>> {
+    const qs = limit ? `?limit=${limit}` : '';
+    return apiClient<Array<{ id: number; name: string; stateId: string }>>(`/locations/states/${stateId}/cities${qs}`);
+  },
+
   async getBusinessTypes(): Promise<string[]> {
     return apiClient<string[]>('/leads/business-types');
   },

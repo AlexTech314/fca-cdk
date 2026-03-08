@@ -68,6 +68,11 @@ export interface LeadGenApi {
    */
   getLocationsStates(): Promise<Array<{ id: string; name: string }>>;
 
+  /**
+   * Get cities for a state, ordered by population
+   */
+  getCitiesByState(stateId: string, limit?: number): Promise<Array<{ id: number; name: string; stateId: string }>>;
+
   // ===========================================
   // Leads
   // ===========================================

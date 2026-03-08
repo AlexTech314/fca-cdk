@@ -424,7 +424,7 @@ export function LeadTable({
                       {rowContent}
                     </ContextMenuTrigger>
                     <ContextMenuContent>
-                      {onInsertRowAbove && lead.sortIndex != null && (
+                      {onInsertRowAbove && lead.sortIndex != null && index > 0 && (
                         <ContextMenuItem
                           onClick={() => onInsertRowAbove(lead.sortIndex!, prevLead?.sortIndex ?? null)}
                         >
@@ -432,7 +432,7 @@ export function LeadTable({
                           Insert Row Above
                         </ContextMenuItem>
                       )}
-                      {onInsertRowBelow && lead.sortIndex != null && (
+                      {onInsertRowBelow && lead.sortIndex != null && index < data.length - 1 && (
                         <ContextMenuItem
                           onClick={() => onInsertRowBelow(lead.sortIndex!, nextLead?.sortIndex ?? null)}
                         >
@@ -440,7 +440,9 @@ export function LeadTable({
                           Insert Row Below
                         </ContextMenuItem>
                       )}
-                      {onDeleteLead && (onInsertRowAbove || onInsertRowBelow) && lead.sortIndex != null && (
+                      {onDeleteLead && lead.sortIndex != null && (
+                        (onInsertRowAbove && index > 0) || (onInsertRowBelow && index < data.length - 1)
+                      ) && (
                         <ContextMenuSeparator />
                       )}
                       {onDeleteLead && (

@@ -108,7 +108,8 @@ router.get('/locations/search', async (req, res, next) => {
 
 router.get('/locations/states/:stateId/cities', async (req, res, next) => {
   try {
-    const cities = await locationService.getCitiesByState(req.params.stateId.toUpperCase());
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const cities = await locationService.getCitiesByState(req.params.stateId.toUpperCase(), limit);
     res.json(cities);
   } catch (error) {
     next(error);

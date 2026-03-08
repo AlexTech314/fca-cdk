@@ -37,11 +37,23 @@ export function RunCampaignDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="rounded-lg bg-muted p-4">
+          <div className="rounded-lg bg-muted p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Queries to execute</span>
               <Badge variant="secondary" className="font-mono">
-                {campaign.queries.length}
+                {campaign.queries.length.toLocaleString()}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Max results per query</span>
+              <Badge variant="secondary" className="font-mono">
+                {campaign.maxResultsPerSearch ?? 60}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Request budget</span>
+              <Badge variant="secondary" className="font-mono">
+                {campaign.maxTotalRequests ? campaign.maxTotalRequests.toLocaleString() : 'Unlimited'}
               </Badge>
             </div>
           </div>
@@ -51,8 +63,9 @@ export function RunCampaignDialog({
             <div className="text-sm">
               <p className="font-medium text-warning">Usage Note</p>
               <p className="text-muted-foreground mt-1">
-                Running this campaign will search Google Maps for each query and may
-                incur API costs. This action cannot be undone.
+                {campaign.maxTotalRequests
+                  ? `This run will execute up to ${campaign.maxTotalRequests.toLocaleString()} API requests across ${campaign.queries.length.toLocaleString()} queries. This action cannot be undone.`
+                  : `No request budget is set. Each query will paginate until an empty page is returned or the per-query limit of ${campaign.maxResultsPerSearch ?? 60} results is reached. This action cannot be undone.`}
               </p>
             </div>
           </div>

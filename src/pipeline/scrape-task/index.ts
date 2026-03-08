@@ -226,9 +226,15 @@ async function main(): Promise<void> {
         
         let { pages, method } = scrapeResult;
         
-        // Pass 2: if root page looks like a JS SPA, retry with Playwright
-        if (pages.length > 0 && needsPlaywright(pages[0].html)) {
-          console.log(`  [SPA detected] Re-scraping ${business.website_uri} with Playwright`);
+        // Pass 2: fall back to Playwright when cloudscraper failed entirely
+        // or returned a JS SPA / Cloudflare challenge page
+        const needsBrowser =
+          pages.length === 0 ||
+          (pages.length > 0 && needsPlaywright(pages[0].html));
+
+        if (needsBrowser) {
+          const reason = pages.length === 0 ? 'cloudscraper failed' : 'SPA detected';
+          console.log(`  [${reason}] Re-scraping ${business.website_uri} with Playwright`);
           playwrightRetries++;
           try {
             const bp = await ensureBrowser();

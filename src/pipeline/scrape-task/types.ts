@@ -1,5 +1,3 @@
-import type { Browser } from 'puppeteer-core';
-
 // ============ Filter and Job Types ============
 
 export interface FilterRule {
@@ -19,7 +17,7 @@ export interface JobInput {
   forceRescrape?: boolean;
   placeIds?: string[];
   // Speed optimization options
-  fastMode?: boolean; // Skip Puppeteer fallback entirely for max speed
+  fastMode?: boolean; // Skip Playwright fallback entirely for max speed
   // Distributed Map batch reference (items stored in S3 to avoid container override size limits)
   batchS3Key?: string; // S3 key to read placeIds from
   batchIndex?: number; // Batch number for logging
@@ -84,12 +82,12 @@ export interface CloudscraperResponse {
 
 export interface ScrapePageResult {
   page: ScrapedPage;
-  method: 'cloudscraper' | 'puppeteer';
+  method: 'cloudscraper' | 'playwright';
 }
 
 export interface ScrapeWebsiteResult {
   pages: ScrapedPage[];
-  method: 'cloudscraper' | 'puppeteer';
+  method: 'cloudscraper' | 'playwright';
   cloudscraperCount: number;
-  puppeteerCount: number;
+  playwrightCount: number;
 }

@@ -38,7 +38,7 @@ export async function updateLeadWithScrapeData(
   prisma: PrismaClient,
   leadId: string,
   websiteUrl: string,
-  scrapeMethod: 'cloudscraper' | 'puppeteer',
+  scrapeMethod: 'cloudscraper' | 'playwright',
   pagesCount: number,
   durationMs: number,
   extracted: ExtractedData,

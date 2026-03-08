@@ -33,15 +33,15 @@ export const TASK_CPU_UNITS = parseInt(process.env.TASK_CPU_UNITS || '1024', 10)
  * Calculate optimal concurrency based on task resources.
  * 
  * Memory considerations:
- * - Puppeteer/Chromium: ~300MB per browser page
- * - Cloudscraper (no Puppeteer): ~50MB per concurrent request
+ * - Playwright/Chromium: ~300MB per browser page
+ * - Cloudscraper (no browser): ~50MB per concurrent request
  * - Base overhead: ~500MB for Node.js + browser process
- * 
+ *
  * CPU considerations:
- * - Puppeteer is CPU-intensive during page load
+ * - Playwright is CPU-intensive during page load
  * - Cloudscraper is mostly I/O bound
- * 
- * @param fastMode If true, Puppeteer is disabled so we can be more aggressive
+ *
+ * @param fastMode If true, Playwright is disabled so we can be more aggressive
  */
 export function calculateOptimalConcurrency(fastMode: boolean): number {
   const baseOverheadMB = 500;
@@ -55,7 +55,7 @@ export function calculateOptimalConcurrency(fastMode: boolean): number {
     const cpuBasedConcurrency = Math.floor((TASK_CPU_UNITS / 1024) * 30);
     return Math.min(memoryBasedConcurrency, cpuBasedConcurrency, 50); // Cap at 50
   } else {
-    // Puppeteer mode: ~300MB per page, CPU intensive
+    // Playwright mode: ~300MB per page, CPU intensive
     const memoryBasedConcurrency = Math.floor(availableMemoryMB / 300);
     // Limit by CPU: ~3-5 browser pages per vCPU
     const cpuBasedConcurrency = Math.floor((TASK_CPU_UNITS / 1024) * 4);

@@ -1,7 +1,7 @@
-import type { Browser, Page } from 'puppeteer-core';
+import type { Browser, Page } from 'playwright-core';
 import { cloudscraper } from '../config.js';
 import type { ScrapedPage, CloudscraperResponse, ScrapePageResult } from '../types.js';
-import { extractTextContent, extractTitle, extractLinks, needsPuppeteer } from './html.js';
+import { extractTextContent, extractTitle, extractLinks, needsPlaywright } from './html.js';
 
 // ============ Error Classification ============
 
@@ -46,10 +46,9 @@ export function isRetriableError(error: ScrapeError): boolean {
 }
 
 /**
- * Check if error means we should skip Puppeteer fallback
+ * Check if error means we should skip Playwright fallback
  */
-export function shouldSkipPuppeteer(error: ScrapeError): boolean {
-  // Don't waste time with Puppeteer if domain doesn't exist
+export function shouldSkipPlaywright(error: ScrapeError): boolean {
   return error.type === 'dns';
 }
 
@@ -149,7 +148,7 @@ export async function fetchWithRetry(
 // ============ Page Pool ============
 
 /**
- * Simple page pool for Puppeteer page reuse
+ * Simple page pool for Playwright page reuse
  */
 export class PagePool {
   private available: Page[] = [];
@@ -166,12 +165,10 @@ export class PagePool {
     if (this.available.length > 0) {
       return this.available.pop()!;
     }
-    
+
     if (this.created < this.maxPages) {
       this.created++;
       const page = await this.browser.newPage();
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      await page.setViewport({ width: 1920, height: 1080 });
       return page;
     }
     
@@ -202,8 +199,88 @@ export interface ScrapePageOptions {
   pagePool?: PagePool | null;
 }
 
+/** Random delay with jitter to mimic human timing */
+function humanDelay(minMs: number, maxMs: number): Promise<void> {
+  const ms = Math.floor(Math.random() * (maxMs - minMs)) + minMs;
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/** Pick a random element from an array */
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/** Random int in [min, max] */
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 /**
- * Scrape a single page using cloudscraper with Puppeteer fallback
+ * Simulate human-like interactions on a page to look organic.
+ * Randomly combines several behaviors so no two page loads
+ * produce the same interaction pattern.
+ */
+async function humanize(page: Page): Promise<void> {
+  try {
+    // 1. Initial "settling" pause — humans don't act instantly
+    await humanDelay(400, 1200);
+
+    // 2. Mouse wander — 2-4 random movements across the viewport
+    const moves = randInt(2, 4);
+    for (let i = 0; i < moves; i++) {
+      const x = randInt(80, 1200);
+      const y = randInt(60, 700);
+      await page.mouse.move(x, y, { steps: randInt(4, 12) });
+      await humanDelay(80, 300);
+    }
+
+    // 3. Scroll behaviour — pick one pattern at random
+    const scrollStyle = pick(['smooth-down', 'down-up', 'multi-step']);
+    switch (scrollStyle) {
+      case 'smooth-down': {
+        const dy = randInt(200, 600);
+        await page.evaluate(`window.scrollBy({top:${dy},behavior:'smooth'})`);
+        await humanDelay(600, 1400);
+        break;
+      }
+      case 'down-up': {
+        const dy = randInt(300, 800);
+        await page.evaluate(`window.scrollBy({top:${dy},behavior:'smooth'})`);
+        await humanDelay(500, 1000);
+        const up = randInt(50, Math.min(dy, 200));
+        await page.evaluate(`window.scrollBy({top:${-up},behavior:'smooth'})`);
+        await humanDelay(300, 700);
+        break;
+      }
+      case 'multi-step': {
+        const steps = randInt(2, 4);
+        for (let i = 0; i < steps; i++) {
+          const dy = randInt(80, 250);
+          await page.evaluate(`window.scrollBy({top:${dy},behavior:'smooth'})`);
+          await humanDelay(200, 600);
+        }
+        break;
+      }
+    }
+
+    // 4. Occasionally hover over a random link (30 % chance)
+    if (Math.random() < 0.3) {
+      const link = await page.$('a[href]');
+      if (link) {
+        await link.hover();
+        await humanDelay(150, 500);
+      }
+    }
+
+    // 5. Final idle pause — reading time
+    await humanDelay(200, 800);
+  } catch {
+    // non-critical — ignore interaction failures
+  }
+}
+
+/**
+ * Scrape a single page using cloudscraper with Playwright fallback
  * Returns result plus error info for tracking
  */
 export async function scrapePage(
@@ -215,7 +292,7 @@ export async function scrapePage(
   try {
     let html: string;
     let statusCode: number;
-    let usedPuppeteer = false;
+    let usedPlaywright = false;
     let scrapeError: ScrapeError | undefined;
     
     // First, try cloudscraper with retry
@@ -225,27 +302,23 @@ export async function scrapePage(
       scrapeError = fetchResult.error;
       const errorLabel = `${scrapeError.type}${scrapeError.code ? `:${scrapeError.code}` : ''}`;
       
-      // Check if we should skip Puppeteer entirely
-      if (shouldSkipPuppeteer(scrapeError)) {
+      // Check if we should skip Playwright entirely
+      if (shouldSkipPlaywright(scrapeError)) {
         console.log(`  [${errorLabel}] ${url} - skipping (unrecoverable)`);
         return { result: null, error: scrapeError };
       }
       
-      // Try Puppeteer fallback
+      // Try Playwright fallback
       if (browser || pagePool) {
-        console.log(`  [${errorLabel}] ${url} - trying Puppeteer`);
-        
+        console.log(`  [${errorLabel}] ${url} - trying Playwright`);
+
         let page: Page | null = null;
         try {
           page = pagePool ? await pagePool.acquire() : await browser!.newPage();
-          
-          if (!pagePool) {
-            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-            await page.setViewport({ width: 1920, height: 1080 });
-          }
-          
-          await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-          
+
+          await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+          await humanize(page);
+
           // Wait for Cloudflare challenge to resolve
           let attempts = 0;
           const maxAttempts = 10;
@@ -258,25 +331,25 @@ export async function scrapePage(
             await new Promise(resolve => setTimeout(resolve, 3000));
             attempts++;
           }
-          
+
           html = await page.content();
           statusCode = 200;
-          usedPuppeteer = true;
-          
+          usedPlaywright = true;
+
           if (pagePool) {
             pagePool.release(page);
           } else {
             await page.close();
           }
           page = null;
-          
+
           // Check if still on Cloudflare challenge
           if (isCloudflareChallenge(html)) {
             console.log(`  [Cloudflare] Challenge not resolved for ${url}`);
             return { result: null, error: { type: 'cloudflare', message: 'Challenge not resolved' } };
           }
-        } catch (puppeteerError) {
-          console.log(`  [Puppeteer error] ${url}: ${puppeteerError}`);
+        } catch (playwrightError) {
+          console.log(`  [Playwright error] ${url}: ${playwrightError}`);
           if (page) {
             if (pagePool) {
               pagePool.release(page);
@@ -301,19 +374,15 @@ export async function scrapePage(
       
       // Check if we got a Cloudflare challenge page despite 200 status
       if (needsCloudflareBypass(statusCode, html) && (browser || pagePool)) {
-        console.log(`  [Cloudflare in body] ${url} - using Puppeteer`);
-        
+        console.log(`  [Cloudflare in body] ${url} - using Playwright`);
+
         let page: Page | null = null;
         try {
           page = pagePool ? await pagePool.acquire() : await browser!.newPage();
-          
-          if (!pagePool) {
-            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-            await page.setViewport({ width: 1920, height: 1080 });
-          }
-          
-          await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-          
+
+          await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+          await humanize(page);
+
           let attempts = 0;
           while (attempts < 10) {
             const pageContent = await page.content();
@@ -321,9 +390,9 @@ export async function scrapePage(
             await new Promise(resolve => setTimeout(resolve, 3000));
             attempts++;
           }
-          
+
           html = await page.content();
-          usedPuppeteer = true;
+          usedPlaywright = true;
           
           if (pagePool) {
             pagePool.release(page);
@@ -344,21 +413,18 @@ export async function scrapePage(
       }
     }
     
-    // Check if we need Puppeteer for JavaScript rendering
-    if (!usedPuppeteer && (browser || pagePool) && needsPuppeteer(html)) {
-      console.log(`  [JS] ${url} - needs Puppeteer for rendering`);
-      
+    // Check if we need Playwright for JavaScript rendering
+    if (!usedPlaywright && (browser || pagePool) && needsPlaywright(html)) {
+      console.log(`  [JS] ${url} - needs Playwright for rendering`);
+
       let page: Page | null = null;
       try {
         page = pagePool ? await pagePool.acquire() : await browser!.newPage();
-        
-        if (!pagePool) {
-          await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-        }
-        
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+        await humanize(page);
         html = await page.content();
-        usedPuppeteer = true;
+        usedPlaywright = true;
         
         if (pagePool) {
           pagePool.release(page);
@@ -366,7 +432,7 @@ export async function scrapePage(
           await page.close();
         }
       } catch (error) {
-        console.log(`  [Puppeteer error] ${url}: ${error}`);
+        console.log(`  [Playwright error] ${url}: ${error}`);
         if (page) {
           if (pagePool) {
             pagePool.release(page);
@@ -382,7 +448,7 @@ export async function scrapePage(
     const title = extractTitle(html);
     const links = extractLinks(html, url);
     
-    const method = usedPuppeteer ? 'puppeteer' : 'cloudscraper';
+    const method = usedPlaywright ? 'playwright' : 'cloudscraper';
     console.log(`  [${method}] ${url} - ${textContent.length} chars, ${links.length} links`);
     
     return {

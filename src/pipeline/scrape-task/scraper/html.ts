@@ -57,10 +57,10 @@ export function extractLinks(html: string, baseUrl: string): string[] {
 }
 
 /**
- * Check if HTML needs Puppeteer for JavaScript rendering
+ * Check if HTML needs Playwright for JavaScript rendering
  * Returns true if the page appears to be a JavaScript SPA with minimal content
  */
-export function needsPuppeteer(html: string): boolean {
+export function needsPlaywright(html: string): boolean {
   const textContent = extractTextContent(html);
   
   // Check if body is too short

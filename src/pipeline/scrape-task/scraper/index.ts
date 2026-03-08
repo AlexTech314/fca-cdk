@@ -1,10 +1,10 @@
-import type { Browser } from 'puppeteer-core';
+import type { Browser } from 'playwright-core';
 import type { ScrapedPage, ScrapeWebsiteResult } from '../types.js';
 import { scrapePage, PagePool, ScrapeError } from './page.js';
 import { isSameDomain, normalizeUrl, shouldSkipUrl, sortByPriority } from './url.js';
 
 // Re-export submodules
-export { extractTextContent, extractTitle, extractLinks, needsPuppeteer } from './html.js';
+export { extractTextContent, extractTitle, extractLinks, needsPlaywright } from './html.js';
 export { isSameDomain, normalizeUrl, shouldSkipUrl, sortByPriority, SKIP_PATTERNS, PRIORITY_PATHS } from './url.js';
 export { fetchWithCloudscraper, scrapePage, PagePool, classifyError, isRetriableError } from './page.js';
 export type { ScrapeError } from './page.js';
@@ -260,7 +260,7 @@ export async function scrapeWebsite(
   const pages: ScrapedPage[] = [];
   const urlToDepth = new Map<string, number>();
   let cloudscraperCount = 0;
-  let puppeteerCount = 0;
+  let playwrightCount = 0;
   let consecutiveFailures = 0;
   let earlyExitTriggered = false;
   
@@ -324,8 +324,8 @@ export async function scrapeWebsite(
       }
       
       // Track which method was used
-      if (result.method === 'puppeteer') {
-        puppeteerCount++;
+      if (result.method === 'playwright') {
+        playwrightCount++;
       } else {
         cloudscraperCount++;
       }
@@ -407,13 +407,13 @@ export async function scrapeWebsite(
   }
   
   // Determine primary method used (whichever was used more)
-  const primaryMethod = puppeteerCount > cloudscraperCount ? 'puppeteer' : 'cloudscraper';
-  
+  const primaryMethod = playwrightCount > cloudscraperCount ? 'playwright' : 'cloudscraper';
+
   const baseResult: ScrapeWebsiteResult = {
     pages,
     method: primaryMethod,
     cloudscraperCount,
-    puppeteerCount,
+    playwrightCount,
   };
   
   // Return extended result if using new options interface

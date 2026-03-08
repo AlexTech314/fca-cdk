@@ -16,6 +16,18 @@ function isJunkEmail(email: string): boolean {
   return false;
 }
 
+/** Decode percent-encoded email obfuscation (e.g. albe%72%74m → albertm) */
+function deobfuscateEmail(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    // Malformed encoding — strip individual %XX tokens we can decode
+    return raw.replace(/%([0-9A-Fa-f]{2})/g, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    );
+  }
+}
+
 /**
  * Extract emails from mailto: links (highest confidence)
  */
@@ -24,7 +36,7 @@ function extractMailtoEmails(html: string): string[] {
   const emails: string[] = [];
   const seen = new Set<string>();
   for (const match of html.matchAll(pattern)) {
-    const normalized = match[1].toLowerCase().trim();
+    const normalized = deobfuscateEmail(match[1]).toLowerCase().trim();
     if (!isJunkEmail(normalized) && !seen.has(normalized)) {
       seen.add(normalized);
       emails.push(normalized);
@@ -47,13 +59,20 @@ export function extractEmails(text: string, html?: string): string[] {
     }
   }
 
-  // Pass 2: regex on text content
-  const matches = text.match(PATTERNS.email) || [];
-  for (const raw of matches) {
-    const normalized = raw.toLowerCase().trim();
-    if (seen.has(normalized) || isJunkEmail(normalized)) continue;
-    seen.add(normalized);
-    emails.push(normalized);
+  // Pass 2: regex on text content (also try percent-decoded version of text)
+  const decodedText = deobfuscateEmail(text);
+  const searchTexts = decodedText !== text ? [text, decodedText] : [text];
+  for (const src of searchTexts) {
+    const matches = src.match(PATTERNS.email) || [];
+    for (const raw of matches) {
+      const normalized = deobfuscateEmail(raw).toLowerCase().trim();
+      if (seen.has(normalized) || isJunkEmail(normalized)) continue;
+      // Reject if still contains percent-encoding after decode (malformed)
+      if (normalized.includes('%')) continue;
+      seen.add(normalized);
+      emails.push(normalized);
+      if (emails.length >= 10) break;
+    }
     if (emails.length >= 10) break;
   }
   

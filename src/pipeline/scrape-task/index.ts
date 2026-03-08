@@ -1,4 +1,5 @@
-import puppeteer, { Browser } from 'puppeteer-core';
+import { launch } from 'cloakbrowser';
+import type { Browser } from 'playwright-core';
 import { randomUUID } from 'crypto';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { bootstrapDatabaseUrl } from '@fca/db';
@@ -22,7 +23,7 @@ import {
   FailureTracker,
   ScrapeWebsiteExtendedResult,
   normalizeUrl,
-  needsPuppeteer,
+  needsPlaywright,
 } from './scraper/index.js';
 import { extractAllData } from './extractors/index.js';
 import { convertAndUploadMarkdown } from './markdown.js';
@@ -87,7 +88,7 @@ async function main(): Promise<void> {
   await bootstrapDatabaseUrl();
   const db = new PrismaClient();
   prisma = db;
-  console.log('=== Scrape Task (Cloudscraper with Puppeteer Fallback) ===');
+  console.log('=== Scrape Task (Cloudscraper with Playwright Fallback) ===');
   console.log(`Bucket: ${CAMPAIGN_DATA_BUCKET}`);
   
   // Parse job input
@@ -151,7 +152,7 @@ async function main(): Promise<void> {
     );
   }
   console.log(`Max pages per site: ${maxPagesPerSite}`);
-  console.log(`Mode: cloudscraper first, lazy Puppeteer fallback for SPA sites`);
+  console.log(`Mode: cloudscraper first, lazy Playwright fallback for SPA sites`);
   console.log(`Leads to scrape: ${businesses.length}`);
   
   if (businesses.length === 0) {
@@ -162,33 +163,20 @@ async function main(): Promise<void> {
   const domainTracker = new DomainTracker();
   const globalFailureTracker = new FailureTracker();
   
-  // Puppeteer is launched lazily only when a SPA site is detected
+  // Playwright is launched lazily only when a SPA site is detected
   let browser: Browser | null = null;
   let pagePool: PagePool | null = null;
-  let puppeteerRetries = 0;
-  
+  let playwrightRetries = 0;
+
   async function ensureBrowser(): Promise<{ browser: Browser; pagePool: PagePool }> {
     if (browser && pagePool) return { browser, pagePool };
     console.log('  [CloakBrowser] Launching stealth browser...');
-    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    const fingerprintSeed = Math.floor(Math.random() * 90000) + 10000;
-    browser = await puppeteer.launch({
+    browser = await launch({
       headless: true,
-      executablePath: executablePath || undefined,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        // CloakBrowser stealth flags
-        '--disable-blink-features=AutomationControlled',
-        `--fingerprint=${fingerprintSeed}`,
-        '--fingerprint-platform=windows',
-        '--fingerprint-gpu-vendor=NVIDIA Corporation',
-        '--fingerprint-gpu-renderer=NVIDIA GeForce RTX 3070',
-      ],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
     pagePool = new PagePool(browser, 3);
-    console.log(`  [CloakBrowser] Browser ready (fingerprint seed: ${fingerprintSeed})`);
+    console.log('  [CloakBrowser] Browser ready');
     return { browser, pagePool };
   }
   
@@ -238,10 +226,10 @@ async function main(): Promise<void> {
         
         let { pages, method } = scrapeResult;
         
-        // Pass 2: if root page looks like a JS SPA, retry with Puppeteer
-        if (pages.length > 0 && needsPuppeteer(pages[0].html)) {
-          console.log(`  [SPA detected] Re-scraping ${business.website_uri} with Puppeteer`);
-          puppeteerRetries++;
+        // Pass 2: if root page looks like a JS SPA, retry with Playwright
+        if (pages.length > 0 && needsPlaywright(pages[0].html)) {
+          console.log(`  [SPA detected] Re-scraping ${business.website_uri} with Playwright`);
+          playwrightRetries++;
           try {
             const bp = await ensureBrowser();
             scrapeResult = await scrapeWebsite(business.website_uri!, {
@@ -254,8 +242,8 @@ async function main(): Promise<void> {
             }) as ScrapeWebsiteExtendedResult;
             pages = scrapeResult.pages;
             method = scrapeResult.method;
-          } catch (puppeteerError) {
-            console.warn(`  [Puppeteer fallback failed] ${business.business_name}:`, puppeteerError);
+          } catch (playwrightError) {
+            console.warn(`  [Playwright fallback failed] ${business.business_name}:`, playwrightError);
           }
         }
         
@@ -341,8 +329,8 @@ async function main(): Promise<void> {
   console.log(`Failed: ${failed}`);
   console.log(`Total pages scraped: ${totalPages}`);
   console.log(`Total bytes: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
-  if (puppeteerRetries > 0) {
-    console.log(`Puppeteer SPA fallbacks: ${puppeteerRetries}`);
+  if (playwrightRetries > 0) {
+    console.log(`Playwright SPA fallbacks: ${playwrightRetries}`);
   }
   
   // Log failure breakdown

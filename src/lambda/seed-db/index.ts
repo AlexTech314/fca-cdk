@@ -2,7 +2,7 @@
  * Seed DB Lambda
  *
  * Docker-based Lambda for cloud database seeding.
- * Supports actions: seed, seed-content, wipe, reset (wipe+migrate+seed), migrate, cognito-seed.
+ * Supports actions: seed, seed-content, seed-transactions, wipe, reset (wipe+migrate+seed), migrate, cognito-seed.
  *
  * Invoke:
  *   aws lambda invoke --function-name <arn> --payload '{"action":"reset"}' /dev/stdout
@@ -13,7 +13,7 @@ import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
 import { existsSync, readdirSync } from 'fs';
 
-type SeedAction = 'seed' | 'seed-content' | 'wipe' | 'reset' | 'migrate' | 'cognito-seed' | 'configure-bridge';
+type SeedAction = 'seed' | 'seed-content' | 'seed-transactions' | 'wipe' | 'reset' | 'migrate' | 'cognito-seed' | 'configure-bridge';
 
 interface SeedEvent {
   action?: SeedAction;
@@ -206,6 +206,29 @@ export async function handler(event: SeedEvent): Promise<{ status: string; actio
       console.log('=== SEED-CONTENT COMPLETE ===');
     } catch (err: any) {
       console.error(`[seed-content FAILED] ${err.constructor?.name}: ${err.message}`);
+      if (err.code) console.error(`[prisma error code] ${err.code}`);
+      if (err.meta) console.error(`[prisma meta] ${JSON.stringify(err.meta)}`);
+      throw err;
+    } finally {
+      await prisma.$disconnect();
+      console.log('PrismaClient disconnected.');
+    }
+  }
+
+  if (action === 'seed-transactions') {
+    console.log('Creating PrismaClient...');
+    const prisma = new PrismaClient({ log: ['warn', 'error'] });
+    try {
+      console.log('Testing DB connection...');
+      await prisma.$queryRaw`SELECT 1`;
+      console.log('DB connection OK.');
+
+      const { seedTransactionLeads } = require('@fca/seed');
+      console.log('=== SEED-TRANSACTIONS START ===');
+      await seedTransactionLeads(prisma);
+      console.log('=== SEED-TRANSACTIONS COMPLETE ===');
+    } catch (err: any) {
+      console.error(`[seed-transactions FAILED] ${err.constructor?.name}: ${err.message}`);
       if (err.code) console.error(`[prisma error code] ${err.code}`);
       if (err.meta) console.error(`[prisma meta] ${JSON.stringify(err.meta)}`);
       throw err;

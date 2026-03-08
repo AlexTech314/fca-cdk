@@ -2069,6 +2069,7 @@ export async function wipeSeed(prisma: PrismaClient): Promise<void> {
 // AUTO-RUN GUARD
 // ============================================
 
+export { seedTransactionLeads };
 export { seedCognitoUser } from './cognito';
 
 if (require.main === module) {

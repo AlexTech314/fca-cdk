@@ -68,7 +68,7 @@ export function calculateOptimalConcurrency(fastMode: boolean): number {
 export const LIMITS = {
   MAX_EMAILS: 10,
   MAX_PHONES: 5,
-  MAX_PAGES_PER_LEAD: 20,
+  MAX_PAGES_PER_LEAD: 10,
 } as const;
 
 // ============ Regex Patterns ============

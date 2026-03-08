@@ -161,6 +161,24 @@ export const SKIP_PATTERNS: RegExp[] = [
   /[?&]ref=/i,
   /[?&]source=/i,
 
+  // Individual blog posts (keep /blog index)
+  /\/blog\/.+/i,
+
+  // Individual project/portfolio detail pages (keep index pages)
+  /\/project\/.+/i,
+  /\/portfolio\/.+/i,
+
+  // Press releases / media articles
+  /\/press-release(s)?\//i,
+  /\/media\/.+/i,
+
+  // Location variant pages with -old suffix
+  /-old(\/|$)/i,
+
+  // Duplicate WordPress taxonomy/user sitemaps
+  /\/wp-sitemap-taxonomies-/i,
+  /\/wp-sitemap-users-/i,
+
   // User/account
   /\/user\//i,
   /\/profile\//i,

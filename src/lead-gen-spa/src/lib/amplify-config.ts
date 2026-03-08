@@ -28,11 +28,21 @@ const amplifyConfig = {
   },
 };
 
+let amplifyReady: Promise<void> | null = null;
+
 export function configureAmplify() {
-  import('aws-amplify').then(({ Amplify }) => {
-    Amplify.configure(amplifyConfig);
-    console.log('[auth] Amplify configured with pool:', amplifyConfig.Auth.Cognito.userPoolId);
-  });
+  if (!amplifyReady) {
+    amplifyReady = import('aws-amplify').then(({ Amplify }) => {
+      Amplify.configure(amplifyConfig);
+      console.log('[auth] Amplify configured with pool:', amplifyConfig.Auth.Cognito.userPoolId);
+    });
+  }
+  return amplifyReady;
+}
+
+/** Wait for Amplify to be configured before making auth calls */
+export function waitForAmplify(): Promise<void> {
+  return amplifyReady ?? Promise.resolve();
 }
 
 export default amplifyConfig;

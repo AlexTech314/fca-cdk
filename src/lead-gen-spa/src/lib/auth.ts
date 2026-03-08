@@ -1,4 +1,5 @@
 import type { User } from '@/types';
+import { waitForAmplify } from '@/lib/amplify-config';
 
 // ===========================================
 // Types
@@ -29,6 +30,7 @@ export interface AuthState {
 // ===========================================
 
 async function getAmplifyAuth() {
+  await waitForAmplify();
   const { signIn, signOut, getCurrentUser, fetchAuthSession, confirmSignIn, resetPassword, confirmResetPassword } = await import('aws-amplify/auth');
   return { signIn, signOut, getCurrentUser, fetchAuthSession, confirmSignIn, resetPassword, confirmResetPassword };
 }

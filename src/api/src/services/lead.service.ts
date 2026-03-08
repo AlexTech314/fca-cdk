@@ -5,6 +5,7 @@ import { prisma } from '@fca/db';
 import { leadRepository } from '../repositories/lead.repository';
 import { campaignRunRepository } from '../repositories/campaign.repository';
 import { generateCsv } from '../lib/csv';
+import { generateExcel } from '../lib/xlsx';
 import { generatePresignedDownloadUrl, ASSETS_BUCKET_NAME } from '../lib/s3';
 import type { LeadQuery, LeadDataType } from '../models/lead.model';
 
@@ -382,21 +383,34 @@ export const leadService = {
 
   async exportLeads(
     filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>,
-    columns: string[]
+    columns: string[],
+    format: 'csv' | 'xlsx' = 'csv'
   ): Promise<{ downloadUrl: string; leadCount: number; fileName: string }> {
     const leads = await leadRepository.findForExport(filters);
-    const csv = generateCsv(leads, columns);
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `leads-export-${timestamp}.csv`;
+    let body: string | Buffer;
+    let contentType: string;
+    let fileName: string;
+
+    if (format === 'xlsx') {
+      body = await generateExcel(leads, columns);
+      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      fileName = `leads-export-${timestamp}.xlsx`;
+    } else {
+      body = generateCsv(leads, columns);
+      contentType = 'text/csv';
+      fileName = `leads-export-${timestamp}.csv`;
+    }
+
     const s3Key = `exports/${fileName}`;
 
     await s3Client.send(
       new PutObjectCommand({
         Bucket: ASSETS_BUCKET_NAME,
         Key: s3Key,
-        Body: csv,
-        ContentType: 'text/csv',
+        Body: body,
+        ContentType: contentType,
         ContentDisposition: `attachment; filename="${fileName}"`,
       })
     );

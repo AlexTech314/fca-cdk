@@ -333,5 +333,5 @@ export interface LeadGenApi {
   /**
    * Export leads to CSV: generates file on server, returns presigned download URL
    */
-  exportLeads(filters: LeadFilters, columns: string[]): Promise<{ downloadUrl: string; leadCount: number; fileName: string }>;
+  exportLeads(filters: LeadFilters, columns: string[], format?: 'csv' | 'xlsx'): Promise<{ downloadUrl: string; leadCount: number; fileName: string }>;
 }

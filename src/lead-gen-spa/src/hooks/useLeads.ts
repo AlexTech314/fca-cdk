@@ -195,8 +195,8 @@ export function useUpdateLeadData() {
 
 export function useExportLeads() {
   return useMutation({
-    mutationFn: ({ filters, columns }: { filters: LeadFilters; columns: string[] }) =>
-      api.exportLeads(filters, columns),
+    mutationFn: ({ filters, columns, format }: { filters: LeadFilters; columns: string[]; format?: 'csv' | 'xlsx' }) =>
+      api.exportLeads(filters, columns, format),
   });
 }
 

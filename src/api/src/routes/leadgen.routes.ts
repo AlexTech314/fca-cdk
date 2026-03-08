@@ -19,7 +19,7 @@ import {
   leadDataUpdateSchemas,
 } from '../models';
 import type { LeadDataType } from '../models';
-import { exportColumnKeys } from '../lib/csv';
+import { exportColumnKeys } from '../lib/export-columns';
 
 const router = Router();
 
@@ -546,6 +546,7 @@ router.post('/leads/scrape-bulk', authorize('readwrite', 'admin'), async (req, r
 const exportBodySchema = z.object({
   filters: leadFiltersSchema.default({}),
   columns: z.array(z.enum(exportColumnKeys as [string, ...string[]])).min(1, 'At least one column is required'),
+  format: z.enum(['csv', 'xlsx']).default('csv'),
 });
 
 router.post('/leads/export', authorize('readwrite', 'admin'), async (req, res, next) => {
@@ -555,8 +556,8 @@ router.post('/leads/export', authorize('readwrite', 'admin'), async (req, res, n
       res.status(400).json({ error: 'Invalid export request', details: parsed.error.flatten() });
       return;
     }
-    const { filters, columns } = parsed.data;
-    const result = await leadService.exportLeads(filters, columns);
+    const { filters, columns, format } = parsed.data;
+    const result = await leadService.exportLeads(filters, columns, format);
     res.json(result);
   } catch (error) {
     next(error);

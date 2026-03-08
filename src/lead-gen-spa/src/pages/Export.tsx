@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { useLeadCount, useExportLeads } from '@/hooks/useLeads';
 import type { LeadFilters as LeadFiltersType } from '@/types';
-import { Download, ChevronRight, ChevronLeft, Check, Loader2 } from 'lucide-react';
+import { Download, FileSpreadsheet, ChevronRight, ChevronLeft, Check, Loader2 } from 'lucide-react';
 import { cn, formatNumber } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -107,6 +107,7 @@ export default function Export() {
     allColumns.filter((c) => c.default).map((c) => c.key)
   );
   const [exportError, setExportError] = useState<string | null>(null);
+  const [downloadingFormat, setDownloadingFormat] = useState<'csv' | 'xlsx' | null>(null);
 
   const { data: leadCount } = useLeadCount(filters);
   const exportMutation = useExportLeads();
@@ -151,13 +152,14 @@ export default function Export() {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = (format: 'csv' | 'xlsx') => {
     setExportError(null);
+    setDownloadingFormat(format);
     exportMutation.mutate(
-      { filters, columns: selectedColumns },
+      { filters, columns: selectedColumns, format },
       {
         onSuccess: (data) => {
-          // Trigger browser download via anchor click
+          setDownloadingFormat(null);
           const a = document.createElement('a');
           a.href = data.downloadUrl;
           a.download = data.fileName;
@@ -170,6 +172,7 @@ export default function Export() {
           });
         },
         onError: (error) => {
+          setDownloadingFormat(null);
           const msg = error instanceof Error ? error.message : 'Export failed';
           setExportError(msg);
           toast({ title: 'Export failed', description: msg, variant: 'destructive' });
@@ -179,7 +182,7 @@ export default function Export() {
   };
 
   return (
-    <PageContainer title="Export Leads" description="Export leads to CSV file">
+    <PageContainer title="Export Leads" description="Export leads to CSV or Excel">
       {/* Step Indicator */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -353,25 +356,45 @@ export default function Export() {
               </div>
               <h3 className="text-xl font-semibold mb-2">Ready to Download</h3>
               <p className="text-muted-foreground mb-6">
-                Your export file will be generated and downloaded automatically.
+                Choose a format to generate and download your export.
               </p>
               {exportError && (
                 <p className="text-destructive text-sm mb-4">{exportError}</p>
               )}
-              <Button
-                size="lg"
-                onClick={handleDownload}
-                disabled={exportMutation.isPending || selectedColumns.length === 0}
-              >
-                {exportMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4" />
-                )}
-                {exportMutation.isPending
-                  ? 'Generating...'
-                  : `Download CSV (${formatNumber(leadCount || 0)} leads)`}
-              </Button>
+              <div className="flex items-center justify-center gap-4">
+                <Button
+                  size="lg"
+                  onClick={() => handleDownload('csv')}
+                  disabled={exportMutation.isPending || selectedColumns.length === 0}
+                >
+                  {downloadingFormat === 'csv' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  {downloadingFormat === 'csv'
+                    ? 'Generating...'
+                    : `Download CSV`}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => handleDownload('xlsx')}
+                  disabled={exportMutation.isPending || selectedColumns.length === 0}
+                >
+                  {downloadingFormat === 'xlsx' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  )}
+                  {downloadingFormat === 'xlsx'
+                    ? 'Generating...'
+                    : `Download Excel`}
+                </Button>
+              </div>
+              <p className="text-muted-foreground text-sm mt-3">
+                {formatNumber(leadCount || 0)} leads
+              </p>
             </div>
           )}
         </CardContent>

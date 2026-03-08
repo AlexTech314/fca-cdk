@@ -729,10 +729,10 @@ export const realApi: LeadGenApi = {
     });
   },
 
-  async exportLeads(filters: LeadFilters, columns: string[]): Promise<{ downloadUrl: string; leadCount: number; fileName: string }> {
+  async exportLeads(filters: LeadFilters, columns: string[], format?: 'csv' | 'xlsx'): Promise<{ downloadUrl: string; leadCount: number; fileName: string }> {
     return apiClient<{ downloadUrl: string; leadCount: number; fileName: string }>('/leads/export', {
       method: 'POST',
-      body: JSON.stringify({ filters, columns }),
+      body: JSON.stringify({ filters, columns, format }),
     });
   },
 };

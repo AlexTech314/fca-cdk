@@ -303,6 +303,8 @@ async function main() {
     for (const c of allCities) {
       cityByStateAndName.set(`${c.stateId.toLowerCase()}:${c.name.toLowerCase()}`, c);
     }
+    // Next available city ID for cities discovered via Google Places
+    let nextCityId = allCities.reduce((max, c) => Math.max(max, c.id), 0) + 1;
 
     let leadsFound = 0;
     let duplicatesSkipped = 0;
@@ -369,7 +371,7 @@ async function main() {
         const editorialSummary = place.editorialSummary?.text ?? null;
         const reviewSummary = place.reviewSummary?.text ?? null;
 
-        // Resolve geography FKs from pre-loaded caches
+        // Resolve geography FKs — create missing cities (Google Places is source of truth)
         let locationStateId: string | null = null;
         let locationCityId: number | null = null;
         if (stateShort) {
@@ -378,8 +380,33 @@ async function main() {
           if (stateRecord) {
             locationStateId = stateRecord.id;
             if (cityName) {
-              const cityRecord = cityByStateAndName.get(`${stateRecord.id.toLowerCase()}:${cityName.toLowerCase()}`);
-              locationCityId = cityRecord?.id ?? null;
+              const cacheKey = `${stateRecord.id.toLowerCase()}:${cityName.toLowerCase()}`;
+              const cityRecord = cityByStateAndName.get(cacheKey);
+              if (cityRecord) {
+                locationCityId = cityRecord.id;
+              } else {
+                // City not in DB — create it from Google Places data
+                try {
+                  const newCity = await prisma.city.create({
+                    data: { id: nextCityId++, name: cityName, stateId: stateRecord.id },
+                  });
+                  cityByStateAndName.set(cacheKey, { id: newCity.id });
+                  locationCityId = newCity.id;
+                  console.log(`Created city: ${cityName}, ${stateRecord.id} (id=${newCity.id})`);
+                } catch (e) {
+                  // Unique constraint hit (race or duplicate) — look up existing
+                  const existing = await prisma.city.findUnique({
+                    where: { name_stateId: { name: cityName, stateId: stateRecord.id } },
+                    select: { id: true },
+                  });
+                  if (existing) {
+                    cityByStateAndName.set(cacheKey, { id: existing.id });
+                    locationCityId = existing.id;
+                  } else {
+                    console.warn(`Failed to create city ${cityName}, ${stateRecord.id}:`, e);
+                  }
+                }
+              }
             }
           }
         }

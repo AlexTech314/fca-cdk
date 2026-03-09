@@ -157,6 +157,8 @@ async function main(): Promise<void> {
           exclusionReason: result.exclusion_reason,
           businessQualityScore: result.business_quality_score,
           exitReadinessScore: result.exit_readiness_score,
+          compositeScore: result.is_excluded ? 0 : null,
+          tier: result.is_excluded ? null : undefined,
           scoringRationale: result.rationale,
           supportingEvidence: result.supporting_evidence,
           isIntermediated: result.is_intermediated,

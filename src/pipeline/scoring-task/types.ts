@@ -22,6 +22,10 @@ export interface ExtractionResult {
   process_governance_signals: string[];
   competitive_pressure_signals: string[];
   growth_vs_maintenance_language: string;
+  customer_base: 'b2b' | 'b2c' | 'mixed' | 'unknown';
+  licensing_bonding: string[];
+  scale_indicators: string[];
+  industry_affiliations: string[];
   intermediation_signals: string[];
 }
 
@@ -49,6 +53,10 @@ export const EMPTY_EXTRACTION: ExtractionResult = {
   process_governance_signals: [],
   competitive_pressure_signals: [],
   growth_vs_maintenance_language: 'unknown',
+  customer_base: 'unknown',
+  licensing_bonding: [],
+  scale_indicators: [],
+  industry_affiliations: [],
   intermediation_signals: [],
 };
 

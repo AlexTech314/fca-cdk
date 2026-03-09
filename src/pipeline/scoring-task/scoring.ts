@@ -123,6 +123,30 @@ export function buildFactsSummary(facts: ExtractionResult): string {
   // Business tone
   lines.push(`Business tone: ${facts.growth_vs_maintenance_language}.`);
 
+  // Customer base
+  lines.push(`Customer base: ${facts.customer_base || 'unknown'}.`);
+
+  // Licensing/bonding
+  if (facts.licensing_bonding && facts.licensing_bonding.length > 0) {
+    lines.push(`Licensing/bonding: ${facts.licensing_bonding.join(', ')}.`);
+  } else {
+    lines.push('Licensing/bonding: None.');
+  }
+
+  // Scale indicators
+  if (facts.scale_indicators && facts.scale_indicators.length > 0) {
+    lines.push(`Scale indicators: ${facts.scale_indicators.join(', ')}.`);
+  } else {
+    lines.push('Scale indicators: None.');
+  }
+
+  // Industry affiliations
+  if (facts.industry_affiliations && facts.industry_affiliations.length > 0) {
+    lines.push(`Industry affiliations: ${facts.industry_affiliations.join(', ')}.`);
+  } else {
+    lines.push('Industry affiliations: None.');
+  }
+
   return lines.join('\n');
 }
 

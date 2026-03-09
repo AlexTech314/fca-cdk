@@ -15,13 +15,17 @@ export const EXTRACTION_PROMPT = `You are a data extraction assistant. Your job 
 11. **Red flags**: Placeholder content ("Lorem ipsum", "Your content here"), WordPress sample pages, broken links mentioned, stock photo watermarks, "under construction" pages, generic template text.
 12. **Testimonials**: Count of testimonials/reviews shown on the site. Note who they reference (owner by name, company, specific employees).
 13. **Recurring revenue signals**: Maintenance contracts, subscription programs, annual service agreements, retainer arrangements mentioned.
-14. **Notable quotes**: Up to 5 verbatim quotes from the site that are most relevant to assessing business quality and scale. Include the source page URL (from the "Source:" line preceding each page's content). Copy quotes EXACTLY — do not paraphrase.
+14. **Notable quotes**: Up to 5 verbatim quotes from the site that are most relevant to the overall assessment of this business. Prioritize quotes that reveal: ownership/acquisition status (PE-backed, acquired, parent company references), intermediation signals (advisor/broker involvement, "strategic alternatives"), business quality and scale evidence, and exit readiness signals. Include the source page URL (from the "Source:" line preceding each page's content). Copy quotes EXACTLY — do not paraphrase.
 15. **Management titles**: Named individuals with formal management titles — CFO, VP, Director, GM, COO, Controller, Operations Manager, etc. Extract both the name and title.
 16. **Succession signals**: Founder dependency (single founder doing everything), single-generation family business, no next-gen language, aging owner references, "I" language throughout.
 17. **Process & governance signals**: ERP systems, ISO certifications, SOPs mentioned, safety programs, advisory boards, formal HR processes.
 18. **Competitive pressure signals**: National chain competition mentioned, regulatory burden language, industry consolidation references, labor shortage challenges, margin pressure.
 19. **Growth vs maintenance language**: Classify the overall website tone as one of: "growth" (expanding, hiring, new markets), "maintenance" (stable, reliable, same services), "decline" (scaling back, fewer locations), or "unknown".
-20. **Intermediation signals**: Signs the business is actively being marketed for sale or has engaged a financial intermediary: M&A advisor / investment banker references, "strategic alternatives", "exploring options", CIM, broker listing, "business for sale", "under LOI", marketplace listings (BizBuySell etc).
+20. **Intermediation signals**: Read the website holistically and assess whether this business appears to already be in an active sale process or represented by a financial intermediary. Look for the overall impression, not just keywords — does the site read like a business being marketed to buyers? Is there language suggesting ownership transition, a formal sale process, or third-party representation? Consider the tone, structure, and purpose of the content. Extract any specific observations that led to your conclusion.
+21. **B2B vs B2C classification**: Classify the customer base as "b2b" (primarily serves other businesses, commercial/industrial/institutional clients), "b2c" (primarily serves individual consumers/homeowners), "mixed" (significant presence of both), or "unknown". Base this on client descriptions, service targets, pricing structures, and project types described.
+22. **Licensing & bonding**: Extract any state contractor licenses, license classes (residential, commercial, unlimited), surety bonds, insurance coverage details, bonding capacity, and any licensing jurisdictions mentioned.
+23. **Scale indicators**: Evidence of operational scale — fleet size, number of trucks/vehicles, equipment inventory, facility/warehouse square footage, geographic scope (single city vs multi-state), employee count or headcount hints, project volume or throughput, annual project counts.
+24. **Industry/vertical indicators**: NAICS or SIC codes mentioned, industry association memberships (NFPA, IICRC, ABC, AGC, etc.), trade affiliations, industry-specific certifications, vertical-specific compliance or regulatory references.
 
 ## Output Format
 
@@ -50,7 +54,11 @@ Respond with ONLY valid JSON matching the ExtractionResult schema:
   "process_governance_signals": ["ISO 9001 certified", ...],
   "competitive_pressure_signals": ["competing with national chains", ...],
   "growth_vs_maintenance_language": "maintenance",
-  "intermediation_signals": ["broker listing on BizBuySell", ...]
+  "customer_base": "b2b",
+  "licensing_bonding": ["State contractor license #12345", "commercial class"],
+  "scale_indicators": ["fleet of 15 trucks", "multi-state operations"],
+  "industry_affiliations": ["NFPA member", "ABC certified"],
+  "intermediation_signals": ["site appears to be a sell-side marketing page for the business", ...]
 }
 
 Use null for numbers you cannot determine, empty arrays for lists with no items, and 0 for counts with no evidence.`;
@@ -64,9 +72,9 @@ Your job is to kill bad deals early. Most small businesses are NOT PE-viable and
 - Absence of evidence IS evidence of absence. If the extracted facts show no team members, the business has none. If no commercial clients are listed, they don't have them. Do NOT give credit for things that MIGHT exist.
 - Personal experience ≠ business tenure. "20 years of experience" ≠ 20-year-old business.
 - "Affordable" / "competitive pricing" in pricing_signals = low margins = negative for PE.
-- website_quality of "template/basic" or "none" is a 0-300 business. Only "professional" or "content-rich" can score higher.
-- Google reviews are external validation. Use Market Context percentiles to judge review count. Below 25th percentile = minimal presence. No Market Context → fall back to <30 as minimal.
-- first_name_only_contacts (e.g., "Call Mike") = strong sole proprietor signal = 0-200 business.
+- **Website quality (B2B-aware):** For B2C businesses, website_quality of "template/basic" or "none" caps the score at 0-300. For B2B/trades businesses (customer_base = "b2b"), website quality is informational only — many excellent B2B businesses have basic websites because their clients come through relationships, referrals, and contracts, not web searches. Do not cap B2B scores based on website quality alone.
+- **Google reviews (B2B-aware):** For B2C businesses, review count percentiles are a meaningful signal — below 25th percentile = minimal presence. For B2B/trades businesses, Google reviews are a weak signal. Commercial contractors, industrial services, and B2B businesses often have few or no reviews because their clients are other businesses. Do not penalize B2B businesses for low review counts.
+- **First-name-only contacts (B2B-aware):** For B2C businesses, first_name_only_contacts (e.g., "Call Mike") = strong sole proprietor signal = cap at 0-200. For B2B/trades businesses, first-name-only contact style is common in the trades and is a mild negative, not disqualifying.
 
 ## Calibration (MANDATORY)
 
@@ -98,6 +106,16 @@ DEFAULT scores: 200-300 quality, 300 exit readiness. Justify every point above d
 
 **800-1000 (~2%):** ALL required: recognized market leader, team_member_names shows 5+ leaders, diversified services + client base, strong recurring revenue, $10M+ revenue evidence.
 
+### B2B / Trades Business Quality Track
+
+For businesses with customer_base = "b2b" or "mixed", use this alternative track instead of the consumer-facing tiers above. B2B businesses demonstrate quality through licensing, bonding, commercial relationships, and operational scale — not through websites, Google reviews, or testimonials.
+
+**B2B 400-600:** Commercial/institutional clients OR meaningful industry certifications/licensing, 10+ years in business, 2+ service lines. Website quality irrelevant.
+
+**B2B 600-800:** Commercial or unlimited contractor license OR bonding/surety evidence, scale indicators present (fleet, multi-state operations, 20+ employees), industry association membership, 15+ years in business, named commercial/institutional clients.
+
+**B2B 800-1000:** All of 600-800 PLUS management titles present (CFO, VP, Director, etc.), 3+ locations, diversified commercial client base, strong process/governance signals, evidence of $5M+ revenue.
+
 Return -1 if insufficient evidence.
 
 ## Exit Readiness Score (0-1000)
@@ -117,6 +135,10 @@ Score how structurally ripe this business is for a PE transaction based on 5 obs
 **600-800 (~12%):** 4+ sub-dimensions strongly present — aging owner + no succession + professionalized ops + competitive pressure.
 **800-1000 (~3%):** All sub-dimensions aligned AND explicit exit signals (retirement language, broker listing, transition planning).
 
+### Industry Consolidation ER Boost
+
+Businesses in active PE consolidation verticals get a +100-200 exit readiness boost. Fragmented essential-services industries create exit opportunities regardless of individual founder intentions. These verticals include: fire protection, auto body/collision, environmental services, HVAC, plumbing, electrical, specialty distribution, pest control, landscaping/tree care, building envelope, and similar trades experiencing roll-up activity. Use the industry_affiliations and services fields to identify the vertical.
+
 Return -1 if insufficient evidence.
 
 ## Evaluation Steps
@@ -125,7 +147,7 @@ Return -1 if insufficient evidence.
 2. Exclusion check — is_excluded=true if PE-backed, acquired, government, non-profit, franchise location, OR if intermediation signals indicate an active M&A process (already being marketed by a broker/advisor).
 3. Score business quality using extracted facts against the tiers above.
 4. Score exit readiness using the 5 sub-dimensions above.
-5. Intermediation screening: Based on the extracted intermediation_signals, determine if this business is already being actively marketed for sale or has engaged an M&A advisor/broker. Set is_intermediated=true if any strong signals exist.
+5. Intermediation screening: Using the intermediation_signals and your own reading of the overall lead profile, assess whether this business is already being represented by an advisor or is in an active sale process. This is a semantic judgment — reason about the totality of signals, not individual keywords. Set is_intermediated=true if you believe an intermediary is already involved.
 6. Owner contact matching: From the lead data (emails, phones, social profiles) and extracted facts (owner_names, team_member_names), identify which specific email, phone, and LinkedIn URL most likely belongs to the controlling owner. Rate your confidence as "confirmed" (name appears in email/profile), "likely" (strong contextual match), or "research_required" (no clear match).
 7. Write a 2-3 sentence brutally honest rationale. No softening.
 

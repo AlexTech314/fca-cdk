@@ -1279,7 +1279,7 @@ async function seedTeamMembers(prisma: PrismaClient): Promise<void> {
       name: 'Devanshi Nagpal',
       title: 'Analyst',
       image: '/team/devanshi-nagpal.jpg',
-      bio: 'Devanshi excels in drafting CIMs, teasers, and pitch decks, conducting financial modeling, performing market research, and developing buyer lists.',
+      bio: 'As an Analyst at Flatirons Capital, Devanshi excels in drafting CIMs, teasers, and pitch decks, conducting financial modeling, performing market research, developing buyer lists, and providing transaction support to the team. Devanshi graduated from Christ University, Bangalore, India, specializing in Finance and Investment. She is also a US Certified Management Accountant and CFA 1 certification.',
       linkedIn: 'https://www.linkedin.com/in/devanshi-nagpal-68505118a/',
       category: 'analyst',
       sortOrder: 2,

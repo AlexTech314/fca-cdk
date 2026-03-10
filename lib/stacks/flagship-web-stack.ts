@@ -96,7 +96,7 @@ export class FlagshipWebStack extends cdk.Stack {
     // ============================================================
     // ALB Listener Rule (X-Origin-Service header routing)
     // ============================================================
-    new elbv2.ApplicationListenerRule(this, 'UnifiedRule', {
+    new elbv2.ApplicationListenerRule(this, 'PublicRule', {
       listener: apiListener,
       priority: 1,
       conditions: [elbv2.ListenerCondition.httpHeader('X-Origin-Service', ['nextjs'])],

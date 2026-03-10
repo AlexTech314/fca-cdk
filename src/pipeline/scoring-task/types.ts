@@ -1,6 +1,8 @@
 export interface ExtractionResult {
   owner_names: string[];
   first_name_only_contacts: string[];
+  intermediation_signals: string[];
+  management_titles: { name: string; title: string }[];
   team_members_named: number;
   team_member_names: string[];
   years_in_business: number | null;
@@ -17,7 +19,6 @@ export interface ExtractionResult {
   testimonial_count: number;
   recurring_revenue_signals: string[];
   notable_quotes: { url: string; text: string }[];
-  management_titles: { name: string; title: string }[];
   succession_signals: string[];
   process_governance_signals: string[];
   competitive_pressure_signals: string[];
@@ -26,12 +27,13 @@ export interface ExtractionResult {
   licensing_bonding: string[];
   scale_indicators: string[];
   industry_affiliations: string[];
-  intermediation_signals: string[];
 }
 
 export const EMPTY_EXTRACTION: ExtractionResult = {
   owner_names: [],
   first_name_only_contacts: [],
+  intermediation_signals: [],
+  management_titles: [],
   team_members_named: 0,
   team_member_names: [],
   years_in_business: null,
@@ -48,7 +50,6 @@ export const EMPTY_EXTRACTION: ExtractionResult = {
   testimonial_count: 0,
   recurring_revenue_signals: [],
   notable_quotes: [],
-  management_titles: [],
   succession_signals: [],
   process_governance_signals: [],
   competitive_pressure_signals: [],
@@ -57,7 +58,6 @@ export const EMPTY_EXTRACTION: ExtractionResult = {
   licensing_bonding: [],
   scale_indicators: [],
   industry_affiliations: [],
-  intermediation_signals: [],
 };
 
 export interface BatchItem {

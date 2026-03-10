@@ -44,7 +44,7 @@ export async function extractFacts(
           accept: 'application/json',
           body: JSON.stringify({
             anthropic_version: 'bedrock-2023-05-31',
-            max_tokens: 2048,
+            max_tokens: 4096,
             messages: [{ role: 'user', content: [{ type: 'text', text: content }] }],
           }),
         }),
@@ -53,14 +53,33 @@ export async function extractFacts(
       const decoded = JSON.parse(new TextDecoder().decode(response.body));
       const text = decoded.content?.[0]?.text || '';
 
+      let parsed: Record<string, unknown>;
       try {
-        return JSON.parse(text);
+        parsed = JSON.parse(text);
       } catch {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) return JSON.parse(jsonMatch[0]);
-        console.warn('Failed to parse extraction response, using empty extraction');
-        return EMPTY_EXTRACTION;
+        if (jsonMatch) {
+          try {
+            parsed = JSON.parse(jsonMatch[0]);
+          } catch {
+            console.warn('Failed to parse extraction response, using empty extraction');
+            return EMPTY_EXTRACTION;
+          }
+        } else {
+          console.warn('No JSON found in extraction response, using empty extraction');
+          return EMPTY_EXTRACTION;
+        }
       }
+
+      // Backfill missing fields from EMPTY_EXTRACTION defaults
+      // (handles truncated output where Haiku ran out of tokens)
+      const result: Record<string, unknown> = { ...EMPTY_EXTRACTION };
+      for (const key of Object.keys(EMPTY_EXTRACTION)) {
+        if (key in parsed && parsed[key] !== undefined) {
+          result[key] = parsed[key];
+        }
+      }
+      return result as unknown as ExtractionResult;
     } catch (err) {
       const isThrottle =
         err instanceof Error &&

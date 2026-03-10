@@ -16,6 +16,20 @@ export function buildFactsSummary(facts: ExtractionResult): string {
     lines.push('Owner: Not identified.');
   }
 
+  // Intermediation signals (high priority — placed early for scoring visibility)
+  if (facts.intermediation_signals && facts.intermediation_signals.length > 0) {
+    lines.push(`Intermediation signals: ${facts.intermediation_signals.join('; ')}.`);
+  } else {
+    lines.push('Intermediation signals: None.');
+  }
+
+  // Management titles
+  if (facts.management_titles && facts.management_titles.length > 0) {
+    lines.push(`Management titles: ${facts.management_titles.map((m) => `${m.name} (${m.title})`).join(', ')}.`);
+  } else {
+    lines.push('Management titles: No formal management titles found.');
+  }
+
   // Team
   if (facts.team_members_named > 0) {
     lines.push(`Team: ${facts.team_members_named} named member${facts.team_members_named !== 1 ? 's' : ''}${facts.team_member_names.length > 0 ? ` (${facts.team_member_names.join(', ')})` : ''}.`);
@@ -85,13 +99,6 @@ export function buildFactsSummary(facts: ExtractionResult): string {
     lines.push('Recurring revenue: None.');
   }
 
-  // Management titles
-  if (facts.management_titles.length > 0) {
-    lines.push(`Management titles: ${facts.management_titles.map((m) => `${m.name} (${m.title})`).join(', ')}.`);
-  } else {
-    lines.push('Management titles: No formal management titles found.');
-  }
-
   // Succession signals
   if (facts.succession_signals.length > 0) {
     lines.push(`Succession signals: ${facts.succession_signals.join('; ')}.`);
@@ -111,13 +118,6 @@ export function buildFactsSummary(facts: ExtractionResult): string {
     lines.push(`Competitive pressure: ${facts.competitive_pressure_signals.join('; ')}.`);
   } else {
     lines.push('Competitive pressure: None.');
-  }
-
-  // Intermediation signals
-  if (facts.intermediation_signals.length > 0) {
-    lines.push(`Intermediation signals: ${facts.intermediation_signals.join('; ')}.`);
-  } else {
-    lines.push('Intermediation signals: None.');
   }
 
   // Business tone
@@ -150,8 +150,70 @@ export function buildFactsSummary(facts: ExtractionResult): string {
   return lines.join('\n');
 }
 
-async function repairJson(broken: string, error: string): Promise<Omit<ScoringResult, 'supporting_evidence'>> {
-  console.warn(`JSON repair needed: ${error}`);
+type ScoringFields = Omit<ScoringResult, 'supporting_evidence'>;
+
+const SCORING_SCHEMA: Record<keyof ScoringFields, 'string' | 'string?' | 'boolean' | 'number'> = {
+  controlling_owner: 'string?',
+  ownership_type: 'string',
+  is_excluded: 'boolean',
+  exclusion_reason: 'string?',
+  business_quality_score: 'number',
+  exit_readiness_score: 'number',
+  rationale: 'string',
+  is_intermediated: 'boolean',
+  intermediation_signals_summary: 'string?',
+  owner_email: 'string?',
+  owner_phone: 'string?',
+  owner_linkedin: 'string?',
+  contact_confidence: 'string?',
+};
+
+/** Validate parsed scoring result against expected schema. Returns list of issues (empty = valid). */
+function validateScoringResult(obj: unknown): string[] {
+  if (typeof obj !== 'object' || obj === null) return ['Response is not a JSON object'];
+  const record = obj as Record<string, unknown>;
+  const issues: string[] = [];
+
+  for (const [field, type] of Object.entries(SCORING_SCHEMA)) {
+    if (!(field in record)) {
+      issues.push(`Missing required field "${field}"`);
+      continue;
+    }
+    const val = record[field];
+    if (type === 'string?' && val !== null && typeof val !== 'string') {
+      issues.push(`"${field}" must be string or null, got ${typeof val}`);
+    } else if (type === 'string' && typeof val !== 'string') {
+      issues.push(`"${field}" must be string, got ${val === null ? 'null' : typeof val}`);
+    } else if (type === 'boolean' && typeof val !== 'boolean') {
+      issues.push(`"${field}" must be boolean, got ${typeof val}`);
+    } else if (type === 'number' && typeof val !== 'number') {
+      issues.push(`"${field}" must be number, got ${typeof val}`);
+    }
+  }
+  return issues;
+}
+
+/** Try to extract a JSON object from raw text (handles markdown fences, preamble, etc.) */
+function extractJson(text: string): Record<string, unknown> {
+  // Direct parse
+  try { return JSON.parse(text); } catch { /* fall through */ }
+  // Regex fallback — greedy match from first { to last }
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) return JSON.parse(match[0]);
+  throw new Error('No JSON object found in response');
+}
+
+/** Single fix prompt that handles both JSON syntax errors and schema violations. */
+async function fixScoringResponse(
+  rawText: string,
+  issues: string[],
+): Promise<ScoringFields> {
+  console.warn(`Scoring response fix needed (${issues.length} issue${issues.length !== 1 ? 's' : ''}): ${issues.join('; ')}`);
+
+  const schemaExample = Object.entries(SCORING_SCHEMA)
+    .map(([k, v]) => `  "${k}": <${v}>`)
+    .join(',\n');
+
   const response = await bedrockClient.send(
     new InvokeModelCommand({
       modelId: BEDROCK_MODEL_ID,
@@ -161,21 +223,18 @@ async function repairJson(broken: string, error: string): Promise<Omit<ScoringRe
         anthropic_version: 'bedrock-2023-05-31',
         max_tokens: 1024,
         messages: [{ role: 'user', content: [{ type: 'text', text:
-          `The following JSON output has a syntax error. Fix it and return ONLY the corrected JSON object, nothing else.\n\nParse error: ${error}\n\nBroken JSON:\n${broken}`
+          `The following JSON scoring response has problems. Fix ALL issues and return ONLY the corrected JSON object.\n\n` +
+          `Issues:\n${issues.map((i) => `- ${i}`).join('\n')}\n\n` +
+          `Expected schema:\n{\n${schemaExample}\n}\n\n` +
+          `Original response:\n${rawText}`
         }] }],
       }),
     }),
   );
 
   const decoded = JSON.parse(new TextDecoder().decode(response.body));
-  const text = decoded.content?.[0]?.text || '';
-  try {
-    return JSON.parse(text);
-  } catch {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) return JSON.parse(jsonMatch[0]);
-    throw new Error(`JSON repair failed: ${text.slice(0, 200)}`);
-  }
+  const fixedText = decoded.content?.[0]?.text || '';
+  return extractJson(fixedText) as ScoringFields;
 }
 
 export async function scoreLead(
@@ -211,23 +270,23 @@ export async function scoreLead(
       const decoded = JSON.parse(new TextDecoder().decode(response.body));
       const text = decoded.content?.[0]?.text || '';
 
-      // Parse the scoring result (no supporting_evidence in V2 output)
-      let parsed: Omit<ScoringResult, 'supporting_evidence'>;
+      // Parse → validate → fix (one retry if needed)
+      let parsed: ScoringFields;
+      let issues: string[];
       try {
-        parsed = JSON.parse(text);
+        parsed = extractJson(text) as ScoringFields;
+        issues = validateScoringResult(parsed);
       } catch (parseErr) {
-        // Try extracting a JSON object from the response
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          try {
-            parsed = JSON.parse(jsonMatch[0]);
-          } catch (innerErr) {
-            // JSON object found but still malformed — ask Haiku to fix it
-            parsed = await repairJson(jsonMatch[0], innerErr instanceof Error ? innerErr.message : String(innerErr));
-          }
-        } else {
-          // No JSON object at all — ask Haiku to fix the raw text
-          parsed = await repairJson(text, parseErr instanceof Error ? parseErr.message : String(parseErr));
+        // JSON parse failed entirely — treat as schema issues for the fix prompt
+        issues = [`JSON parse error: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`];
+        parsed = {} as ScoringFields;
+      }
+
+      if (issues.length > 0) {
+        parsed = await fixScoringResponse(text, issues);
+        const fixIssues = validateScoringResult(parsed);
+        if (fixIssues.length > 0) {
+          throw new Error(`Scoring schema invalid after fix attempt: ${fixIssues.join('; ')}`);
         }
       }
 

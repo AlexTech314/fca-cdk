@@ -185,7 +185,7 @@ export class FlagshipWebStack extends cdk.Stack {
     // ============================================================
     // CloudFront Distribution — unified (public + admin)
     // ============================================================
-    const distribution = new cloudfront.Distribution(this, 'UnifiedDistribution', {
+    const distribution = new cloudfront.Distribution(this, 'PublicDistribution', {
       defaultBehavior: {
         origin: nextjsOrigin,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,

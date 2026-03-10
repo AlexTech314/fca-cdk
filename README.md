@@ -20,7 +20,7 @@ fca-cdk/
 │       ├── leadgen-pipeline-stack.ts  # Lambdas, SQS, Step Functions, Fargate tasks
 │       ├── api-stack.ts            # Shared ECS Fargate API + ALB
 │       ├── leadgen-web-stack.ts    # Lead-gen SPA bucket + CloudFront
-│       ├── flagship-web-stack.ts   # Next.js public + admin Fargate + CloudFront
+│       ├── flagship-web-stack.ts   # Unified Next.js (public + admin) Fargate + CloudFront
 │       └── dns-stack.ts            # Route 53 hosted zone (flatironscap.com)
 ├── src/
 │   ├── api/                        # Express API (Prisma, PostgreSQL)
@@ -158,22 +158,22 @@ The Dev stage deploys 7 stacks:
 
 | Order | Stack | Purpose | Dependencies |
 |-------|-------|---------|--------------|
-| 1 | **NetworkStack** | VPC with fck-nat (t4g.nano x2), S3 gateway endpoint | None |
+| 1 | **NetworkStack** | VPC with fck-nat (t4g.nano x1), S3 gateway endpoint | None |
 | 2 | **CognitoStack** | User Pool, App Client, Domain, Groups (admin/readwrite/readonly) | None |
-| 3 | **StatefulStack** | RDS PostgreSQL (db.t4g.small), S3 campaign bucket, seed-db Lambda | Network, Cognito |
+| 3 | **StatefulStack** | RDS PostgreSQL (db.t4g.micro), S3 campaign bucket, seed-db Lambda | Network, Cognito |
 | 4 | **LeadGenPipelineStack** | SQS queues, Bridge Lambda, Fargate tasks, Step Functions, Scoring Lambda | Stateful |
 | 5 | **ApiStack** | Shared Express API on Fargate + ALB | Stateful, LeadGenPipeline, Cognito |
 | 6 | **LeadGenWebStack** | Lead-gen SPA in S3 + CloudFront | Api |
-| 7 | **FlagshipWebStack** | Next.js public + admin on Fargate + CloudFront | Api, Cognito |
+| 7 | **FlagshipWebStack** | Unified Next.js (public + admin) on Fargate + CloudFront | Api, Cognito |
 
 ## Flagship Next.js (FlagshipWebStack)
 
-Two Fargate services built from the same codebase (`src/flagship-ui/nextjs-web`) using separate Dockerfiles:
+Single unified Fargate service built from `src/flagship-ui/nextjs-web` using `Dockerfile.unified`. Serves both the public website and admin dashboard (WordPress-style: navigate to `/admin` for login screen).
 
-- **Public** (`Dockerfile.public`) -- public-facing website behind CloudFront with 5-minute cache TTL
-- **Admin** (`Dockerfile.admin`) -- admin dashboard behind CloudFront with no caching, authenticated via Cognito
+- **Public routes** (`/`, `/about`, `/transactions`, etc.) -- cached 5 minutes via CloudFront
+- **Admin routes** (`/admin/*`) -- no caching, authenticated via Cognito (client-side AuthGuard)
 
-Both share the ApiStack ALB with header-based routing (`X-Origin-Service` header). Images are built at deploy time using [`token-injectable-docker-builder`](https://constructs.dev/packages/token-injectable-docker-builder) so CDK tokens (ALB DNS, Cognito IDs) can be injected as Docker build args.
+Uses Next.js route groups: public routes live in `(public)/` with Header/Footer layout, admin routes have their own layout with AdminShell. Shares the ApiStack ALB with header-based routing (`X-Origin-Service: nextjs`). Image is built at deploy time using [`token-injectable-docker-builder`](https://constructs.dev/packages/token-injectable-docker-builder) so CDK tokens (ALB DNS, Cognito IDs) can be injected as Docker build args.
 
 ## ECR Pull-Through Cache
 
@@ -327,8 +327,8 @@ this.pipeline.addStage(prodStage, {
 │                                                                                 │
 │  ┌────────┐ ┌────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────┐ ┌──────┐ │
 │  │VPC +   │ │Cognito │ │RDS + S3  │ │Lambdas + │ │Fargate   │ │SPA + │ │NextJS│ │
-│  │fck-nat │ │Pool +  │ │+ seed-db │ │Step Fns +│ │API + ALB │ │CF    │ │pub + │ │
-│  │        │ │Groups  │ │          │ │Fargate   │ │(shared)  │ │      │ │admin │ │
+│  │fck-nat │ │Pool +  │ │+ seed-db │ │Step Fns +│ │API + ALB │ │CF    │ │unified│ │
+│  │        │ │Groups  │ │          │ │Fargate   │ │(shared)  │ │      │ │pub+adm│ │
 │  └────────┘ └────────┘ └──────────┘ └──────────┘ └──────────┘ └──────┘ └──────┘ │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -353,34 +353,34 @@ These costs are driven by the self-mutating CDK pipeline and are only incurred w
 | Resource | Config | Actual Monthly |
 |----------|--------|----------------|
 | **VPC Data Transfer** | Cross-AZ traffic (ALB↔Fargate, NAT outbound) | **~$29/mo** |
-| **RDS PostgreSQL** | db.t4g.small, Single-AZ, 20 GB gp2 | **~$19/mo** |
-| **ECS Fargate** | API (ARM64) + 2x Next.js (x86_64), 0.25 vCPU each | **~$18/mo** |
 | **ALB** | Shared Application Load Balancer, 2 AZs | **~$14/mo** |
-| **EC2 NAT** (fck-nat x2) | t4g.nano per AZ (saves ~$55/mo vs managed NAT) | **~$6/mo** |
+| **ECS Fargate** | API (ARM64) + unified Next.js (ARM64), 0.25 vCPU each | **~$11/mo** |
+| **RDS PostgreSQL** | db.t4g.micro, Single-AZ, 20 GB gp2 | **~$11/mo** |
+| **EC2 NAT** (fck-nat x1) | Single t4g.nano (saves ~$58/mo vs managed NAT) | **~$3/mo** |
 | **Secrets Manager** | 5 secrets | **~$3/mo** |
 | **Bedrock (Claude Haiku)** | Lead scoring inference calls | **~$2/mo** |
 | **Route 53** | Hosted zone + DNS queries | **~$1/mo** |
 | **KMS** | Encryption keys (pipeline, secrets) | **~$1/mo** |
-| **CloudFront** | 3 distributions, low traffic | **< $1/mo** |
+| **CloudFront** | 2 distributions, low traffic | **< $1/mo** |
 | **CloudWatch Logs** | Log ingestion + storage | **< $1/mo** |
 | **Lambda** | 6 functions, event-driven | **< $1/mo** |
 | **S3** | Campaign data, CUR data, Athena results | **< $1/mo** |
 | **Cognito** | < 50K MAU (free tier) | **$0/mo** |
 | **SQS / Step Functions** | Queue + orchestration (low volume) | **< $1/mo** |
-| | **Runtime subtotal** | **~$98/mo** |
+| | **Runtime subtotal** | **~$80/mo** |
 
 ### Totals
 
 | Category | Monthly | After Handover |
 |----------|---------|----------------|
 | Dev/CI (CodeBuild, CodePipeline, ECR) | **~$69/mo** | **$0/mo** |
-| Runtime (infrastructure) | **~$98/mo** | **~$98/mo** |
-| **Total during development** | **~$167/mo** | — |
-| **Total after handover** | — | **~$98/mo** |
+| Runtime (infrastructure) | **~$80/mo** | **~$80/mo** |
+| **Total during development** | **~$149/mo** | — |
+| **Total after handover** | — | **~$80/mo** |
 
-**Top runtime cost drivers:** VPC data transfer (~30%), RDS (~19%), ECS Fargate (~18%), ALB (~14%).
+**Top runtime cost drivers:** VPC data transfer (~36%), ALB (~18%), ECS Fargate (~14%), RDS (~14%).
 
-Two fck-nat t4g.nano instances save ~$55/mo vs managed NAT Gateways ($32/mo each). VPC data transfer costs (cross-AZ, NAT outbound) are incurred regardless of NAT type.
+One fck-nat t4g.nano instance saves ~$58/mo vs managed NAT Gateways ($32/mo each). VPC data transfer costs (cross-AZ, NAT outbound) are incurred regardless of NAT type. RDS downsized to db.t4g.micro (~112 max connections); pipeline concurrency is capped to keep peak usage at ~50% of limit. Unified Next.js container serves both public site and admin dashboard from a single Fargate task.
 
 *Additional variable costs not included: Claude API (Anthropic), Google Places API. Heavy scrape runs (30+ concurrent Fargate tasks) can add $2-5/day.*
 
@@ -420,4 +420,4 @@ Pipeline asset publishing uses CodeBuild local Docker layer caching by default. 
 
 ### Next.js Deploy-Time Build Failures
 
-FlagshipWebStack builds Docker images at deploy time via CodeBuild. If a build fails and CloudFormation rolls back, check CloudWatch Logs -- the build log groups use RETAIN removal policy so logs persist after rollback. Look for log groups named after the construct (e.g., `PublicBuildLogGroup`, `AdminBuildLogGroup`).
+FlagshipWebStack builds the unified Docker image at deploy time via CodeBuild. If a build fails and CloudFormation rolls back, check CloudWatch Logs -- the build log groups use RETAIN removal policy so logs persist after rollback.

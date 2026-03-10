@@ -3,6 +3,7 @@ import * as cdk from 'aws-cdk-lib';
 import { PipelineStack } from '../lib/pipeline-stack';
 import { EcrCacheStack } from '../lib/stacks/ecr-cache-stack';
 import { DnsStack } from '../lib/stacks/dns-stack';
+import { CostManagementStack } from '../lib/stacks/cost-management-stack';
 
 const app = new cdk.App();
 
@@ -37,6 +38,17 @@ new DnsStack(app, 'FcaDns', {
   env,
   domainName: app.node.getContext('domainName') as string,
 });
+
+// ============================================================
+// Cost Management Stack - CUR 2.0, Glue, Athena
+// ============================================================
+//
+// Deploy manually: npx cdk deploy FcaCostManagement
+// After deploy, copy the output values into cdk.json context:
+//   athenaWorkGroupName, glueDatabaseName, glueTableName,
+//   curBucketName, curBucketArn, athenaResultsBucketName, athenaResultsBucketArn
+//
+new CostManagementStack(app, 'FcaCostManagement', { env });
 
 // ============================================================
 // Pipeline Stack - Deploy SECOND after ECR Cache

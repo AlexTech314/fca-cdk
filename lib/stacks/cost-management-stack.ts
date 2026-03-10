@@ -8,6 +8,12 @@ import { Construct } from 'constructs';
 /**
  * CostManagementStack — CUR 2.0 data export + Athena query infrastructure.
  *
+ * Deployed as a top-level stack (like DnsStack/EcrCacheStack).
+ * Deploy manually: npx cdk deploy FcaCostManagement
+ *
+ * After deploy, hardcode the output values into cdk.json context
+ * so the pipeline API stack can reference them.
+ *
  * Creates:
  * 1. S3 bucket for CUR 2.0 Parquet delivery
  * 2. S3 bucket for Athena query results (7-day lifecycle)
@@ -18,12 +24,6 @@ import { Construct } from 'constructs';
  * Estimated cost: ~$1-3/mo
  */
 export class CostManagementStack extends cdk.Stack {
-  public readonly curBucket: s3.IBucket;
-  public readonly athenaResultsBucket: s3.IBucket;
-  public readonly athenaWorkGroupName: string;
-  public readonly glueDatabaseName: string;
-  public readonly glueTableName: string;
-
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
@@ -60,8 +60,6 @@ export class CostManagementStack extends cdk.Stack {
       })
     );
 
-    this.curBucket = curBucket;
-
     // ============================================
     // S3 Bucket — Athena query results
     // ============================================
@@ -79,47 +77,20 @@ export class CostManagementStack extends cdk.Stack {
       ],
     });
 
-    this.athenaResultsBucket = athenaResultsBucket;
-
     // ============================================
-    // CUR 2.0 Data Export
+    // CUR 2.0 Data Export — MANUAL CONSOLE SETUP
     // ============================================
+    // AWS::BCMDataExports::Export is not available via CloudFormation.
+    // Create the export manually in the AWS Console:
+    //   1. Go to Billing > Data Exports > Create
+    //   2. Choose "Standard data export" with CUR 2.0
+    //   3. TIME_GRANULARITY: DAILY, INCLUDE_RESOURCES: TRUE
+    //   4. Format: Parquet, Compression: Parquet, Overwrite mode
+    //   5. S3 bucket: fca-cur-data-<account>, prefix: cur-data
+    //   6. Export name: fca-cur-export
+    //
+    // After the export delivers data (~24h), the Glue table below will serve it.
     const exportName = 'fca-cur-export';
-    new cdk.CfnResource(this, 'CurExport', {
-      type: 'AWS::BCMDataExports::Export',
-      properties: {
-        Export: {
-          Name: exportName,
-          DataQuery: {
-            QueryStatement: 'SELECT * FROM COST_AND_USAGE_REPORT',
-            TableConfigurations: {
-              COST_AND_USAGE_REPORT: {
-                TIME_GRANULARITY: 'DAILY',
-                INCLUDE_RESOURCES: 'TRUE',
-                INCLUDE_SPLIT_COST_ALLOCATION_DATA: 'FALSE',
-                INCLUDE_MANUAL_DISCOUNT_COMPATIBILITY: 'FALSE',
-              },
-            },
-          },
-          DestinationConfigurations: {
-            S3Destination: {
-              S3Bucket: curBucket.bucketName,
-              S3Prefix: 'cur-data',
-              S3Region: this.region,
-              S3OutputConfigurations: {
-                OutputType: 'CUSTOM',
-                Format: 'PARQUET',
-                Compression: 'PARQUET',
-                Overwrite: 'OVERWRITE_REPORT',
-              },
-            },
-          },
-          RefreshCadence: {
-            Frequency: 'SYNCHRONOUS',
-          },
-        },
-      },
-    });
 
     // ============================================
     // Glue Database
@@ -132,8 +103,6 @@ export class CostManagementStack extends cdk.Stack {
         description: 'CUR 2.0 cost and usage data',
       },
     });
-
-    this.glueDatabaseName = databaseName;
 
     // ============================================
     // Glue Table — manual schema (CUR 2.0 Parquet)
@@ -208,8 +177,6 @@ export class CostManagementStack extends cdk.Stack {
       },
     });
 
-    this.glueTableName = tableName;
-
     // ============================================
     // Athena WorkGroup
     // ============================================
@@ -227,24 +194,50 @@ export class CostManagementStack extends cdk.Stack {
       },
     });
 
-    this.athenaWorkGroupName = workGroupName;
-
     // ============================================
-    // Outputs
+    // Exported Outputs
     // ============================================
+    // After deploying, copy these values into cdk.json context.
     new cdk.CfnOutput(this, 'CurBucketName', {
       value: curBucket.bucketName,
+      exportName: 'FcaCost-CurBucketName',
       description: 'S3 bucket for CUR 2.0 data',
     });
 
-    new cdk.CfnOutput(this, 'AthenaWorkGroup', {
+    new cdk.CfnOutput(this, 'CurBucketArn', {
+      value: curBucket.bucketArn,
+      exportName: 'FcaCost-CurBucketArn',
+      description: 'ARN of S3 bucket for CUR 2.0 data',
+    });
+
+    new cdk.CfnOutput(this, 'AthenaResultsBucketName', {
+      value: athenaResultsBucket.bucketName,
+      exportName: 'FcaCost-AthenaResultsBucketName',
+      description: 'S3 bucket for Athena query results',
+    });
+
+    new cdk.CfnOutput(this, 'AthenaResultsBucketArn', {
+      value: athenaResultsBucket.bucketArn,
+      exportName: 'FcaCost-AthenaResultsBucketArn',
+      description: 'ARN of S3 bucket for Athena query results',
+    });
+
+    new cdk.CfnOutput(this, 'AthenaWorkGroupName', {
       value: workGroupName,
+      exportName: 'FcaCost-AthenaWorkGroupName',
       description: 'Athena workgroup for cost queries',
     });
 
-    new cdk.CfnOutput(this, 'GlueDatabase', {
+    new cdk.CfnOutput(this, 'GlueDatabaseName', {
       value: databaseName,
+      exportName: 'FcaCost-GlueDatabaseName',
       description: 'Glue database for CUR data',
+    });
+
+    new cdk.CfnOutput(this, 'GlueTableName', {
+      value: tableName,
+      exportName: 'FcaCost-GlueTableName',
+      description: 'Glue table for CUR data',
     });
   }
 }

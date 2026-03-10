@@ -28,11 +28,6 @@ export interface ApiStackProps extends cdk.StackProps {
   readonly cognitoUserPoolId: string;
   readonly cognitoUserPoolArn: string;
   readonly cognitoClientId: string;
-  readonly athenaWorkGroupName: string;
-  readonly glueDatabaseName: string;
-  readonly glueTableName: string;
-  readonly curBucket: s3.IBucket;
-  readonly athenaResultsBucket: s3.IBucket;
 }
 
 /**
@@ -63,12 +58,16 @@ export class ApiStack extends cdk.Stack {
       cognitoUserPoolId,
       cognitoUserPoolArn,
       cognitoClientId,
-      athenaWorkGroupName,
-      glueDatabaseName,
-      glueTableName,
-      curBucket,
-      athenaResultsBucket,
     } = props;
+
+    // Cost management config from cdk.json context (deployed via top-level FcaCostManagement stack)
+    const athenaWorkGroupName = this.node.tryGetContext('athenaWorkGroupName') as string || '';
+    const glueDatabaseName = this.node.tryGetContext('glueDatabaseName') as string || '';
+    const glueTableName = this.node.tryGetContext('glueTableName') as string || '';
+    const curBucketName = this.node.tryGetContext('curBucketName') as string || '';
+    const curBucketArn = this.node.tryGetContext('curBucketArn') as string || '';
+    const athenaResultsBucketName = this.node.tryGetContext('athenaResultsBucketName') as string || '';
+    const athenaResultsBucketArn = this.node.tryGetContext('athenaResultsBucketArn') as string || '';
 
     const assetsBucket = s3.Bucket.fromBucketName(this, 'AssetsBucket', 'fca-assets-113862367661');
 
@@ -189,43 +188,50 @@ export class ApiStack extends cdk.Stack {
       })
     );
 
-    // Athena query permissions
-    apiService.taskDefinition.taskRole.addToPrincipalPolicy(
-      new iam.PolicyStatement({
-        actions: [
-          'athena:StartQueryExecution',
-          'athena:GetQueryExecution',
-          'athena:GetQueryResults',
-          'athena:StopQueryExecution',
-          'athena:GetWorkGroup',
-        ],
-        resources: [`arn:aws:athena:${this.region}:${this.account}:workgroup/${athenaWorkGroupName}`],
-      })
-    );
+    // Athena/Glue/S3 permissions for cost queries (only if context values are set)
+    if (athenaWorkGroupName) {
+      apiService.taskDefinition.taskRole.addToPrincipalPolicy(
+        new iam.PolicyStatement({
+          actions: [
+            'athena:StartQueryExecution',
+            'athena:GetQueryExecution',
+            'athena:GetQueryResults',
+            'athena:StopQueryExecution',
+            'athena:GetWorkGroup',
+          ],
+          resources: [`arn:aws:athena:${this.region}:${this.account}:workgroup/${athenaWorkGroupName}`],
+        })
+      );
+    }
 
-    // Glue catalog read permissions
-    apiService.taskDefinition.taskRole.addToPrincipalPolicy(
-      new iam.PolicyStatement({
-        actions: [
-          'glue:GetDatabase',
-          'glue:GetTable',
-          'glue:GetTables',
-          'glue:GetPartition',
-          'glue:GetPartitions',
-        ],
-        resources: [
-          `arn:aws:glue:${this.region}:${this.account}:catalog`,
-          `arn:aws:glue:${this.region}:${this.account}:database/${glueDatabaseName}`,
-          `arn:aws:glue:${this.region}:${this.account}:table/${glueDatabaseName}/*`,
-        ],
-      })
-    );
+    if (glueDatabaseName) {
+      apiService.taskDefinition.taskRole.addToPrincipalPolicy(
+        new iam.PolicyStatement({
+          actions: [
+            'glue:GetDatabase',
+            'glue:GetTable',
+            'glue:GetTables',
+            'glue:GetPartition',
+            'glue:GetPartitions',
+          ],
+          resources: [
+            `arn:aws:glue:${this.region}:${this.account}:catalog`,
+            `arn:aws:glue:${this.region}:${this.account}:database/${glueDatabaseName}`,
+            `arn:aws:glue:${this.region}:${this.account}:table/${glueDatabaseName}/*`,
+          ],
+        })
+      );
+    }
 
-    // S3 read access to CUR data bucket
-    curBucket.grantRead(apiService.taskDefinition.taskRole);
+    if (curBucketArn) {
+      const curBucket = s3.Bucket.fromBucketArn(this, 'CurBucket', curBucketArn);
+      curBucket.grantRead(apiService.taskDefinition.taskRole);
+    }
 
-    // S3 read/write access to Athena results bucket
-    athenaResultsBucket.grantReadWrite(apiService.taskDefinition.taskRole);
+    if (athenaResultsBucketArn) {
+      const athenaResultsBucket = s3.Bucket.fromBucketArn(this, 'AthenaResultsBucket', athenaResultsBucketArn);
+      athenaResultsBucket.grantReadWrite(apiService.taskDefinition.taskRole);
+    }
 
     apiService.service.connections.allowTo(dbSecurityGroup, ec2.Port.tcp(5432), 'Allow API Fargate to RDS');
 

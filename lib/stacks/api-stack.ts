@@ -133,7 +133,7 @@ export class ApiStack extends cdk.Stack {
     this.loadBalancerDnsName = apiService.loadBalancer.loadBalancerDnsName;
     this.listener = apiService.listener;
 
-    const scaling = apiService.service.autoScaleTaskCount({ minCapacity: 1, maxCapacity: 10 });
+    const scaling = apiService.service.autoScaleTaskCount({ minCapacity: 1, maxCapacity: 3 });
     scaling.scaleOnCpuUtilization('CpuScaling', {
       targetUtilizationPercent: 70,
       scaleInCooldown: cdk.Duration.seconds(60),

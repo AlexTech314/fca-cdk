@@ -6,7 +6,7 @@ import { Construct } from 'constructs';
 /**
  * Shared VPC stack deployed once, used by all stages.
  *
- * Uses fck-nat (t4g.nano ~$3/mo each, 2 instances for AZ resilience) instead of managed NAT Gateway (~$32/mo per AZ).
+ * Uses fck-nat (t4g.nano ~$3/mo each, 1 instance) instead of managed NAT Gateway (~$32/mo per AZ).
  * https://fck-nat.dev/stable/deploying/
  *
  * S3 Gateway VPC endpoint (free) reduces NAT traffic.
@@ -31,7 +31,7 @@ export class NetworkStack extends cdk.Stack {
     this.vpc = new ec2.Vpc(this, 'Vpc', {
       maxAzs: 2,
       natGatewayProvider,
-      natGateways: 2, // One per AZ for resilience
+      natGateways: 1, // Single instance (saves ~$3/mo, acceptable AZ risk for this app)
       subnetConfiguration: [
         {
           name: 'Public',

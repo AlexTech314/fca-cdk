@@ -22,8 +22,8 @@ export interface StatefulStackProps extends cdk.StackProps {
  * Stateful resources -- RDS, S3 campaign data bucket.
  * These persist across deployments. Use terminationProtection in production.
  *
- * No RDS Proxy: peak concurrent connections ~30-40 (during scrape runs),
- * db.t4g.small supports ~150. Saves $21.90/mo.
+ * No RDS Proxy: peak concurrent connections ~56 (during scrape runs),
+ * db.t4g.micro supports ~112. Saves $21.90/mo.
  */
 export class StatefulStack extends cdk.Stack {
   public readonly database: rds.DatabaseInstance;
@@ -79,7 +79,7 @@ export class StatefulStack extends cdk.Stack {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.of('16.12', '16', { s3Import: true, s3Export: true }),
       }),
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.SMALL),
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [this.dbSecurityGroup],

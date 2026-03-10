@@ -22,21 +22,19 @@ export interface FlagshipWebStackProps extends cdk.StackProps {
 }
 
 /**
- * Flagship Next.js web stack.
+ * Flagship Next.js web stack — unified container serving public + admin.
  *
- * Two Fargate services (public + admin) behind CloudFront, sharing the ApiStack ALB.
- * Routes by X-Origin-Service header: public -> public target group, admin -> admin target group.
+ * Single Fargate service behind CloudFront, sharing the ApiStack ALB.
+ * Routes by X-Origin-Service header: nextjs -> unified target group.
+ * /admin routes are protected by client-side Cognito auth (AuthGuard).
  *
  * Uses TokenInjectableDockerBuilder to build images at deploy time so CDK tokens
  * (ALB DNS, Cognito IDs) can be injected as Docker build args.
  */
 export class FlagshipWebStack extends cdk.Stack {
-  public readonly publicDistributionDomainName: string;
-  public readonly publicDistributionId: string;
-  public readonly adminDistributionDomainName: string;
-  public readonly adminDistributionId: string;
-  public readonly publicServiceArn: string;
-  public readonly adminServiceArn: string;
+  public readonly distributionDomainName: string;
+  public readonly distributionId: string;
+  public readonly serviceArn: string;
   public readonly nextjsClusterName: string;
   public readonly nextjsClusterArn: string;
 
@@ -55,22 +53,9 @@ export class FlagshipWebStack extends cdk.Stack {
     const apiUrl = `http://${apiLoadBalancerDnsName}/api`;
     const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
 
-    const publicDockerBuilder = new TokenInjectableDockerBuilder(this, 'PublicDockerBuilderV2', {
+    const unifiedDockerBuilder = new TokenInjectableDockerBuilder(this, 'UnifiedDockerBuilder', {
       path: path.join(__dirname, '../../src/flagship-ui/nextjs-web'),
-      file: 'Dockerfile.public',
-      platform: 'linux/arm64',
-      provider,
-      buildArgs: {
-        API_URL: apiUrl,
-      },
-      vpc,
-      subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      retainBuildLogs: true,
-    });
-
-    const adminDockerBuilder = new TokenInjectableDockerBuilder(this, 'AdminDockerBuilderV2', {
-      path: path.join(__dirname, '../../src/flagship-ui/nextjs-web'),
-      file: 'Dockerfile.admin',
+      file: 'Dockerfile.unified',
       platform: 'linux/arm64',
       provider,
       buildArgs: {
@@ -90,25 +75,9 @@ export class FlagshipWebStack extends cdk.Stack {
     const cluster = new ecs.Cluster(this, 'NextjsCluster', { vpc });
 
     // ============================================================
-    // Target Groups
+    // Target Group
     // ============================================================
-    const publicTargetGroup = new elbv2.ApplicationTargetGroup(this, 'PublicTargetGroup', {
-      vpc,
-      port: 3000,
-      protocol: elbv2.ApplicationProtocol.HTTP,
-      targetType: elbv2.TargetType.IP,
-      deregistrationDelay: cdk.Duration.seconds(30),
-      healthCheck: {
-        path: '/api/health',
-        healthyHttpCodes: '200',
-        interval: cdk.Duration.seconds(30),
-        timeout: cdk.Duration.seconds(10),
-        healthyThresholdCount: 2,
-        unhealthyThresholdCount: 3,
-      },
-    });
-
-    const adminTargetGroup = new elbv2.ApplicationTargetGroup(this, 'AdminTargetGroup', {
+    const targetGroup = new elbv2.ApplicationTargetGroup(this, 'UnifiedTargetGroup', {
       vpc,
       port: 3000,
       protocol: elbv2.ApplicationProtocol.HTTP,
@@ -125,31 +94,24 @@ export class FlagshipWebStack extends cdk.Stack {
     });
 
     // ============================================================
-    // ALB Listener Rules (X-Origin-Service header routing)
+    // ALB Listener Rule (X-Origin-Service header routing)
     // ============================================================
-    new elbv2.ApplicationListenerRule(this, 'PublicRule', {
+    new elbv2.ApplicationListenerRule(this, 'UnifiedRule', {
       listener: apiListener,
       priority: 1,
-      conditions: [elbv2.ListenerCondition.httpHeader('X-Origin-Service', ['public'])],
-      action: elbv2.ListenerAction.forward([publicTargetGroup]),
-    });
-
-    new elbv2.ApplicationListenerRule(this, 'AdminRule', {
-      listener: apiListener,
-      priority: 2,
-      conditions: [elbv2.ListenerCondition.httpHeader('X-Origin-Service', ['admin'])],
-      action: elbv2.ListenerAction.forward([adminTargetGroup]),
+      conditions: [elbv2.ListenerCondition.httpHeader('X-Origin-Service', ['nextjs'])],
+      action: elbv2.ListenerAction.forward([targetGroup]),
     });
 
     // ============================================================
-    // Public Fargate Service
+    // Fargate Service
     // ============================================================
-    const publicLogGroup = new logs.LogGroup(this, 'PublicLogs', {
+    const logGroup = new logs.LogGroup(this, 'UnifiedLogs', {
       retention: logs.RetentionDays.ONE_WEEK,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    const publicTaskDef = new ecs.FargateTaskDefinition(this, 'PublicTaskDef', {
+    const taskDef = new ecs.FargateTaskDefinition(this, 'UnifiedTaskDef', {
       cpu: 256,
       memoryLimitMiB: 512,
       runtimePlatform: {
@@ -158,87 +120,42 @@ export class FlagshipWebStack extends cdk.Stack {
       },
     });
 
-    publicTaskDef.addContainer('Public', {
-      image: publicDockerBuilder.containerImage,
+    taskDef.addContainer('Unified', {
+      image: unifiedDockerBuilder.containerImage,
       portMappings: [{ containerPort: 3000 }],
       environment: {
         NODE_ENV: 'production',
         API_URL: apiUrl,
       },
-      logging: ecs.LogDrivers.awsLogs({ logGroup: publicLogGroup, streamPrefix: 'public' }),
+      logging: ecs.LogDrivers.awsLogs({ logGroup, streamPrefix: 'nextjs' }),
     });
 
-    const publicService = new ecs.FargateService(this, 'PublicService', {
+    const service = new ecs.FargateService(this, 'UnifiedService', {
       cluster,
-      taskDefinition: publicTaskDef,
+      taskDefinition: taskDef,
       desiredCount: 1,
       minHealthyPercent: 100,
       assignPublicIp: false,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
     });
 
-    publicService.node.addDependency(publicDockerBuilder);
-    publicService.attachToApplicationTargetGroup(publicTargetGroup);
-    publicService.connections.allowFrom(apiLoadBalancer, ec2.Port.tcp(3000), 'Allow ALB to public Next.js');
+    service.node.addDependency(unifiedDockerBuilder);
+    service.attachToApplicationTargetGroup(targetGroup);
+    service.connections.allowFrom(apiLoadBalancer, ec2.Port.tcp(3000), 'Allow ALB to unified Next.js');
 
-    const publicScaling = publicService.autoScaleTaskCount({ minCapacity: 1, maxCapacity: 4 });
-    publicScaling.scaleOnCpuUtilization('PublicCpuScaling', {
+    const scaling = service.autoScaleTaskCount({ minCapacity: 1, maxCapacity: 4 });
+    scaling.scaleOnCpuUtilization('CpuScaling', {
       targetUtilizationPercent: 70,
       scaleInCooldown: cdk.Duration.seconds(120),
       scaleOutCooldown: cdk.Duration.seconds(60),
     });
 
     // ============================================================
-    // Admin Fargate Service
+    // CloudFront Origins (same ALB, header for routing)
     // ============================================================
-    const adminLogGroup = new logs.LogGroup(this, 'AdminLogs', {
-      retention: logs.RetentionDays.ONE_WEEK,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    const adminTaskDef = new ecs.FargateTaskDefinition(this, 'AdminTaskDef', {
-      cpu: 256,
-      memoryLimitMiB: 512,
-      runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.ARM64,
-        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
-      },
-    });
-
-    adminTaskDef.addContainer('Admin', {
-      image: adminDockerBuilder.containerImage,
-      portMappings: [{ containerPort: 3000 }],
-      environment: {
-        NODE_ENV: 'production',
-        API_URL: apiUrl,
-      },
-      logging: ecs.LogDrivers.awsLogs({ logGroup: adminLogGroup, streamPrefix: 'admin' }),
-    });
-
-    const adminService = new ecs.FargateService(this, 'AdminService', {
-      cluster,
-      taskDefinition: adminTaskDef,
-      desiredCount: 1,
-      minHealthyPercent: 100,
-      assignPublicIp: false,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-    });
-
-    adminService.node.addDependency(adminDockerBuilder);
-    adminService.attachToApplicationTargetGroup(adminTargetGroup);
-    adminService.connections.allowFrom(apiLoadBalancer, ec2.Port.tcp(3000), 'Allow ALB to admin Next.js');
-
-    // ============================================================
-    // CloudFront Origins (same ALB, different headers for routing)
-    // ============================================================
-    const publicOrigin = new origins.LoadBalancerV2Origin(apiLoadBalancer, {
+    const nextjsOrigin = new origins.LoadBalancerV2Origin(apiLoadBalancer, {
       protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
-      customHeaders: { 'X-Origin-Service': 'public' },
-    });
-
-    const adminOrigin = new origins.LoadBalancerV2Origin(apiLoadBalancer, {
-      protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
-      customHeaders: { 'X-Origin-Service': 'admin' },
+      customHeaders: { 'X-Origin-Service': 'nextjs' },
     });
 
     const apiOrigin = new origins.LoadBalancerV2Origin(apiLoadBalancer, {
@@ -266,15 +183,21 @@ export class FlagshipWebStack extends cdk.Stack {
     });
 
     // ============================================================
-    // CloudFront Distribution -- Public
+    // CloudFront Distribution — unified (public + admin)
     // ============================================================
-    const publicDistribution = new cloudfront.Distribution(this, 'PublicDistribution', {
+    const distribution = new cloudfront.Distribution(this, 'UnifiedDistribution', {
       defaultBehavior: {
-        origin: publicOrigin,
+        origin: nextjsOrigin,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: publicCachePolicy,
       },
       additionalBehaviors: {
+        '/admin/*': {
+          origin: nextjsOrigin,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
+        },
         '/api/*': {
           origin: apiOrigin,
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -283,7 +206,7 @@ export class FlagshipWebStack extends cdk.Stack {
           originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
         },
         '/_next/static/*': {
-          origin: publicOrigin,
+          origin: nextjsOrigin,
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           cachePolicy: staticCachePolicy,
         },
@@ -291,102 +214,62 @@ export class FlagshipWebStack extends cdk.Stack {
     });
 
     // ============================================================
-    // CloudFront Distribution -- Admin
-    // ============================================================
-    const adminDistribution = new cloudfront.Distribution(this, 'AdminDistribution', {
-      defaultBehavior: {
-        origin: adminOrigin,
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
-        originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
-      },
-      additionalBehaviors: {
-        '/api/*': {
-          origin: apiOrigin,
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
-          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
-          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
-        },
-      },
-    });
-
-    // ============================================================
     // CloudFront invalidation on deploy
     // ============================================================
-    // CallerReference must be 1-64 chars; ARNs are too long, so use a hash
-    const triggerRaw = `${publicTaskDef.taskDefinitionArn}-${adminTaskDef.taskDefinitionArn}`;
-    const invalidationTrigger = crypto.createHash('md5').update(triggerRaw).digest('hex');
-    const invalidationParams = (distId: string, label: string) => ({
-      DistributionId: distId,
+    const invalidationTrigger = crypto.createHash('md5').update(taskDef.taskDefinitionArn).digest('hex');
+    const invalidationParams = {
+      DistributionId: distribution.distributionId,
       InvalidationBatch: {
-        CallerReference: `inv-${label}-${invalidationTrigger}`,
+        CallerReference: `inv-unified-${invalidationTrigger}`,
         Paths: { Quantity: 1, Items: ['/*'] },
       },
+    };
+    const invalidation = new cr.AwsCustomResource(this, 'InvalidateUnified', {
+      onCreate: {
+        service: 'CloudFront',
+        action: 'createInvalidation',
+        parameters: invalidationParams,
+        physicalResourceId: cr.PhysicalResourceId.of(`inv-unified-${invalidationTrigger}`),
+      },
+      onUpdate: {
+        service: 'CloudFront',
+        action: 'createInvalidation',
+        parameters: invalidationParams,
+        physicalResourceId: cr.PhysicalResourceId.of(`inv-unified-${invalidationTrigger}`),
+      },
+      policy: cr.AwsCustomResourcePolicy.fromStatements([
+        new iam.PolicyStatement({
+          actions: ['cloudfront:CreateInvalidation'],
+          resources: ['*'],
+        }),
+      ]),
     });
-    const createInvalidation = (distId: string, label: string) =>
-      new cr.AwsCustomResource(this, `Invalidate${label}`, {
-        onCreate: {
-          service: 'CloudFront',
-          action: 'createInvalidation',
-          parameters: invalidationParams(distId, label),
-          physicalResourceId: cr.PhysicalResourceId.of(`inv-${label}-${invalidationTrigger}`),
-        },
-        onUpdate: {
-          service: 'CloudFront',
-          action: 'createInvalidation',
-          parameters: invalidationParams(distId, label),
-          physicalResourceId: cr.PhysicalResourceId.of(`inv-${label}-${invalidationTrigger}`),
-        },
-        policy: cr.AwsCustomResourcePolicy.fromStatements([
-          new iam.PolicyStatement({
-            actions: ['cloudfront:CreateInvalidation'],
-            resources: ['*'],
-          }),
-        ]),
-      });
-    createInvalidation(publicDistribution.distributionId, 'Public').node.addDependency(publicDistribution);
-    createInvalidation(adminDistribution.distributionId, 'Admin').node.addDependency(adminDistribution);
+    invalidation.node.addDependency(distribution);
 
     // ============================================================
     // Outputs
     // ============================================================
-    this.publicDistributionDomainName = publicDistribution.distributionDomainName;
-    this.publicDistributionId = publicDistribution.distributionId;
-    this.adminDistributionDomainName = adminDistribution.distributionDomainName;
-    this.adminDistributionId = adminDistribution.distributionId;
-    this.publicServiceArn = publicService.serviceArn;
-    this.adminServiceArn = adminService.serviceArn;
+    this.distributionDomainName = distribution.distributionDomainName;
+    this.distributionId = distribution.distributionId;
+    this.serviceArn = service.serviceArn;
     this.nextjsClusterName = cluster.clusterName;
     this.nextjsClusterArn = cluster.clusterArn;
 
-    new cdk.CfnOutput(this, 'PublicDistributionDomainName', {
-      value: publicDistribution.distributionDomainName,
-      description: 'CloudFront domain for public site (flatironscap.com)',
+    new cdk.CfnOutput(this, 'DistributionDomainName', {
+      value: distribution.distributionDomainName,
+      description: 'CloudFront domain for unified site (public + admin)',
     });
-    new cdk.CfnOutput(this, 'PublicDistributionId', {
-      value: publicDistribution.distributionId,
+    new cdk.CfnOutput(this, 'DistributionId', {
+      value: distribution.distributionId,
       description: 'CloudFront distribution ID for cache invalidation',
     });
-    new cdk.CfnOutput(this, 'AdminDistributionDomainName', {
-      value: adminDistribution.distributionDomainName,
-      description: 'CloudFront domain for admin site (admin.flatironscap.com)',
-    });
-    new cdk.CfnOutput(this, 'AdminDistributionId', {
-      value: adminDistribution.distributionId,
-      description: 'CloudFront distribution ID for admin',
-    });
-    new cdk.CfnOutput(this, 'PublicServiceArn', {
-      value: publicService.serviceArn,
-      description: 'ECS service ARN for public Next.js',
-    });
-    new cdk.CfnOutput(this, 'AdminServiceArn', {
-      value: adminService.serviceArn,
-      description: 'ECS service ARN for admin Next.js',
+    new cdk.CfnOutput(this, 'ServiceArn', {
+      value: service.serviceArn,
+      description: 'ECS service ARN for unified Next.js',
     });
     new cdk.CfnOutput(this, 'NextjsClusterName', {
       value: cluster.clusterName,
-      description: 'ECS cluster name for Next.js services',
+      description: 'ECS cluster name for Next.js service',
     });
     new cdk.CfnOutput(this, 'NextjsClusterArn', {
       value: cluster.clusterArn,

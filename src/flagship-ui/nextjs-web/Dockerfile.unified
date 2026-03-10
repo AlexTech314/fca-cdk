@@ -1,0 +1,74 @@
+# syntax=docker/dockerfile:1
+
+# ================================
+# Base image with Node.js
+# ================================
+FROM node:24-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+# Install SWC binary for Alpine (musl) — required for Turbopack in Next.js 16
+RUN npm install @next/swc-linux-arm64-musl 2>/dev/null || true
+
+# ================================
+# Build -- all routes (public + admin)
+# ================================
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Build-time env vars
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Cognito — passed as build args so NEXT_PUBLIC_* values are inlined into the client bundle
+ARG NEXT_PUBLIC_COGNITO_USER_POOL_ID=""
+ARG NEXT_PUBLIC_COGNITO_CLIENT_ID=""
+ARG NEXT_PUBLIC_COGNITO_ENDPOINT=""
+ARG NEXT_PUBLIC_API_URL="http://localhost:4000/api"
+ENV NEXT_PUBLIC_COGNITO_USER_POOL_ID=${NEXT_PUBLIC_COGNITO_USER_POOL_ID}
+ENV NEXT_PUBLIC_COGNITO_CLIENT_ID=${NEXT_PUBLIC_COGNITO_CLIENT_ID}
+ENV NEXT_PUBLIC_COGNITO_ENDPOINT=${NEXT_PUBLIC_COGNITO_ENDPOINT}
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
+# Allow next build to reach the API for generateStaticParams
+ARG API_URL=http://host.docker.internal:4000/api
+ENV API_URL=${API_URL}
+
+RUN mkdir -p public
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+RUN npm run build
+
+# ================================
+# Production image
+# ================================
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]

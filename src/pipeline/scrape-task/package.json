@@ -8,11 +8,12 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@fca/db": "file:../../packages/db",
     "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/client-sqs": "^3.1005.0",
+    "@fca/db": "file:../../packages/db",
     "@prisma/client": "^5.22.0",
-    "cloudscraper": "^4.6.0",
     "cloakbrowser": "^0.3.0",
+    "cloudscraper": "^4.6.0",
     "playwright-core": "^1.50.0",
     "turndown": "^7.2.0"
   },

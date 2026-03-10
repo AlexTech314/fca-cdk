@@ -29,6 +29,7 @@ const SCRAPE_TASK_DEF_ARN = process.env.SCRAPE_TASK_DEF_ARN!;
 const SUBNETS = (process.env.SUBNETS || '').split(',').filter(Boolean);
 const SECURITY_GROUPS = (process.env.SECURITY_GROUPS || '').split(',').filter(Boolean);
 const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
+const FAST_MODE = process.env.FAST_MODE ?? 'true';
 
 interface BatchLead {
   id: string;
@@ -112,6 +113,7 @@ export async function handler(event: SQSEvent): Promise<void> {
   const jobInput = JSON.stringify({
     batchS3Key,
     taskId: task.id,
+    fastMode: FAST_MODE === 'true',
   });
 
   try {

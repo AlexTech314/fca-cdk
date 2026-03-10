@@ -1,4 +1,5 @@
 import { S3Client } from '@aws-sdk/client-s3';
+import { SQSClient } from '@aws-sdk/client-sqs';
 import { EventEmitter } from 'events';
 import { createRequire } from 'module';
 
@@ -12,6 +13,7 @@ export const cloudscraper = require('cloudscraper');
 // ============ AWS Clients ============
 
 export const s3Client = new S3Client({ region: process.env.AWS_REGION });
+export const sqsClient = new SQSClient({ region: process.env.AWS_REGION });
 
 // ============ Environment Variables ============
 
@@ -22,6 +24,7 @@ function requireEnv(name: string): string {
 }
 
 export const CAMPAIGN_DATA_BUCKET = requireEnv('CAMPAIGN_DATA_BUCKET');
+export const DEEP_SCRAPE_QUEUE_URL = process.env.DEEP_SCRAPE_QUEUE_URL ?? '';
 
 // Task resource info for dynamic concurrency calculation
 export const TASK_MEMORY_MIB = parseInt(process.env.TASK_MEMORY_MIB || '4096', 10);

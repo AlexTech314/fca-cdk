@@ -2,6 +2,7 @@ import { launch } from 'cloakbrowser';
 import type { Browser } from 'playwright-core';
 import { randomUUID } from 'crypto';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { SendMessageCommand } from '@aws-sdk/client-sqs';
 import { bootstrapDatabaseUrl } from '@fca/db';
 import { PrismaClient } from '@prisma/client';
 
@@ -10,11 +11,13 @@ let prisma: PrismaClient | undefined;
 import type { JobInput, ExtractedData } from './types.js';
 import {
   CAMPAIGN_DATA_BUCKET,
+  DEEP_SCRAPE_QUEUE_URL,
   TASK_MEMORY_MIB,
   TASK_CPU_UNITS,
   LIMITS,
   calculateOptimalConcurrency,
   s3Client,
+  sqsClient,
 } from './config.js';
 import {
   scrapeWebsite,
@@ -84,17 +87,28 @@ function batchLeadToBusiness(lead: BatchLead): { id: string; place_id: string; b
   };
 }
 
+/** Enqueue a lead for deep scrape (browser-only) */
+async function enqueueForDeepScrape(lead: { id: string; place_id: string; website_uri: string; phone?: string }): Promise<void> {
+  await sqsClient.send(new SendMessageCommand({
+    QueueUrl: DEEP_SCRAPE_QUEUE_URL,
+    MessageBody: JSON.stringify({
+      lead_id: lead.id,
+      place_id: lead.place_id,
+      website: lead.website_uri,
+      phone: lead.phone ?? null,
+    }),
+  }));
+}
+
 async function main(): Promise<void> {
   await bootstrapDatabaseUrl();
   const db = new PrismaClient();
   prisma = db;
-  console.log('=== Scrape Task (Cloudscraper with Playwright Fallback) ===');
-  console.log(`Bucket: ${CAMPAIGN_DATA_BUCKET}`);
-  
+
   // Parse job input
   const jobInputStr = process.env.JOB_INPUT;
   let jobInput: JobInput = {};
-  
+
   if (jobInputStr) {
     try {
       jobInput = JSON.parse(jobInputStr);
@@ -105,45 +119,50 @@ async function main(): Promise<void> {
   } else {
     console.log('No JOB_INPUT provided, using defaults');
   }
-  
+
+  const fastMode = jobInput.fastMode !== false; // default true
+  const modeLabel = fastMode ? 'Fast (cloudscraper only)' : 'Deep (browser only)';
+  console.log(`=== Scrape Task [${modeLabel}] ===`);
+  console.log(`Bucket: ${CAMPAIGN_DATA_BUCKET}`);
+
   const taskId = jobInput.taskId ?? jobInput.jobId;
   const requestedMaxPagesPerSite = jobInput.maxPagesPerSite ?? LIMITS.MAX_PAGES_PER_LEAD;
   const maxPagesPerSite = Math.min(requestedMaxPagesPerSite, LIMITS.MAX_PAGES_PER_LEAD);
-  
+
   // Read batch from S3 (scrape-trigger writes { id, place_id, website }[] per batch)
   const batchS3Key = jobInput.batchS3Key;
   if (!batchS3Key) {
     console.log('No batchS3Key provided. Exiting (distributed mode required).');
     return;
   }
-  
+
   console.log(`Reading batch from s3://${CAMPAIGN_DATA_BUCKET}/${batchS3Key}`);
-  
+
   let batchLeads: BatchLead[];
   try {
     const response = await s3Client.send(new GetObjectCommand({
       Bucket: CAMPAIGN_DATA_BUCKET,
       Key: batchS3Key,
     }));
-    
+
     const bodyString = await response.Body?.transformToString();
     if (!bodyString) {
       throw new Error('Empty response from S3');
     }
-    
+
     batchLeads = JSON.parse(bodyString) as BatchLead[];
     console.log(`Loaded ${batchLeads.length} leads from batch ${jobInput.batchIndex ?? 'unknown'}`);
   } catch (error) {
     console.error('Failed to read batch from S3:', error);
     throw error;
   }
-  
+
   // Filter to leads with website
   const leadsToScrape = batchLeads.filter(l => l.website);
   const businesses = leadsToScrape.map(batchLeadToBusiness);
-  
-  const concurrency = jobInput.concurrency || calculateOptimalConcurrency(true);
-  
+
+  const concurrency = jobInput.concurrency || calculateOptimalConcurrency(fastMode);
+
   console.log(`Task resources: ${TASK_MEMORY_MIB}MB memory, ${TASK_CPU_UNITS} CPU units`);
   console.log(`Using concurrency: ${concurrency}`);
   if (requestedMaxPagesPerSite > LIMITS.MAX_PAGES_PER_LEAD) {
@@ -152,51 +171,49 @@ async function main(): Promise<void> {
     );
   }
   console.log(`Max pages per site: ${maxPagesPerSite}`);
-  console.log(`Mode: cloudscraper first, lazy Playwright fallback for SPA sites`);
   console.log(`Leads to scrape: ${businesses.length}`);
-  
+
   if (businesses.length === 0) {
     console.log('No businesses need scraping. Exiting.');
     return;
   }
-  
+
   const domainTracker = new DomainTracker();
   const globalFailureTracker = new FailureTracker();
-  
-  // Playwright is launched lazily only when a SPA site is detected
+
+  // Deep mode: launch browser eagerly at task start
   let browser: Browser | null = null;
   let pagePool: PagePool | null = null;
-  let playwrightRetries = 0;
 
-  async function ensureBrowser(): Promise<{ browser: Browser; pagePool: PagePool }> {
-    if (browser && pagePool) return { browser, pagePool };
-    console.log('  [CloakBrowser] Launching stealth browser...');
+  if (!fastMode) {
+    console.log('[CloakBrowser] Launching stealth browser (deep mode)...');
     browser = await launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
-    pagePool = new PagePool(browser, 3);
-    console.log('  [CloakBrowser] Browser ready');
-    return { browser, pagePool };
+    pagePool = new PagePool(browser, concurrency);
+    console.log('[CloakBrowser] Browser ready');
   }
-  
+
   let processed = 0;
   let failed = 0;
+  let deferred = 0;
   let totalPages = 0;
   let totalBytes = 0;
   const startTimeTotal = Date.now();
 
   try {
-  
+
   for (let i = 0; i < businesses.length; i += concurrency) {
-    const batch = businesses.slice(i, i + concurrency);
-    
-    await Promise.all(batch.map(async (business) => {
+    const chunk = businesses.slice(i, i + concurrency);
+
+    await Promise.all(chunk.map(async (business) => {
       const startTime = Date.now();
-      
+      const pipelineStatus = fastMode ? 'scraping' : 'deep_scraping';
+
       try {
         console.log(`\nScraping: ${business.business_name} (${business.website_uri})`);
-        await db.lead.update({ where: { id: business.id }, data: { pipelineStatus: 'scraping' } });
+        await db.lead.update({ where: { id: business.id }, data: { pipelineStatus } });
 
         // Skip social media root URLs — no useful data to scrape
         const socialCheck = isSocialMediaUrl(business.website_uri!);
@@ -214,55 +231,47 @@ async function main(): Promise<void> {
           return;
         }
 
-        // Pass 1: cloudscraper (fast, no browser)
-        let scrapeResult = await scrapeWebsite(business.website_uri!, {
+        // Scrape using mode-appropriate method
+        const scrapeResult = await scrapeWebsite(business.website_uri!, {
           maxPages: maxPagesPerSite,
-          browser: null,
-          pagePool: null,
+          browser: fastMode ? null : browser,
+          pagePool: fastMode ? null : pagePool,
           domainTracker,
           failureTracker: globalFailureTracker,
           enableEarlyExit: false,
         }) as ScrapeWebsiteExtendedResult;
-        
-        let { pages, method } = scrapeResult;
-        
-        // Pass 2: fall back to Playwright when cloudscraper failed entirely
-        // or returned a JS SPA / Cloudflare challenge page
-        const needsBrowser =
-          pages.length === 0 ||
-          (pages.length > 0 && needsPlaywright(pages[0].html));
 
-        if (needsBrowser) {
-          const reason = pages.length === 0 ? 'cloudscraper failed' : 'SPA detected';
-          console.log(`  [${reason}] Re-scraping ${business.website_uri} with Playwright`);
-          playwrightRetries++;
-          try {
-            const bp = await ensureBrowser();
-            scrapeResult = await scrapeWebsite(business.website_uri!, {
-              maxPages: maxPagesPerSite,
-              browser: bp.browser,
-              pagePool: bp.pagePool,
-              domainTracker,
-              failureTracker: globalFailureTracker,
-              enableEarlyExit: false,
-            }) as ScrapeWebsiteExtendedResult;
-            pages = scrapeResult.pages;
-            method = scrapeResult.method;
-          } catch (playwrightError) {
-            console.warn(`  [Playwright fallback failed] ${business.business_name}:`, playwrightError);
+        const { pages, method } = scrapeResult;
+
+        // Fast mode: defer to deep scrape queue if cloudscraper can't handle it
+        if (fastMode) {
+          const needsBrowser =
+            pages.length === 0 ||
+            (pages.length > 0 && needsPlaywright(pages[0].html));
+
+          if (needsBrowser && DEEP_SCRAPE_QUEUE_URL) {
+            const reason = pages.length === 0 ? 'cloudscraper failed' : 'SPA detected';
+            console.log(`  [${reason}] Deferring ${business.website_uri} to deep scrape queue`);
+            await db.lead.update({
+              where: { id: business.id },
+              data: { pipelineStatus: 'queued_for_deep_scrape' },
+            });
+            await enqueueForDeepScrape(business);
+            deferred++;
+            return;
           }
         }
-        
+
         if (pages.length === 0) {
           console.log(`  ✗ No pages scraped for ${business.business_name}`);
           await markLeadScrapeFailed(db, business.id, business.website_uri, taskId ?? undefined, 'No pages scraped');
           failed++;
           return;
         }
-        
+
         const durationMs = Date.now() - startTime;
         const pageBytes = pages.reduce((sum, p) => sum + p.html.length, 0);
-        
+
         const knownPhones: string[] = [];
         if (business.phone) knownPhones.push(String(business.phone));
         const extracted = extractAllData(pages, knownPhones);
@@ -306,7 +315,7 @@ async function main(): Promise<void> {
         totalBytes += pageBytes;
 
         console.log(`  ✓ Scraped ${pages.length} pages (${method}), ${extracted.emails.length} emails`);
-        
+
       } catch (error) {
         failed++;
         console.error(`  ✗ Failed for ${business.business_name}:`, error);
@@ -316,39 +325,40 @@ async function main(): Promise<void> {
         } catch { /* best effort */ }
       }
     }));
-    
-    console.log(`\nProgress: ${processed + failed}/${businesses.length}`);
+
+    console.log(`\nProgress: ${processed + failed + deferred}/${businesses.length}`);
   }
 
   } finally {
     try { if (pagePool) await (pagePool as PagePool).closeAll(); } catch { /* ignore */ }
     try { if (browser) await (browser as Browser).close(); } catch { /* ignore */ }
   }
-  
+
   const totalDurationMs = Date.now() - startTimeTotal;
   const avgTimePerBusiness = businesses.length > 0 ? Math.round(totalDurationMs / businesses.length) : 0;
-  
+
   // Log comprehensive summary
   console.log('\n=== Scrape Task Complete ===');
+  console.log(`Mode: ${modeLabel}`);
   console.log(`Duration: ${(totalDurationMs / 1000).toFixed(1)}s (${avgTimePerBusiness}ms avg per business)`);
   console.log(`Processed: ${processed}`);
   console.log(`Failed: ${failed}`);
+  if (deferred > 0) {
+    console.log(`Deferred to deep scrape: ${deferred}`);
+  }
   console.log(`Total pages scraped: ${totalPages}`);
   console.log(`Total bytes: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
-  if (playwrightRetries > 0) {
-    console.log(`Playwright SPA fallbacks: ${playwrightRetries}`);
-  }
-  
+
   // Log failure breakdown
   globalFailureTracker.logSummary();
-  
+
   // Log domain success rates for domains with failures
   const domainStats = domainTracker.getStats();
   const problemDomains = domainStats
     .filter(d => d.failed > 0)
     .sort((a, b) => b.failed - a.failed)
     .slice(0, 10);
-  
+
   if (problemDomains.length > 0) {
     console.log(`\n[Domain Issues] Top ${problemDomains.length} domains with failures:`);
     for (const domain of problemDomains) {
@@ -359,14 +369,14 @@ async function main(): Promise<void> {
       console.log(`  ${domain.domain}: ${rate}% success (${domain.succeeded}/${domain.attempted}) - ${errorTypes}`);
     }
   }
-  
+
   // Update FargateTask status (for event-driven mode)
   if (taskId) {
     await updateFargateTask(db, taskId, 'completed');
   }
-  
+
   // Output summary for distributed mode
-  console.log(`SCRAPE_RESULT:${JSON.stringify({ processed, failed, total_pages: totalPages })}`);
+  console.log(`SCRAPE_RESULT:${JSON.stringify({ processed, failed, deferred, total_pages: totalPages })}`);
 }
 
 main().catch(async (error) => {

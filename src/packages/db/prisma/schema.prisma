@@ -685,6 +685,8 @@ enum LeadPipelineStatus {
   idle
   queued_for_scrape
   scraping
+  queued_for_deep_scrape
+  deep_scraping
   queued_for_scoring
   scoring
   scrape_failed

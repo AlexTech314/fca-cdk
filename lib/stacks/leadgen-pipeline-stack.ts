@@ -36,6 +36,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
   public readonly scoringQueue: sqs.IQueue;
   public readonly scrapeQueueUrl: string;
   public readonly scrapeQueueArn: string;
+  public readonly deepScrapeQueueUrl: string;
+  public readonly deepScrapeQueueArn: string;
   public readonly pipelineClusterArn: string;
 
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
@@ -75,6 +77,19 @@ export class LeadGenPipelineStack extends cdk.Stack {
       enforceSSL: true,
       visibilityTimeout: cdk.Duration.minutes(15),
       deadLetterQueue: { queue: scrapeDlq, maxReceiveCount: 3 },
+    });
+
+    const deepScrapeDlq = new sqs.Queue(this, 'DeepScrapeDlq', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
+    const deepScrapeQueue = new sqs.Queue(this, 'DeepScrapeQueue', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      visibilityTimeout: cdk.Duration.minutes(15),
+      deadLetterQueue: { queue: deepScrapeDlq, maxReceiveCount: 3 },
     });
 
     const scoringDlq = new sqs.Queue(this, 'ScoringDlq', {
@@ -289,12 +304,15 @@ export class LeadGenPipelineStack extends cdk.Stack {
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
         DATABASE_SECRET_ARN: databaseSecret.secretArn,
         DATABASE_HOST: databaseEndpoint,
+        DATABASE_CONNECTION_LIMIT: '1',
+        DEEP_SCRAPE_QUEUE_URL: deepScrapeQueue.queueUrl,
         AWS_REGION: this.region,
       },
     });
 
     campaignDataBucket.grantReadWrite(scrapeTaskDef.taskRole);
     databaseSecret.grantRead(scrapeTaskDef.taskRole);
+    deepScrapeQueue.grantSendMessages(scrapeTaskDef.taskRole);
 
     // ============================================================
     // Scrape Trigger Lambda (consumes ScrapeQueue, runs Fargate directly)
@@ -331,20 +349,62 @@ export class LeadGenPipelineStack extends cdk.Stack {
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
         DATABASE_SECRET_ARN: databaseSecret.secretArn,
         DATABASE_HOST: databaseEndpoint,
+        FAST_MODE: 'true',
       },
     });
 
     scrapeTriggerLambda.addEventSource(
       new lambdaEventSources.SqsEventSource(scrapeQueue, {
-        batchSize: 50,
+        batchSize: 100,
         maxBatchingWindow: cdk.Duration.seconds(5),
-        maxConcurrency: 50,
+        maxConcurrency: 100,
       })
     );
 
     scrapeTaskDef.grantRun(scrapeTriggerLambda);
     campaignDataBucket.grantWrite(scrapeTriggerLambda);
     databaseSecret.grantRead(scrapeTriggerLambda);
+
+    // ============================================================
+    // Deep Scrape Trigger Lambda (consumes DeepScrapeQueue, browser-only)
+    // ============================================================
+    const deepScrapeTriggerLogGroup = new logs.LogGroup(this, 'DeepScrapeTriggerLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const deepScrapeTriggerLambda = new lambda.DockerImageFunction(this, 'DeepScrapeTrigger', {
+      code: scrapeTriggerImage.dockerImageCode,
+      architecture: lambda.Architecture.ARM_64,
+      timeout: cdk.Duration.seconds(60),
+      memorySize: 256,
+      logGroup: deepScrapeTriggerLogGroup,
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [pipelineSecurityGroup],
+      environment: {
+        CLUSTER_ARN: cluster.clusterArn,
+        SCRAPE_TASK_DEF_ARN: scrapeTaskDef.taskDefinitionArn,
+        SUBNETS: vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }).subnetIds.join(','),
+        SECURITY_GROUPS: pipelineSecurityGroup.securityGroupId,
+        CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
+        FAST_MODE: 'false',
+      },
+    });
+
+    deepScrapeTriggerLambda.addEventSource(
+      new lambdaEventSources.SqsEventSource(deepScrapeQueue, {
+        batchSize: 5,
+        maxBatchingWindow: cdk.Duration.seconds(5),
+        maxConcurrency: 50,
+      })
+    );
+
+    scrapeTaskDef.grantRun(deepScrapeTriggerLambda);
+    campaignDataBucket.grantWrite(deepScrapeTriggerLambda);
+    databaseSecret.grantRead(deepScrapeTriggerLambda);
 
     // ============================================================
     // Scoring Fargate Task
@@ -378,6 +438,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
         CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
         DATABASE_SECRET_ARN: databaseSecret.secretArn,
         DATABASE_HOST: databaseEndpoint,
+        DATABASE_CONNECTION_LIMIT: '1',
         AWS_REGION: this.region,
       },
     });
@@ -458,6 +519,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
     this.scoringQueue = scoringQueue;
     this.scrapeQueueUrl = scrapeQueue.queueUrl;
     this.scrapeQueueArn = scrapeQueue.queueArn;
+    this.deepScrapeQueueUrl = deepScrapeQueue.queueUrl;
+    this.deepScrapeQueueArn = deepScrapeQueue.queueArn;
 
     // ============================================================
     // Outputs
@@ -465,6 +528,11 @@ export class LeadGenPipelineStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ScrapeQueueUrl', {
       value: scrapeQueue.queueUrl,
       description: 'SQS scrape queue URL',
+    });
+
+    new cdk.CfnOutput(this, 'DeepScrapeQueueUrl', {
+      value: deepScrapeQueue.queueUrl,
+      description: 'SQS deep scrape queue URL (browser-only fallback)',
     });
 
     new cdk.CfnOutput(this, 'ScoringQueueUrl', {

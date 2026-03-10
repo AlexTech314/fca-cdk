@@ -32,6 +32,8 @@ export async function bootstrapDatabaseUrl(): Promise<void> {
   }
 
   const { username, password, dbname, port } = creds;
+  const connLimit = process.env.DATABASE_CONNECTION_LIMIT;
+  const extra = connLimit ? `&connection_limit=${connLimit}` : '';
   process.env.DATABASE_URL =
-    `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port ?? 5432}/${dbname}?sslmode=require`;
+    `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${host}:${port ?? 5432}/${dbname}?sslmode=require${extra}`;
 }

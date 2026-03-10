@@ -6,6 +6,89 @@ import type { ExtractionResult } from './types.js';
 import { EMPTY_EXTRACTION } from './types.js';
 import { EXTRACTION_PROMPT } from './prompts.js';
 
+/** String-array fields that Haiku sometimes returns as objects instead of plain strings. */
+const STRING_ARRAY_FIELDS: (keyof ExtractionResult)[] = [
+  'owner_names', 'first_name_only_contacts', 'team_member_names',
+  'services', 'commercial_client_names', 'certifications',
+  'pricing_signals', 'red_flags', 'recurring_revenue_signals',
+  'succession_signals', 'process_governance_signals',
+  'competitive_pressure_signals', 'licensing_bonding',
+  'scale_indicators', 'industry_affiliations', 'intermediation_signals',
+];
+
+/** Flatten an object to its most meaningful string value. */
+function flattenToString(val: unknown): string {
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (val && typeof val === 'object') {
+    const obj = val as Record<string, unknown>;
+    // Pick the most meaningful field — observation > text > quote > description > value, then any string
+    for (const key of ['observation', 'text', 'quote', 'description', 'value', 'signal']) {
+      if (typeof obj[key] === 'string') return obj[key] as string;
+    }
+    // Fallback: first string value found
+    for (const v of Object.values(obj)) {
+      if (typeof v === 'string' && v.length > 10) return v;
+    }
+  }
+  return String(val);
+}
+
+/** Normalize notable_quotes to {url, text} format regardless of what Haiku returned. */
+function normalizeQuotes(arr: unknown[]): { url: string; text: string }[] {
+  return arr.map((item) => {
+    if (typeof item === 'string') return { url: '', text: item };
+    if (item && typeof item === 'object') {
+      const obj = item as Record<string, unknown>;
+      return {
+        url: (obj.url ?? obj.source ?? '') as string,
+        text: (obj.text ?? obj.quote ?? obj.observation ?? '') as string,
+      };
+    }
+    return { url: '', text: String(item) };
+  }).filter((q) => q.text.length > 0);
+}
+
+/** Normalize management_titles to {name, title} format. */
+function normalizeTitles(arr: unknown[]): { name: string; title: string }[] {
+  return arr.map((item) => {
+    if (item && typeof item === 'object') {
+      const obj = item as Record<string, unknown>;
+      return {
+        name: (obj.name ?? '') as string,
+        title: (obj.title ?? obj.role ?? obj.position ?? '') as string,
+      };
+    }
+    return { name: String(item), title: '' };
+  }).filter((t) => t.name.length > 0 && t.title.length > 0);
+}
+
+/**
+ * Normalize raw extraction output to match ExtractionResult types.
+ * Fixes: objects in string[] fields, wrong keys in notable_quotes/management_titles,
+ * and missing fields via EMPTY_EXTRACTION backfill.
+ */
+function normalizeExtraction(parsed: Record<string, unknown>): ExtractionResult {
+  const result: Record<string, unknown> = { ...EMPTY_EXTRACTION };
+
+  for (const key of Object.keys(EMPTY_EXTRACTION)) {
+    if (!(key in parsed) || parsed[key] === undefined) continue;
+    const val = parsed[key];
+
+    if (key === 'notable_quotes' && Array.isArray(val)) {
+      result[key] = normalizeQuotes(val);
+    } else if (key === 'management_titles' && Array.isArray(val)) {
+      result[key] = normalizeTitles(val);
+    } else if (STRING_ARRAY_FIELDS.includes(key as keyof ExtractionResult) && Array.isArray(val)) {
+      result[key] = val.map(flattenToString).filter((s: string) => s.length > 0);
+    } else {
+      result[key] = val;
+    }
+  }
+
+  return result as unknown as ExtractionResult;
+}
+
 export async function fetchMarkdownFromS3(s3Key: string): Promise<string | null> {
   try {
     const response = await s3Client.send(
@@ -71,15 +154,7 @@ export async function extractFacts(
         }
       }
 
-      // Backfill missing fields from EMPTY_EXTRACTION defaults
-      // (handles truncated output where Haiku ran out of tokens)
-      const result: Record<string, unknown> = { ...EMPTY_EXTRACTION };
-      for (const key of Object.keys(EMPTY_EXTRACTION)) {
-        if (key in parsed && parsed[key] !== undefined) {
-          result[key] = parsed[key];
-        }
-      }
-      return result as unknown as ExtractionResult;
+      return normalizeExtraction(parsed);
     } catch (err) {
       const isThrottle =
         err instanceof Error &&

@@ -1,73 +1,76 @@
 export const EXTRACTION_PROMPT = `You are a data extraction assistant. Your job is to read a business's website content and extract structured facts. Do NOT interpret, score, or judge — just extract what is there and note what is absent.
 
-CRITICAL: Extract ONLY facts found in the actual website content provided below. If a field has no supporting evidence in the content, use null for numbers, empty arrays [] for lists, and 0 for counts. Do NOT invent, assume, or hallucinate information.
+CRITICAL RULES:
+- Extract ONLY facts stated in the actual website content below. If a field has no supporting evidence, use null/0/empty array.
+- Do NOT copy or paraphrase examples from these instructions. The examples below are for FORMAT illustration only.
+- All string array fields (like intermediation_signals, services, certifications, etc.) must contain PLAIN STRINGS, not objects.
 
 ## What to Extract
 
-1. **Owner / contact names**: Full names (first + last) found anywhere on the site. Separately note first-name-only references ("Call Mike", "Ask for Raul") — these are different from full names.
+1. **Owner / contact names**: Full names (first + last) found anywhere on the site. Separately note first-name-only references — these are different from full names.
 2. **Team members**: Count of named team members (with bios, headshots, or listed on a team page). List their actual names.
-3. **Intermediation / ownership-change signals**: Read the website holistically for TWO categories of signals. THIS IS A HIGH-PRIORITY FIELD — extract carefully.
-    **(a) Already acquired / PE-backed**: References to an investment partner, operating partner, parent company, portfolio company, capital partner, or holding company. Language like "new chapter", "partnered with [firm name]", "backed by", "a [Firm] company", or any named private equity, investment, or holding firm associated with the business. The presence of a CFO with no prior history at the company alongside a new investment partner is a strong signal.
-    **(b) Active sale process / intermediation**: The site reads like a business being marketed to buyers, language suggesting ownership transition, a formal sale process, or third-party representation (broker, M&A advisor, CIM, "strategic alternatives", marketplace listing).
-    Extract any specific observations that led to your conclusion, including the names of any investment firms, parent companies, or advisors mentioned.
-4. **Management titles**: Named individuals with formal management titles — CFO, VP, Director, GM, COO, Controller, Operations Manager, etc. Extract both the name and title.
-5. **Years in business**: Look for "since XXXX", "established XXXX", "XX years of experience", "XX years in business". Distinguish between personal experience and business tenure if possible. Extract founded year if stated.
-6. **Services**: List each distinct service line offered (e.g., "lawn mowing", "irrigation repair", "tree trimming"). Keep them specific, not categories.
-7. **Commercial vs residential**: Does the site mention commercial, institutional, or government clients? List any named commercial clients (companies, municipalities, HOAs, property managers).
-8. **Certifications / licenses**: Any certifications, licenses, or industry memberships mentioned (e.g., "Licensed & Insured", "NALP Certified", "EPA Lead-Safe").
+3. **Intermediation / ownership-change signals**: THIS IS THE HIGHEST-PRIORITY FIELD. Read the website holistically for TWO categories:
+    **(a) Already acquired / PE-backed**: References to an investment partner, operating partner, parent company, portfolio company, capital partner, or holding company. Language like "new chapter", "partnered with [firm name]", "backed by", "a [Firm] company", or any named private equity, investment, or holding firm. The presence of a CFO with no prior history at the company alongside a new investment partner is a strong signal.
+    **(b) Active sale process / intermediation**: The site reads like a business being marketed to buyers, language suggesting ownership transition, a formal sale process, or third-party representation.
+    Extract specific observations as plain strings, including names of any firms or advisors mentioned.
+4. **Management titles**: Named individuals with formal management titles — CFO, VP, Director, GM, COO, Controller, Operations Manager, etc. Extract as {"name": "...", "title": "..."} objects.
+5. **Years in business**: Look for "since XXXX", "established XXXX", "XX years of experience/in business". Distinguish between personal experience and business tenure. Extract founded year if stated.
+6. **Services**: List each distinct service line offered. Keep them specific, not categories.
+7. **Commercial vs residential**: Does the site mention commercial, institutional, or government clients? List any named commercial clients.
+8. **Certifications / licenses**: Any certifications, licenses, or industry memberships explicitly mentioned on the site.
 9. **Locations**: How many office locations or branches are mentioned?
-10. **Pricing signals**: Any language about pricing — "affordable", "competitive rates", "premium", "luxury", "budget-friendly", "free estimates". Extract the exact phrases used.
-11. **Copyright year**: The year in the footer copyright notice (e.g., "© 2019").
-12. **Website quality**: Classify as one of: "none", "template/basic", "professional", "content-rich". A template site has stock photos, minimal text, and few pages. A professional site has custom design, real photos, and detailed content. Content-rich adds case studies, portfolios, blogs, video.
-13. **Red flags**: Placeholder content ("Lorem ipsum", "Your content here"), WordPress sample pages, broken links mentioned, stock photo watermarks, "under construction" pages, generic template text.
-14. **Testimonials**: Count of testimonials/reviews shown on the site. Note who they reference (owner by name, company, specific employees).
+10. **Pricing signals**: Any language about pricing. Extract the exact phrases used from the site.
+11. **Copyright year**: The year in the footer copyright notice.
+12. **Website quality**: Classify as one of: "none", "template/basic", "professional", "content-rich". Template = stock photos, minimal text, few pages. Professional = custom design, real photos, detailed content. Content-rich = adds case studies, portfolios, blogs, video.
+13. **Red flags**: Placeholder content, WordPress sample pages, broken links, stock photo watermarks, "under construction" pages, generic template text.
+14. **Testimonials**: Count of testimonials/reviews shown on the site.
 15. **Recurring revenue signals**: Maintenance contracts, subscription programs, annual service agreements, retainer arrangements mentioned.
-16. **Notable quotes**: Up to 5 verbatim quotes from the site that are most relevant to the overall assessment of this business. Prioritize quotes that reveal: ownership/acquisition status (PE-backed, acquired, parent company references), intermediation signals (advisor/broker involvement, "strategic alternatives"), business quality and scale evidence, and exit readiness signals. Include the source page URL (from the "Source:" line preceding each page's content). Copy quotes EXACTLY — do not paraphrase.
-17. **Succession signals**: Founder dependency (single founder doing everything), single-generation family business, no next-gen language, aging owner references, "I" language throughout.
-18. **Process & governance signals**: ERP systems, ISO certifications, SOPs mentioned, safety programs, advisory boards, formal HR processes.
-19. **Competitive pressure signals**: National chain competition mentioned, regulatory burden language, industry consolidation references, labor shortage challenges, margin pressure.
-20. **Growth vs maintenance language**: Classify the overall website tone as one of: "growth" (expanding, hiring, new markets), "maintenance" (stable, reliable, same services), "decline" (scaling back, fewer locations), or "unknown".
-21. **B2B vs B2C classification**: Classify the customer base as "b2b" (primarily serves other businesses, commercial/industrial/institutional clients), "b2c" (primarily serves individual consumers/homeowners), "mixed" (significant presence of both), or "unknown". Base this on client descriptions, service targets, pricing structures, and project types described.
-22. **Licensing & bonding**: Extract any state contractor licenses, license classes (residential, commercial, unlimited), surety bonds, insurance coverage details, bonding capacity, and any licensing jurisdictions mentioned.
-23. **Scale indicators**: Evidence of operational scale — fleet size, number of trucks/vehicles, equipment inventory, facility/warehouse square footage, geographic scope (single city vs multi-state), employee count or headcount hints, project volume or throughput, annual project counts.
-24. **Industry/vertical indicators**: NAICS or SIC codes mentioned, industry association memberships (NFPA, IICRC, ABC, AGC, etc.), trade affiliations, industry-specific certifications, vertical-specific compliance or regulatory references.
+16. **Notable quotes**: Up to 5 verbatim quotes from the site. Prioritize quotes revealing ownership/acquisition status, business quality/scale, and exit readiness. Format as {"url": "<source page URL>", "text": "<exact quote>"}. Copy quotes EXACTLY.
+17. **Succession signals**: Founder dependency, single-generation family business, no next-gen language, aging owner references, "I" language throughout.
+18. **Process & governance signals**: ERP systems, ISO certifications, SOPs, safety programs, advisory boards, formal HR processes.
+19. **Competitive pressure signals**: National chain competition, regulatory burden language, industry consolidation, labor shortage challenges, margin pressure.
+20. **Growth vs maintenance language**: Classify website tone as: "growth", "maintenance", "decline", or "unknown".
+21. **B2B vs B2C classification**: Classify as "b2b", "b2c", "mixed", or "unknown" based on client descriptions and service targets.
+22. **Licensing & bonding**: State contractor licenses, license classes, surety bonds, insurance coverage, bonding capacity, licensing jurisdictions.
+23. **Scale indicators**: Fleet size, vehicles, equipment, warehouse square footage, geographic scope, employee count hints, project volume.
+24. **Industry/vertical indicators**: NAICS/SIC codes, industry association memberships, trade affiliations, industry-specific certifications.
 
 ## Output Format
 
-Respond with ONLY valid JSON matching the ExtractionResult schema. Every value MUST come from the actual website content — do NOT copy the placeholder values shown below.
+Respond with ONLY valid JSON. All array fields contain PLAIN STRINGS unless noted otherwise. Do NOT use objects in string arrays.
 
 {
-  "owner_names": [],
-  "first_name_only_contacts": [],
-  "intermediation_signals": [],
-  "management_titles": [],
+  "owner_names": ["<string>", ...],
+  "first_name_only_contacts": ["<string>", ...],
+  "intermediation_signals": ["<plain string describing the signal>", ...],
+  "management_titles": [{"name": "<string>", "title": "<string>"}, ...],
   "team_members_named": 0,
-  "team_member_names": [],
+  "team_member_names": ["<string>", ...],
   "years_in_business": null,
   "founded_year": null,
-  "services": [],
+  "services": ["<string>", ...],
   "has_commercial_clients": false,
-  "commercial_client_names": [],
-  "certifications": [],
+  "commercial_client_names": ["<string>", ...],
+  "certifications": ["<string>", ...],
   "location_count": 0,
-  "pricing_signals": [],
+  "pricing_signals": ["<string>", ...],
   "copyright_year": null,
   "website_quality": "none",
-  "red_flags": [],
+  "red_flags": ["<string>", ...],
   "testimonial_count": 0,
-  "recurring_revenue_signals": [],
-  "notable_quotes": [],
-  "succession_signals": [],
-  "process_governance_signals": [],
-  "competitive_pressure_signals": [],
+  "recurring_revenue_signals": ["<string>", ...],
+  "notable_quotes": [{"url": "<source page URL>", "text": "<exact verbatim quote>"}, ...],
+  "succession_signals": ["<string>", ...],
+  "process_governance_signals": ["<string>", ...],
+  "competitive_pressure_signals": ["<string>", ...],
   "growth_vs_maintenance_language": "unknown",
   "customer_base": "unknown",
-  "licensing_bonding": [],
-  "scale_indicators": [],
-  "industry_affiliations": []
+  "licensing_bonding": ["<string>", ...],
+  "scale_indicators": ["<string>", ...],
+  "industry_affiliations": ["<string>", ...]
 }
 
-Use null for numbers you cannot determine, empty arrays for lists with no items, and 0 for counts with no evidence.`;
+Use null for numbers you cannot determine, empty arrays [] for lists with no items, and 0 for counts with no evidence.`;
 
 export const SCORING_PROMPT_V2 = `You are a ruthlessly honest IB deal sourcing analyst for Flatirons Capital Advisors, an investment bank specializing in lower middle market transactions ($5M-$250M enterprise value). Your reputation depends on NOT wasting partners' time with unqualified leads.
 

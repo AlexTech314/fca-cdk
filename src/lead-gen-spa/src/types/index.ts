@@ -355,3 +355,29 @@ export interface LeadWithCampaign extends Lead {
   leadSocialProfiles?: LeadSocialProfile[];
   scrapeRuns?: ScrapeRun[];
 }
+
+// ===========================================
+// Cost Management Types
+// ===========================================
+
+export interface CostSummary {
+  totalCost: number;
+  previousPeriodCost: number;
+  serviceBreakdown: Array<{ service: string; cost: number }>;
+  period: { start: string; end: string };
+}
+
+export interface CostRow {
+  service: string;
+  cost: number;
+  usageType?: string;
+  description?: string;
+  resourceId?: string;
+  date?: string;
+}
+
+export interface CostOverTime {
+  date: string;
+  cost: number;
+  service?: string;
+}

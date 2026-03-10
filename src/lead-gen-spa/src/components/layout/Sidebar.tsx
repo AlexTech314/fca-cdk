@@ -12,6 +12,7 @@ import {
   ListTodo,
   PanelLeftClose,
   PanelLeftOpen,
+  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -89,7 +90,10 @@ export function Sidebar() {
   ];
 
   const secondaryNavItems: NavItemProps[] = [
-    ...(isAdmin ? [{ to: '/admin', icon: <Shield className="h-4 w-4 flex-shrink-0" />, label: 'Admin' }] : []),
+    ...(isAdmin ? [
+      { to: '/costs', icon: <DollarSign className="h-4 w-4 flex-shrink-0" />, label: 'AWS Costs' },
+      { to: '/admin', icon: <Shield className="h-4 w-4 flex-shrink-0" />, label: 'Admin' },
+    ] : []),
     { to: '/settings', icon: <Settings className="h-4 w-4 flex-shrink-0" />, label: 'Settings' },
   ];
 

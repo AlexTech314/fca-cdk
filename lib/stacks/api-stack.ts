@@ -28,6 +28,11 @@ export interface ApiStackProps extends cdk.StackProps {
   readonly cognitoUserPoolId: string;
   readonly cognitoUserPoolArn: string;
   readonly cognitoClientId: string;
+  readonly athenaWorkGroupName: string;
+  readonly glueDatabaseName: string;
+  readonly glueTableName: string;
+  readonly curBucket: s3.IBucket;
+  readonly athenaResultsBucket: s3.IBucket;
 }
 
 /**
@@ -58,6 +63,11 @@ export class ApiStack extends cdk.Stack {
       cognitoUserPoolId,
       cognitoUserPoolArn,
       cognitoClientId,
+      athenaWorkGroupName,
+      glueDatabaseName,
+      glueTableName,
+      curBucket,
+      athenaResultsBucket,
     } = props;
 
     const assetsBucket = s3.Bucket.fromBucketName(this, 'AssetsBucket', 'fca-assets-113862367661');
@@ -109,6 +119,9 @@ export class ApiStack extends cdk.Stack {
           COGNITO_USER_POOL_ID: cognitoUserPoolId,
           COGNITO_CLIENT_ID: cognitoClientId,
           AWS_REGION: this.region,
+          ATHENA_WORKGROUP: athenaWorkGroupName,
+          ATHENA_DATABASE: glueDatabaseName,
+          ATHENA_TABLE: glueTableName,
         },
         secrets: {
           DATABASE_SECRET_ARN: ecs.Secret.fromSecretsManager(databaseSecret),
@@ -175,6 +188,44 @@ export class ApiStack extends cdk.Stack {
         resources: [cognitoUserPoolArn],
       })
     );
+
+    // Athena query permissions
+    apiService.taskDefinition.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'athena:StartQueryExecution',
+          'athena:GetQueryExecution',
+          'athena:GetQueryResults',
+          'athena:StopQueryExecution',
+          'athena:GetWorkGroup',
+        ],
+        resources: [`arn:aws:athena:${this.region}:${this.account}:workgroup/${athenaWorkGroupName}`],
+      })
+    );
+
+    // Glue catalog read permissions
+    apiService.taskDefinition.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'glue:GetDatabase',
+          'glue:GetTable',
+          'glue:GetTables',
+          'glue:GetPartition',
+          'glue:GetPartitions',
+        ],
+        resources: [
+          `arn:aws:glue:${this.region}:${this.account}:catalog`,
+          `arn:aws:glue:${this.region}:${this.account}:database/${glueDatabaseName}`,
+          `arn:aws:glue:${this.region}:${this.account}:table/${glueDatabaseName}/*`,
+        ],
+      })
+    );
+
+    // S3 read access to CUR data bucket
+    curBucket.grantRead(apiService.taskDefinition.taskRole);
+
+    // S3 read/write access to Athena results bucket
+    athenaResultsBucket.grantReadWrite(apiService.taskDefinition.taskRole);
 
     apiService.service.connections.allowTo(dbSecurityGroup, ec2.Port.tcp(5432), 'Allow API Fargate to RDS');
 

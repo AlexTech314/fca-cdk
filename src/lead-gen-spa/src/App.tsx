@@ -17,6 +17,7 @@ import Export from '@/pages/Export'
 import Settings from '@/pages/Settings'
 import Tasks from '@/pages/Tasks'
 import ScrapedPageMarkdown from '@/pages/ScrapedPageMarkdown'
+import CostDashboard from '@/pages/CostDashboard'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -52,6 +53,7 @@ function AuthenticatedLayout() {
           <Route path="/campaigns/:id" element={<CampaignDetail />} />
           <Route path="/franchises" element={<Franchises />} />
           <Route path="/franchises/:id" element={<FranchiseDetail />} />
+          <Route path="/costs" element={<CostDashboard />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/export" element={<Export />} />
           <Route path="/tasks" element={<Tasks />} />

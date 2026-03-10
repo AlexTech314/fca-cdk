@@ -30,6 +30,9 @@ import type {
   FargateTask,
   FargateTaskType,
   FargateTaskStatus,
+  CostSummary,
+  CostRow,
+  CostOverTime,
 } from '@/types';
 import { getIdToken } from '../auth';
 import { API_BASE_URL } from '../amplify-config';
@@ -737,5 +740,46 @@ export const realApi: LeadGenApi = {
       method: 'POST',
       body: JSON.stringify({ filters, columns, format }),
     });
+  },
+
+  // ===========================================
+  // Cost Management
+  // ===========================================
+
+  async getCostSummary(start?: string, end?: string): Promise<CostSummary> {
+    const qs = new URLSearchParams();
+    if (start) qs.set('start', start);
+    if (end) qs.set('end', end);
+    return apiClient<CostSummary>(`/costs/summary?${qs}`);
+  },
+
+  async getCostsByService(start?: string, end?: string): Promise<CostRow[]> {
+    const qs = new URLSearchParams();
+    if (start) qs.set('start', start);
+    if (end) qs.set('end', end);
+    return apiClient<CostRow[]>(`/costs/by-service?${qs}`);
+  },
+
+  async getCostsByResource(start?: string, end?: string, service?: string): Promise<CostRow[]> {
+    const qs = new URLSearchParams();
+    if (start) qs.set('start', start);
+    if (end) qs.set('end', end);
+    if (service) qs.set('service', service);
+    return apiClient<CostRow[]>(`/costs/by-resource?${qs}`);
+  },
+
+  async getCostsOverTime(start?: string, end?: string, granularity?: 'daily' | 'monthly'): Promise<CostOverTime[]> {
+    const qs = new URLSearchParams();
+    if (start) qs.set('start', start);
+    if (end) qs.set('end', end);
+    if (granularity) qs.set('granularity', granularity);
+    return apiClient<CostOverTime[]>(`/costs/over-time?${qs}`);
+  },
+
+  async getCostsOverTimeByService(start?: string, end?: string): Promise<CostOverTime[]> {
+    const qs = new URLSearchParams();
+    if (start) qs.set('start', start);
+    if (end) qs.set('end', end);
+    return apiClient<CostOverTime[]>(`/costs/over-time-by-service?${qs}`);
   },
 };

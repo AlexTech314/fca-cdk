@@ -24,6 +24,9 @@ import type {
   FargateTaskStatus,
   ScrapeRun,
   LeadProvenance,
+  CostSummary,
+  CostRow,
+  CostOverTime,
 } from '@/types';
 
 export type LeadDataType = 'email' | 'phone' | 'social';
@@ -334,4 +337,14 @@ export interface LeadGenApi {
    * Export leads to CSV: generates file on server, returns presigned download URL
    */
   exportLeads(filters: LeadFilters, columns: string[], format?: 'csv' | 'xlsx'): Promise<{ downloadUrl: string; leadCount: number; fileName: string }>;
+
+  // ===========================================
+  // Cost Management (Admin Only)
+  // ===========================================
+
+  getCostSummary(start?: string, end?: string): Promise<CostSummary>;
+  getCostsByService(start?: string, end?: string): Promise<CostRow[]>;
+  getCostsByResource(start?: string, end?: string, service?: string): Promise<CostRow[]>;
+  getCostsOverTime(start?: string, end?: string, granularity?: 'daily' | 'monthly'): Promise<CostOverTime[]>;
+  getCostsOverTimeByService(start?: string, end?: string): Promise<CostOverTime[]>;
 }

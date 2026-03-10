@@ -333,48 +333,56 @@ this.pipeline.addStage(prodStage, {
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## AWS Cost Estimate (per day)
+## AWS Cost Estimate
 
-Pricing from AWS Price List API for **us-east-2**. Assumes low/dev traffic (~1K CloudFront requests/day, minimal pipeline runs).
+Based on actual billing data from Feb–Mar 2026 in **us-east-2**. Costs are split into two categories: development/CI costs (incurred during active development, eliminated after handover) and runtime costs (ongoing operational costs).
 
-### Always-On Resources (24/7)
+### Development / CI Costs (temporary — eliminated after handover)
 
-| Resource | Config | Unit Price | Daily Cost |
-|----------|--------|------------|------------|
-| **EC2 NAT** (fck-nat x2) | t4g.nano (ARM64) per AZ | $0.0042/hr each | **$0.20** |
-| **RDS PostgreSQL** | db.t4g.small, Single-AZ | $0.032/hr | **$0.77** |
-| **RDS Storage** | 20 GB gp2 | $0.115/GB-mo | **$0.08** |
-| **ECS Fargate API** | 0.25 vCPU, 0.5 GB ARM64 | vCPU $0.03238/hr + Mem $0.00356/hr | **$0.24** |
-| **ECS Fargate Next.js** (x2) | 0.25 vCPU, 0.5 GB x86_64 each | vCPU $0.04048/hr + Mem $0.004445/hr | **$0.59** |
-| **ALB** | Application LB (shared) | $0.0225/hr + $0.008/LCU-hr | **$0.64** |
-| **Secrets Manager** | 5 secrets | $0.40/secret/mo | **$0.07** |
-| **CodePipeline** | 1 active pipeline | $1.00/pipeline-mo | **$0.03** |
-| **ECR Storage** | ~5 GB images | $0.10/GB-mo | **$0.02** |
-| | | **Always-on subtotal** | **$2.64/day** |
+These costs are driven by the self-mutating CDK pipeline and are only incurred while actively pushing code changes.
 
-### Variable / Event-Driven
+| Resource | What It Does | Actual Monthly |
+|----------|-------------|----------------|
+| **CodeBuild** | Docker builds for 6+ containers per pipeline run | **~$44/mo** |
+| **CodePipeline (V2)** | Per-action-minute billing on every git push | **~$22/mo** |
+| **ECR Storage** | Container image storage (~5 GB+) | **~$3/mo** |
+| | **Dev/CI subtotal** | **~$69/mo** |
 
-| Resource | Estimate | Daily Cost |
-|----------|----------|------------|
-| CloudFront (x3 distributions) | ~1K req + ~0.5 GB transfer | **$0.04** |
-| CloudWatch Logs | ~100 MB/day ingested | **$0.05** |
-| Lambda | 6 fns, ~100 invocations/day | **< $0.01** |
-| Fargate scrape tasks | ~5 runs x 10 min when active | **$0.04** |
-| Step Functions, SQS, S3, CodeBuild | Minimal usage | **~$0.05** |
-| Cognito | < 50K MAU (free tier) | **$0.00** |
-| | **Variable subtotal** | **~$0.18/day** |
+### Runtime Costs (ongoing after handover)
+
+| Resource | Config | Actual Monthly |
+|----------|--------|----------------|
+| **VPC Data Transfer** | Cross-AZ traffic (ALB↔Fargate, NAT outbound) | **~$29/mo** |
+| **RDS PostgreSQL** | db.t4g.small, Single-AZ, 20 GB gp2 | **~$19/mo** |
+| **ECS Fargate** | API (ARM64) + 2x Next.js (x86_64), 0.25 vCPU each | **~$18/mo** |
+| **ALB** | Shared Application Load Balancer, 2 AZs | **~$14/mo** |
+| **EC2 NAT** (fck-nat x2) | t4g.nano per AZ (saves ~$55/mo vs managed NAT) | **~$6/mo** |
+| **Secrets Manager** | 5 secrets | **~$3/mo** |
+| **Bedrock (Claude Haiku)** | Lead scoring inference calls | **~$2/mo** |
+| **Route 53** | Hosted zone + DNS queries | **~$1/mo** |
+| **KMS** | Encryption keys (pipeline, secrets) | **~$1/mo** |
+| **CloudFront** | 3 distributions, low traffic | **< $1/mo** |
+| **CloudWatch Logs** | Log ingestion + storage | **< $1/mo** |
+| **Lambda** | 6 functions, event-driven | **< $1/mo** |
+| **S3** | Campaign data, CUR data, Athena results | **< $1/mo** |
+| **Cognito** | < 50K MAU (free tier) | **$0/mo** |
+| **SQS / Step Functions** | Queue + orchestration (low volume) | **< $1/mo** |
+| | **Runtime subtotal** | **~$98/mo** |
 
 ### Totals
 
-| Category | Daily | Monthly (30 days) |
-|----------|-------|-------------------|
-| Always-on | **$2.64** | **$79.20** |
-| Variable | **~$0.18** | **~$5.40** |
-| **Total** | **~$2.82/day** | **~$84.60/mo** |
+| Category | Monthly | After Handover |
+|----------|---------|----------------|
+| Dev/CI (CodeBuild, CodePipeline, ECR) | **~$69/mo** | **$0/mo** |
+| Runtime (infrastructure) | **~$98/mo** | **~$98/mo** |
+| **Total during development** | **~$167/mo** | — |
+| **Total after handover** | — | **~$98/mo** |
 
-**Top cost drivers:** ECS Fargate (~37%), ALB (~28%), RDS (~27%). Two fck-nat t4g.nano instances save ~$55/mo vs managed NAT Gateways ($32/mo each).
+**Top runtime cost drivers:** VPC data transfer (~30%), RDS (~19%), ECS Fargate (~18%), ALB (~14%).
 
-*Excludes: Claude API (Anthropic), Google Places API, data transfer between AZs. Heavy scrape runs (30+ concurrent Fargate tasks) can add $2-5/day.*
+Two fck-nat t4g.nano instances save ~$55/mo vs managed NAT Gateways ($32/mo each). VPC data transfer costs (cross-AZ, NAT outbound) are incurred regardless of NAT type.
+
+*Additional variable costs not included: Claude API (Anthropic), Google Places API. Heavy scrape runs (30+ concurrent Fargate tasks) can add $2-5/day.*
 
 ## Security Considerations
 

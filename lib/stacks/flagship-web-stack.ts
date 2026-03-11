@@ -151,7 +151,7 @@ export class FlagshipWebStack extends cdk.Stack {
       integrationUri: 'http://nextjs.svc.local:3000',
       connectionType: 'VPC_LINK',
       connectionId: vpcLink.vpcLinkId,
-      payloadFormatVersion: '1.0',
+      payloadFormatVersion: '2.0',
     });
     new apigwv2.CfnRoute(this, 'NextjsRoute', {
       apiId: nextjsHttpApi.apiId,

@@ -8,7 +8,6 @@ import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
-import * as apigwv2int from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as servicediscovery from 'aws-cdk-lib/aws-servicediscovery';
 import { Construct } from 'constructs';
 import * as crypto from 'crypto';
@@ -131,27 +130,33 @@ export class FlagshipWebStack extends cdk.Stack {
     // ============================================================
     // Cloud Map + HTTP API for Next.js (API Gateway migration)
     // ============================================================
-    const nextjsCloudMapService = new servicediscovery.Service(this, 'NextjsCloudMapSrv', {
+    const nextjsCloudMapService = new servicediscovery.Service(this, 'NextjsCloudMapSvc', {
       namespace: cloudMapNamespace,
       name: 'nextjs',
-      dnsRecordType: servicediscovery.DnsRecordType.SRV,
+      dnsRecordType: servicediscovery.DnsRecordType.A,
       dnsTtl: cdk.Duration.seconds(10),
     });
     service.associateCloudMapService({
       service: nextjsCloudMapService,
-      containerPort: 3000,
     });
 
     const nextjsHttpApi = new apigwv2.HttpApi(this, 'NextjsHttpApi', {
       apiName: 'fca-nextjs',
       createDefaultStage: true,
     });
-    nextjsHttpApi.addRoutes({
-      path: '/{proxy+}',
-      methods: [apigwv2.HttpMethod.ANY],
-      integration: new apigwv2int.HttpServiceDiscoveryIntegration('NextjsIntegration', nextjsCloudMapService, {
-        vpcLink,
-      }),
+    const nextjsIntegration = new apigwv2.CfnIntegration(this, 'NextjsVpcIntegration', {
+      apiId: nextjsHttpApi.apiId,
+      integrationType: 'HTTP_PROXY',
+      integrationMethod: 'ANY',
+      integrationUri: 'http://nextjs.svc.local:3000',
+      connectionType: 'VPC_LINK',
+      connectionId: vpcLink.vpcLinkId,
+      payloadFormatVersion: '1.0',
+    });
+    new apigwv2.CfnRoute(this, 'NextjsRoute', {
+      apiId: nextjsHttpApi.apiId,
+      routeKey: '$default',
+      target: `integrations/${nextjsIntegration.ref}`,
     });
 
     const scaling = service.autoScaleTaskCount({ minCapacity: 1, maxCapacity: 4 });

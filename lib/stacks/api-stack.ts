@@ -9,7 +9,6 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
-import * as apigwv2int from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as servicediscovery from 'aws-cdk-lib/aws-servicediscovery';
 import { Construct } from 'constructs';
 import * as path from 'path';
@@ -250,15 +249,14 @@ export class ApiStack extends cdk.Stack {
       vpc,
     });
 
-    const apiCloudMapService = new servicediscovery.Service(this, 'ApiCloudMapSrv', {
+    const apiCloudMapService = new servicediscovery.Service(this, 'ApiCloudMapSvc', {
       namespace,
       name: 'api',
-      dnsRecordType: servicediscovery.DnsRecordType.SRV,
+      dnsRecordType: servicediscovery.DnsRecordType.A,
       dnsTtl: cdk.Duration.seconds(10),
     });
     apiService.service.associateCloudMapService({
       service: apiCloudMapService,
-      containerPort: 3000,
     });
 
     const vpcLinkSg = new ec2.SecurityGroup(this, 'VpcLinkSg', {
@@ -277,12 +275,19 @@ export class ApiStack extends cdk.Stack {
       apiName: 'fca-api',
       createDefaultStage: true,
     });
-    httpApi.addRoutes({
-      path: '/{proxy+}',
-      methods: [apigwv2.HttpMethod.ANY],
-      integration: new apigwv2int.HttpServiceDiscoveryIntegration('ApiIntegration', apiCloudMapService, {
-        vpcLink,
-      }),
+    const apiIntegration = new apigwv2.CfnIntegration(this, 'ApiVpcIntegration', {
+      apiId: httpApi.apiId,
+      integrationType: 'HTTP_PROXY',
+      integrationMethod: 'ANY',
+      integrationUri: 'http://api.svc.local:3000',
+      connectionType: 'VPC_LINK',
+      connectionId: vpcLink.vpcLinkId,
+      payloadFormatVersion: '1.0',
+    });
+    new apigwv2.CfnRoute(this, 'ApiRoute', {
+      apiId: httpApi.apiId,
+      routeKey: '$default',
+      target: `integrations/${apiIntegration.ref}`,
     });
 
     this.httpApiEndpoint = cdk.Fn.select(1, cdk.Fn.split('://', httpApi.apiEndpoint));

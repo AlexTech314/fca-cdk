@@ -239,5 +239,24 @@ export class ApiStack extends cdk.Stack {
       value: this.loadBalancerDnsName,
       description: 'ALB DNS name for API (used by CloudFront, nextjs-web)',
     });
+
+    // Preserve cross-stack exports that deployed UI stacks still import.
+    // These will be removed in Deploy 2 after UI stacks stop importing them.
+    new cdk.CfnOutput(this, 'KeepHttpApiExport', {
+      value: 'removed',
+      exportName: `${this.stackName}:ExportsOutputFnGetAttHttpApiF5A9A8A7ApiEndpoint082134F8`,
+    });
+    new cdk.CfnOutput(this, 'KeepNamespaceExport', {
+      value: 'removed',
+      exportName: `${this.stackName}:ExportsOutputFnGetAttServiceNamespaceB29FC01BIdCEA7BCF6`,
+    });
+    new cdk.CfnOutput(this, 'KeepVpcLinkSgExport', {
+      value: 'removed',
+      exportName: `${this.stackName}:ExportsOutputFnGetAttVpcLinkSg21D76F2DGroupId9680F91D`,
+    });
+    new cdk.CfnOutput(this, 'KeepVpcLinkExport', {
+      value: 'removed',
+      exportName: `${this.stackName}:ExportsOutputRefVpcLink42ED6FF0DCEB9DB7`,
+    });
   }
 }

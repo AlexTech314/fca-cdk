@@ -250,12 +250,15 @@ export class ApiStack extends cdk.Stack {
       vpc,
     });
 
-    const apiCloudMapService = apiService.service.enableCloudMap({
-      cloudMapNamespace: namespace,
+    const apiCloudMapService = new servicediscovery.Service(this, 'ApiCloudMapSrv', {
+      namespace,
       name: 'api',
       dnsRecordType: servicediscovery.DnsRecordType.SRV,
-      containerPort: 3000,
       dnsTtl: cdk.Duration.seconds(10),
+    });
+    apiService.service.associateCloudMapService({
+      service: apiCloudMapService,
+      containerPort: 3000,
     });
 
     const vpcLinkSg = new ec2.SecurityGroup(this, 'VpcLinkSg', {

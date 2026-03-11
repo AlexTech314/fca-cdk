@@ -131,12 +131,15 @@ export class FlagshipWebStack extends cdk.Stack {
     // ============================================================
     // Cloud Map + HTTP API for Next.js (API Gateway migration)
     // ============================================================
-    const nextjsCloudMapService = service.enableCloudMap({
-      cloudMapNamespace: cloudMapNamespace,
+    const nextjsCloudMapService = new servicediscovery.Service(this, 'NextjsCloudMapSrv', {
+      namespace: cloudMapNamespace,
       name: 'nextjs',
       dnsRecordType: servicediscovery.DnsRecordType.SRV,
-      containerPort: 3000,
       dnsTtl: cdk.Duration.seconds(10),
+    });
+    service.associateCloudMapService({
+      service: nextjsCloudMapService,
+      containerPort: 3000,
     });
 
     const nextjsHttpApi = new apigwv2.HttpApi(this, 'NextjsHttpApi', {

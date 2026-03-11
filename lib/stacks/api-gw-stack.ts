@@ -206,7 +206,7 @@ export class ApiGwStack extends cdk.Stack {
       integrationUri: cloudMapService.serviceArn,
       connectionType: 'VPC_LINK',
       connectionId: vpcLink.vpcLinkId,
-      payloadFormatVersion: '2.0',
+      payloadFormatVersion: '1.0',
     });
 
     new apigwv2.CfnRoute(this, 'ApiRoute', {

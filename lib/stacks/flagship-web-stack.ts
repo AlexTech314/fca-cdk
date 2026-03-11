@@ -20,7 +20,7 @@ export interface FlagshipWebStackProps extends cdk.StackProps {
   readonly apiLoadBalancer: elbv2.IApplicationLoadBalancer;
   readonly apiListener: elbv2.IApplicationListener;
   readonly apiLoadBalancerDnsName: string;
-  // New API Gateway props
+  // New API Gateway props (from ApiGwStack)
   readonly httpApiEndpoint: string;
   readonly cloudMapNamespace: servicediscovery.INamespace;
   readonly vpcLink: apigwv2.VpcLink;

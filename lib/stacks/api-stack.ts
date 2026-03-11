@@ -8,8 +8,6 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
-import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
-import * as servicediscovery from 'aws-cdk-lib/aws-servicediscovery';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } from 'token-injectable-docker-builder';
@@ -41,10 +39,6 @@ export class ApiStack extends cdk.Stack {
   public readonly loadBalancer: elbv2.IApplicationLoadBalancer;
   public readonly loadBalancerDnsName: string;
   public readonly listener: elbv2.IApplicationListener;
-  public readonly httpApiEndpoint: string;
-  public readonly cloudMapNamespace: servicediscovery.INamespace;
-  public readonly vpcLink: apigwv2.VpcLink;
-  public readonly vpcLinkSecurityGroup: ec2.ISecurityGroup;
 
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
@@ -241,68 +235,9 @@ export class ApiStack extends cdk.Stack {
 
     apiService.service.connections.allowTo(dbSecurityGroup, ec2.Port.tcp(5432), 'Allow API Fargate to RDS');
 
-    // ============================================================
-    // Cloud Map + VPC Link + HTTP API (API Gateway migration)
-    // ============================================================
-    const namespace = new servicediscovery.PrivateDnsNamespace(this, 'ServiceNamespace', {
-      name: 'svc.local',
-      vpc,
-    });
-
-    const apiCloudMapService = new servicediscovery.Service(this, 'ApiCloudMapSvc', {
-      namespace,
-      name: 'api',
-      dnsRecordType: servicediscovery.DnsRecordType.A,
-      dnsTtl: cdk.Duration.seconds(10),
-    });
-    apiService.service.associateCloudMapService({
-      service: apiCloudMapService,
-    });
-
-    const vpcLinkSg = new ec2.SecurityGroup(this, 'VpcLinkSg', {
-      vpc,
-      description: 'Security group for API Gateway VPC Link',
-    });
-    apiService.service.connections.allowFrom(vpcLinkSg, ec2.Port.tcp(3000), 'Allow VPC Link to API');
-
-    const vpcLink = new apigwv2.VpcLink(this, 'VpcLink', {
-      vpc,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [vpcLinkSg],
-    });
-
-    const httpApi = new apigwv2.HttpApi(this, 'HttpApi', {
-      apiName: 'fca-api',
-      createDefaultStage: true,
-    });
-    const apiIntegration = new apigwv2.CfnIntegration(this, 'ApiVpcIntegration', {
-      apiId: httpApi.apiId,
-      integrationType: 'HTTP_PROXY',
-      integrationMethod: 'ANY',
-      integrationUri: 'http://api.svc.local:3000',
-      connectionType: 'VPC_LINK',
-      connectionId: vpcLink.vpcLinkId,
-      payloadFormatVersion: '1.0',
-    });
-    new apigwv2.CfnRoute(this, 'ApiRoute', {
-      apiId: httpApi.apiId,
-      routeKey: '$default',
-      target: `integrations/${apiIntegration.ref}`,
-    });
-
-    this.httpApiEndpoint = cdk.Fn.select(1, cdk.Fn.split('://', httpApi.apiEndpoint));
-    this.cloudMapNamespace = namespace;
-    this.vpcLink = vpcLink;
-    this.vpcLinkSecurityGroup = vpcLinkSg;
-
     new cdk.CfnOutput(this, 'ApiLoadBalancerDnsName', {
       value: this.loadBalancerDnsName,
       description: 'ALB DNS name for API (used by CloudFront, nextjs-web)',
-    });
-
-    new cdk.CfnOutput(this, 'HttpApiEndpoint', {
-      value: httpApi.apiEndpoint,
-      description: 'HTTP API endpoint for API (API Gateway)',
     });
   }
 }

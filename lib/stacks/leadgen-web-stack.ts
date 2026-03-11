@@ -11,7 +11,9 @@ import * as crypto from 'crypto';
 import * as path from 'path';
 
 export interface LeadGenWebStackProps extends cdk.StackProps {
+  // Keep temporarily for cross-stack export preservation (Deploy 1)
   readonly apiLoadBalancer: elbv2.IApplicationLoadBalancer;
+  readonly httpApiEndpoint: string;
 }
 
 /**
@@ -23,7 +25,7 @@ export class LeadGenWebStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: LeadGenWebStackProps) {
     super(scope, id, props);
 
-    const { apiLoadBalancer } = props;
+    const { apiLoadBalancer, httpApiEndpoint } = props;
 
     const spaBucket = new s3.Bucket(this, 'SpaBucket', {
       encryption: s3.BucketEncryption.S3_MANAGED,
@@ -41,8 +43,8 @@ export class LeadGenWebStack extends cdk.Stack {
       },
       additionalBehaviors: {
         '/api/*': {
-          origin: new origins.LoadBalancerV2Origin(apiLoadBalancer, {
-            protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
+          origin: new origins.HttpOrigin(httpApiEndpoint, {
+            protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
           }),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
@@ -112,5 +114,8 @@ export class LeadGenWebStack extends cdk.Stack {
       value: spaBucket.bucketName,
       description: 'S3 bucket for SPA assets',
     });
+
+    // Dummy output to preserve cross-stack export until Deploy 2
+    new cdk.CfnOutput(this, '_KeepAlbExport', { value: apiLoadBalancer.loadBalancerDnsName });
   }
 }

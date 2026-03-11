@@ -7,6 +7,9 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
+import * as apigwv2int from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import * as servicediscovery from 'aws-cdk-lib/aws-servicediscovery';
 import { Construct } from 'constructs';
 import * as crypto from 'crypto';
 import * as path from 'path';
@@ -14,9 +17,15 @@ import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } fr
 
 export interface FlagshipWebStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
+  // Keep temporarily for cross-stack export preservation (Deploy 1)
   readonly apiLoadBalancer: elbv2.IApplicationLoadBalancer;
   readonly apiListener: elbv2.IApplicationListener;
   readonly apiLoadBalancerDnsName: string;
+  // New API Gateway props
+  readonly httpApiEndpoint: string;
+  readonly cloudMapNamespace: servicediscovery.INamespace;
+  readonly vpcLink: apigwv2.VpcLink;
+  readonly vpcLinkSecurityGroup: ec2.ISecurityGroup;
   readonly cognitoUserPoolId: string;
   readonly cognitoClientId: string;
 }
@@ -45,12 +54,15 @@ export class FlagshipWebStack extends cdk.Stack {
       vpc,
       apiLoadBalancer,
       apiListener,
-      apiLoadBalancerDnsName,
+      httpApiEndpoint,
+      cloudMapNamespace,
+      vpcLink,
+      vpcLinkSecurityGroup,
       cognitoUserPoolId,
       cognitoClientId,
     } = props;
 
-    const apiUrl = `http://${apiLoadBalancerDnsName}/api`;
+    const apiUrl = 'http://api.svc.local:3000/api';
     const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
 
     const unifiedDockerBuilder = new TokenInjectableDockerBuilder(this, 'UnifiedDockerBuilder', {
@@ -74,34 +86,7 @@ export class FlagshipWebStack extends cdk.Stack {
     // ============================================================
     const cluster = new ecs.Cluster(this, 'NextjsCluster', { vpc });
 
-    // ============================================================
-    // Target Group
-    // ============================================================
-    const targetGroup = new elbv2.ApplicationTargetGroup(this, 'UnifiedTargetGroup', {
-      vpc,
-      port: 3000,
-      protocol: elbv2.ApplicationProtocol.HTTP,
-      targetType: elbv2.TargetType.IP,
-      deregistrationDelay: cdk.Duration.seconds(30),
-      healthCheck: {
-        path: '/api/health',
-        healthyHttpCodes: '200',
-        interval: cdk.Duration.seconds(30),
-        timeout: cdk.Duration.seconds(10),
-        healthyThresholdCount: 2,
-        unhealthyThresholdCount: 3,
-      },
-    });
-
-    // ============================================================
-    // ALB Listener Rule (X-Origin-Service header routing)
-    // ============================================================
-    new elbv2.ApplicationListenerRule(this, 'PublicRule', {
-      listener: apiListener,
-      priority: 1,
-      conditions: [elbv2.ListenerCondition.httpHeader('X-Origin-Service', ['nextjs'])],
-      action: elbv2.ListenerAction.forward([targetGroup]),
-    });
+    // (ALB target group and listener rule removed — traffic now routes via API Gateway)
 
     // ============================================================
     // Fargate Service
@@ -140,8 +125,30 @@ export class FlagshipWebStack extends cdk.Stack {
     });
 
     service.node.addDependency(unifiedDockerBuilder);
-    service.attachToApplicationTargetGroup(targetGroup);
-    service.connections.allowFrom(apiLoadBalancer, ec2.Port.tcp(3000), 'Allow ALB to unified Next.js');
+    service.connections.allowFrom(vpcLinkSecurityGroup, ec2.Port.tcp(3000), 'Allow VPC Link to Next.js');
+    service.connections.allowFrom(apiLoadBalancer, ec2.Port.tcp(3000), 'Preserve ALB SG export until Deploy 2');
+
+    // ============================================================
+    // Cloud Map + HTTP API for Next.js (API Gateway migration)
+    // ============================================================
+    const nextjsCloudMapService = service.enableCloudMap({
+      cloudMapNamespace: cloudMapNamespace,
+      name: 'nextjs',
+      dnsRecordType: servicediscovery.DnsRecordType.A,
+      dnsTtl: cdk.Duration.seconds(10),
+    });
+
+    const nextjsHttpApi = new apigwv2.HttpApi(this, 'NextjsHttpApi', {
+      apiName: 'fca-nextjs',
+      createDefaultStage: true,
+    });
+    nextjsHttpApi.addRoutes({
+      path: '/{proxy+}',
+      methods: [apigwv2.HttpMethod.ANY],
+      integration: new apigwv2int.HttpServiceDiscoveryIntegration('NextjsIntegration', nextjsCloudMapService, {
+        vpcLink,
+      }),
+    });
 
     const scaling = service.autoScaleTaskCount({ minCapacity: 1, maxCapacity: 4 });
     scaling.scaleOnCpuUtilization('CpuScaling', {
@@ -151,23 +158,23 @@ export class FlagshipWebStack extends cdk.Stack {
     });
 
     // ============================================================
-    // CloudFront Origins (same ALB, header for routing)
+    // CloudFront Origins (API Gateway HTTP APIs)
     // ============================================================
-    const nextjsOrigin = new origins.LoadBalancerV2Origin(apiLoadBalancer, {
-      protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
-      customHeaders: { 'X-Origin-Service': 'nextjs' },
+    const nextjsApiDomain = cdk.Fn.select(1, cdk.Fn.split('://', nextjsHttpApi.apiEndpoint));
+    const nextjsOrigin = new origins.HttpOrigin(nextjsApiDomain, {
+      protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
     });
 
-    const apiOrigin = new origins.LoadBalancerV2Origin(apiLoadBalancer, {
-      protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
+    const apiOrigin = new origins.HttpOrigin(httpApiEndpoint, {
+      protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
     });
 
-    // 5-minute cache for public pages
+    // 30-minute cache for public pages
     const publicCachePolicy = new cloudfront.CachePolicy(this, 'PublicCachePolicy', {
-      cachePolicyName: 'FlagshipPublic5Min',
-      minTtl: cdk.Duration.seconds(300),
-      defaultTtl: cdk.Duration.seconds(300),
-      maxTtl: cdk.Duration.seconds(300),
+      cachePolicyName: 'FlagshipPublic30Min',
+      minTtl: cdk.Duration.minutes(30),
+      defaultTtl: cdk.Duration.minutes(30),
+      maxTtl: cdk.Duration.minutes(30),
       enableAcceptEncodingGzip: true,
       enableAcceptEncodingBrotli: true,
     });
@@ -275,5 +282,9 @@ export class FlagshipWebStack extends cdk.Stack {
       value: cluster.clusterArn,
       description: 'ECS cluster ARN',
     });
+
+    // Dummy outputs to preserve cross-stack exports until Deploy 2
+    new cdk.CfnOutput(this, '_KeepAlbExport1', { value: apiLoadBalancer.loadBalancerDnsName });
+    new cdk.CfnOutput(this, '_KeepAlbExport2', { value: apiListener.listenerArn });
   }
 }

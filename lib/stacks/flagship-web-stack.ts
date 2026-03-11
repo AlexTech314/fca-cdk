@@ -5,7 +5,6 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
-import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as servicediscovery from 'aws-cdk-lib/aws-servicediscovery';
@@ -16,11 +15,6 @@ import { TokenInjectableDockerBuilder, TokenInjectableDockerBuilderProvider } fr
 
 export interface FlagshipWebStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
-  // Keep temporarily for cross-stack export preservation (Deploy 1)
-  readonly apiLoadBalancer: elbv2.IApplicationLoadBalancer;
-  readonly apiListener: elbv2.IApplicationListener;
-  readonly apiLoadBalancerDnsName: string;
-  // New API Gateway props (from ApiGwStack)
   readonly httpApiEndpoint: string;
   readonly cloudMapNamespace: servicediscovery.INamespace;
   readonly vpcLink: apigwv2.VpcLink;
@@ -32,12 +26,11 @@ export interface FlagshipWebStackProps extends cdk.StackProps {
 /**
  * Flagship Next.js web stack — unified container serving public + admin.
  *
- * Single Fargate service behind CloudFront, sharing the ApiStack ALB.
- * Routes by X-Origin-Service header: nextjs -> unified target group.
+ * Single Fargate service behind CloudFront, routed via API Gateway.
  * /admin routes are protected by client-side Cognito auth (AuthGuard).
  *
  * Uses TokenInjectableDockerBuilder to build images at deploy time so CDK tokens
- * (ALB DNS, Cognito IDs) can be injected as Docker build args.
+ * (Cognito IDs) can be injected as Docker build args.
  */
 export class FlagshipWebStack extends cdk.Stack {
   public readonly distributionDomainName: string;
@@ -51,8 +44,6 @@ export class FlagshipWebStack extends cdk.Stack {
 
     const {
       vpc,
-      apiLoadBalancer,
-      apiListener,
       httpApiEndpoint,
       cloudMapNamespace,
       vpcLink,
@@ -84,8 +75,6 @@ export class FlagshipWebStack extends cdk.Stack {
     // ECS Cluster
     // ============================================================
     const cluster = new ecs.Cluster(this, 'NextjsCluster', { vpc });
-
-    // (ALB target group and listener rule removed — traffic now routes via API Gateway)
 
     // ============================================================
     // Fargate Service
@@ -125,10 +114,9 @@ export class FlagshipWebStack extends cdk.Stack {
 
     service.node.addDependency(unifiedDockerBuilder);
     service.connections.allowFrom(vpcLinkSecurityGroup, ec2.Port.tcp(3000), 'Allow VPC Link to Next.js');
-    service.connections.allowFrom(apiLoadBalancer, ec2.Port.tcp(3000), 'Preserve ALB SG export until Deploy 2');
 
     // ============================================================
-    // Cloud Map + HTTP API for Next.js (API Gateway migration)
+    // Cloud Map + HTTP API for Next.js
     // ============================================================
     const nextjsCloudMapService = new servicediscovery.Service(this, 'NextjsCloudMapSvc', {
       namespace: cloudMapNamespace,
@@ -291,9 +279,5 @@ export class FlagshipWebStack extends cdk.Stack {
       value: cluster.clusterArn,
       description: 'ECS cluster ARN',
     });
-
-    // Dummy outputs to preserve cross-stack exports until Deploy 2
-    new cdk.CfnOutput(this, '_KeepAlbExport1', { value: apiLoadBalancer.loadBalancerDnsName });
-    new cdk.CfnOutput(this, '_KeepAlbExport2', { value: apiListener.listenerArn });
   }
 }

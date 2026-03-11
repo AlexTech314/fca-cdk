@@ -19,6 +19,7 @@ export interface FlagshipWebStackProps extends cdk.StackProps {
   readonly cloudMapNamespace: servicediscovery.INamespace;
   readonly vpcLink: apigwv2.VpcLink;
   readonly vpcLinkSecurityGroup: ec2.ISecurityGroup;
+  readonly apiServiceSecurityGroup: ec2.ISecurityGroup;
   readonly cognitoUserPoolId: string;
   readonly cognitoClientId: string;
 }
@@ -48,6 +49,7 @@ export class FlagshipWebStack extends cdk.Stack {
       cloudMapNamespace,
       vpcLink,
       vpcLinkSecurityGroup,
+      apiServiceSecurityGroup,
       cognitoUserPoolId,
       cognitoClientId,
     } = props;
@@ -114,6 +116,7 @@ export class FlagshipWebStack extends cdk.Stack {
 
     service.node.addDependency(unifiedDockerBuilder);
     service.connections.allowFrom(vpcLinkSecurityGroup, ec2.Port.tcp(3000), 'Allow VPC Link to Next.js');
+    service.connections.allowTo(apiServiceSecurityGroup, ec2.Port.tcp(3000), 'Allow Next.js SSR to API');
 
     // ============================================================
     // Cloud Map + HTTP API for Next.js

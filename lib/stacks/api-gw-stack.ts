@@ -42,6 +42,7 @@ export class ApiGwStack extends cdk.Stack {
   public readonly cloudMapNamespace: servicediscovery.INamespace;
   public readonly vpcLink: apigwv2.VpcLink;
   public readonly vpcLinkSecurityGroup: ec2.ISecurityGroup;
+  public readonly apiServiceSecurityGroup: ec2.ISecurityGroup;
 
   constructor(scope: Construct, id: string, props: ApiGwStackProps) {
     super(scope, id, props);
@@ -328,6 +329,7 @@ export class ApiGwStack extends cdk.Stack {
     this.cloudMapNamespace = namespace;
     this.vpcLink = vpcLink;
     this.vpcLinkSecurityGroup = vpcLinkSg;
+    this.apiServiceSecurityGroup = service.connections.securityGroups[0];
 
     new cdk.CfnOutput(this, 'HttpApiEndpoint', {
       value: httpApi.apiEndpoint,

@@ -98,6 +98,7 @@ export class FcaStage extends cdk.Stage {
       cloudMapNamespace: this.apiGwStack.cloudMapNamespace,
       vpcLink: this.apiGwStack.vpcLink,
       vpcLinkSecurityGroup: this.apiGwStack.vpcLinkSecurityGroup,
+      apiServiceSecurityGroup: this.apiGwStack.apiServiceSecurityGroup,
       cognitoUserPoolId: this.cognitoStack.userPool.userPoolId,
       cognitoClientId: this.cognitoStack.userPoolClient.userPoolClientId,
     });

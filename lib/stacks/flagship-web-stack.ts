@@ -134,7 +134,8 @@ export class FlagshipWebStack extends cdk.Stack {
     const nextjsCloudMapService = service.enableCloudMap({
       cloudMapNamespace: cloudMapNamespace,
       name: 'nextjs',
-      dnsRecordType: servicediscovery.DnsRecordType.A,
+      dnsRecordType: servicediscovery.DnsRecordType.SRV,
+      containerPort: 3000,
       dnsTtl: cdk.Duration.seconds(10),
     });
 

@@ -253,7 +253,8 @@ export class ApiStack extends cdk.Stack {
     const apiCloudMapService = apiService.service.enableCloudMap({
       cloudMapNamespace: namespace,
       name: 'api',
-      dnsRecordType: servicediscovery.DnsRecordType.A,
+      dnsRecordType: servicediscovery.DnsRecordType.SRV,
+      containerPort: 3000,
       dnsTtl: cdk.Duration.seconds(10),
     });
 

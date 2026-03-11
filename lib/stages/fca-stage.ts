@@ -87,16 +87,21 @@ export class FcaStage extends cdk.Stage {
 
     // Stack 6: LeadGen Web (SPA + CloudFront)
     this.webStack = new LeadGenWebStack(this, 'LeadGenWeb', {
-      apiLoadBalancer: this.apiStack.loadBalancer,
+      apiLoadBalancer: this.apiStack.loadBalancer,         // keep temporarily (Deploy 1)
+      httpApiEndpoint: this.apiStack.httpApiEndpoint,
     });
     this.webStack.addDependency(this.apiStack);
 
     // Stack 7: Flagship Next.js (public + admin Fargate behind CloudFront)
     this.flagshipWebStack = new FlagshipWebStack(this, 'FlagshipWeb', {
       vpc: this.networkStack.vpc,
-      apiLoadBalancer: this.apiStack.loadBalancer,
-      apiListener: this.apiStack.listener,
-      apiLoadBalancerDnsName: this.apiStack.loadBalancerDnsName,
+      apiLoadBalancer: this.apiStack.loadBalancer,          // keep temporarily (Deploy 1)
+      apiListener: this.apiStack.listener,                  // keep temporarily (Deploy 1)
+      apiLoadBalancerDnsName: this.apiStack.loadBalancerDnsName, // keep temporarily (Deploy 1)
+      httpApiEndpoint: this.apiStack.httpApiEndpoint,
+      cloudMapNamespace: this.apiStack.cloudMapNamespace,
+      vpcLink: this.apiStack.vpcLink,
+      vpcLinkSecurityGroup: this.apiStack.vpcLinkSecurityGroup,
       cognitoUserPoolId: this.cognitoStack.userPool.userPoolId,
       cognitoClientId: this.cognitoStack.userPoolClient.userPoolClientId,
     });

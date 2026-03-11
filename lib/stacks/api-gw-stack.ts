@@ -33,10 +33,9 @@ export interface ApiGwStackProps extends cdk.StackProps {
 /**
  * API Gateway stack — Express API on Fargate behind HTTP API (API Gateway v2).
  *
- * Uses Cloud Map for service discovery (A records) and VPC Link
- * for private integration with URL-based routing. This stack runs
- * alongside the old ApiStack during migration (Deploy 1). Deploy 2
- * will remove the old ApiStack.
+ * Uses Cloud Map for service discovery (SRV+A records) and VPC Link
+ * for private integration. SRV records provide port 3000 to API Gateway
+ * via DiscoverInstances; A records enable DNS resolution for SSR calls.
  */
 export class ApiGwStack extends cdk.Stack {
   public readonly httpApiEndpoint: string;
@@ -108,7 +107,7 @@ export class ApiGwStack extends cdk.Stack {
       },
     });
 
-    taskDef.addContainer('Api', {
+    const container = taskDef.addContainer('Api', {
       image: apiImage.containerImage,
       portMappings: [{ containerPort: 3000 }],
       environment: {
@@ -135,7 +134,7 @@ export class ApiGwStack extends cdk.Stack {
     });
 
     // ============================================================
-    // Cloud Map — Private DNS Namespace + Service (A records)
+    // Cloud Map — Private DNS Namespace + Service (SRV+A records)
     // ============================================================
     const namespace = new servicediscovery.PrivateDnsNamespace(this, 'ServiceNamespace', {
       name: 'svc.local',
@@ -145,9 +144,17 @@ export class ApiGwStack extends cdk.Stack {
     const cloudMapService = new servicediscovery.Service(this, 'ApiCloudMapSvc', {
       namespace,
       name: 'api',
-      dnsRecordType: servicediscovery.DnsRecordType.A,
+      dnsRecordType: servicediscovery.DnsRecordType.SRV,
       dnsTtl: cdk.Duration.seconds(10),
     });
+
+    // Escape hatch: add A record alongside SRV so DNS queries for
+    // api.svc.local resolve to task IPs (needed for Next.js SSR calls).
+    const cfnService = cloudMapService.node.defaultChild as servicediscovery.CfnService;
+    cfnService.addPropertyOverride('DnsConfig.DnsRecords', [
+      { Type: 'SRV', TTL: 10 },
+      { Type: 'A', TTL: 10 },
+    ]);
 
     // ============================================================
     // Fargate Service
@@ -165,6 +172,8 @@ export class ApiGwStack extends cdk.Stack {
 
     service.associateCloudMapService({
       service: cloudMapService,
+      container,
+      containerPort: 3000,
     });
 
     // ============================================================
@@ -194,7 +203,7 @@ export class ApiGwStack extends cdk.Stack {
       apiId: httpApi.apiId,
       integrationType: 'HTTP_PROXY',
       integrationMethod: 'ANY',
-      integrationUri: 'http://api.svc.local:3000',
+      integrationUri: cloudMapService.serviceArn,
       connectionType: 'VPC_LINK',
       connectionId: vpcLink.vpcLinkId,
       payloadFormatVersion: '2.0',

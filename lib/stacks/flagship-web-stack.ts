@@ -121,11 +121,22 @@ export class FlagshipWebStack extends cdk.Stack {
     const nextjsCloudMapService = new servicediscovery.Service(this, 'NextjsCloudMapSvc', {
       namespace: cloudMapNamespace,
       name: 'nextjs',
-      dnsRecordType: servicediscovery.DnsRecordType.A,
+      dnsRecordType: servicediscovery.DnsRecordType.SRV,
       dnsTtl: cdk.Duration.seconds(10),
     });
+
+    // Escape hatch: add A record alongside SRV so DNS queries for
+    // nextjs.svc.local resolve to task IPs (needed for internal routing).
+    const cfnNextjsService = nextjsCloudMapService.node.defaultChild as servicediscovery.CfnService;
+    cfnNextjsService.addPropertyOverride('DnsConfig.DnsRecords', [
+      { Type: 'SRV', TTL: 10 },
+      { Type: 'A', TTL: 10 },
+    ]);
+
     service.associateCloudMapService({
       service: nextjsCloudMapService,
+      container: taskDef.defaultContainer!,
+      containerPort: 3000,
     });
 
     const nextjsHttpApi = new apigwv2.HttpApi(this, 'NextjsHttpApi', {
@@ -136,7 +147,7 @@ export class FlagshipWebStack extends cdk.Stack {
       apiId: nextjsHttpApi.apiId,
       integrationType: 'HTTP_PROXY',
       integrationMethod: 'ANY',
-      integrationUri: 'http://nextjs.svc.local:3000',
+      integrationUri: nextjsCloudMapService.serviceArn,
       connectionType: 'VPC_LINK',
       connectionId: vpcLink.vpcLinkId,
       payloadFormatVersion: '2.0',

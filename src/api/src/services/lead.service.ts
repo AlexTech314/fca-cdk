@@ -1,5 +1,5 @@
 import { SQSClient, SendMessageCommand, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 import { prisma } from '@fca/db';
 import { leadRepository } from '../repositories/lead.repository';
@@ -37,6 +37,48 @@ export const leadService = {
       ORDER BY business_type
     `;
     return rows.map((r) => r.business_type);
+  },
+
+  async getDistinctPipelineStatuses(): Promise<string[]> {
+    const rows = await prisma.$queryRaw<Array<{ pipeline_status: string }>>`
+      WITH RECURSIVE vals AS (
+        SELECT MIN(pipeline_status) AS pipeline_status FROM leads
+        UNION ALL
+        SELECT (SELECT MIN(pipeline_status) FROM leads WHERE pipeline_status > v.pipeline_status)
+        FROM vals v WHERE v.pipeline_status IS NOT NULL
+      )
+      SELECT pipeline_status FROM vals WHERE pipeline_status IS NOT NULL
+      ORDER BY pipeline_status
+    `;
+    return rows.map((r) => r.pipeline_status);
+  },
+
+  async getDistinctSources(): Promise<string[]> {
+    const rows = await prisma.$queryRaw<Array<{ source: string }>>`
+      WITH RECURSIVE vals AS (
+        SELECT MIN(source) AS source FROM leads WHERE source IS NOT NULL
+        UNION ALL
+        SELECT (SELECT MIN(source) FROM leads WHERE source > v.source)
+        FROM vals v WHERE v.source IS NOT NULL
+      )
+      SELECT source FROM vals WHERE source IS NOT NULL
+      ORDER BY source
+    `;
+    return rows.map((r) => r.source);
+  },
+
+  async getDistinctTiers(): Promise<number[]> {
+    const rows = await prisma.$queryRaw<Array<{ tier: number }>>`
+      WITH RECURSIVE vals AS (
+        SELECT MIN(tier) AS tier FROM leads WHERE tier IS NOT NULL
+        UNION ALL
+        SELECT (SELECT MIN(tier) FROM leads WHERE tier > v.tier)
+        FROM vals v WHERE v.tier IS NOT NULL
+      )
+      SELECT tier FROM vals WHERE tier IS NOT NULL
+      ORDER BY tier
+    `;
+    return rows.map((r) => r.tier);
   },
 
   async updateLead(id: string, data: Record<string, unknown>) {
@@ -225,20 +267,41 @@ export const leadService = {
 
   // Dashboard data
   async getStats() {
-    const [stats, campaignsRun] = await Promise.all([
+    const [stats, campaignsRun, searchesQueried, exports] = await Promise.all([
       leadRepository.getStats(),
       campaignRunRepository.countCompleted(),
+      prisma.searchQuery.count(),
+      s3Client.send(new ListObjectsV2Command({
+        Bucket: ASSETS_BUCKET_NAME,
+        Prefix: 'exports/',
+      })).then(res => res.KeyCount ?? 0).catch(() => 0),
     ]);
     return {
       totalLeads: stats.totalLeads,
-      qualifiedLeads: stats.qualifiedLeads,
+      leadsScored: stats.qualifiedLeads,
       campaignsRun,
-      exports: 0,
+      searchesQueried,
+      exports,
     };
   },
 
   async getLeadsOverTime(startDate: string, endDate: string, granularity: 'hour' | 'day' = 'day') {
     return leadRepository.getLeadsOverTime(new Date(startDate), new Date(endDate), granularity);
+  },
+
+  async getSearchesOverTime(startDate: string, endDate: string, granularity: 'hour' | 'day' = 'day') {
+    const truncExpr = granularity === 'hour' ? `date_trunc('hour', created_at)` : `date_trunc('day', created_at)`;
+    const results: Array<{ bucket: Date; count: bigint }> = await prisma.$queryRawUnsafe(`
+      SELECT ${truncExpr} AS bucket, COUNT(*)::bigint AS count
+      FROM search_queries
+      WHERE created_at >= $1 AND created_at <= $2
+      GROUP BY 1
+      ORDER BY 1 ASC
+    `, new Date(startDate), new Date(endDate));
+    return results.map((r) => ({
+      timestamp: r.bucket instanceof Date ? r.bucket.toISOString() : String(r.bucket),
+      value: Number(r.count),
+    }));
   },
 
   async getBusinessTypeDistribution() {

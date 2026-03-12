@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboardStats } from '@/hooks/useDashboard';
 import { formatNumber } from '@/lib/utils';
-import { Users, Target, CheckCircle, Download } from 'lucide-react';
+import { Users, Target, CheckCircle, Download, Search } from 'lucide-react';
 
 interface StatCardProps {
   label: string;
@@ -50,8 +50,8 @@ export function StatsCards() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {[1, 2, 3, 4, 5].map((i) => (
           <StatCardSkeleton key={i} />
         ))}
       </div>
@@ -60,13 +60,14 @@ export function StatsCards() {
 
   const stats = [
     { label: 'Total Leads', value: data?.totalLeads || 0, icon: <Users className="h-6 w-6" /> },
+    { label: 'Searches Queried', value: data?.searchesQueried || 0, icon: <Search className="h-6 w-6" /> },
+    { label: 'Leads Scored', value: data?.leadsScored || 0, icon: <CheckCircle className="h-6 w-6" /> },
     { label: 'Campaigns Run', value: data?.campaignsRun || 0, icon: <Target className="h-6 w-6" /> },
-    { label: 'Qualified Leads', value: data?.qualifiedLeads || 0, icon: <CheckCircle className="h-6 w-6" /> },
     { label: 'Exports', value: data?.exports || 0, icon: <Download className="h-6 w-6" /> },
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       {stats.map((stat) => (
         <StatCard key={stat.label} {...stat} />
       ))}

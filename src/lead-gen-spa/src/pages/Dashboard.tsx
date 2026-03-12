@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { StatsCards } from '@/components/dashboard/StatsCards';
 import { LeadsLineChart } from '@/components/dashboard/LeadsLineChart';
+import { SearchesLineChart } from '@/components/dashboard/SearchesLineChart';
 import { CampaignsLineChart } from '@/components/dashboard/CampaignsLineChart';
 import { BusinessTypePieChart } from '@/components/dashboard/BusinessTypePieChart';
 import { LocationPieChart } from '@/components/dashboard/LocationPieChart';
@@ -46,8 +47,9 @@ export default function Dashboard() {
       <StatsCards />
 
       {/* Line Charts Row */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <LeadsLineChart dateRange={dateRange} />
+        <SearchesLineChart dateRange={dateRange} />
         <CampaignsLineChart dateRange={dateRange} />
       </div>
 

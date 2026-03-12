@@ -52,6 +52,11 @@ export interface LeadGenApi {
   getLeadsOverTime(params: TimeSeriesParams): Promise<TimeSeriesData[]>;
   
   /**
+   * Get searches queried over time (for line chart)
+   */
+  getSearchesOverTime(params: TimeSeriesParams): Promise<TimeSeriesData[]>;
+
+  /**
    * Get campaign runs over time (for line chart)
    */
   getCampaignsOverTime(params: TimeSeriesParams): Promise<TimeSeriesData[]>;
@@ -119,6 +124,21 @@ export interface LeadGenApi {
    * Get distinct business types (skip-scan optimized)
    */
   getBusinessTypes(): Promise<string[]>;
+
+  /**
+   * Get distinct pipeline statuses present in leads
+   */
+  getPipelineStatuses(): Promise<string[]>;
+
+  /**
+   * Get distinct sources present in leads
+   */
+  getSources(): Promise<string[]>;
+
+  /**
+   * Get distinct tiers present in leads
+   */
+  getTiers(): Promise<number[]>;
 
   /**
    * Search cities by name prefix

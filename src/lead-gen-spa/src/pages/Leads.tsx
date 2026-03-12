@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
@@ -81,13 +82,102 @@ function loadColumnSelection(): LeadListField[] {
   }
 }
 
+// ============================================
+// URL <-> Filter serialization
+// ============================================
+const STORAGE_KEY = 'leads_query';
+
+// Filter keys that are string arrays (comma-separated in URL)
+const ARRAY_KEYS = new Set(['stateIds', 'businessTypes', 'pipelineStatuses', 'sources']);
+// Filter keys that are number arrays (comma-separated in URL)
+const NUM_ARRAY_KEYS = new Set(['tiers']);
+// Filter keys that are booleans
+const BOOL_KEYS = new Set(['hasWebsite', 'hasPhone', 'hasExtractedEmail', 'hasExtractedPhone', 'isScored', 'isScraped', 'isExcluded', 'isIntermediated']);
+// Filter keys that are numbers
+const NUMBER_KEYS = new Set(['ratingMin', 'ratingMax', 'cityId', 'reviewCountMin', 'reviewCountMax', 'compositeScoreMin', 'compositeScoreMax', 'bqScoreMin', 'bqScoreMax', 'erScoreMin', 'erScoreMax']);
+// Non-filter query params
+const META_KEYS = new Set(['page', 'sort', 'order']);
+
+function filtersToParams(filters: LeadFiltersType): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(filters)) {
+    if (v === undefined || v === null || v === '') continue;
+    if (Array.isArray(v)) { if (v.length > 0) out[k] = v.join(','); }
+    else out[k] = String(v);
+  }
+  return out;
+}
+
+function paramsToFilters(params: URLSearchParams): LeadFiltersType {
+  const filters: LeadFiltersType = {};
+  for (const [k, v] of params.entries()) {
+    if (META_KEYS.has(k) || !v) continue;
+    if (ARRAY_KEYS.has(k)) (filters as any)[k] = v.split(',');
+    else if (NUM_ARRAY_KEYS.has(k)) (filters as any)[k] = v.split(',').map(Number);
+    else if (BOOL_KEYS.has(k)) (filters as any)[k] = v === 'true';
+    else if (NUMBER_KEYS.has(k)) (filters as any)[k] = Number(v);
+    else (filters as any)[k] = v;
+  }
+  return filters;
+}
+
+function queryToSearchParams(q: LeadQueryParams): URLSearchParams {
+  const p = new URLSearchParams();
+  if (q.page > 1) p.set('page', String(q.page));
+  if (q.sort !== defaultLeadQueryParams.sort) p.set('sort', q.sort);
+  if (q.order !== defaultLeadQueryParams.order) p.set('order', q.order);
+  for (const [k, v] of Object.entries(filtersToParams(q.filters))) p.set(k, v);
+  return p;
+}
+
+function loadQueryFromUrl(sp: URLSearchParams): Partial<LeadQueryParams> {
+  const out: Partial<LeadQueryParams> = {};
+  const page = parseInt(sp.get('page') || '', 10);
+  if (page > 0) out.page = page;
+  if (sp.has('sort')) out.sort = sp.get('sort')!;
+  if (sp.has('order') && (sp.get('order') === 'asc' || sp.get('order') === 'desc')) out.order = sp.get('order') as 'asc' | 'desc';
+  const filters = paramsToFilters(sp);
+  if (Object.keys(filters).length > 0) out.filters = filters;
+  return out;
+}
+
+function saveToSession(q: LeadQueryParams) {
+  const { fields, ...rest } = q;
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+}
+
+function loadFromSession(): Partial<LeadQueryParams> {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch { return {}; }
+}
+
 export default function Leads() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState<LeadListField[]>(() => loadColumnSelection());
-  const [queryParams, setQueryParams] = useState<LeadQueryParams>(() => ({
-    ...defaultLeadQueryParams,
-    fields: loadColumnSelection(),
-  }));
+  const [queryParams, setQueryParams] = useState<LeadQueryParams>(() => {
+    // URL params take priority, then sessionStorage, then defaults
+    const urlOverrides = loadQueryFromUrl(searchParams);
+    const hasUrlState = Object.keys(urlOverrides).length > 0;
+    const stored = hasUrlState ? {} : loadFromSession();
+    return {
+      ...defaultLeadQueryParams,
+      ...stored,
+      ...urlOverrides,
+      fields: loadColumnSelection(),
+    };
+  });
+
+  // Sync URL on mount when restoring from session
+  useEffect(() => {
+    const p = queryToSearchParams(queryParams);
+    if (p.toString() !== searchParams.toString()) {
+      setSearchParams(p, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -473,20 +563,33 @@ export default function Leads() {
     });
   }, []);
 
+  const syncUrl = useCallback((next: LeadQueryParams, replace = false) => {
+    saveToSession(next);
+    setSearchParams(queryToSearchParams(next), { replace });
+  }, [setSearchParams]);
+
   const handleFiltersChange = (filters: LeadFiltersType) => {
-    setQueryParams(prev => ({ ...prev, filters, page: 1 }));
+    const next = { ...queryParams, filters, page: 1 };
+    setQueryParams(next);
+    syncUrl(next);
   };
 
   const handlePageChange = (page: number) => {
-    setQueryParams(prev => ({ ...prev, page }));
+    const next = { ...queryParams, page };
+    setQueryParams(next);
+    syncUrl(next);
   };
 
   const handleSortChange = (sort: string, order: 'asc' | 'desc') => {
-    setQueryParams(prev => ({ ...prev, sort, order }));
+    const next = { ...queryParams, sort, order };
+    setQueryParams(next);
+    syncUrl(next);
   };
 
   const handleClearFilters = () => {
-    setQueryParams(prev => ({ ...prev, filters: {}, page: 1 }));
+    const next = { ...queryParams, filters: {}, page: 1 };
+    setQueryParams(next);
+    syncUrl(next);
   };
 
   const setColumns = (next: LeadListField[]) => {

@@ -398,6 +398,55 @@ function buildWhereClause(
   } else if (filters.hasExtractedPhone === false) {
     where.leadPhones = { none: {} };
   }
+  if (filters.reviewCountMin !== undefined) {
+    where.reviewCount = { ...((where.reviewCount as object) || {}), gte: filters.reviewCountMin };
+  }
+  if (filters.reviewCountMax !== undefined) {
+    where.reviewCount = { ...((where.reviewCount as object) || {}), lte: filters.reviewCountMax };
+  }
+  if (filters.compositeScoreMin !== undefined) {
+    where.compositeScore = { ...((where.compositeScore as object) || {}), gte: filters.compositeScoreMin };
+  }
+  if (filters.compositeScoreMax !== undefined) {
+    where.compositeScore = { ...((where.compositeScore as object) || {}), lte: filters.compositeScoreMax };
+  }
+  if (filters.bqScoreMin !== undefined) {
+    where.businessQualityScore = { ...((where.businessQualityScore as object) || {}), gte: filters.bqScoreMin };
+  }
+  if (filters.bqScoreMax !== undefined) {
+    where.businessQualityScore = { ...((where.businessQualityScore as object) || {}), lte: filters.bqScoreMax };
+  }
+  if (filters.erScoreMin !== undefined) {
+    where.exitReadinessScore = { ...((where.exitReadinessScore as object) || {}), gte: filters.erScoreMin };
+  }
+  if (filters.erScoreMax !== undefined) {
+    where.exitReadinessScore = { ...((where.exitReadinessScore as object) || {}), lte: filters.erScoreMax };
+  }
+  if (filters.tiers?.length) {
+    where.tier = { in: filters.tiers };
+  }
+  if (filters.pipelineStatuses?.length) {
+    where.pipelineStatus = { in: filters.pipelineStatuses as any };
+  }
+  if (filters.sources?.length) {
+    where.source = { in: filters.sources as any };
+  }
+  if (filters.isScored === true) {
+    where.scoredAt = { not: null };
+  } else if (filters.isScored === false) {
+    where.scoredAt = null;
+  }
+  if (filters.isScraped === true) {
+    where.webScrapedAt = { not: null };
+  } else if (filters.isScraped === false) {
+    where.webScrapedAt = null;
+  }
+  if (filters.isExcluded !== undefined) {
+    where.isExcluded = filters.isExcluded;
+  }
+  if (filters.isIntermediated !== undefined) {
+    where.isIntermediated = filters.isIntermediated;
+  }
 
   return where;
 }

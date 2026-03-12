@@ -220,10 +220,25 @@ export interface LeadFilters {
   franchiseId?: string;
   ratingMin?: number;
   ratingMax?: number;
+  reviewCountMin?: number;
+  reviewCountMax?: number;
+  compositeScoreMin?: number;
+  compositeScoreMax?: number;
+  bqScoreMin?: number;
+  bqScoreMax?: number;
+  erScoreMin?: number;
+  erScoreMax?: number;
+  tiers?: number[];
+  pipelineStatuses?: string[];
+  sources?: string[];
   hasWebsite?: boolean;
   hasPhone?: boolean;
   hasExtractedEmail?: boolean;
   hasExtractedPhone?: boolean;
+  isScored?: boolean;
+  isScraped?: boolean;
+  isExcluded?: boolean;
+  isIntermediated?: boolean;
 }
 
 export interface LeadQueryParams {
@@ -270,7 +285,8 @@ export interface PaginatedResponse<T> {
 export interface DashboardStats {
   totalLeads: number;
   campaignsRun: number;
-  qualifiedLeads: number;
+  leadsScored: number;
+  searchesQueried: number;
   exports: number;
 }
 

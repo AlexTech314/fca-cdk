@@ -24,6 +24,14 @@ export function useLeadsOverTime(params: TimeSeriesParams) {
   });
 }
 
+export function useSearchesOverTime(params: TimeSeriesParams) {
+  return useQuery({
+    queryKey: ['dashboard', 'searches-over-time', params],
+    queryFn: () => api.getSearchesOverTime(params),
+    ...pulseQueryOptions,
+  });
+}
+
 export function useCampaignsOverTime(params: TimeSeriesParams) {
   return useQuery({
     queryKey: ['dashboard', 'campaigns-over-time', params],

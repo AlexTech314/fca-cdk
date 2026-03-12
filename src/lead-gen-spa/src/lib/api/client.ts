@@ -256,6 +256,15 @@ export const realApi: LeadGenApi = {
     return apiClient<TimeSeriesData[]>(`/dashboard/leads-over-time?${qs}`);
   },
 
+  async getSearchesOverTime(params: TimeSeriesParams): Promise<TimeSeriesData[]> {
+    const qs = new URLSearchParams({
+      startDate: params.startDate,
+      endDate: params.endDate,
+      granularity: params.granularity,
+    });
+    return apiClient<TimeSeriesData[]>(`/dashboard/searches-over-time?${qs}`);
+  },
+
   async getCampaignsOverTime(params: TimeSeriesParams): Promise<TimeSeriesData[]> {
     const qs = new URLSearchParams({
       startDate: params.startDate,
@@ -284,6 +293,18 @@ export const realApi: LeadGenApi = {
 
   async getBusinessTypes(): Promise<string[]> {
     return apiClient<string[]>('/leads/business-types');
+  },
+
+  async getPipelineStatuses(): Promise<string[]> {
+    return apiClient<string[]>('/leads/pipeline-statuses');
+  },
+
+  async getSources(): Promise<string[]> {
+    return apiClient<string[]>('/leads/sources');
+  },
+
+  async getTiers(): Promise<number[]> {
+    return apiClient<number[]>('/leads/tiers');
   },
 
   async searchCities(q: string): Promise<Array<{ id: number; name: string; state: { id: string; name: string } }>> {

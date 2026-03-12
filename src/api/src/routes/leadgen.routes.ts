@@ -51,6 +51,18 @@ router.get('/dashboard/leads-over-time', async (req, res, next) => {
   }
 });
 
+router.get('/dashboard/searches-over-time', async (req, res, next) => {
+  try {
+    const startDate = String(req.query.startDate || new Date(Date.now() - 7 * 86400000).toISOString());
+    const endDate = String(req.query.endDate || new Date().toISOString());
+    const granularity = req.query.granularity === 'hour' ? 'hour' as const : 'day' as const;
+    const data = await leadService.getSearchesOverTime(startDate, endDate, granularity);
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/dashboard/campaigns-over-time', async (req, res, next) => {
   try {
     const startDate = String(req.query.startDate || new Date(Date.now() - 7 * 86400000).toISOString());
@@ -138,6 +150,33 @@ router.get('/leads/business-types', async (_req, res, next) => {
   try {
     const types = await leadService.getDistinctBusinessTypes();
     res.json(types);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/leads/pipeline-statuses', async (_req, res, next) => {
+  try {
+    const statuses = await leadService.getDistinctPipelineStatuses();
+    res.json(statuses);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/leads/sources', async (_req, res, next) => {
+  try {
+    const sources = await leadService.getDistinctSources();
+    res.json(sources);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/leads/tiers', async (_req, res, next) => {
+  try {
+    const tiers = await leadService.getDistinctTiers();
+    res.json(tiers);
   } catch (error) {
     next(error);
   }

@@ -311,7 +311,8 @@ async function main() {
     let queriesExecuted = 0;
     let errors = 0;
     const seenPlaceIds = new Set<string>();
-    let sortBase = Date.now() * 1000;
+    const maxResult = await prisma.$queryRaw<[{ max: number | null }]>`SELECT MAX(sort_index) as max FROM leads`;
+    const sortCeiling = (maxResult[0]?.max ?? 0) + 1;
     const CACHE_DAYS = 30;
     const requestBudget = typeof maxTotalRequests === 'number' && maxTotalRequests > 0
       ? { remaining: maxTotalRequests }
@@ -441,7 +442,7 @@ async function main() {
         try {
           const googleMapsUri =
             place.googleMapsUri ?? `https://www.google.com/maps/place/?q=place_id:${place.id}`;
-          const leadSortIndex = sortBase--;
+          const leadSortIndex = sortCeiling + Math.random();
           const result = await prisma.$executeRaw`
             INSERT INTO leads (
               id, place_id, campaign_id, campaign_run_id, search_query_id, franchise_id,

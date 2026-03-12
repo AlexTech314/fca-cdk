@@ -13,7 +13,7 @@ import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
 import { existsSync, readdirSync } from 'fs';
 
-type SeedAction = 'seed' | 'seed-content' | 'seed-transactions' | 'wipe' | 'reset' | 'migrate' | 'cognito-seed' | 'configure-bridge';
+type SeedAction = 'seed' | 'seed-content' | 'seed-transactions' | 'wipe' | 'reset' | 'migrate' | 'cognito-seed' | 'configure-bridge' | 'cleanup';
 
 interface SeedEvent {
   action?: SeedAction;
@@ -235,6 +235,20 @@ export async function handler(event: SeedEvent): Promise<{ status: string; actio
     } finally {
       await prisma.$disconnect();
       console.log('PrismaClient disconnected.');
+    }
+  }
+
+  // Delete fargate_tasks older than 7 days
+  if (action === 'cleanup') {
+    const prisma = new PrismaClient({ log: ['warn', 'error'] });
+    try {
+      const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const result = await prisma.fargateTask.deleteMany({
+        where: { createdAt: { lt: cutoff } },
+      });
+      console.log(`Deleted ${result.count} fargate tasks older than 7 days`);
+    } finally {
+      await prisma.$disconnect();
     }
   }
 

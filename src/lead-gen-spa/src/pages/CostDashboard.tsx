@@ -32,7 +32,7 @@ import {
   useCostsOverTime,
 } from '@/hooks/useCosts';
 
-type DateRange = '7d' | '30d' | 'mtd' | '90d';
+type DateRange = '7d' | '30d' | 'mtd' | '60d';
 
 function getDateRange(range: DateRange): { start: string; end: string } {
   const now = new Date();
@@ -49,8 +49,8 @@ function getDateRange(range: DateRange): { start: string; end: string } {
     case 'mtd':
       start.setDate(1);
       break;
-    case '90d':
-      start.setDate(start.getDate() - 90);
+    case '60d':
+      start.setDate(start.getDate() - 60);
       break;
   }
 
@@ -77,12 +77,48 @@ const SERVICE_COLORS = [
   'hsl(173, 80%, 40%)',
 ];
 
+const SERVICE_FRIENDLY_NAMES: Record<string, string> = {
+  AmazonEC2: 'EC2',
+  AmazonRDS: 'RDS',
+  AmazonS3: 'S3',
+  AWSLambda: 'Lambda',
+  AmazonCloudFront: 'CloudFront',
+  AmazonRoute53: 'Route 53',
+  AmazonECR: 'ECR',
+  AmazonECS: 'ECS',
+  AmazonSQS: 'SQS',
+  AmazonSNS: 'SNS',
+  AmazonCloudWatch: 'CloudWatch',
+  AmazonDynamoDB: 'DynamoDB',
+  AWSCodePipeline: 'CodePipeline',
+  AWSCodeBuild: 'CodeBuild',
+  AmazonCognito: 'Cognito',
+  AmazonApiGateway: 'API Gateway',
+  AWSSecretsManager: 'Secrets Manager',
+  AWSSystemsManager: 'Systems Manager',
+  AmazonElastiCache: 'ElastiCache',
+  AWSGlue: 'Glue',
+  AmazonAthena: 'Athena',
+  AWSStepFunctions: 'Step Functions',
+  AmazonVPC: 'VPC',
+  AWSCloudFormation: 'CloudFormation',
+  AmazonKinesisFirehose: 'Kinesis Firehose',
+  AWSELB: 'ELB',
+  AWSKeyManagementService: 'KMS',
+  AWSXRay: 'X-Ray',
+  AmazonGuardDuty: 'GuardDuty',
+};
+
+function friendlyName(service: string): string {
+  return SERVICE_FRIENDLY_NAMES[service] || service.replace('Amazon', '').replace('AWS', '').trim();
+}
+
 export default function CostDashboard() {
   const [dateRange, setDateRange] = useState<DateRange>('mtd');
   const [selectedService, setSelectedService] = useState<string | undefined>();
 
   const { start, end } = useMemo(() => getDateRange(dateRange), [dateRange]);
-  const granularity = dateRange === '90d' ? 'monthly' : 'daily';
+  const granularity = dateRange === '60d' ? 'monthly' : 'daily';
 
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useCostSummary(start, end);
   const { data: byService, isLoading: serviceLoading } = useCostsByService(start, end);
@@ -93,7 +129,7 @@ export default function CostDashboard() {
     { value: '7d', label: '7 days' },
     { value: 'mtd', label: 'Month to date' },
     { value: '30d', label: '30 days' },
-    { value: '90d', label: '90 days' },
+    { value: '60d', label: '60 days' },
   ];
 
   const chartData = useMemo(() => {
@@ -191,16 +227,39 @@ export default function CostDashboard() {
       }
     >
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Spend</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Net Cost</CardTitle>
           </CardHeader>
           <CardContent>
             {summaryLoading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <div className="text-2xl font-bold">{formatCost(summary?.totalCost ?? 0)}</div>
+              <>
+                <div className="text-2xl font-bold">{formatCost(summary?.netCost ?? 0)}</div>
+                {summary && summary.totalCost !== summary.netCost && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatCost(summary.totalCost)} before credits
+                  </p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Projected Monthly</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {summaryLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{formatCost(summary?.projectedMonthlyCost ?? 0)}</div>
+                <p className="text-xs text-muted-foreground mt-1">based on daily run rate</p>
+              </>
             )}
           </CardContent>
         </Card>
@@ -317,7 +376,7 @@ export default function CostDashboard() {
                     tickLine={false}
                     axisLine={false}
                     width={120}
-                    tickFormatter={(v) => v.replace('Amazon', '').replace('AWS', '').trim()}
+                    tickFormatter={(v) => friendlyName(v)}
                   />
                   <Tooltip
                     contentStyle={{
@@ -367,7 +426,7 @@ export default function CostDashboard() {
                     className="mr-1.5 inline-block h-2 w-2 rounded-full"
                     style={{ backgroundColor: SERVICE_COLORS[i % SERVICE_COLORS.length] }}
                   />
-                  {s.service.replace('Amazon', '').replace('AWS', '').trim()}
+                  {friendlyName(s.service)}
                 </Button>
               ))}
             </div>
@@ -399,7 +458,7 @@ export default function CostDashboard() {
                     (byResource || []).map((row, i) => (
                       <TableRow key={i}>
                         <TableCell className="text-xs">
-                          {row.service?.replace('Amazon', '').replace('AWS', '').trim()}
+                          {friendlyName(row.service ?? '')}
                         </TableCell>
                         <TableCell className="text-xs font-mono max-w-[200px] truncate" title={row.resourceId}>
                           {row.resourceId || '-'}

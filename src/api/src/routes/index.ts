@@ -25,7 +25,7 @@ router.use('/admin', adminRoutes);
 router.use('/leadgen', leadgenRoutes);
 
 // Cost management routes (admin only)
-router.use('/costs', costsRoutes);
+router.use('/leadgen/costs', costsRoutes);
 
 // Legacy user routes
 router.use('/users', userRoutes);

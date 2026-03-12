@@ -362,7 +362,9 @@ export interface LeadWithCampaign extends Lead {
 
 export interface CostSummary {
   totalCost: number;
+  netCost: number;
   previousPeriodCost: number;
+  projectedMonthlyCost: number;
   serviceBreakdown: Array<{ service: string; cost: number }>;
   period: { start: string; end: string };
 }

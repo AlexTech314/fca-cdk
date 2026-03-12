@@ -1,6 +1,8 @@
 import * as cr from 'aws-cdk-lib/custom-resources';
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
@@ -244,6 +246,18 @@ export class StatefulStack extends cdk.Stack {
       installLatestAwsSdk: false,
     });
     migrateCustomResource.node.addDependency(this.seedLambda);
+
+    // ============================================================
+    // Daily cleanup: delete fargate_tasks older than 7 days
+    // ============================================================
+    new events.Rule(this, 'CleanupTasksTable', {
+      schedule: events.Schedule.cron({ hour: '3', minute: '0' }),
+      targets: [
+        new targets.LambdaFunction(this.seedLambda, {
+          event: events.RuleTargetInput.fromObject({ action: 'cleanup' }),
+        }),
+      ],
+    });
 
     // ============================================================
     // Bastion Host (SSM Session Manager — no SSH key needed)

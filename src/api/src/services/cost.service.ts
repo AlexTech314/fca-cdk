@@ -26,7 +26,9 @@ interface CostRow {
 
 interface CostSummary {
   totalCost: number;
+  netCost: number;
   previousPeriodCost: number;
+  projectedMonthlyCost: number;
   serviceBreakdown: Array<{ service: string; cost: number }>;
   period: { start: string; end: string };
 }
@@ -98,18 +100,29 @@ export const costService = {
     const cached = getCached<CostSummary>(cacheKey);
     if (cached) return cached;
 
-    // Current period total
+    // Current period: gross (usage only) and net (all line items including credits)
     const totalRows = await executeQuery(`
-      SELECT COALESCE(SUM(line_item_unblended_cost), 0) as total_cost
+      SELECT
+        COALESCE(SUM(CASE WHEN line_item_line_item_type IN ('Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage', 'Fee', 'Tax') THEN line_item_unblended_cost ELSE 0 END), 0) as gross_cost,
+        COALESCE(SUM(line_item_unblended_cost), 0) as net_cost
       FROM ${TABLE}
       WHERE line_item_usage_start_date >= TIMESTAMP '${startDate}'
         AND line_item_usage_start_date < TIMESTAMP '${endDate}'
-        AND line_item_line_item_type IN ('Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage', 'Fee', 'Tax')
     `);
 
-    // Previous period (same duration, shifted back)
+    const grossCost = parseFloat(totalRows[0]?.[0] || '0');
+    const netCost = parseFloat(totalRows[0]?.[1] || '0');
+
+    // Projected monthly cost based on daily run rate
     const startMs = new Date(startDate).getTime();
     const endMs = new Date(endDate).getTime();
+    const daysInPeriod = (endMs - startMs) / (24 * 60 * 60 * 1000);
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const dailyRate = netCost / Math.max(1, daysInPeriod);
+    const projectedMonthlyCost = Math.round(dailyRate * daysInMonth * 100) / 100;
+
+    // Previous period (same duration, shifted back)
     const durationMs = endMs - startMs;
     const prevStart = new Date(startMs - durationMs).toISOString().split('T')[0];
     const prevEnd = startDate;
@@ -119,7 +132,6 @@ export const costService = {
       FROM ${TABLE}
       WHERE line_item_usage_start_date >= TIMESTAMP '${prevStart}'
         AND line_item_usage_start_date < TIMESTAMP '${prevEnd}'
-        AND line_item_line_item_type IN ('Usage', 'DiscountedUsage', 'SavingsPlanCoveredUsage', 'Fee', 'Tax')
     `);
 
     // Service breakdown
@@ -134,8 +146,10 @@ export const costService = {
     `);
 
     const result: CostSummary = {
-      totalCost: parseFloat(totalRows[0]?.[0] || '0'),
+      totalCost: grossCost,
+      netCost,
       previousPeriodCost: parseFloat(prevRows[0]?.[0] || '0'),
+      projectedMonthlyCost,
       serviceBreakdown: serviceRows.map(([service, cost]) => ({
         service,
         cost: parseFloat(cost),

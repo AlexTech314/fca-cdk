@@ -45,7 +45,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket, seedLambda } = props;
 
-    // Direct RDS connection (no proxy -- saves $21.90/mo, peak ~56 connections vs ~112 limit)
+    // Direct RDS connection (no proxy -- saves $21.90/mo, peak ~165 connections vs ~225 limit)
     const databaseEndpoint = database.dbInstanceEndpointAddress;
 
     // ============================================================
@@ -358,7 +358,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       new lambdaEventSources.SqsEventSource(scrapeQueue, {
         batchSize: 100,
         maxBatchingWindow: cdk.Duration.seconds(5),
-        maxConcurrency: 25,
+        maxConcurrency: 100,
       })
     );
 
@@ -399,7 +399,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       new lambdaEventSources.SqsEventSource(deepScrapeQueue, {
         batchSize: 5,
         maxBatchingWindow: cdk.Duration.seconds(5),
-        maxConcurrency: 10,
+        maxConcurrency: 40,
       })
     );
 
@@ -509,7 +509,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       new lambdaEventSources.SqsEventSource(scoringQueue, {
         batchSize: 50,
         maxBatchingWindow: cdk.Duration.seconds(5),
-        maxConcurrency: 3,
+        maxConcurrency: 10,
       })
     );
 

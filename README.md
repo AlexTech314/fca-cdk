@@ -18,7 +18,7 @@ fca-cdk/
 │       ├── stateful-stack.ts       # RDS PostgreSQL, S3 campaign bucket, seed-db Lambda
 │       ├── cognito-stack.ts        # User Pool, App Client, Domain, Groups
 │       ├── leadgen-pipeline-stack.ts  # Lambdas, SQS, Step Functions, Fargate tasks
-│       ├── api-stack.ts            # Shared ECS Fargate API + ALB
+│       ├── api-gw-stack.ts         # Express API on Fargate + API Gateway v2
 │       ├── leadgen-web-stack.ts    # Lead-gen SPA bucket + CloudFront
 │       ├── flagship-web-stack.ts   # Unified Next.js (public + admin) Fargate + CloudFront
 │       └── dns-stack.ts            # Route 53 hosted zone (flatironscap.com)
@@ -160,20 +160,20 @@ The Dev stage deploys 7 stacks:
 |-------|-------|---------|--------------|
 | 1 | **NetworkStack** | VPC with fck-nat (t4g.nano x1), S3 gateway endpoint | None |
 | 2 | **CognitoStack** | User Pool, App Client, Domain, Groups (admin/readwrite/readonly) | None |
-| 3 | **StatefulStack** | RDS PostgreSQL (db.t4g.micro), S3 campaign bucket, seed-db Lambda | Network, Cognito |
+| 3 | **StatefulStack** | RDS PostgreSQL (db.t4g.small), S3 campaign bucket, seed-db Lambda | Network, Cognito |
 | 4 | **LeadGenPipelineStack** | SQS queues, Bridge Lambda, Fargate tasks, Step Functions, Scoring Lambda | Stateful |
-| 5 | **ApiStack** | Shared Express API on Fargate + ALB | Stateful, LeadGenPipeline, Cognito |
-| 6 | **LeadGenWebStack** | Lead-gen SPA in S3 + CloudFront | Api |
-| 7 | **FlagshipWebStack** | Unified Next.js (public + admin) on Fargate + CloudFront | Api, Cognito |
+| 5 | **ApiGwStack** | Express API on Fargate + API Gateway v2 (HTTP API) | Stateful, LeadGenPipeline, Cognito |
+| 6 | **LeadGenWebStack** | Lead-gen SPA in S3 + CloudFront | ApiGw |
+| 7 | **FlagshipWebStack** | Unified Next.js (public + admin) on Fargate + CloudFront | ApiGw, Cognito |
 
 ## Flagship Next.js (FlagshipWebStack)
 
 Single unified Fargate service built from `src/flagship-ui/nextjs-web` using `Dockerfile.unified`. Serves both the public website and admin dashboard (WordPress-style: navigate to `/admin` for login screen).
 
-- **Public routes** (`/`, `/about`, `/transactions`, etc.) -- cached 5 minutes via CloudFront
+- **Public routes** (`/`, `/about`, `/transactions`, etc.) -- cached 30 minutes via CloudFront
 - **Admin routes** (`/admin/*`) -- no caching, authenticated via Cognito (client-side AuthGuard)
 
-Uses Next.js route groups: public routes live in `(public)/` with Header/Footer layout, admin routes have their own layout with AdminShell. Shares the ApiStack ALB with header-based routing (`X-Origin-Service: nextjs`). Image is built at deploy time using [`token-injectable-docker-builder`](https://constructs.dev/packages/token-injectable-docker-builder) so CDK tokens (ALB DNS, Cognito IDs) can be injected as Docker build args.
+Uses Next.js route groups: public routes live in `(public)/` with Header/Footer layout, admin routes have their own layout with AdminShell. Routed via its own API Gateway v2 HTTP API + VPC Link with Cloud Map service discovery (SRV+A records). SSR calls reach the Express API directly via Cloud Map DNS (`api.svc.local:3000`). Image is built at deploy time using [`token-injectable-docker-builder`](https://constructs.dev/packages/token-injectable-docker-builder) so CDK tokens (Cognito IDs) can be injected as Docker build args.
 
 ## ECR Pull-Through Cache
 
@@ -322,13 +322,13 @@ this.pipeline.addStage(prodStage, {
 │                                                                                 │
 │  Network ──┐                                                                    │
 │            ├── Stateful ── LeadGenPipeline ──┐                                  │
-│  Cognito ──┘                                 ├── Api ── LeadGenWeb              │
-│              ───────────────────────────────────┘  └── FlagshipWeb              │
+│  Cognito ──┘                                 ├── ApiGw ── LeadGenWeb            │
+│              ───────────────────────────────────┘   └── FlagshipWeb             │
 │                                                                                 │
 │  ┌────────┐ ┌────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────┐ ┌──────┐ │
 │  │VPC +   │ │Cognito │ │RDS + S3  │ │Lambdas + │ │Fargate   │ │SPA + │ │NextJS│ │
-│  │fck-nat │ │Pool +  │ │+ seed-db │ │Step Fns +│ │API + ALB │ │CF    │ │unified│ │
-│  │        │ │Groups  │ │          │ │Fargate   │ │(shared)  │ │      │ │pub+adm│ │
+│  │fck-nat │ │Pool +  │ │+ seed-db │ │Step Fns +│ │API + APIG│ │CF    │ │unified│ │
+│  │        │ │Groups  │ │          │ │Fargate   │ │+ VPCLink │ │      │ │pub+adm│ │
 │  └────────┘ └────────┘ └──────────┘ └──────────┘ └──────────┘ └──────┘ └──────┘ │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -352,13 +352,13 @@ These costs are driven by the self-mutating CDK pipeline and are only incurred w
 
 | Resource | Config | Actual Monthly |
 |----------|--------|----------------|
-| **VPC Data Transfer** | Cross-AZ traffic (ALB↔Fargate, NAT outbound) | **~$29/mo** |
-| **ALB** | Shared Application Load Balancer, 2 AZs | **~$14/mo** |
+| **VPC Data Transfer** | Cross-AZ traffic (API GW↔Fargate, NAT outbound) | **~$29/mo** |
 | **ECS Fargate** | API (ARM64) + unified Next.js (ARM64), 0.25 vCPU each | **~$11/mo** |
-| **RDS PostgreSQL** | db.t4g.micro, Single-AZ, 20 GB gp2 | **~$11/mo** |
+| **RDS PostgreSQL** | db.t4g.small, Single-AZ, 20 GB gp2 | **~$23/mo** |
 | **EC2 NAT** (fck-nat x1) | Single t4g.nano (saves ~$58/mo vs managed NAT) | **~$3/mo** |
 | **Secrets Manager** | 5 secrets | **~$3/mo** |
 | **Bedrock (Claude Haiku)** | Lead scoring inference calls | **~$2/mo** |
+| **API Gateway v2** | 2 HTTP APIs, low traffic (first 300M req/mo free) | **< $1/mo** |
 | **Route 53** | Hosted zone + DNS queries | **~$1/mo** |
 | **KMS** | Encryption keys (pipeline, secrets) | **~$1/mo** |
 | **CloudFront** | 2 distributions, low traffic | **< $1/mo** |
@@ -367,20 +367,20 @@ These costs are driven by the self-mutating CDK pipeline and are only incurred w
 | **S3** | Campaign data, CUR data, Athena results | **< $1/mo** |
 | **Cognito** | < 50K MAU (free tier) | **$0/mo** |
 | **SQS / Step Functions** | Queue + orchestration (low volume) | **< $1/mo** |
-| | **Runtime subtotal** | **~$80/mo** |
+| | **Runtime subtotal** | **~$78/mo** |
 
 ### Totals
 
 | Category | Monthly | After Handover |
 |----------|---------|----------------|
 | Dev/CI (CodeBuild, CodePipeline, ECR) | **~$69/mo** | **$0/mo** |
-| Runtime (infrastructure) | **~$80/mo** | **~$80/mo** |
-| **Total during development** | **~$149/mo** | — |
-| **Total after handover** | — | **~$80/mo** |
+| Runtime (infrastructure) | **~$78/mo** | **~$78/mo** |
+| **Total during development** | **~$147/mo** | — |
+| **Total after handover** | — | **~$78/mo** |
 
-**Top runtime cost drivers:** VPC data transfer (~36%), ALB (~18%), ECS Fargate (~14%), RDS (~14%).
+**Top runtime cost drivers:** VPC data transfer (~37%), RDS (~29%), ECS Fargate (~14%).
 
-One fck-nat t4g.nano instance saves ~$58/mo vs managed NAT Gateways ($32/mo each). VPC data transfer costs (cross-AZ, NAT outbound) are incurred regardless of NAT type. RDS downsized to db.t4g.micro (~112 max connections); pipeline concurrency is capped to keep peak usage at ~50% of limit. Unified Next.js container serves both public site and admin dashboard from a single Fargate task.
+ALB replaced with API Gateway v2 HTTP APIs (essentially free at low traffic), saving ~$14/mo. One fck-nat t4g.nano instance saves ~$58/mo vs managed NAT Gateways ($32/mo each). VPC data transfer costs (cross-AZ, NAT outbound) are incurred regardless of NAT type. RDS sized at db.t4g.small (~225 max connections); pipeline concurrency is capped to keep peak usage well under limit. Unified Next.js container serves both public site and admin dashboard from a single Fargate task. Cloud Map provides service discovery (SRV+A records) for VPC Link private integration and internal DNS resolution.
 
 *Additional variable costs not included: Claude API (Anthropic), Google Places API. Heavy scrape runs (30+ concurrent Fargate tasks) can add $2-5/day.*
 

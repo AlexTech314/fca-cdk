@@ -1,93 +1,227 @@
-import { InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 
-import { s3Client, bedrockClient, CAMPAIGN_DATA_BUCKET, BEDROCK_MODEL_ID, sleep } from './config.js';
+import { s3Client, bedrockClient, CAMPAIGN_DATA_BUCKET, EXTRACTION_MODEL_ID, sleep } from './config.js';
 import type { ExtractionResult } from './types.js';
 import { EMPTY_EXTRACTION } from './types.js';
-import { EXTRACTION_PROMPT } from './prompts.js';
+import { PASS_A_SYSTEM_PROMPT, PASS_B_SYSTEM_PROMPT, PASS_C_SYSTEM_PROMPT } from './prompts.js';
 
-/** String-array fields that Haiku sometimes returns as objects instead of plain strings. */
-const STRING_ARRAY_FIELDS: (keyof ExtractionResult)[] = [
-  'owner_names', 'first_name_only_contacts', 'team_member_names',
-  'services', 'commercial_client_names', 'certifications',
-  'pricing_signals', 'red_flags', 'recurring_revenue_signals',
-  'succession_signals', 'process_governance_signals',
-  'competitive_pressure_signals', 'licensing_bonding',
-  'scale_indicators', 'industry_affiliations', 'intermediation_signals',
-];
+// ============================================================
+// Converse API Tool Schemas (one per sub-pass)
+// ============================================================
 
-/** Flatten an object to its most meaningful string value. */
-function flattenToString(val: unknown): string {
-  if (typeof val === 'string') return val;
-  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
-  if (val && typeof val === 'object') {
-    const obj = val as Record<string, unknown>;
-    // Pick the most meaningful field — observation > text > quote > description > value, then any string
-    for (const key of ['observation', 'text', 'quote', 'description', 'value', 'signal']) {
-      if (typeof obj[key] === 'string') return obj[key] as string;
-    }
-    // Fallback: first string value found
-    for (const v of Object.values(obj)) {
-      if (typeof v === 'string' && v.length > 10) return v;
+const PASS_A_TOOL = {
+  toolSpec: {
+    name: 'extract_business_profile',
+    description: 'Extract business profile facts from website content',
+    inputSchema: {
+      json: {
+        type: 'object',
+        properties: {
+          owner_names: { type: 'array', items: { type: 'string' } },
+          first_name_only_contacts: { type: 'array', items: { type: 'string' } },
+          management_titles: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                title: { type: 'string' },
+              },
+              required: ['name', 'title'],
+            },
+          },
+          team_members_named: { type: 'number' },
+          team_member_names: { type: 'array', items: { type: 'string' } },
+          years_in_business: { type: ['number', 'null'] },
+          founded_year: { type: ['number', 'null'] },
+          services: { type: 'array', items: { type: 'string' } },
+          location_count: { type: 'number' },
+          customer_base: { type: 'string', enum: ['b2b', 'b2c', 'mixed', 'unknown'] },
+          website_quality: { type: 'string', enum: ['none', 'template/basic', 'professional', 'content-rich'] },
+          copyright_year: { type: ['number', 'null'] },
+          testimonial_count: { type: 'number' },
+        },
+        required: [
+          'owner_names', 'first_name_only_contacts', 'management_titles',
+          'team_members_named', 'team_member_names', 'years_in_business',
+          'founded_year', 'services', 'location_count', 'customer_base',
+          'website_quality', 'copyright_year', 'testimonial_count',
+        ],
+      },
+    },
+  },
+} as const;
+
+const PASS_B_TOOL = {
+  toolSpec: {
+    name: 'extract_strategic_signals',
+    description: 'Extract strategic and investment signals from website content',
+    inputSchema: {
+      json: {
+        type: 'object',
+        properties: {
+          intermediation_signals: { type: 'array', items: { type: 'string' } },
+          succession_signals: { type: 'array', items: { type: 'string' } },
+          process_governance_signals: { type: 'array', items: { type: 'string' } },
+          competitive_pressure_signals: { type: 'array', items: { type: 'string' } },
+          growth_vs_maintenance_language: { type: 'string', enum: ['growth', 'maintenance', 'decline', 'unknown'] },
+          recurring_revenue_signals: { type: 'array', items: { type: 'string' } },
+        },
+        required: [
+          'intermediation_signals', 'succession_signals', 'process_governance_signals',
+          'competitive_pressure_signals', 'growth_vs_maintenance_language', 'recurring_revenue_signals',
+        ],
+      },
+    },
+  },
+} as const;
+
+const PASS_C_TOOL = {
+  toolSpec: {
+    name: 'extract_evidence_qualifications',
+    description: 'Extract evidence, qualifications, and notable quotes from website content',
+    inputSchema: {
+      json: {
+        type: 'object',
+        properties: {
+          has_commercial_clients: { type: 'boolean' },
+          commercial_client_names: { type: 'array', items: { type: 'string' } },
+          certifications: { type: 'array', items: { type: 'string' } },
+          pricing_signals: { type: 'array', items: { type: 'string' } },
+          red_flags: { type: 'array', items: { type: 'string' } },
+          licensing_bonding: { type: 'array', items: { type: 'string' } },
+          scale_indicators: { type: 'array', items: { type: 'string' } },
+          industry_affiliations: { type: 'array', items: { type: 'string' } },
+          notable_quotes: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+                text: { type: 'string' },
+              },
+              required: ['url', 'text'],
+            },
+          },
+        },
+        required: [
+          'has_commercial_clients', 'commercial_client_names', 'certifications',
+          'pricing_signals', 'red_flags', 'licensing_bonding', 'scale_indicators',
+          'industry_affiliations', 'notable_quotes',
+        ],
+      },
+    },
+  },
+} as const;
+
+// ============================================================
+// Converse API extraction pass
+// ============================================================
+
+type ToolDef = typeof PASS_A_TOOL | typeof PASS_B_TOOL | typeof PASS_C_TOOL;
+
+async function runExtractionPass(
+  tool: ToolDef,
+  systemPrompt: string,
+  leadContext: string,
+  markdown: string,
+): Promise<Record<string, unknown>> {
+  const backoffMs = [5000, 15000, 45000];
+
+  for (let attempt = 0; attempt <= backoffMs.length; attempt++) {
+    try {
+      const response = await bedrockClient.send(new ConverseCommand({
+        modelId: EXTRACTION_MODEL_ID,
+        system: [{ text: systemPrompt }],
+        messages: [{
+          role: 'user',
+          content: [{ text: leadContext + '\n\n## Raw Website Content\n\n' + markdown }],
+        }],
+        toolConfig: {
+          tools: [{ toolSpec: tool.toolSpec as any }],
+          toolChoice: { tool: { name: tool.toolSpec.name } },
+        },
+        inferenceConfig: { maxTokens: 5000 },
+      }));
+
+      // Extract tool use input from response
+      const content = response.output?.message?.content;
+      if (content) {
+        for (const block of content) {
+          if (block.toolUse?.input) {
+            return block.toolUse.input as Record<string, unknown>;
+          }
+        }
+      }
+
+      console.warn(`No tool use found in ${tool.toolSpec.name} response`);
+      return {};
+    } catch (err) {
+      const isThrottle =
+        err instanceof Error &&
+        (err.name === 'ThrottlingException' || err.message?.includes('Throttling'));
+      if (isThrottle && attempt < backoffMs.length) {
+        const waitMs = backoffMs[attempt];
+        console.log(
+          `Bedrock throttled (${tool.toolSpec.name}), waiting ${waitMs / 1000}s before retry (attempt ${attempt + 1}/${backoffMs.length})`,
+        );
+        await sleep(waitMs);
+        continue;
+      }
+      throw err;
     }
   }
-  return String(val);
+  throw new Error(`Max retries exceeded for Bedrock (${tool.toolSpec.name})`);
 }
 
-/** Normalize notable_quotes to {url, text} format regardless of what Haiku returned. */
-function normalizeQuotes(arr: unknown[]): { url: string; text: string }[] {
-  return arr.map((item) => {
-    if (typeof item === 'string') return { url: '', text: item };
-    if (item && typeof item === 'object') {
-      const obj = item as Record<string, unknown>;
-      return {
-        url: (obj.url ?? obj.source ?? '') as string,
-        text: (obj.text ?? obj.quote ?? obj.observation ?? '') as string,
-      };
-    }
-    return { url: '', text: String(item) };
-  }).filter((q) => q.text.length > 0);
-}
+// ============================================================
+// Thin safety normalization
+// ============================================================
 
-/** Normalize management_titles to {name, title} format. */
-function normalizeTitles(arr: unknown[]): { name: string; title: string }[] {
-  return arr.map((item) => {
-    if (item && typeof item === 'object') {
-      const obj = item as Record<string, unknown>;
-      return {
-        name: (obj.name ?? '') as string,
-        title: (obj.title ?? obj.role ?? obj.position ?? '') as string,
-      };
-    }
-    return { name: String(item), title: '' };
-  }).filter((t) => t.name.length > 0 && t.title.length > 0);
-}
-
-/**
- * Normalize raw extraction output to match ExtractionResult types.
- * Fixes: objects in string[] fields, wrong keys in notable_quotes/management_titles,
- * and missing fields via EMPTY_EXTRACTION backfill.
- */
-function normalizeExtraction(parsed: Record<string, unknown>): ExtractionResult {
-  const result: Record<string, unknown> = { ...EMPTY_EXTRACTION };
-
-  for (const key of Object.keys(EMPTY_EXTRACTION)) {
-    if (!(key in parsed) || parsed[key] === undefined) continue;
-    const val = parsed[key];
-
-    if (key === 'notable_quotes' && Array.isArray(val)) {
-      result[key] = normalizeQuotes(val);
-    } else if (key === 'management_titles' && Array.isArray(val)) {
-      result[key] = normalizeTitles(val);
-    } else if (STRING_ARRAY_FIELDS.includes(key as keyof ExtractionResult) && Array.isArray(val)) {
-      result[key] = val.map(flattenToString).filter((s: string) => s.length > 0);
-    } else {
-      result[key] = val;
+function safeNormalize(merged: Record<string, unknown>): Record<string, unknown> {
+  // Coerce string numbers to actual numbers
+  for (const key of ['team_members_named', 'years_in_business', 'founded_year', 'location_count', 'copyright_year', 'testimonial_count']) {
+    if (typeof merged[key] === 'string') {
+      const n = Number(merged[key]);
+      merged[key] = isNaN(n) ? null : n;
     }
   }
 
-  return result as unknown as ExtractionResult;
+  // Wrap single string values in arrays for array fields
+  const arrayFields = [
+    'owner_names', 'first_name_only_contacts', 'team_member_names', 'services',
+    'commercial_client_names', 'certifications', 'pricing_signals', 'red_flags',
+    'recurring_revenue_signals', 'succession_signals', 'process_governance_signals',
+    'competitive_pressure_signals', 'licensing_bonding', 'scale_indicators',
+    'industry_affiliations', 'intermediation_signals',
+  ];
+  for (const key of arrayFields) {
+    if (typeof merged[key] === 'string') {
+      merged[key] = [merged[key]];
+    }
+  }
+
+  // Validate enums
+  const validQualities = ['none', 'template/basic', 'professional', 'content-rich'];
+  if (!validQualities.includes(merged.website_quality as string)) {
+    merged.website_quality = 'none';
+  }
+  const validBases = ['b2b', 'b2c', 'mixed', 'unknown'];
+  if (!validBases.includes(merged.customer_base as string)) {
+    merged.customer_base = 'unknown';
+  }
+  const validTones = ['growth', 'maintenance', 'decline', 'unknown'];
+  if (!validTones.includes(merged.growth_vs_maintenance_language as string)) {
+    merged.growth_vs_maintenance_language = 'unknown';
+  }
+
+  return merged;
 }
+
+// ============================================================
+// Public API
+// ============================================================
 
 export async function fetchMarkdownFromS3(s3Key: string): Promise<string | null> {
   try {
@@ -105,70 +239,31 @@ export async function extractFacts(
   leadData: Record<string, unknown>,
   markdown: string,
 ): Promise<ExtractionResult> {
-  const backoffMs = [5000, 15000, 45000];
-
-  const content =
-    EXTRACTION_PROMPT +
-    '\n\n## Lead Basic Info\n\n' +
+  const leadContext =
+    '## Lead Basic Info\n\n' +
     JSON.stringify(
       { name: leadData.name, business_type: leadData.business_type, city: leadData.city, state: leadData.state },
       null,
       2,
-    ) +
-    '\n\n## Raw Website Content\n\n' +
-    markdown;
+    );
 
-  for (let attempt = 0; attempt <= backoffMs.length; attempt++) {
-    try {
-      const response = await bedrockClient.send(
-        new InvokeModelCommand({
-          modelId: BEDROCK_MODEL_ID,
-          contentType: 'application/json',
-          accept: 'application/json',
-          body: JSON.stringify({
-            anthropic_version: 'bedrock-2023-05-31',
-            max_tokens: 4096,
-            messages: [{ role: 'user', content: [{ type: 'text', text: content }] }],
-          }),
-        }),
-      );
+  const [a, b, c] = await Promise.allSettled([
+    runExtractionPass(PASS_A_TOOL, PASS_A_SYSTEM_PROMPT, leadContext, markdown),
+    runExtractionPass(PASS_B_TOOL, PASS_B_SYSTEM_PROMPT, leadContext, markdown),
+    runExtractionPass(PASS_C_TOOL, PASS_C_SYSTEM_PROMPT, leadContext, markdown),
+  ]);
 
-      const decoded = JSON.parse(new TextDecoder().decode(response.body));
-      const text = decoded.content?.[0]?.text || '';
+  // Log warnings for failed passes
+  if (a.status === 'rejected') console.warn('Pass A (business profile) failed:', a.reason);
+  if (b.status === 'rejected') console.warn('Pass B (strategic signals) failed:', b.reason);
+  if (c.status === 'rejected') console.warn('Pass C (evidence/qualifications) failed:', c.reason);
 
-      let parsed: Record<string, unknown>;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          try {
-            parsed = JSON.parse(jsonMatch[0]);
-          } catch {
-            console.warn('Failed to parse extraction response, using empty extraction');
-            return EMPTY_EXTRACTION;
-          }
-        } else {
-          console.warn('No JSON found in extraction response, using empty extraction');
-          return EMPTY_EXTRACTION;
-        }
-      }
+  const merged = safeNormalize({
+    ...EMPTY_EXTRACTION,
+    ...(a.status === 'fulfilled' ? a.value : {}),
+    ...(b.status === 'fulfilled' ? b.value : {}),
+    ...(c.status === 'fulfilled' ? c.value : {}),
+  });
 
-      return normalizeExtraction(parsed);
-    } catch (err) {
-      const isThrottle =
-        err instanceof Error &&
-        (err.name === 'ThrottlingException' || err.message?.includes('Throttling'));
-      if (isThrottle && attempt < backoffMs.length) {
-        const waitMs = backoffMs[attempt];
-        console.log(
-          `Bedrock throttled (extraction), waiting ${waitMs / 1000}s before retry (attempt ${attempt + 1}/${backoffMs.length})`,
-        );
-        await sleep(waitMs);
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error('Max retries exceeded for Bedrock (extraction)');
+  return merged as unknown as ExtractionResult;
 }

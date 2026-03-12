@@ -104,7 +104,7 @@ export async function handler(event: SQSEvent): Promise<void> {
 
   const task = await prisma.fargateTask.create({
     data: {
-      type: 'web_scrape',
+      type: FAST_MODE === 'true' ? 'web_scrape' : 'deep_scrape',
       status: 'running',
       startedAt: new Date(),
     },

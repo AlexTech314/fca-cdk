@@ -11,6 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCampaignsOverTime } from '@/hooks/useDashboard';
+import { fillTimeSeries } from '@/lib/utils';
 
 interface CampaignsLineChartProps {
   dateRange: '24h' | '7d' | '30d';
@@ -44,29 +45,29 @@ export function CampaignsLineChart({ dateRange }: CampaignsLineChartProps) {
 
   const chartData = useMemo(() => {
     if (!data) return [];
-    
+
     // Aggregate by day for 7d and 30d views
     if (dateRange === '7d' || dateRange === '30d') {
-      const byDay: Record<string, number> = {};
-      data.forEach(point => {
-        const day = new Date(point.timestamp).toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric' 
-        });
-        byDay[day] = (byDay[day] || 0) + point.value;
-      });
-      return Object.entries(byDay).map(([name, value]) => ({ name, value }));
+      const filled = fillTimeSeries(data, params.startDate, params.endDate, 'day');
+      return filled.map(point => ({
+        name: new Date(point.timestamp).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        value: point.value,
+      }));
     }
-    
+
     // Hourly for 24h
-    return data.map(point => ({
-      name: new Date(point.timestamp).toLocaleTimeString('en-US', { 
+    const filled = fillTimeSeries(data, params.startDate, params.endDate, 'hour');
+    return filled.map(point => ({
+      name: new Date(point.timestamp).toLocaleTimeString('en-US', {
         hour: 'numeric',
         hour12: true,
       }),
       value: point.value,
     }));
-  }, [data, dateRange]);
+  }, [data, dateRange, params]);
 
   return (
     <Card>

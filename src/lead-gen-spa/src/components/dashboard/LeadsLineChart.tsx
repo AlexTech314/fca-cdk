@@ -11,6 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLeadsOverTime } from '@/hooks/useDashboard';
+import { fillTimeSeries } from '@/lib/utils';
 
 interface LeadsLineChartProps {
   dateRange: '24h' | '7d' | '30d';
@@ -48,11 +49,18 @@ export function LeadsLineChart({ dateRange }: LeadsLineChartProps) {
 
   const chartData = useMemo(() => {
     if (!data) return [];
-    
+
+    const filled = fillTimeSeries(
+      data,
+      params.startDate,
+      params.endDate,
+      params.granularity === 'hour' ? 'hour' : 'day',
+    );
+
     if (dateRange === '30d') {
-      return data.map(point => ({
-        name: new Date(point.timestamp).toLocaleDateString('en-US', { 
-          month: 'short', 
+      return filled.map(point => ({
+        name: new Date(point.timestamp).toLocaleDateString('en-US', {
+          month: 'short',
           day: 'numeric',
         }),
         value: point.value,
@@ -60,9 +68,9 @@ export function LeadsLineChart({ dateRange }: LeadsLineChartProps) {
     }
 
     if (dateRange === '7d') {
-      return data.map(point => ({
-        name: new Date(point.timestamp).toLocaleDateString('en-US', { 
-          month: 'short', 
+      return filled.map(point => ({
+        name: new Date(point.timestamp).toLocaleDateString('en-US', {
+          month: 'short',
           day: 'numeric',
           hour: 'numeric',
           hour12: true,
@@ -70,15 +78,15 @@ export function LeadsLineChart({ dateRange }: LeadsLineChartProps) {
         value: point.value,
       }));
     }
-    
-    return data.map(point => ({
-      name: new Date(point.timestamp).toLocaleTimeString('en-US', { 
+
+    return filled.map(point => ({
+      name: new Date(point.timestamp).toLocaleTimeString('en-US', {
         hour: 'numeric',
         hour12: true,
       }),
       value: point.value,
     }));
-  }, [data, dateRange]);
+  }, [data, dateRange, params]);
 
   return (
     <Card>

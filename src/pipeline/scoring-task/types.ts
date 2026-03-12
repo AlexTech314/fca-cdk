@@ -60,6 +60,43 @@ export const EMPTY_EXTRACTION: ExtractionResult = {
   industry_affiliations: [],
 };
 
+export interface ExtractionPassA {
+  owner_names: string[];
+  first_name_only_contacts: string[];
+  management_titles: { name: string; title: string }[];
+  team_members_named: number;
+  team_member_names: string[];
+  years_in_business: number | null;
+  founded_year: number | null;
+  services: string[];
+  location_count: number;
+  customer_base: 'b2b' | 'b2c' | 'mixed' | 'unknown';
+  website_quality: string;
+  copyright_year: number | null;
+  testimonial_count: number;
+}
+
+export interface ExtractionPassB {
+  intermediation_signals: string[];
+  succession_signals: string[];
+  process_governance_signals: string[];
+  competitive_pressure_signals: string[];
+  growth_vs_maintenance_language: string;
+  recurring_revenue_signals: string[];
+}
+
+export interface ExtractionPassC {
+  has_commercial_clients: boolean;
+  commercial_client_names: string[];
+  certifications: string[];
+  pricing_signals: string[];
+  red_flags: string[];
+  licensing_bonding: string[];
+  scale_indicators: string[];
+  industry_affiliations: string[];
+  notable_quotes: { url: string; text: string }[];
+}
+
 export interface BatchItem {
   lead_id: string;
   place_id: string;

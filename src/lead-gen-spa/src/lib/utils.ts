@@ -46,6 +46,49 @@ export function generateId(): string {
   return Math.random().toString(36).substring(2, 15)
 }
 
+/**
+ * Generate a complete time series with 0-filled gaps.
+ * Ensures every expected bucket (hour or day) is present even if the API returned no data for it.
+ */
+export function fillTimeSeries(
+  data: { timestamp: string; value: number }[],
+  startDate: string,
+  endDate: string,
+  granularity: 'hour' | 'day',
+): { timestamp: string; value: number }[] {
+  const bucketKey = (d: Date) =>
+    granularity === 'hour'
+      ? `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`
+      : `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+  // Index existing data by bucket
+  const lookup = new Map<string, number>();
+  for (const point of data) {
+    const key = bucketKey(new Date(point.timestamp));
+    lookup.set(key, (lookup.get(key) ?? 0) + point.value);
+  }
+
+  // Walk from start to end, emitting every bucket
+  const result: { timestamp: string; value: number }[] = [];
+  const cursor = new Date(startDate);
+  const end = new Date(endDate);
+
+  while (cursor <= end) {
+    const key = bucketKey(cursor);
+    result.push({
+      timestamp: cursor.toISOString(),
+      value: lookup.get(key) ?? 0,
+    });
+    if (granularity === 'hour') {
+      cursor.setHours(cursor.getHours() + 1);
+    } else {
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  return result;
+}
+
 /** Take top N items by value and group the rest into "Other" with combined percentage. */
 export function topNWithOther<T extends { name: string; value: number; percentage?: number }>(
   items: T[] | undefined,

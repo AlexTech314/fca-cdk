@@ -17,7 +17,8 @@ import { cn } from '@/lib/utils';
 
 const TASK_TYPE_LABELS: Record<FargateTaskType, string> = {
   places_search: 'Places Search',
-  web_scrape: 'Web Scrape',
+  web_scrape: 'Quick Scrape',
+  deep_scrape: 'Deep Scrape',
   ai_scoring: 'AI Scoring',
 };
 

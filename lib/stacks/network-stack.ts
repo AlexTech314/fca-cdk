@@ -6,11 +6,12 @@ import { Construct } from 'constructs';
 /**
  * Shared VPC stack deployed once, used by all stages.
  *
- * Uses fck-nat (t4g.nano ~$3/mo each, 1 instance) instead of managed NAT Gateway (~$32/mo per AZ).
+ * Uses fck-nat (t4g.nano ~$3/mo each, 1 per AZ) instead of managed NAT Gateway (~$32/mo per AZ).
  * https://fck-nat.dev/stable/deploying/
  *
- * S3 Gateway VPC endpoint (free) reduces NAT traffic.
- * No SQS Interface endpoint -- $14.60/mo not worth it at low volume; routes through fck-nat instead.
+ * VPC Endpoints reduce NAT load:
+ * - S3 Gateway (free) — all S3 traffic bypasses NAT
+ * - Secrets Manager Interface (~$14.60/mo) — critical for Fargate task startup (bootstrapDatabaseUrl)
  */
 export class NetworkStack extends cdk.Stack {
   public readonly vpc: ec2.Vpc;
@@ -31,7 +32,7 @@ export class NetworkStack extends cdk.Stack {
     this.vpc = new ec2.Vpc(this, 'Vpc', {
       maxAzs: 2,
       natGatewayProvider,
-      natGateways: 1, // Single instance (saves ~$3/mo, acceptable AZ risk for this app)
+      natGateways: 2, // One per AZ for redundancy (~$6/mo total)
       subnetConfiguration: [
         {
           name: 'Public',
@@ -79,6 +80,15 @@ export class NetworkStack extends cdk.Stack {
     this.vpc.addInterfaceEndpoint('StsEndpoint', {
       service: ec2.InterfaceVpcEndpointAwsService.STS,
       subnets: { subnets: this.vpc.isolatedSubnets },
+      privateDnsEnabled: true,
+    });
+
+    // Secrets Manager Interface Endpoint — Fargate tasks call bootstrapDatabaseUrl() at startup
+    // which fetches DB credentials from Secrets Manager. Without this, that call routes through
+    // fck-nat and fails when NAT is overwhelmed by scrape traffic.
+    this.vpc.addInterfaceEndpoint('SecretsManagerEndpoint', {
+      service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       privateDnsEnabled: true,
     });
 

@@ -6,8 +6,9 @@ export const bedrockClient = new BedrockRuntimeClient({
   region: process.env.AWS_REGION || 'us-east-2',
 });
 export const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
-export const BEDROCK_MODEL_ID = 'us.anthropic.claude-3-haiku-20240307-v1:0';
-export const CONCURRENCY = 5;
+export const EXTRACTION_MODEL_ID = 'us.amazon.nova-lite-v1:0';
+export const SCORING_MODEL_ID = 'us.anthropic.claude-3-haiku-20240307-v1:0';
+export const CONCURRENCY = 15;
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

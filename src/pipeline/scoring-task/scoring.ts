@@ -1,6 +1,6 @@
-import { InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import { ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 
-import { bedrockClient, BEDROCK_MODEL_ID, sleep } from './config.js';
+import { bedrockClient, SCORING_MODEL_ID, sleep } from './config.js';
 import type { ExtractionResult, ScoringResult } from './types.js';
 import { SCORING_PROMPT_V2 } from './prompts.js';
 
@@ -215,26 +215,23 @@ async function fixScoringResponse(
     .join(',\n');
 
   const response = await bedrockClient.send(
-    new InvokeModelCommand({
-      modelId: BEDROCK_MODEL_ID,
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify({
-        anthropic_version: 'bedrock-2023-05-31',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: [{ type: 'text', text:
+    new ConverseCommand({
+      modelId: SCORING_MODEL_ID,
+      messages: [{
+        role: 'user',
+        content: [{ text:
           `The following JSON scoring response has problems. Fix ALL issues and return ONLY the corrected JSON object.\n\n` +
           `Issues:\n${issues.map((i) => `- ${i}`).join('\n')}\n\n` +
           `Expected schema:\n{\n${schemaExample}\n}\n\n` +
           `Original response:\n${rawText}`
-        }] }],
-      }),
+        }],
+      }],
+      inferenceConfig: { maxTokens: 2048 },
     }),
   );
 
-  const decoded = JSON.parse(new TextDecoder().decode(response.body));
-  const fixedText = decoded.content?.[0]?.text || '';
-  return extractJson(fixedText) as ScoringFields;
+  const text = response.output?.message?.content?.[0]?.text || '';
+  return extractJson(text) as ScoringFields;
 }
 
 export async function scoreLead(
@@ -245,30 +242,28 @@ export async function scoreLead(
 ): Promise<ScoringResult> {
   const backoffMs = [5000, 15000, 45000];
 
-  let content = SCORING_PROMPT_V2;
+  let userContent = '';
   if (marketContext) {
-    content += `\n\n${marketContext}\n\n`;
+    userContent += `${marketContext}\n\n`;
   }
-  content += '## Extracted Facts\n\n' + factsSummary;
-  content += '\n\n## Lead Data\n\n' + JSON.stringify(leadData, null, 2);
+  userContent += '## Extracted Facts\n\n' + factsSummary;
+  userContent += '\n\n## Lead Data\n\n' + JSON.stringify(leadData, null, 2);
 
   for (let attempt = 0; attempt <= backoffMs.length; attempt++) {
     try {
       const response = await bedrockClient.send(
-        new InvokeModelCommand({
-          modelId: BEDROCK_MODEL_ID,
-          contentType: 'application/json',
-          accept: 'application/json',
-          body: JSON.stringify({
-            anthropic_version: 'bedrock-2023-05-31',
-            max_tokens: 1024,
-            messages: [{ role: 'user', content: [{ type: 'text', text: content }] }],
-          }),
+        new ConverseCommand({
+          modelId: SCORING_MODEL_ID,
+          system: [{ text: SCORING_PROMPT_V2 }],
+          messages: [{
+            role: 'user',
+            content: [{ text: userContent }],
+          }],
+          inferenceConfig: { maxTokens: 2048 },
         }),
       );
 
-      const decoded = JSON.parse(new TextDecoder().decode(response.body));
-      const text = decoded.content?.[0]?.text || '';
+      const text = response.output?.message?.content?.[0]?.text || '';
 
       // Parse → validate → fix (one retry if needed)
       let parsed: ScoringFields;

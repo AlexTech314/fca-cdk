@@ -100,8 +100,22 @@ async function enqueueForDeepScrape(lead: { id: string; place_id: string; websit
   }));
 }
 
+async function retryAsync<T>(fn: () => Promise<T>, label: string, maxAttempts = 3): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt === maxAttempts) throw err;
+      const delay = attempt * 5000;
+      console.warn(`[Retry ${attempt}/${maxAttempts}] ${label} failed, retrying in ${delay}ms:`, err);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw new Error('unreachable');
+}
+
 async function main(): Promise<void> {
-  await bootstrapDatabaseUrl();
+  await retryAsync(() => bootstrapDatabaseUrl(), 'bootstrapDatabaseUrl');
   const db = new PrismaClient();
   prisma = db;
 
@@ -138,8 +152,7 @@ async function main(): Promise<void> {
 
   console.log(`Reading batch from s3://${CAMPAIGN_DATA_BUCKET}/${batchS3Key}`);
 
-  let batchLeads: BatchLead[];
-  try {
+  const batchLeads = await retryAsync(async () => {
     const response = await s3Client.send(new GetObjectCommand({
       Bucket: CAMPAIGN_DATA_BUCKET,
       Key: batchS3Key,
@@ -150,12 +163,10 @@ async function main(): Promise<void> {
       throw new Error('Empty response from S3');
     }
 
-    batchLeads = JSON.parse(bodyString) as BatchLead[];
-    console.log(`Loaded ${batchLeads.length} leads from batch ${jobInput.batchIndex ?? 'unknown'}`);
-  } catch (error) {
-    console.error('Failed to read batch from S3:', error);
-    throw error;
-  }
+    const leads = JSON.parse(bodyString) as BatchLead[];
+    console.log(`Loaded ${leads.length} leads from batch ${jobInput.batchIndex ?? 'unknown'}`);
+    return leads;
+  }, 'S3 batch read');
 
   // Filter to leads with website
   const leadsToScrape = batchLeads.filter(l => l.website);
@@ -350,29 +361,35 @@ async function main(): Promise<void> {
   console.log(`Total bytes: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
 
   // Log failure breakdown
-  globalFailureTracker.logSummary();
+  try { globalFailureTracker.logSummary(); } catch { /* ignore */ }
 
   // Log domain success rates for domains with failures
-  const domainStats = domainTracker.getStats();
-  const problemDomains = domainStats
-    .filter(d => d.failed > 0)
-    .sort((a, b) => b.failed - a.failed)
-    .slice(0, 10);
+  try {
+    const domainStats = domainTracker.getStats();
+    const problemDomains = domainStats
+      .filter(d => d.failed > 0)
+      .sort((a, b) => b.failed - a.failed)
+      .slice(0, 10);
 
-  if (problemDomains.length > 0) {
-    console.log(`\n[Domain Issues] Top ${problemDomains.length} domains with failures:`);
-    for (const domain of problemDomains) {
-      const rate = Math.round(100 * domain.succeeded / domain.attempted);
-      const errorTypes = Object.entries(domain.errors)
-        .map(([type, count]) => `${type}:${count}`)
-        .join(', ');
-      console.log(`  ${domain.domain}: ${rate}% success (${domain.succeeded}/${domain.attempted}) - ${errorTypes}`);
+    if (problemDomains.length > 0) {
+      console.log(`\n[Domain Issues] Top ${problemDomains.length} domains with failures:`);
+      for (const domain of problemDomains) {
+        const rate = Math.round(100 * domain.succeeded / domain.attempted);
+        const errorTypes = Object.entries(domain.errors)
+          .map(([type, count]) => `${type}:${count}`)
+          .join(', ');
+        console.log(`  ${domain.domain}: ${rate}% success (${domain.succeeded}/${domain.attempted}) - ${errorTypes}`);
+      }
     }
-  }
+  } catch { /* ignore */ }
 
   // Update FargateTask status (for event-driven mode)
   if (taskId) {
-    await updateFargateTask(db, taskId, 'completed');
+    try {
+      await updateFargateTask(db, taskId, 'completed');
+    } catch (dbErr) {
+      console.error('Failed to update task status to completed (DB may be unreachable):', dbErr);
+    }
   }
 
   // Output summary for distributed mode

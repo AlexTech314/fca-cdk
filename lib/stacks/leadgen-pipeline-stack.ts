@@ -448,7 +448,11 @@ export class LeadGenPipelineStack extends cdk.Stack {
       new iam.PolicyStatement({
         actions: ['bedrock:InvokeModel'],
         resources: [
-          `arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`,
+          // Nova Lite (extraction)
+          'arn:aws:bedrock:*::foundation-model/amazon.nova-lite-v1:0',
+          `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/us.amazon.nova-lite-v1:0`,
+          // Claude 3 Haiku (scoring)
+          'arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0',
           `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/us.anthropic.claude-3-haiku-20240307-v1:0`,
         ],
       })

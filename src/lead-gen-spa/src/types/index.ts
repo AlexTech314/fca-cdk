@@ -191,7 +191,7 @@ export interface CampaignRun {
 
 export type CampaignRunStatus = 'pending' | 'running' | 'completed' | 'failed';
 
-export type FargateTaskType = 'places_search' | 'web_scrape' | 'ai_scoring';
+export type FargateTaskType = 'places_search' | 'web_scrape' | 'deep_scrape' | 'ai_scoring';
 export type FargateTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface FargateTask {

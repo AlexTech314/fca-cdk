@@ -708,6 +708,7 @@ enum BlogPostCategory {
 enum FargateTaskType {
   places_search
   web_scrape
+  deep_scrape
   ai_scoring
 }
 

@@ -98,14 +98,37 @@ export default function CostDashboard() {
 
   const chartData = useMemo(() => {
     if (!overTime) return [];
-    return overTime.map((d) => ({
-      name: new Date(d.date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      }),
-      cost: d.cost,
-    }));
-  }, [overTime]);
+
+    // Build a lookup from existing data
+    const lookup = new Map<string, number>();
+    for (const d of overTime) {
+      lookup.set(d.date, d.cost);
+    }
+
+    // Fill all expected dates in the range
+    const result: { name: string; cost: number }[] = [];
+    const cursor = new Date(start + 'T00:00:00');
+    const endDate = new Date(end + 'T00:00:00');
+    const step = granularity === 'monthly' ? 'month' : 'day';
+
+    while (cursor <= endDate) {
+      const key = cursor.toISOString().split('T')[0];
+      result.push({
+        name: cursor.toLocaleDateString('en-US', {
+          month: 'short',
+          day: step === 'day' ? 'numeric' : undefined,
+        }),
+        cost: lookup.get(key) ?? 0,
+      });
+      if (step === 'month') {
+        cursor.setMonth(cursor.getMonth() + 1);
+      } else {
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+
+    return result;
+  }, [overTime, start, end, granularity]);
 
   const serviceChartData = useMemo(() => {
     if (!byService) return [];

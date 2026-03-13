@@ -141,11 +141,7 @@ export class StatefulStack extends cdk.Stack {
       cors: [
         {
           allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET, s3.HttpMethods.HEAD],
-          allowedOrigins: [
-            'http://localhost:5173',
-            'http://localhost:5174',
-            'https://d13kdxtwrec818.cloudfront.net',
-          ],
+          allowedOrigins: ['*'],
           allowedHeaders: ['*'],
           exposedHeaders: ['ETag', 'Content-Type', 'Content-Length'],
           maxAge: 3600,

@@ -18,7 +18,9 @@ export function parseInlineMarkdown(text: string): React.ReactNode[] {
     const imageMatch = remaining.match(/!\[([^\]]*)\]\(([^)]+)\)/);
     // Check for links [text](url)
     const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
-    // Check for email addresses
+    // Check for markdown autolink emails <email@example.com>
+    const autoEmailMatch = remaining.match(/<([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>/);
+    // Check for bare email addresses
     const emailMatch = remaining.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
     // Check for phone numbers (various formats)
     const phoneMatch = remaining.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/);
@@ -29,6 +31,7 @@ export function parseInlineMarkdown(text: string): React.ReactNode[] {
       italicMatch ? { type: 'italic', match: italicMatch, index: italicMatch.index! } : null,
       imageMatch ? { type: 'image', match: imageMatch, index: imageMatch.index! } : null,
       linkMatch ? { type: 'link', match: linkMatch, index: linkMatch.index! } : null,
+      autoEmailMatch ? { type: 'autoEmail', match: autoEmailMatch, index: autoEmailMatch.index! } : null,
       emailMatch ? { type: 'email', match: emailMatch, index: emailMatch.index! } : null,
       phoneMatch ? { type: 'phone', match: phoneMatch, index: phoneMatch.index! } : null,
     ].filter(Boolean).sort((a, b) => a!.index - b!.index);
@@ -86,9 +89,24 @@ export function parseInlineMarkdown(text: string): React.ReactNode[] {
       );
       remaining = remaining.slice(earliest.index + earliest.match[0].length);
     } else if (earliest.type === 'link') {
+      const href = earliest.match[2];
+      const isMailtoOrTel = href.startsWith('mailto:') || href.startsWith('tel:');
       parts.push(
-        <a key={key++} href={earliest.match[2]} className="text-secondary hover:text-primary underline" target="_blank" rel="noopener noreferrer">
+        <a
+          key={key++}
+          href={href}
+          className="text-secondary hover:text-primary underline"
+          {...(isMailtoOrTel ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+        >
           {earliest.match[1]}
+        </a>
+      );
+      remaining = remaining.slice(earliest.index + earliest.match[0].length);
+    } else if (earliest.type === 'autoEmail') {
+      const email = earliest.match[1];
+      parts.push(
+        <a key={key++} href={`mailto:${email}`} className="text-secondary hover:text-primary underline">
+          {email}
         </a>
       );
       remaining = remaining.slice(earliest.index + earliest.match[0].length);

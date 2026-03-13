@@ -5,7 +5,6 @@ import { leadService } from '../services/lead.service';
 import { campaignService, campaignRunService } from '../services/campaign.service';
 import { franchiseService } from '../services/franchise.service';
 import { taskService } from '../services/task.service';
-import { userService } from '../services/user.service';
 import { locationService } from '../services/location.service';
 import { z } from 'zod';
 import {
@@ -744,56 +743,6 @@ router.delete('/leads/:id/franchise', authorize('readwrite', 'admin'), async (re
   try {
     const lead = await franchiseService.unlinkLead(String(req.params.id));
     res.json(lead);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ============================================
-// USERS (Admin Only)
-// ============================================
-
-router.get('/users', authorize('admin'), async (_req, res, next) => {
-  try {
-    const result = await userService.list({ page: 1, limit: 100 });
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.post('/users/invite', authorize('admin'), async (req, res, next) => {
-  try {
-    const { email, role } = req.body;
-    if (!email) {
-      res.status(400).json({ error: 'Email is required' });
-      return;
-    }
-    const user = await userService.create({ email, role });
-    res.status(201).json(user);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.put('/users/:id/role', authorize('admin'), async (req, res, next) => {
-  try {
-    const { role } = req.body;
-    if (!role || !['readonly', 'readwrite', 'admin'].includes(role)) {
-      res.status(400).json({ error: 'Valid role is required (readonly, readwrite, admin)' });
-      return;
-    }
-    const user = await userService.updateRole(String(req.params.id), role);
-    res.json(user);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.delete('/users/:id', authorize('admin'), async (req, res, next) => {
-  try {
-    await userService.delete(String(req.params.id));
-    res.status(204).send();
   } catch (error) {
     next(error);
   }

@@ -5,6 +5,9 @@
 // API base URL for leadgen endpoints
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/leadgen';
 
+// Admin API base URL (user management lives under /admin, shared with flagship admin)
+export const ADMIN_API_BASE_URL = API_BASE_URL.replace(/\/leadgen$/, '/admin');
+
 // Cognito configuration
 const amplifyConfig = {
   Auth: {

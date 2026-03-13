@@ -24,7 +24,6 @@ interface Tombstone {
   slug: string;
   assetId: string | null;
   asset?: { id: string; s3Key: string; fileName: string; fileType: string } | null;
-  industry: string | null;
   role: string | null;
   buyerPeFirm: string | null;
   buyerPlatform: string | null;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { authedApiFetch } from '@/lib/admin/admin-fetch';
 
 interface Industry {
   id: string;
@@ -16,11 +17,22 @@ interface IndustryPickerProps {
   disabled?: boolean;
 }
 
-export function IndustryPicker({ selectedIndustries, allIndustries, onChange, disabled = false }: IndustryPickerProps) {
+export function IndustryPicker({ selectedIndustries, allIndustries: initialAll, onChange, disabled = false }: IndustryPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [knownIndustries, setKnownIndustries] = useState<Industry[]>(initialAll);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sync if parent passes new allIndustries (e.g. on refetch)
+  useEffect(() => {
+    setKnownIndustries((prev) => {
+      const ids = new Set(initialAll.map((i) => i.id));
+      const extras = prev.filter((i) => !ids.has(i.id));
+      return [...initialAll, ...extras];
+    });
+  }, [initialAll]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -36,13 +48,18 @@ export function IndustryPicker({ selectedIndustries, allIndustries, onChange, di
 
   const selectedIds = new Set(selectedIndustries.map((t) => t.id));
 
-  const available = allIndustries.filter((t) => {
+  const available = knownIndustries.filter((t) => {
     if (selectedIds.has(t.id)) return false;
     if (search) {
       return t.name.toLowerCase().includes(search.toLowerCase());
     }
     return true;
   });
+
+  // Check if the search term exactly matches an existing industry (case-insensitive)
+  const exactMatch = search
+    ? knownIndustries.some((t) => t.name.toLowerCase() === search.trim().toLowerCase())
+    : true;
 
   const handleRemove = (id: string) => {
     if (disabled) return;
@@ -54,6 +71,33 @@ export function IndustryPicker({ selectedIndustries, allIndustries, onChange, di
     onChange([...selectedIndustries, industry]);
     setSearch('');
     inputRef.current?.focus();
+  };
+
+  const handleCreate = async () => {
+    const name = search.trim();
+    if (!name || creating) return;
+
+    setCreating(true);
+    try {
+      const res = await authedApiFetch('/api/admin/industries', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error('Failed to create industry');
+      const industry: Industry = await res.json();
+
+      // Add to known list so it shows up in future searches
+      setKnownIndustries((prev) =>
+        prev.some((i) => i.id === industry.id) ? prev : [...prev, industry]
+      );
+
+      // Select it
+      handleAdd(industry);
+    } catch (err) {
+      console.error('Failed to create industry:', err);
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -93,7 +137,7 @@ export function IndustryPicker({ selectedIndustries, allIndustries, onChange, di
       </div>
 
       {/* Dropdown */}
-      {isOpen && !disabled && available.length > 0 && (
+      {isOpen && !disabled && (available.length > 0 || (search.trim() && !exactMatch)) && (
         <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-white shadow-lg">
           {available.map((ind) => (
             <button
@@ -104,12 +148,22 @@ export function IndustryPicker({ selectedIndustries, allIndustries, onChange, di
               <span className="font-medium text-text">{ind.name}</span>
             </button>
           ))}
-        </div>
-      )}
 
-      {isOpen && !disabled && search && available.length === 0 && (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-border bg-white p-3 shadow-lg">
-          <p className="text-center text-xs text-text-muted">No matching industries</p>
+          {/* Create new option */}
+          {search.trim() && !exactMatch && (
+            <button
+              onClick={handleCreate}
+              disabled={creating}
+              className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-xs hover:bg-green-50"
+            >
+              <svg className="h-3.5 w-3.5 shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              <span className="font-medium text-green-700">
+                {creating ? 'Creating...' : `Create "${search.trim()}"`}
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>

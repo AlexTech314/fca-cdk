@@ -35,7 +35,7 @@ import type {
   CostOverTime,
 } from '@/types';
 import { getIdToken } from '../auth';
-import { API_BASE_URL } from '../amplify-config';
+import { API_BASE_URL, ADMIN_API_BASE_URL } from '../amplify-config';
 
 // ============================================
 // HTTP Client Helper
@@ -67,6 +67,38 @@ async function apiClient<T>(
   }
 
   // Handle 204 No Content
+  if (response.status === 204) {
+    return undefined as unknown as T;
+  }
+
+  return response.json();
+}
+
+/** Admin API client — same as apiClient but uses ADMIN_API_BASE_URL */
+async function adminApiClient<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+
+  const token = await getIdToken();
+  if (token) {
+    (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${ADMIN_API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || error.message || 'API request failed');
+  }
+
   if (response.status === 204) {
     return undefined as unknown as T;
   }
@@ -628,13 +660,13 @@ export const realApi: LeadGenApi = {
   // ===========================================
 
   async getUsers(): Promise<User[]> {
-    const result = await apiClient<any>('/users');
+    const result = await adminApiClient<any>('/users');
     const items = result.items || result.data || result;
     return (Array.isArray(items) ? items : []).map(transformUser);
   },
 
   async inviteUser(data: InviteUserInput): Promise<User> {
-    const raw = await apiClient<any>('/users/invite', {
+    const raw = await adminApiClient<any>('/users/invite', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -642,7 +674,7 @@ export const realApi: LeadGenApi = {
   },
 
   async updateUserRole(id: string, role: User['role']): Promise<User> {
-    const raw = await apiClient<any>(`/users/${id}/role`, {
+    const raw = await adminApiClient<any>(`/users/${id}/role`, {
       method: 'PUT',
       body: JSON.stringify({ role }),
     });
@@ -650,7 +682,7 @@ export const realApi: LeadGenApi = {
   },
 
   async removeUser(id: string): Promise<void> {
-    await apiClient(`/users/${id}`, { method: 'DELETE' });
+    await adminApiClient(`/users/${id}`, { method: 'DELETE' });
   },
 
   // ===========================================

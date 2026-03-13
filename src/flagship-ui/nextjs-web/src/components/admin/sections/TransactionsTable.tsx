@@ -14,7 +14,6 @@ interface Tombstone {
   slug: string;
   assetId: string | null;
   asset?: { id: string; s3Key: string; fileName: string; fileType: string } | null;
-  industry: string | null;
   role: string | null;
   buyerPeFirm: string | null;
   buyerPlatform: string | null;
@@ -59,7 +58,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
   const hasFieldChanged = (curr: Tombstone, orig: Tombstone): boolean => {
     return (
       curr.name !== orig.name ||
-      curr.industry !== orig.industry ||
       curr.buyerPeFirm !== orig.buyerPeFirm ||
       curr.buyerPlatform !== orig.buyerPlatform ||
       (curr.transactionYear ?? null) !== (orig.transactionYear ?? null) ||
@@ -105,7 +103,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: item.name || 'Untitled Transaction',
-          industry: item.industry,
           buyerPeFirm: item.buyerPeFirm,
           buyerPlatform: item.buyerPlatform,
           transactionYear: item.transactionYear,
@@ -125,7 +122,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: c.name,
-            industry: c.industry,
             buyerPeFirm: c.buyerPeFirm,
             buyerPlatform: c.buyerPlatform,
             transactionYear: c.transactionYear,
@@ -205,7 +201,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
         slug: '',
         assetId: null,
         asset: null,
-        industry: null,
         role: null,
         buyerPeFirm: null,
         buyerPlatform: null,
@@ -240,7 +235,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
     const q = search.toLowerCase();
     return (
       t.name.toLowerCase().includes(q) ||
-      (t.industry || '').toLowerCase().includes(q) ||
       (t.buyerPeFirm || '').toLowerCase().includes(q) ||
       (t.buyerPlatform || '').toLowerCase().includes(q)
     );
@@ -290,7 +284,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
             <tr className="border-b border-border bg-surface text-xs font-semibold uppercase tracking-wider text-text-muted">
               <th className="px-3 py-3 w-10"></th>
               <th className="px-3 py-3">Name</th>
-              <th className="px-3 py-3">Industry</th>
               <th className="px-3 py-3">PE Firm</th>
               <th className="px-3 py-3">Platform</th>
               <th className="px-3 py-3 w-16">Year</th>
@@ -331,19 +324,6 @@ export function TransactionsTable({ initialTombstones }: TransactionsTableProps)
                       as="span"
                       className="text-sm text-text"
                       placeholder="Name..."
-                      disabled={isDeleted}
-                    />
-                  </td>
-
-                  {/* Industry */}
-                  <td className="px-3 py-2">
-                    <EditableInlineField
-                      value={item.industry || ''}
-                      onChangeValue={(v) => updateField(item.id, 'industry', v || null)}
-                      originalValue={orig?.industry || ''}
-                      as="span"
-                      className="text-sm text-text-muted"
-                      placeholder="--"
                       disabled={isDeleted}
                     />
                   </td>

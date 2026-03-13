@@ -123,7 +123,7 @@ export default async function TeamPage() {
           </div>
 
           {/* Desktop: large horizontal cards */}
-          <div className="hidden gap-8 lg:grid lg:grid-cols-2">
+          <div className="hidden flex-wrap justify-center gap-8 lg:flex [&>*]:w-[calc(50%-1rem)]">
             {leadership.map((member) => (
               <div
                 key={member.id}
@@ -225,7 +225,7 @@ export default async function TeamPage() {
                   )}
                   <div className="p-4">
                     <h4 className="font-semibold text-text">{member.name}</h4>
-                    <p className="text-sm text-secondary">{member.title}</p>
+                    <p className="whitespace-nowrap text-xs text-secondary">{member.title}</p>
                     <p className="mt-2 text-xs text-text-muted line-clamp-3">
                       {member.bio}
                     </p>
@@ -263,7 +263,7 @@ export default async function TeamPage() {
               description={meta.communityDescription}
             />
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-wrap justify-center gap-6 [&>*]:w-full [&>*]:sm:w-[calc(50%-0.75rem)] [&>*]:lg:w-[calc(33.333%-1rem)]">
               {communityServices.map((item) => (
                 <a
                   key={item.id}

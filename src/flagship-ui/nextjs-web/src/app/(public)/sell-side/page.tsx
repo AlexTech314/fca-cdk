@@ -91,7 +91,7 @@ export default async function SellSidePage() {
               description={meta.servicesDescription}
             />
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-wrap justify-center gap-6 [&>*]:w-full [&>*]:md:w-[calc(50%-0.75rem)] [&>*]:lg:w-[calc(33.333%-1rem)]">
               {services.map((service) => (
                 <div
                   key={service.id}

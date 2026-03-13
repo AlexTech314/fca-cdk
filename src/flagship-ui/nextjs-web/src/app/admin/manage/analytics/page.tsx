@@ -41,47 +41,95 @@ interface TopPage {
 
 type RangeKey = '24h' | '7d' | '30d';
 
-const RANGES: { key: RangeKey; label: string; days: number }[] = [
-  { key: '24h', label: 'Last 24 hours', days: 1 },
-  { key: '7d', label: 'Last 7 days', days: 7 },
-  { key: '30d', label: 'Last 30 days', days: 30 },
+const RANGES: { key: RangeKey; label: string; days: number; granMinutes: number }[] = [
+  { key: '24h', label: 'Last 24 hours', days: 1, granMinutes: 5 },
+  { key: '7d', label: 'Last 7 days', days: 7, granMinutes: 60 },
+  { key: '30d', label: 'Last 30 days', days: 30, granMinutes: 720 },
 ];
+
+const MAX_SERIES = 15;
 
 const COLORS = [
   '#1e40af', '#dc2626', '#059669', '#d97706', '#7c3aed',
   '#db2777', '#0891b2', '#65a30d', '#ea580c', '#6366f1',
+  '#0d9488', '#be123c', '#4338ca', '#b45309', '#9333ea',
 ];
 
 // ============================================
 // Helpers
 // ============================================
 
-function buildQueryString(days: number): string {
-  const end = new Date();
-  const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
-  return `startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+function getRange(key: RangeKey) {
+  return RANGES.find((r) => r.key === key)!;
 }
 
-/** Merge multiple series into a single array of { bucket, [key]: count } for Recharts */
+function buildQueryString(days: number): { qs: string; start: Date; end: Date } {
+  const end = new Date();
+  const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+  return {
+    qs: `startDate=${start.toISOString()}&endDate=${end.toISOString()}`,
+    start,
+    end,
+  };
+}
+
+/** Floor a UTC date to the nearest granularity bucket string (YYYY-MM-DDTHH:MM) */
+function floorToBucket(date: Date, granMinutes: number): string {
+  const d = new Date(date);
+  const totalMin = d.getUTCHours() * 60 + d.getUTCMinutes();
+  const floored = totalMin - (totalMin % granMinutes);
+  d.setUTCHours(Math.floor(floored / 60), floored % 60, 0, 0);
+  return d.toISOString().slice(0, 16);
+}
+
+/** Generate every bucket label from start to end at the given granularity */
+function generateAllBuckets(start: Date, end: Date, granMinutes: number): string[] {
+  const buckets: string[] = [];
+  const granMs = granMinutes * 60 * 1000;
+  // Floor start to granularity
+  const cursor = new Date(start);
+  const totalMin = cursor.getUTCHours() * 60 + cursor.getUTCMinutes();
+  const floored = totalMin - (totalMin % granMinutes);
+  cursor.setUTCHours(Math.floor(floored / 60), floored % 60, 0, 0);
+
+  while (cursor <= end) {
+    buckets.push(cursor.toISOString().slice(0, 16));
+    cursor.setTime(cursor.getTime() + granMs);
+  }
+  return buckets;
+}
+
+/**
+ * Merge multiple series into a continuous array of { bucket, [key]: count } for Recharts.
+ * Aggregates raw 5-min data into the display granularity and fills gaps with 0.
+ */
 function mergeTimeSeries<T extends { data: TimeSeriesPoint[] }>(
   series: T[],
-  keyFn: (item: T) => string
+  keyFn: (item: T) => string,
+  allBuckets: string[],
+  granMinutes: number
 ): Record<string, unknown>[] {
-  const bucketMap = new Map<string, Record<string, unknown>>();
+  const keys = series.map(keyFn);
 
+  // Build a map: displayBucket -> { key -> aggregated count }
+  const bucketMap = new Map<string, Record<string, number>>();
+  for (const b of allBuckets) {
+    const row: Record<string, number> = {};
+    for (const k of keys) row[k] = 0;
+    bucketMap.set(b, row);
+  }
+
+  // Aggregate raw data into display buckets
   for (const s of series) {
     const key = keyFn(s);
     for (const pt of s.data) {
-      if (!bucketMap.has(pt.bucket)) {
-        bucketMap.set(pt.bucket, { bucket: pt.bucket });
-      }
-      bucketMap.get(pt.bucket)![key] = pt.count;
+      const displayBucket = floorToBucket(new Date(pt.bucket + ':00Z'), granMinutes);
+      const row = bucketMap.get(displayBucket);
+      if (row) row[key] = (row[key] || 0) + pt.count;
     }
   }
 
-  return Array.from(bucketMap.values()).sort((a, b) =>
-    (a.bucket as string).localeCompare(b.bucket as string)
-  );
+  return allBuckets.map((b) => ({ bucket: b, ...bucketMap.get(b)! }));
 }
 
 function formatBucket(bucket: string, range: RangeKey): string {
@@ -105,11 +153,15 @@ export default function AdminAnalyticsPage() {
   const [referrers, setReferrers] = useState<ReferrerSeries[]>([]);
   const [topPages, setTopPages] = useState<TopPage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hiddenPvKeys, setHiddenPvKeys] = useState<Set<string>>(new Set());
+  const [hiddenRefKeys, setHiddenRefKeys] = useState<Set<string>>(new Set());
+  const [queryRange, setQueryRange] = useState<{ start: Date; end: Date } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const days = RANGES.find((r) => r.key === range)!.days;
-    const qs = buildQueryString(days);
+    const { days } = getRange(range);
+    const { qs, start, end } = buildQueryString(days);
+    setQueryRange({ start, end });
 
     try {
       const [pvRes, refRes, topRes] = await Promise.all([
@@ -132,18 +184,39 @@ export default function AdminAnalyticsPage() {
     fetchData();
   }, [fetchData]);
 
-  // Take top 10 by total views for the chart
-  const topPvSeries = [...pageViews].sort((a, b) => b.total - a.total).slice(0, 10);
-  const topRefSeries = [...referrers].sort((a, b) => b.total - a.total).slice(0, 10);
+  const { granMinutes } = getRange(range);
 
-  const pvChartData = mergeTimeSeries(topPvSeries, (s) => s.path);
-  const refChartData = mergeTimeSeries(topRefSeries, (s) => s.source);
+  // Take top 15 by total views for the chart
+  const topPvSeries = [...pageViews].sort((a, b) => b.total - a.total).slice(0, MAX_SERIES);
+  const topRefSeries = [...referrers].sort((a, b) => b.total - a.total).slice(0, MAX_SERIES);
+
+  const togglePvKey = (key: string) => {
+    setHiddenPvKeys((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const toggleRefKey = (key: string) => {
+    setHiddenRefKeys((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const allBuckets = queryRange
+    ? generateAllBuckets(queryRange.start, queryRange.end, granMinutes)
+    : [];
+  const pvChartData = mergeTimeSeries(topPvSeries, (s) => s.path, allBuckets, granMinutes);
+  const refChartData = mergeTimeSeries(topRefSeries, (s) => s.source, allBuckets, granMinutes);
 
   const totalViews = pageViews.reduce((sum, s) => sum + s.total, 0);
   const totalReferrers = referrers.reduce((sum, s) => sum + s.total, 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -213,7 +286,15 @@ export default function AdminAnalyticsPage() {
                 labelFormatter={(v) => formatBucket(v as string, range)}
                 contentStyle={{ fontSize: 12 }}
               />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Legend
+                wrapperStyle={{ fontSize: 12, cursor: 'pointer' }}
+                onClick={(e) => togglePvKey(e.dataKey as string)}
+                formatter={(value: string) => (
+                  <span style={{ color: hiddenPvKeys.has(value) ? '#ccc' : undefined }}>
+                    {value}
+                  </span>
+                )}
+              />
               {topPvSeries.map((s, i) => (
                 <Line
                   key={s.path}
@@ -222,7 +303,7 @@ export default function AdminAnalyticsPage() {
                   stroke={COLORS[i % COLORS.length]}
                   strokeWidth={2}
                   dot={false}
-                  connectNulls
+                  hide={hiddenPvKeys.has(s.path)}
                 />
               ))}
             </LineChart>
@@ -254,7 +335,15 @@ export default function AdminAnalyticsPage() {
                 labelFormatter={(v) => formatBucket(v as string, range)}
                 contentStyle={{ fontSize: 12 }}
               />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Legend
+                wrapperStyle={{ fontSize: 12, cursor: 'pointer' }}
+                onClick={(e) => toggleRefKey(e.dataKey as string)}
+                formatter={(value: string) => (
+                  <span style={{ color: hiddenRefKeys.has(value) ? '#ccc' : undefined }}>
+                    {value}
+                  </span>
+                )}
+              />
               {topRefSeries.map((s, i) => (
                 <Line
                   key={s.source}
@@ -263,7 +352,7 @@ export default function AdminAnalyticsPage() {
                   stroke={COLORS[i % COLORS.length]}
                   strokeWidth={2}
                   dot={false}
-                  connectNulls
+                  hide={hiddenRefKeys.has(s.source)}
                 />
               ))}
             </LineChart>

@@ -482,9 +482,9 @@ export async function submitSellerIntake(
 // ANALYTICS
 // ============================================
 
-export async function recordPageView(path: string): Promise<void> {
+export async function recordPageView(path: string, referrer = 'direct'): Promise<void> {
   try {
-    await apiPost<{ success: boolean }>('/analytics/pageview', { path });
+    await apiPost<{ success: boolean }>('/analytics/pageview', { path, referrer });
   } catch {
     // Silently fail - analytics should not break the page
   }

@@ -1,102 +1,195 @@
-import { prisma } from '@fca/db';
-import type { AnalyticsQuery, PageViewInput } from '../models/analytics.model';
+import { UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { ddb, ANALYTICS_TABLE } from '../lib/dynamodb';
+import type { TimeSeriesPoint, TopPage } from '../models/analytics.model';
+
+const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;
+
+/** Floor a Date to its 5-minute bucket: YYYY-MM-DDTHH:MM */
+function toBucket(date: Date): string {
+  const m = date.getUTCMinutes();
+  const floored = m - (m % 5);
+  const d = new Date(date);
+  d.setUTCMinutes(floored, 0, 0);
+  return d.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
+}
 
 export const analyticsRepository = {
-  async recordPageView(data: PageViewInput) {
-    // Truncate to current hour
-    const now = new Date();
-    const hour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours());
+  async recordPageView(path: string) {
+    const bucket = toBucket(new Date());
+    const ttl = Math.floor(Date.now() / 1000) + ONE_YEAR_SECONDS;
 
-    // Upsert - increment count if exists
-    await prisma.pageView.upsert({
-      where: {
-        path_hour: { path: data.path, hour },
-      },
-      update: {
-        count: { increment: 1 },
-      },
-      create: {
-        path: data.path,
-        hour,
-        count: 1,
-      },
-    });
+    await ddb.send(
+      new UpdateCommand({
+        TableName: ANALYTICS_TABLE,
+        Key: { pk: `PV#${path}`, sk: bucket },
+        UpdateExpression: 'ADD #c :inc SET #ttl = if_not_exists(#ttl, :ttl), gsi1pk = :gsi1pk, gsi1sk = :gsi1sk',
+        ExpressionAttributeNames: { '#c': 'count', '#ttl': 'ttl' },
+        ExpressionAttributeValues: {
+          ':inc': 1,
+          ':ttl': ttl,
+          ':gsi1pk': 'PV',
+          ':gsi1sk': `${bucket}#${path}`,
+        },
+      })
+    );
   },
 
-  async getPageViews(query: AnalyticsQuery) {
-    const { startDate, endDate, path, limit } = query;
+  async recordReferrer(source: string) {
+    const bucket = toBucket(new Date());
+    const ttl = Math.floor(Date.now() / 1000) + ONE_YEAR_SECONDS;
 
-    const where: any = {};
+    await ddb.send(
+      new UpdateCommand({
+        TableName: ANALYTICS_TABLE,
+        Key: { pk: `REF#${source}`, sk: bucket },
+        UpdateExpression: 'ADD #c :inc SET #ttl = if_not_exists(#ttl, :ttl), gsi1pk = :gsi1pk, gsi1sk = :gsi1sk',
+        ExpressionAttributeNames: { '#c': 'count', '#ttl': 'ttl' },
+        ExpressionAttributeValues: {
+          ':inc': 1,
+          ':ttl': ttl,
+          ':gsi1pk': 'REF',
+          ':gsi1sk': `${bucket}#${source}`,
+        },
+      })
+    );
+  },
 
-    if (startDate || endDate) {
-      where.hour = {};
-      if (startDate) where.hour.gte = startDate;
-      if (endDate) where.hour.lte = endDate;
-    }
-    if (path) {
-      where.path = path;
-    }
+  /** Query page views for a specific path in a time range */
+  async getPageViewsByPage(
+    path: string,
+    startDate: Date,
+    endDate: Date
+  ): Promise<TimeSeriesPoint[]> {
+    const startBucket = toBucket(startDate);
+    const endBucket = toBucket(endDate);
 
-    const views = await prisma.pageView.groupBy({
-      by: ['path'],
-      where,
-      _sum: { count: true },
-      _max: { hour: true },
-      orderBy: { _sum: { count: 'desc' } },
-      take: limit,
-    });
+    const result = await ddb.send(
+      new QueryCommand({
+        TableName: ANALYTICS_TABLE,
+        KeyConditionExpression: 'pk = :pk AND sk BETWEEN :start AND :end',
+        ExpressionAttributeValues: {
+          ':pk': `PV#${path}`,
+          ':start': startBucket,
+          ':end': endBucket,
+        },
+      })
+    );
 
-    return views.map((v) => ({
-      path: v.path,
-      totalViews: v._sum.count || 0,
-      lastViewed: v._max.hour,
+    return (result.Items || []).map((item) => ({
+      bucket: item.sk as string,
+      count: (item.count as number) || 0,
     }));
   },
 
-  async getTopPages(limit = 20) {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  /** Query all page views in a time range via GSI1 */
+  async getAllPageViews(
+    startDate: Date,
+    endDate: Date
+  ): Promise<{ path: string; data: TimeSeriesPoint[]; total: number }[]> {
+    const startBucket = toBucket(startDate);
+    const endBucket = toBucket(endDate);
 
-    const views = await prisma.pageView.groupBy({
-      by: ['path'],
-      where: { hour: { gte: thirtyDaysAgo } },
-      _sum: { count: true },
-      orderBy: { _sum: { count: 'desc' } },
-      take: limit,
-    });
+    const items: Record<string, any>[] = [];
+    let lastKey: Record<string, any> | undefined;
 
-    return views.map((v) => ({
-      path: v.path,
-      views: v._sum.count || 0,
+    do {
+      const result = await ddb.send(
+        new QueryCommand({
+          TableName: ANALYTICS_TABLE,
+          IndexName: 'gsi1',
+          KeyConditionExpression: 'gsi1pk = :pk AND gsi1sk BETWEEN :start AND :end',
+          ExpressionAttributeValues: {
+            ':pk': 'PV',
+            ':start': startBucket,
+            // Use ~ (tilde) to ensure we capture all paths at the end bucket time
+            ':end': `${endBucket}~`,
+          },
+          ExclusiveStartKey: lastKey,
+        })
+      );
+      items.push(...(result.Items || []));
+      lastKey = result.LastEvaluatedKey;
+    } while (lastKey);
+
+    // Group by path
+    const byPath: Record<string, TimeSeriesPoint[]> = {};
+    for (const item of items) {
+      const gsi1sk = item.gsi1sk as string;
+      const hashIdx = gsi1sk.indexOf('#');
+      const bucket = gsi1sk.slice(0, hashIdx);
+      const path = gsi1sk.slice(hashIdx + 1);
+      const count = (item.count as number) || 0;
+
+      if (!byPath[path]) byPath[path] = [];
+      byPath[path].push({ bucket, count });
+    }
+
+    return Object.entries(byPath).map(([path, data]) => ({
+      path,
+      data: data.sort((a, b) => a.bucket.localeCompare(b.bucket)),
+      total: data.reduce((sum, d) => sum + d.count, 0),
     }));
   },
 
-  async getTrends(days = 7) {
+  /** Query all referrers in a time range via GSI1 */
+  async getReferrers(
+    startDate: Date,
+    endDate: Date
+  ): Promise<{ source: string; data: TimeSeriesPoint[]; total: number }[]> {
+    const startBucket = toBucket(startDate);
+    const endBucket = toBucket(endDate);
+
+    const items: Record<string, any>[] = [];
+    let lastKey: Record<string, any> | undefined;
+
+    do {
+      const result = await ddb.send(
+        new QueryCommand({
+          TableName: ANALYTICS_TABLE,
+          IndexName: 'gsi1',
+          KeyConditionExpression: 'gsi1pk = :pk AND gsi1sk BETWEEN :start AND :end',
+          ExpressionAttributeValues: {
+            ':pk': 'REF',
+            ':start': startBucket,
+            ':end': `${endBucket}~`,
+          },
+          ExclusiveStartKey: lastKey,
+        })
+      );
+      items.push(...(result.Items || []));
+      lastKey = result.LastEvaluatedKey;
+    } while (lastKey);
+
+    // Group by source
+    const bySource: Record<string, TimeSeriesPoint[]> = {};
+    for (const item of items) {
+      const gsi1sk = item.gsi1sk as string;
+      const hashIdx = gsi1sk.indexOf('#');
+      const bucket = gsi1sk.slice(0, hashIdx);
+      const source = gsi1sk.slice(hashIdx + 1);
+      const count = (item.count as number) || 0;
+
+      if (!bySource[source]) bySource[source] = [];
+      bySource[source].push({ bucket, count });
+    }
+
+    return Object.entries(bySource).map(([source, data]) => ({
+      source,
+      data: data.sort((a, b) => a.bucket.localeCompare(b.bucket)),
+      total: data.reduce((sum, d) => sum + d.count, 0),
+    }));
+  },
+
+  /** Get top pages by total views in a time range */
+  async getTopPages(days: number): Promise<TopPage[]> {
+    const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const views = await prisma.pageView.findMany({
-      where: { hour: { gte: startDate } },
-      orderBy: { hour: 'asc' },
-    });
-
-    // Aggregate by hour
-    const hourlyData: Record<string, number> = {};
-    for (const view of views) {
-      const key = view.hour.toISOString();
-      hourlyData[key] = (hourlyData[key] || 0) + view.count;
-    }
-
-    return Object.entries(hourlyData).map(([hour, views]) => ({
-      hour: new Date(hour),
-      views,
-    }));
-  },
-
-  async getTotalViews() {
-    const result = await prisma.pageView.aggregate({
-      _sum: { count: true },
-    });
-    return result._sum.count || 0;
+    const pages = await this.getAllPageViews(startDate, endDate);
+    return pages
+      .map((p) => ({ path: p.path, views: p.total }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 20);
   },
 };

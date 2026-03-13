@@ -355,7 +355,7 @@ export default function AdminTeamMembersManagePage() {
       const res = await authedApiFetch('/api/admin/users');
       if (!res.ok) throw new Error('Failed to fetch users');
       const data = await res.json();
-      setUsers(Array.isArray(data) ? data : data.items || []);
+      setUsers(Array.isArray(data) ? data : data.data || data.items || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load users');
     } finally {

@@ -80,6 +80,7 @@ export class FcaStage extends cdk.Stage {
       cognitoUserPoolId: this.cognitoStack.userPool.userPoolId,
       cognitoUserPoolArn: this.cognitoStack.userPool.userPoolArn,
       cognitoClientId: this.cognitoStack.userPoolClient.userPoolClientId,
+      analyticsTable: this.statefulStack.analyticsTable,
     });
     this.apiGwStack.addDependency(this.statefulStack);
     this.apiGwStack.addDependency(this.pipelineStack);

@@ -1,6 +1,7 @@
 import { fetchSiteConfig } from '@/lib/utils';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { PageViewTracker } from '@/components/PageViewTracker';
 
 export default async function PublicLayout({
   children,
@@ -41,6 +42,7 @@ export default async function PublicLayout({
           __html: JSON.stringify(organizationSchema),
         }}
       />
+      <PageViewTracker />
       <Header />
       <main>{children}</main>
       <Footer />

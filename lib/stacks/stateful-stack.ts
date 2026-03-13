@@ -1,5 +1,6 @@
 import * as cr from 'aws-cdk-lib/custom-resources';
 import * as cdk from 'aws-cdk-lib';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
@@ -38,6 +39,8 @@ export class StatefulStack extends cdk.Stack {
   public readonly seedLambda: lambda.IFunction;
   /** IAM role for RDS to invoke Lambda via aws_lambda extension */
   public readonly rdsLambdaRole: iam.Role;
+  /** DynamoDB table for website analytics (page views + referrers) */
+  public readonly analyticsTable: dynamodb.TableV2;
 
   constructor(scope: Construct, id: string, props: StatefulStackProps) {
     super(scope, id, props);
@@ -295,6 +298,25 @@ SCRIPT`,
     );
 
     this.databaseSecret.grantRead(bastion);
+
+    // ============================================================
+    // DynamoDB — Website Analytics (page views + referrer tracking)
+    // ============================================================
+    this.analyticsTable = new dynamodb.TableV2(this, 'AnalyticsTable', {
+      tableName: 'fca-analytics',
+      partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING },
+      billing: dynamodb.Billing.onDemand(),
+      timeToLiveAttribute: 'ttl',
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      globalSecondaryIndexes: [
+        {
+          indexName: 'gsi1',
+          partitionKey: { name: 'gsi1pk', type: dynamodb.AttributeType.STRING },
+          sortKey: { name: 'gsi1sk', type: dynamodb.AttributeType.STRING },
+        },
+      ],
+    });
 
     // ============================================================
     // Outputs

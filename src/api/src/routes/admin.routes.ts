@@ -396,7 +396,7 @@ router.put('/seller-intakes/:id', authorize('readwrite', 'admin'), validate(upda
 });
 
 // ============================================
-// ANALYTICS
+// ANALYTICS (DynamoDB-backed)
 // ============================================
 
 router.get('/analytics/pageviews', validate(analyticsQuerySchema, 'query'), async (req, res, next) => {
@@ -408,20 +408,19 @@ router.get('/analytics/pageviews', validate(analyticsQuerySchema, 'query'), asyn
   }
 });
 
-router.get('/analytics/top-pages', async (req, res, next) => {
+router.get('/analytics/referrers', validate(analyticsQuerySchema, 'query'), async (req, res, next) => {
   try {
-    const limit = qNum(req, 'limit', 20);
-    const result = await analyticsService.getTopPages(limit);
+    const result = await analyticsService.getReferrers(req.query as any);
     res.json(result);
   } catch (error) {
     next(error);
   }
 });
 
-router.get('/analytics/trends', async (req, res, next) => {
+router.get('/analytics/top-pages', async (req, res, next) => {
   try {
     const days = qNum(req, 'days', 7);
-    const result = await analyticsService.getTrends(days);
+    const result = await analyticsService.getTopPages(days);
     res.json(result);
   } catch (error) {
     next(error);
@@ -900,13 +899,11 @@ router.get('/dashboard', async (_req, res, next) => {
       blogPostStats,
       subscriberCount,
       intakeStats,
-      totalViews,
     ] = await Promise.all([
       tombstoneService.list({ page: 1, limit: 1 }),
       blogPostService.list({ page: 1, limit: 1 }),
       subscriberService.getActiveCount(),
       sellerIntakeService.getStatusCounts(),
-      analyticsService.getTotalViews(),
     ]);
 
     res.json({
@@ -914,7 +911,6 @@ router.get('/dashboard', async (_req, res, next) => {
       blogPosts: blogPostStats.total,
       subscribers: subscriberCount,
       sellerIntakes: intakeStats,
-      pageViews: totalViews,
     });
   } catch (error) {
     next(error);

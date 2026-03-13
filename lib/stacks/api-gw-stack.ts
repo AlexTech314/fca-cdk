@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -28,6 +29,7 @@ export interface ApiGwStackProps extends cdk.StackProps {
   readonly cognitoUserPoolId: string;
   readonly cognitoUserPoolArn: string;
   readonly cognitoClientId: string;
+  readonly analyticsTable: dynamodb.ITableV2;
 }
 
 /**
@@ -62,6 +64,7 @@ export class ApiGwStack extends cdk.Stack {
       cognitoUserPoolId,
       cognitoUserPoolArn,
       cognitoClientId,
+      analyticsTable,
     } = props;
 
     // Cost management config from cdk.json context
@@ -123,6 +126,7 @@ export class ApiGwStack extends cdk.Stack {
         SCRAPE_QUEUE_URL: scrapeQueueUrl ?? '',
         COGNITO_USER_POOL_ID: cognitoUserPoolId,
         COGNITO_CLIENT_ID: cognitoClientId,
+        ANALYTICS_TABLE_NAME: analyticsTable.tableName,
         AWS_REGION: this.region,
         ATHENA_WORKGROUP: athenaWorkGroupName,
         ATHENA_DATABASE: glueDatabaseName,
@@ -316,6 +320,9 @@ export class ApiGwStack extends cdk.Stack {
       const athenaResultsBucket = s3.Bucket.fromBucketArn(this, 'AthenaResultsBucket', athenaResultsBucketArn);
       athenaResultsBucket.grantReadWrite(taskDef.taskRole);
     }
+
+    // DynamoDB analytics table
+    analyticsTable.grantReadWriteData(taskDef.taskRole);
 
     // ============================================================
     // Security Groups

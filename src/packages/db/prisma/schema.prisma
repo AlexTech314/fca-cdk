@@ -296,22 +296,6 @@ model PageContent {
 }
 
 // ===========================================
-// ANALYTICS
-// ===========================================
-
-model PageView {
-  id        String   @id @default(uuid())
-  path      String
-  hour      DateTime                          // Truncated to hour for aggregation
-  count     Int      @default(1)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@unique([path, hour])
-  @@index([hour])
-  @@map("page_views")
-}
-
-// ===========================================
 // EMAIL & NEWSLETTER
 // ===========================================
 

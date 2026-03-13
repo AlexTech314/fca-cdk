@@ -370,7 +370,8 @@ router.post('/seller-intake', validate(sellerIntakeSchema), async (req, res, nex
 
 router.post('/analytics/pageview', validate(pageViewSchema), async (req, res, next) => {
   try {
-    await analyticsService.recordPageView(req.body);
+    const { path, referrer } = req.body;
+    await analyticsService.recordPageView(path, referrer || 'direct');
     res.json({ success: true });
   } catch (error) {
     next(error);

@@ -6,10 +6,9 @@ import {
   Target,
   Building2,
   Download,
-  Settings,
   Shield,
   LogOut,
-  ListTodo,
+  CloudCog,
   PanelLeftClose,
   PanelLeftOpen,
   DollarSign,
@@ -37,6 +36,30 @@ interface NavItemProps {
   to: string;
   icon: React.ReactNode;
   label: string;
+}
+
+interface NavSectionProps {
+  title: string;
+  items: NavItemProps[];
+  collapsed: boolean;
+}
+
+function NavSection({ title, items, collapsed }: NavSectionProps) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      {!collapsed && (
+        <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          {title}
+        </p>
+      )}
+      <div className={cn('space-y-1', collapsed ? 'flex flex-col items-center w-full' : '')}>
+        {items.map((item) => (
+          <NavItem key={item.to} {...item} collapsed={collapsed} />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function NavItem({ to, icon, label, collapsed }: NavItemProps & { collapsed: boolean }) {
@@ -80,22 +103,25 @@ export function Sidebar() {
     try { window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next)); } catch {}
   };
 
-  const mainNavItems: NavItemProps[] = [
+  const overviewItems: NavItemProps[] = [
     { to: '/', icon: <LayoutDashboard className="h-4 w-4 flex-shrink-0" />, label: 'Dashboard' },
-    { to: '/leads', icon: <Users className="h-4 w-4 flex-shrink-0" />, label: 'Leads' },
-    { to: '/campaigns', icon: <Target className="h-4 w-4 flex-shrink-0" />, label: 'Campaigns' },
-    { to: '/franchises', icon: <Building2 className="h-4 w-4 flex-shrink-0" />, label: 'Franchises' },
-    { to: '/export', icon: <Download className="h-4 w-4 flex-shrink-0" />, label: 'Export' },
-    { to: '/tasks', icon: <ListTodo className="h-4 w-4 flex-shrink-0" />, label: 'Tasks' },
   ];
 
-  const secondaryNavItems: NavItemProps[] = [
-    ...(isAdmin ? [
-      { to: '/costs', icon: <DollarSign className="h-4 w-4 flex-shrink-0" />, label: 'AWS Costs' },
-      { to: '/admin', icon: <Shield className="h-4 w-4 flex-shrink-0" />, label: 'Admin' },
-    ] : []),
-    { to: '/settings', icon: <Settings className="h-4 w-4 flex-shrink-0" />, label: 'Settings' },
+  const pipelineItems: NavItemProps[] = [
+    { to: '/leads', icon: <Users className="h-4 w-4 flex-shrink-0" />, label: 'Leads' },
+    { to: '/franchises', icon: <Building2 className="h-4 w-4 flex-shrink-0" />, label: 'Multi-Location Businesses' },
+    { to: '/campaigns', icon: <Target className="h-4 w-4 flex-shrink-0" />, label: 'Campaigns' },
+    { to: '/tasks', icon: <CloudCog className="h-4 w-4 flex-shrink-0" />, label: 'Jobs' },
   ];
+
+  const toolsItems: NavItemProps[] = [
+    { to: '/export', icon: <Download className="h-4 w-4 flex-shrink-0" />, label: 'Export' },
+  ];
+
+  const adminItems: NavItemProps[] = isAdmin ? [
+    { to: '/costs', icon: <DollarSign className="h-4 w-4 flex-shrink-0" />, label: 'Costs' },
+    { to: '/admin', icon: <Shield className="h-4 w-4 flex-shrink-0" />, label: 'Admin' },
+  ] : [];
 
   return (
     <TooltipProvider>
@@ -136,22 +162,16 @@ export function Sidebar() {
           </div>
 
           {/* Navigation */}
-          <nav className={cn('flex-1 flex flex-col', collapsed ? 'items-center py-2' : 'p-4')}>
-            {/* Main Nav */}
-            <div className={cn('space-y-1', collapsed ? 'flex flex-col items-center w-full' : '')}>
-              {mainNavItems.map((item) => (
-                <NavItem key={item.to} {...item} collapsed={collapsed} />
-              ))}
-            </div>
-
-            <Separator className={cn('my-4', collapsed && 'w-10')} />
-
-            {/* Secondary Nav */}
-            <div className={cn('space-y-1', collapsed ? 'flex flex-col items-center w-full' : '')}>
-              {secondaryNavItems.map((item) => (
-                <NavItem key={item.to} {...item} collapsed={collapsed} />
-              ))}
-            </div>
+          <nav className={cn('flex-1 flex flex-col gap-4', collapsed ? 'items-center py-2' : 'p-4')}>
+            <NavSection title="Overview" items={overviewItems} collapsed={collapsed} />
+            <NavSection title="Pipeline" items={pipelineItems} collapsed={collapsed} />
+            <NavSection title="Tools" items={toolsItems} collapsed={collapsed} />
+            {adminItems.length > 0 && (
+              <>
+                <Separator className={cn(collapsed && 'w-10')} />
+                <NavSection title="Admin" items={adminItems} collapsed={collapsed} />
+              </>
+            )}
           </nav>
 
           {/* Sign Out */}

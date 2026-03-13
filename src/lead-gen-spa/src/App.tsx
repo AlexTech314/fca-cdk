@@ -14,7 +14,6 @@ import Franchises from '@/pages/Franchises'
 import FranchiseDetail from '@/pages/FranchiseDetail'
 import Admin from '@/pages/Admin'
 import Export from '@/pages/Export'
-import Settings from '@/pages/Settings'
 import Tasks from '@/pages/Tasks'
 import ScrapedPageMarkdown from '@/pages/ScrapedPageMarkdown'
 import CostDashboard from '@/pages/CostDashboard'
@@ -57,7 +56,6 @@ function AuthenticatedLayout() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/export" element={<Export />} />
           <Route path="/tasks" element={<Tasks />} />
-          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={
             <PageContainer title="Page Not Found">
               <p className="text-muted-foreground">The page you're looking for doesn't exist.</p>

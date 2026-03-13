@@ -2,7 +2,7 @@ import { UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, ANALYTICS_TABLE } from '../lib/dynamodb';
 import type { TimeSeriesPoint, TopPage } from '../models/analytics.model';
 
-const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;
+const THIRTY_DAYS_SECONDS = 30 * 24 * 60 * 60;
 
 /** Floor a Date to its 5-minute bucket: YYYY-MM-DDTHH:MM */
 function toBucket(date: Date): string {
@@ -16,7 +16,7 @@ function toBucket(date: Date): string {
 export const analyticsRepository = {
   async recordPageView(path: string) {
     const bucket = toBucket(new Date());
-    const ttl = Math.floor(Date.now() / 1000) + ONE_YEAR_SECONDS;
+    const ttl = Math.floor(Date.now() / 1000) + THIRTY_DAYS_SECONDS;
 
     await ddb.send(
       new UpdateCommand({
@@ -36,7 +36,7 @@ export const analyticsRepository = {
 
   async recordReferrer(source: string) {
     const bucket = toBucket(new Date());
-    const ttl = Math.floor(Date.now() / 1000) + ONE_YEAR_SECONDS;
+    const ttl = Math.floor(Date.now() / 1000) + THIRTY_DAYS_SECONDS;
 
     await ddb.send(
       new UpdateCommand({

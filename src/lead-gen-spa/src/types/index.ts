@@ -108,6 +108,9 @@ export interface Lead {
 export interface LeadEmail {
   id: string;
   value: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  contactType?: string | null;  // 'owner' | 'team' | 'business'
   sourcePageId: string;
   sourceRunId: string;
   sourcePage?: { id: string; url: string } | null;
@@ -191,7 +194,7 @@ export interface CampaignRun {
 
 export type CampaignRunStatus = 'pending' | 'running' | 'completed' | 'failed';
 
-export type FargateTaskType = 'places_search' | 'web_scrape' | 'deep_scrape' | 'ai_scoring';
+export type FargateTaskType = 'places_search' | 'web_scrape' | 'deep_scrape' | 'ai_scoring' | 'contact_extraction';
 export type FargateTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface FargateTask {

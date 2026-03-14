@@ -25,6 +25,7 @@ async function getDb(): Promise<PrismaClient> {
 
 const SCRAPE_QUEUE_URL = process.env.SCRAPE_QUEUE_URL!;
 const SCORING_QUEUE_URL = process.env.SCORING_QUEUE_URL!;
+const CONTACT_EXTRACTION_QUEUE_URL = process.env.CONTACT_EXTRACTION_QUEUE_URL!;
 
 interface TriggerEvent {
   event: 'new_lead' | 'lead_scraped';
@@ -63,14 +64,20 @@ export async function handler(event: TriggerEvent): Promise<{ statusCode: number
       }
 
       case 'lead_scraped': {
-        // Lead has been scraped -> send to scoring queue
-        await sqsClient.send(new SendMessageCommand({
-          QueueUrl: SCORING_QUEUE_URL,
-          MessageBody: JSON.stringify({ lead_id, place_id }),
-        }));
+        // Lead has been scraped -> send to scoring queue AND contact extraction queue
+        await Promise.all([
+          sqsClient.send(new SendMessageCommand({
+            QueueUrl: SCORING_QUEUE_URL,
+            MessageBody: JSON.stringify({ lead_id, place_id }),
+          })),
+          sqsClient.send(new SendMessageCommand({
+            QueueUrl: CONTACT_EXTRACTION_QUEUE_URL,
+            MessageBody: JSON.stringify({ lead_id }),
+          })),
+        ]);
         const db = await getDb();
         await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scoring', scoringError: null } });
-        console.log(`Sent lead ${lead_id} to scoring queue`);
+        console.log(`Sent lead ${lead_id} to scoring queue and contact extraction queue`);
         break;
       }
 

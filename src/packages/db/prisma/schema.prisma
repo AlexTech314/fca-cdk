@@ -599,6 +599,9 @@ model LeadEmail {
   leadId         String      @map("lead_id")
   lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
   value          String
+  firstName      String?     @map("first_name")
+  lastName       String?     @map("last_name")
+  contactType    String?     @map("contact_type")  // 'owner', 'team', 'business'
   sourcePageId   String?     @map("source_page_id")
   sourcePage     ScrapedPage? @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
   sourceRunId    String?     @map("source_run_id")
@@ -694,6 +697,7 @@ enum FargateTaskType {
   web_scrape
   deep_scrape
   ai_scoring
+  contact_extraction
 }
 
 enum FargateTaskStatus {

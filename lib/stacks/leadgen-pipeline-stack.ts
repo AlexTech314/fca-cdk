@@ -105,6 +105,19 @@ export class LeadGenPipelineStack extends cdk.Stack {
       deadLetterQueue: { queue: scoringDlq, maxReceiveCount: 3 },
     });
 
+    const contactExtractionDlq = new sqs.Queue(this, 'ContactExtractionDlq', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
+    const contactExtractionQueue = new sqs.Queue(this, 'ContactExtractionQueue', {
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      visibilityTimeout: cdk.Duration.minutes(5),
+      deadLetterQueue: { queue: contactExtractionDlq, maxReceiveCount: 3 },
+    });
+
     const provider = TokenInjectableDockerBuilderProvider.getOrCreate(this);
     const node20Slim = ecrNodeSlim(this.account, this.region);
 
@@ -138,6 +151,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
       environment: {
         SCRAPE_QUEUE_URL: scrapeQueue.queueUrl,
         SCORING_QUEUE_URL: scoringQueue.queueUrl,
+        CONTACT_EXTRACTION_QUEUE_URL: contactExtractionQueue.queueUrl,
         DATABASE_SECRET_ARN: databaseSecret.secretArn,
         DATABASE_HOST: databaseEndpoint,
       },
@@ -145,6 +159,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     scrapeQueue.grantSendMessages(bridgeLambda);
     scoringQueue.grantSendMessages(bridgeLambda);
+    contactExtractionQueue.grantSendMessages(bridgeLambda);
     databaseSecret.grantRead(bridgeLambda);
 
     // ============================================================
@@ -520,6 +535,107 @@ export class LeadGenPipelineStack extends cdk.Stack {
     scoringTaskDef.grantRun(scoringTriggerLambda);
     campaignDataBucket.grantWrite(scoringTriggerLambda);
     databaseSecret.grantRead(scoringTriggerLambda);
+
+    // ============================================================
+    // Contact Extraction Fargate Task
+    // ============================================================
+    const contactExtractionImage = new TokenInjectableDockerBuilder(this, 'ContactExtractionImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'pipeline/contact-extraction-task/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+      buildArgs: { NODE_20_SLIM: node20Slim },
+      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
+      retainBuildLogs: true,
+    });
+
+    const contactExtractionTaskDef = new ecs.FargateTaskDefinition(this, 'ContactExtractionTaskDef', {
+      memoryLimitMiB: 512,
+      cpu: 256,
+      runtimePlatform: {
+        cpuArchitecture: ecs.CpuArchitecture.ARM64,
+        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+      },
+    });
+
+    contactExtractionTaskDef.addContainer('contact-extraction', {
+      image: contactExtractionImage.containerImage,
+      logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: 'contact-extraction',
+        logRetention: logs.RetentionDays.ONE_WEEK,
+      }),
+      environment: {
+        CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
+        DATABASE_CONNECTION_LIMIT: '1',
+        AWS_REGION: this.region,
+      },
+    });
+
+    contactExtractionTaskDef.taskRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['bedrock:InvokeModel'],
+        resources: [
+          // Nova Lite
+          'arn:aws:bedrock:*::foundation-model/amazon.nova-lite-v1:0',
+          `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/us.amazon.nova-lite-v1:0`,
+        ],
+      })
+    );
+
+    campaignDataBucket.grantRead(contactExtractionTaskDef.taskRole);
+    databaseSecret.grantRead(contactExtractionTaskDef.taskRole);
+
+    // ============================================================
+    // Contact Extraction Trigger Lambda
+    // ============================================================
+    const contactExtractionTriggerImage = new TokenInjectableDockerBuilder(this, 'ContactExtractionTriggerImage', {
+      path: path.join(__dirname, '../../src'),
+      file: 'lambda/contact-extraction-trigger/Dockerfile',
+      platform: 'linux/arm64',
+      provider,
+      buildArgs: { NODE_20_SLIM: node20Slim },
+      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
+      retainBuildLogs: true,
+    });
+
+    const contactExtractionTriggerLogGroup = new logs.LogGroup(this, 'ContactExtractionTriggerLogs', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    const contactExtractionTriggerLambda = new lambda.DockerImageFunction(this, 'ContactExtractionTrigger', {
+      code: contactExtractionTriggerImage.dockerImageCode,
+      architecture: lambda.Architecture.ARM_64,
+      timeout: cdk.Duration.seconds(60),
+      memorySize: 256,
+      logGroup: contactExtractionTriggerLogGroup,
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      securityGroups: [pipelineSecurityGroup],
+      environment: {
+        CLUSTER_ARN: cluster.clusterArn,
+        CONTACT_EXTRACTION_TASK_DEF_ARN: contactExtractionTaskDef.taskDefinitionArn,
+        SUBNETS: vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }).subnetIds.join(','),
+        SECURITY_GROUPS: pipelineSecurityGroup.securityGroupId,
+        CAMPAIGN_DATA_BUCKET: campaignDataBucket.bucketName,
+        DATABASE_SECRET_ARN: databaseSecret.secretArn,
+        DATABASE_HOST: databaseEndpoint,
+      },
+    });
+
+    contactExtractionTriggerLambda.addEventSource(
+      new lambdaEventSources.SqsEventSource(contactExtractionQueue, {
+        batchSize: 50,
+        maxBatchingWindow: cdk.Duration.seconds(5),
+        maxConcurrency: 10,
+      })
+    );
+
+    contactExtractionTaskDef.grantRun(contactExtractionTriggerLambda);
+    campaignDataBucket.grantWrite(contactExtractionTriggerLambda);
+    databaseSecret.grantRead(contactExtractionTriggerLambda);
 
     this.scoringQueue = scoringQueue;
     this.scrapeQueueUrl = scrapeQueue.queueUrl;

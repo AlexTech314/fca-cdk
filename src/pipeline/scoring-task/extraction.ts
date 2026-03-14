@@ -2,9 +2,9 @@ import { ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 
 import { s3Client, bedrockClient, CAMPAIGN_DATA_BUCKET, EXTRACTION_MODEL_ID, sleep } from './config.js';
-import type { ExtractionResult } from './types.js';
+import type { ExtractionResult, ContactExtractionResult } from './types.js';
 import { EMPTY_EXTRACTION } from './types.js';
-import { PASS_A_SYSTEM_PROMPT, PASS_B_SYSTEM_PROMPT, PASS_C_SYSTEM_PROMPT } from './prompts.js';
+import { PASS_A_SYSTEM_PROMPT, PASS_B_SYSTEM_PROMPT, PASS_C_SYSTEM_PROMPT, CONTACT_EXTRACTION_SYSTEM_PROMPT } from './prompts.js';
 
 // ============================================================
 // Converse API Tool Schemas (one per sub-pass)
@@ -115,11 +115,39 @@ const PASS_C_TOOL = {
   },
 } as const;
 
+const CONTACT_EXTRACTION_TOOL = {
+  toolSpec: {
+    name: 'extract_email_contacts',
+    description: 'Extract contact name and type information for each email address found on the website',
+    inputSchema: {
+      json: {
+        type: 'object',
+        properties: {
+          contacts: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                email: { type: 'string' },
+                first_name: { type: ['string', 'null'] },
+                last_name: { type: ['string', 'null'] },
+                contact_type: { type: 'string', enum: ['owner', 'team', 'business'] },
+              },
+              required: ['email', 'first_name', 'last_name', 'contact_type'],
+            },
+          },
+        },
+        required: ['contacts'],
+      },
+    },
+  },
+} as const;
+
 // ============================================================
 // Converse API extraction pass
 // ============================================================
 
-type ToolDef = typeof PASS_A_TOOL | typeof PASS_B_TOOL | typeof PASS_C_TOOL;
+type ToolDef = typeof PASS_A_TOOL | typeof PASS_B_TOOL | typeof PASS_C_TOOL | typeof CONTACT_EXTRACTION_TOOL;
 
 async function runExtractionPass(
   tool: ToolDef,
@@ -266,4 +294,29 @@ export async function extractFacts(
   });
 
   return merged as unknown as ExtractionResult;
+}
+
+export async function extractContacts(
+  emails: string[],
+  markdown: string,
+): Promise<ContactExtractionResult[]> {
+  if (emails.length === 0) return [];
+
+  const emailList = emails.map((e) => `- ${e}`).join('\n');
+  const userContent = `## Extracted Emails\n${emailList}\n\n## Full Website Content\n\n${markdown}`;
+
+  try {
+    const result = await runExtractionPass(
+      CONTACT_EXTRACTION_TOOL,
+      CONTACT_EXTRACTION_SYSTEM_PROMPT,
+      '',
+      userContent,
+    );
+    const contacts = result.contacts;
+    if (!Array.isArray(contacts)) return [];
+    return contacts as ContactExtractionResult[];
+  } catch (err) {
+    console.warn('Contact extraction pass failed:', err);
+    return [];
+  }
 }

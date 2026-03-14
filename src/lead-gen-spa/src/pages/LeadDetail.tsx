@@ -33,7 +33,7 @@ import {
 import type { LeadWithCampaign } from '@/types';
 
 interface PageExtraction {
-  emails: { id: string; value: string }[];
+  emails: { id: string; value: string; firstName?: string | null; lastName?: string | null; contactType?: string | null }[];
   phones: { id: string; value: string }[];
   social: { id: string; platform: string; url: string }[];
 }
@@ -46,7 +46,7 @@ function getExtractedByPage(lead: LeadWithCampaign, runId: string): Map<string, 
     return byPage.get(pageId)!;
   };
   for (const e of lead.leadEmails ?? []) {
-    if (e.sourceRunId === runId) add(e.sourcePageId).emails.push({ id: e.id, value: e.value });
+    if (e.sourceRunId === runId) add(e.sourcePageId).emails.push({ id: e.id, value: e.value, firstName: e.firstName, lastName: e.lastName, contactType: e.contactType });
   }
   for (const p of lead.leadPhones ?? []) {
     if (p.sourceRunId === runId) add(p.sourcePageId).phones.push({ id: p.id, value: p.value });
@@ -344,24 +344,32 @@ export default function LeadDetail() {
                 <div>
                   <h4 className="text-sm font-medium flex items-center gap-1 mb-2"><Mail className="h-3 w-3" /> Emails</h4>
                   <ul className="space-y-1 text-sm">
-                    {lead.leadEmails.map((e) => (
-                      <li key={e.id} className="group flex items-center gap-1">
-                        {editingId === e.id ? (
-                          <InlineEditForm
-                            type="email"
-                            initial={{ value: e.value }}
-                            onSave={(data) => handleUpdateData('email', e.id, data)}
-                            onCancel={() => setEditingId(null)}
-                          />
-                        ) : (
-                          <>
-                            <a href={`mailto:${e.value}`} className="text-primary hover:underline">{e.value}</a>
-                            {e.sourcePage?.url && <span className="text-muted-foreground text-xs ml-1">(from {e.sourcePage.url})</span>}
-                            <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(e.id)} onDelete={() => handleDeleteData('email', e.id)} isPending={isMutating} />
-                          </>
-                        )}
-                      </li>
-                    ))}
+                    {lead.leadEmails.map((e) => {
+                      const contactName = [e.firstName, e.lastName].filter(Boolean).join(' ');
+                      return (
+                        <li key={e.id} className="group flex items-center gap-1">
+                          {editingId === e.id ? (
+                            <InlineEditForm
+                              type="email"
+                              initial={{ value: e.value }}
+                              onSave={(data) => handleUpdateData('email', e.id, data)}
+                              onCancel={() => setEditingId(null)}
+                            />
+                          ) : (
+                            <>
+                              {contactName && <span className="font-medium">{contactName}</span>}
+                              {contactName && <span className="text-muted-foreground">—</span>}
+                              <a href={`mailto:${e.value}`} className="text-primary hover:underline">{e.value}</a>
+                              {e.contactType && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 ml-1">{e.contactType}</Badge>
+                              )}
+                              {e.sourcePage?.url && <span className="text-muted-foreground text-xs ml-1">(from {e.sourcePage.url})</span>}
+                              <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(e.id)} onDelete={() => handleDeleteData('email', e.id)} isPending={isMutating} />
+                            </>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ) : null}
@@ -496,23 +504,34 @@ export default function LeadDetail() {
                               </div>
                               {hasExtracted && (
                                 <ul className="ml-4 space-y-0.5 text-xs text-muted-foreground border-l border-muted pl-2">
-                                  {ex!.emails.map((v) => (
-                                    <li key={v.id} className="group flex items-center gap-1">
-                                      {editingId === v.id ? (
-                                        <InlineEditForm
-                                          type="email"
-                                          initial={{ value: v.value }}
-                                          onSave={(data) => handleUpdateData('email', v.id, data)}
-                                          onCancel={() => setEditingId(null)}
-                                        />
-                                      ) : (
-                                        <>
-                                          <CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> email: {v.value}
-                                          <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(v.id)} onDelete={() => handleDeleteData('email', v.id)} isPending={isMutating} />
-                                        </>
-                                      )}
-                                    </li>
-                                  ))}
+                                  {ex!.emails.map((v) => {
+                                    const name = [v.firstName, v.lastName].filter(Boolean).join(' ');
+                                    return (
+                                      <li key={v.id} className="group flex items-center gap-1">
+                                        {editingId === v.id ? (
+                                          <InlineEditForm
+                                            type="email"
+                                            initial={{ value: v.value }}
+                                            onSave={(data) => handleUpdateData('email', v.id, data)}
+                                            onCancel={() => setEditingId(null)}
+                                          />
+                                        ) : (
+                                          <>
+                                            <CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" />
+                                            {name ? <><span className="font-medium">{name}</span> — {v.value}</> : <>email: {v.value}</>}
+                                            {v.contactType && (
+                                              <span className={`text-[10px] px-1 rounded ${
+                                                v.contactType === 'owner' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' :
+                                                v.contactType === 'team' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
+                                                'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                                              }`}>{v.contactType}</span>
+                                            )}
+                                            <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(v.id)} onDelete={() => handleDeleteData('email', v.id)} isPending={isMutating} />
+                                          </>
+                                        )}
+                                      </li>
+                                    );
+                                  })}
                                   {ex!.phones.map((v) => (
                                     <li key={v.id} className="group flex items-center gap-1">
                                       {editingId === v.id ? (

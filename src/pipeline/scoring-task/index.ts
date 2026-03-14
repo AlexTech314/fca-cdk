@@ -16,7 +16,7 @@ import { PrismaClient } from '@prisma/client';
 import { s3Client, CAMPAIGN_DATA_BUCKET, CONCURRENCY } from './config.js';
 import type { BatchItem, ExtractionResult } from './types.js';
 import { EMPTY_EXTRACTION } from './types.js';
-import { fetchMarkdownFromS3, extractFacts } from './extraction.js';
+import { fetchMarkdownFromS3, extractFacts, extractContacts } from './extraction.js';
 import { buildFactsSummary, scoreLead } from './scoring.js';
 import { refreshMarketStats, refreshLeadRanks, buildMarketContext } from './market.js';
 
@@ -79,7 +79,7 @@ async function main(): Promise<void> {
         include: {
           locationCity: { select: { name: true } },
           locationState: { select: { name: true } },
-          leadEmails: { select: { value: true } },
+          leadEmails: { select: { id: true, value: true } },
           leadPhones: { select: { value: true } },
           leadSocialProfiles: { select: { platform: true, url: true } },
         },
@@ -118,10 +118,17 @@ async function main(): Promise<void> {
 
       await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'scoring' } });
 
-      // Pass 1: Extract structured facts from raw markdown
+      // Pass 1: Extract structured facts + contact names from raw markdown (parallel)
+      const emailValues = lead.leadEmails.map((e) => e.value);
       let facts: ExtractionResult;
+      let contactResults: Awaited<ReturnType<typeof extractContacts>> = [];
       if (markdown) {
-        facts = await extractFacts(leadData, markdown);
+        const [factsResult, contactsResult] = await Promise.all([
+          extractFacts(leadData, markdown),
+          emailValues.length > 0 ? extractContacts(emailValues, markdown) : Promise.resolve([]),
+        ]);
+        facts = factsResult;
+        contactResults = contactsResult;
       } else {
         facts = EMPTY_EXTRACTION;
       }
@@ -173,10 +180,29 @@ async function main(): Promise<void> {
           scoringError: null,
         },
       });
+      // Update LeadEmail records with contact extraction results
+      let contactsEnriched = 0;
+      for (const contact of contactResults) {
+        const matching = lead.leadEmails.find(
+          (e) => e.value.toLowerCase() === contact.email.toLowerCase()
+        );
+        if (matching) {
+          await db.leadEmail.update({
+            where: { id: matching.id },
+            data: {
+              firstName: contact.first_name,
+              lastName: contact.last_name,
+              contactType: contact.contact_type,
+            },
+          });
+          contactsEnriched++;
+        }
+      }
+
       scored++;
       completed++;
       console.log(
-        `[${completed}/${batch.length}] Scored lead ${lead_id}: BQ:${result.business_quality_score} ER:${result.exit_readiness_score}${result.is_excluded ? ' [EXCLUDED]' : ''}`
+        `[${completed}/${batch.length}] Scored lead ${lead_id}: BQ:${result.business_quality_score} ER:${result.exit_readiness_score}${result.is_excluded ? ' [EXCLUDED]' : ''}${contactsEnriched > 0 ? ` (${contactsEnriched} contacts enriched)` : ''}`
       );
     } catch (err) {
       console.error(`Failed to score lead ${lead_id}:`, err);

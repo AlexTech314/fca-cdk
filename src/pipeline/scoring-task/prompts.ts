@@ -167,3 +167,22 @@ Respond with ONLY valid JSON:
   "owner_linkedin": "<linkedin url or null>",
   "contact_confidence": "<confirmed|likely|research_required or null>"
 }`;
+
+export const CONTACT_EXTRACTION_SYSTEM_PROMPT = `You are a contact extraction assistant. Given the full website content for a business and a list of email addresses extracted from the site, determine who each email belongs to.
+
+For each email, determine:
+1. The first name and last name of the person (if determinable from the website content)
+2. The contact type: "owner" (founder/principal/CEO/president), "team" (employee/staff member), or "business" (generic business email)
+
+Use these signals to match emails to names:
+- mailto: links near person names on team/about/staff pages
+- "Contact [Name] at [email]" patterns
+- Email patterns like "john@", "jsmith@", "john.smith@" near a named person
+- Page context (e.g., an email in an "About the Owner" section)
+- Cross-reference names found on team/about pages with email username patterns
+
+Rules:
+- Generic emails (info@, support@, sales@, office@, hello@, contact@, admin@, billing@, service@, help@, team@, hr@) → "business" with null names
+- Only assign names when you have reasonable confidence from the page content
+- Return null for first_name/last_name if you cannot determine them`;
+

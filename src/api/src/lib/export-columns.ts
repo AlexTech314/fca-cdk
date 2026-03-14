@@ -69,7 +69,10 @@ export const allColumnDefs: ExportColumnDef[] = [
   { key: 'pipelineStatus', header: 'Pipeline Status', accessor: (l) => l.pipelineStatus ?? '' },
 
   // Extracted data (multi-value joined with semicolons)
-  { key: 'emails', header: 'Emails', accessor: (l) => (l.leadEmails ?? []).map((e: any) => e.value).join('; ') },
+  { key: 'emails', header: 'Emails', accessor: (l) => (l.leadEmails ?? []).map((e: any) => {
+    const name = [e.firstName, e.lastName].filter(Boolean).join(' ');
+    return name ? `${name} <${e.value}>` : e.value;
+  }).join('; ') },
   { key: 'phones', header: 'Phones', accessor: (l) => (l.leadPhones ?? []).map((p: any) => p.value).join('; ') },
   { key: 'socialProfiles', header: 'Social Profiles', accessor: (l) => (l.leadSocialProfiles ?? []).map((s: any) => s.url).join('; ') },
 

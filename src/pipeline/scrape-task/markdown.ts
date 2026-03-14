@@ -108,7 +108,7 @@ function findRepeatedTrailingBlock(markdowns: string[], minPages: number): strin
   return refBlocks.slice(refBlocks.length - trailingCount).join('\n\n');
 }
 
-function convertPageToMarkdown(page: ScrapedPage): string {
+export function convertPageToMarkdown(page: ScrapedPage): string {
   const turndown = new TurndownService({
     headingStyle: 'atx',
     codeBlockStyle: 'fenced',

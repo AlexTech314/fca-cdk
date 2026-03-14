@@ -30,8 +30,15 @@ const SUBNETS = (process.env.SUBNETS || '').split(',').filter(Boolean);
 const SECURITY_GROUPS = (process.env.SECURITY_GROUPS || '').split(',').filter(Boolean);
 const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
 
+interface ContactPage {
+  url: string;
+  s3Key: string;
+}
+
 interface BatchItem {
   lead_id: string;
+  emails: string[];
+  contactPages: ContactPage[];
 }
 
 export async function handler(event: SQSEvent): Promise<void> {
@@ -46,9 +53,12 @@ export async function handler(event: SQSEvent): Promise<void> {
   for (const r of event.Records as SQSRecord[]) {
     try {
       const body = JSON.parse(r.body);
-      const leadId = body.lead_id;
-      if (!leadId) continue;
-      batch.push({ lead_id: leadId });
+      if (!body.lead_id || !body.emails?.length || !body.contactPages?.length) continue;
+      batch.push({
+        lead_id: body.lead_id,
+        emails: body.emails,
+        contactPages: body.contactPages,
+      });
     } catch {
       // skip malformed messages
     }

@@ -99,7 +99,7 @@ export function MultiCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="p-0">
-        <Command shouldFilter={!onSearch}>
+        <Command filter={onSearch ? () => 1 : undefined}>
           <CommandInput placeholder={searchPlaceholder} onValueChange={onSearch} />
           <CommandList>
             <CommandEmpty>{loading ? "Loading..." : emptyText}</CommandEmpty>

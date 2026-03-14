@@ -150,16 +150,12 @@ export class LeadGenPipelineStack extends cdk.Stack {
       securityGroups: [pipelineSecurityGroup],
       environment: {
         SCRAPE_QUEUE_URL: scrapeQueue.queueUrl,
-        SCORING_QUEUE_URL: scoringQueue.queueUrl,
-        CONTACT_EXTRACTION_QUEUE_URL: contactExtractionQueue.queueUrl,
         DATABASE_SECRET_ARN: databaseSecret.secretArn,
         DATABASE_HOST: databaseEndpoint,
       },
     });
 
     scrapeQueue.grantSendMessages(bridgeLambda);
-    scoringQueue.grantSendMessages(bridgeLambda);
-    contactExtractionQueue.grantSendMessages(bridgeLambda);
     databaseSecret.grantRead(bridgeLambda);
 
     // ============================================================
@@ -322,6 +318,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
         DATABASE_HOST: databaseEndpoint,
         DATABASE_CONNECTION_LIMIT: '1',
         DEEP_SCRAPE_QUEUE_URL: deepScrapeQueue.queueUrl,
+        SCORING_QUEUE_URL: scoringQueue.queueUrl,
+        CONTACT_EXTRACTION_QUEUE_URL: contactExtractionQueue.queueUrl,
         AWS_REGION: this.region,
       },
     });
@@ -329,6 +327,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
     campaignDataBucket.grantReadWrite(scrapeTaskDef.taskRole);
     databaseSecret.grantRead(scrapeTaskDef.taskRole);
     deepScrapeQueue.grantSendMessages(scrapeTaskDef.taskRole);
+    scoringQueue.grantSendMessages(scrapeTaskDef.taskRole);
+    contactExtractionQueue.grantSendMessages(scrapeTaskDef.taskRole);
 
     // ============================================================
     // Scrape Trigger Lambda (consumes ScrapeQueue, runs Fargate directly)

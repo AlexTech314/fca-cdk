@@ -109,45 +109,13 @@ async function main(): Promise<void> {
   let failed = 0;
   let completed = 0;
 
-  async function processLead(lead_id: string): Promise<void> {
+  async function processLead(item: BatchItem): Promise<void> {
+    const { lead_id, emails: emailValues, contactPages } = item;
     try {
-      // Get all emails for this lead with their source pages
-      const emails = await db.leadEmail.findMany({
-        where: { leadId: lead_id },
-        include: {
-          sourcePage: { select: { id: true, url: true, markdownS3Key: true } },
-        },
-      });
-
-      if (emails.length === 0) {
-        skipped++;
-        completed++;
-        console.log(`[${completed}/${batch.length}] Lead ${lead_id}: no emails, skipping`);
-        return;
-      }
-
-      // Collect unique source pages that have markdown
-      const pageMap = new Map<string, { url: string; markdownS3Key: string }>();
-      for (const e of emails) {
-        if (e.sourcePage?.markdownS3Key) {
-          pageMap.set(e.sourcePage.id, {
-            url: e.sourcePage.url,
-            markdownS3Key: e.sourcePage.markdownS3Key,
-          });
-        }
-      }
-
-      if (pageMap.size === 0) {
-        skipped++;
-        completed++;
-        console.log(`[${completed}/${batch.length}] Lead ${lead_id}: no source page markdown, skipping`);
-        return;
-      }
-
-      // Read markdown from S3 for each source page
+      // Read markdown from S3 for each contact page
       const pageContents: { url: string; markdown: string }[] = [];
-      for (const [, page] of pageMap) {
-        const markdown = await readS3Text(page.markdownS3Key);
+      for (const page of contactPages) {
+        const markdown = await readS3Text(page.s3Key);
         if (markdown) {
           // Truncate very long pages to stay within token limits
           pageContents.push({ url: page.url, markdown: markdown.slice(0, 15000) });
@@ -161,20 +129,15 @@ async function main(): Promise<void> {
         return;
       }
 
-      const emailValues = emails.map((e) => e.value);
-
       // Call LLM
       const contacts = await callLlm(emailValues, pageContents);
 
       // Update LeadEmail records with extracted names
       let updatedCount = 0;
       for (const contact of contacts) {
-        const matching = emails.find(
-          (e) => e.value.toLowerCase() === contact.email.toLowerCase()
-        );
-        if (matching) {
+        try {
           await db.leadEmail.update({
-            where: { id: matching.id },
+            where: { leadId_value: { leadId: lead_id, value: contact.email.toLowerCase() } },
             data: {
               firstName: contact.first_name,
               lastName: contact.last_name,
@@ -182,13 +145,15 @@ async function main(): Promise<void> {
             },
           });
           updatedCount++;
+        } catch {
+          // email may not exist in DB (race condition), skip
         }
       }
 
       extracted++;
       completed++;
       console.log(
-        `[${completed}/${batch.length}] Lead ${lead_id}: ${updatedCount}/${emails.length} emails enriched`
+        `[${completed}/${batch.length}] Lead ${lead_id}: ${updatedCount}/${emailValues.length} emails enriched`
       );
     } catch (err) {
       console.error(`Failed to process lead ${lead_id}:`, err);
@@ -199,8 +164,8 @@ async function main(): Promise<void> {
 
   // Process leads with bounded concurrency
   const pending = new Set<Promise<void>>();
-  for (const { lead_id } of batch) {
-    const p = processLead(lead_id).then(() => { pending.delete(p); });
+  for (const item of batch) {
+    const p = processLead(item).then(() => { pending.delete(p); });
     pending.add(p);
     if (pending.size >= CONCURRENCY) {
       await Promise.race(pending);

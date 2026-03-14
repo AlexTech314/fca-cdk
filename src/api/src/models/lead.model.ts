@@ -33,7 +33,7 @@ export const leadFiltersSchema = z.object({
   stateId: z.string().optional(),
   stateIds: z.preprocess(csvPreprocess, z.array(z.string()).optional()),
   businessTypes: z.preprocess(csvPreprocess, z.array(z.string()).optional()),
-  campaignIds: z.preprocess(csvPreprocess, z.array(z.string()).optional()),
+  campaignNames: z.preprocess(csvPreprocess, z.array(z.string()).optional()),
   searchQueryIds: z.preprocess(csvPreprocess, z.array(z.string()).optional()),
   franchiseId: z.string().optional(),
   ratingMin: z.coerce.number().optional(),

@@ -67,7 +67,7 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
     !!filters.businessTypes?.length,
   );
 
-  // Campaigns: server-side search with debounce
+  // Campaigns: server-side search with debounce (names are unique, so use name as value)
   const [campSearch, setCampSearch] = useState('');
   const [campOpen, setCampOpen] = useState(false);
   const campDebounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -76,22 +76,20 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
     queryFn: () => api.searchCampaigns(campSearch, 20),
     enabled: campOpen,
   });
-  const campSelectedIds = filters.campaignIds || [];
-  const campByIdsQuery = useQuery({
-    queryKey: ['campaigns', 'byIds', campSelectedIds.join(',')],
-    queryFn: () => api.getCampaignsByIds(campSelectedIds),
-    enabled: campSelectedIds.length > 0,
-  });
   const handleCampSearch = useCallback((q: string) => {
     clearTimeout(campDebounceRef.current);
     campDebounceRef.current = setTimeout(() => setCampSearch(q), 200);
   }, []);
   const handleCampOpen = useCallback((open: boolean) => { setCampOpen(open); }, []);
-  const campSearchResults = campQuery.data ?? [];
-  const campSelectedLabels = campByIdsQuery.data ?? [];
+  const campSelected = filters.campaignNames || [];
+  const campSearchResults = (campQuery.data ?? []).map(c => ({ value: c.name, label: c.name }));
+  // Merge selected names (for tags) with search results
   const campOptionsMap = new Map<string, ComboboxOption>();
-  for (const c of [...campSelectedLabels, ...campSearchResults]) {
-    if (!campOptionsMap.has(c.id)) campOptionsMap.set(c.id, { value: c.id, label: c.name });
+  for (const name of campSelected) {
+    campOptionsMap.set(name, { value: name, label: name });
+  }
+  for (const opt of campSearchResults) {
+    if (!campOptionsMap.has(opt.value)) campOptionsMap.set(opt.value, opt);
   }
   const campOptions = [...campOptionsMap.values()];
   const campLoading = campQuery.isLoading && campOpen;
@@ -186,8 +184,8 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
             <Label className="text-xs">Campaign</Label>
             <MultiCombobox
               options={campOptions}
-              selected={filters.campaignIds || []}
-              onChange={(vals) => update({ campaignIds: vals.length > 0 ? vals : undefined })}
+              selected={filters.campaignNames || []}
+              onChange={(vals) => update({ campaignNames: vals.length > 0 ? vals : undefined })}
               onOpenChange={handleCampOpen}
               onSearch={handleCampSearch}
               loading={campLoading}

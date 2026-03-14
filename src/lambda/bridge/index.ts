@@ -1,11 +1,14 @@
 /**
  * Bridge Lambda
  *
- * Invoked by PostgreSQL AFTER INSERT/UPDATE triggers via the aws_lambda extension.
- * Routes events to the correct SQS queue based on the event type.
+ * Invoked by PostgreSQL AFTER INSERT trigger via the aws_lambda extension.
+ * Routes new_lead events to the scrape queue.
+ *
+ * Scoring and contact extraction are enqueued directly by the scrape task
+ * after scraping completes (no longer routed through this lambda).
  *
  * Payload from PG trigger:
- *   { "event": "new_lead" | "lead_scraped", "lead_id": "uuid", "place_id": "string" }
+ *   { "event": "new_lead", "lead_id": "uuid", "place_id": "string", "website": "url" }
  */
 
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
@@ -24,11 +27,9 @@ async function getDb(): Promise<PrismaClient> {
 }
 
 const SCRAPE_QUEUE_URL = process.env.SCRAPE_QUEUE_URL!;
-const SCORING_QUEUE_URL = process.env.SCORING_QUEUE_URL!;
-const CONTACT_EXTRACTION_QUEUE_URL = process.env.CONTACT_EXTRACTION_QUEUE_URL!;
 
 interface TriggerEvent {
-  event: 'new_lead' | 'lead_scraped';
+  event: 'new_lead';
   lead_id: string;
   place_id: string;
   website?: string;
@@ -37,54 +38,27 @@ interface TriggerEvent {
 export async function handler(event: TriggerEvent): Promise<{ statusCode: number; body: string }> {
   console.log('Bridge Lambda received:', JSON.stringify(event));
 
-  const { event: eventType, lead_id, place_id, website } = event;
+  const { event: eventType, lead_id, website } = event;
 
-  if (!eventType || !lead_id) {
-    console.error('Invalid event payload:', event);
-    return { statusCode: 400, body: 'Invalid event payload' };
+  if (eventType !== 'new_lead' || !lead_id) {
+    console.warn('Ignoring unexpected event:', JSON.stringify(event));
+    return { statusCode: 200, body: 'Ignored' };
+  }
+
+  // New lead inserted -> send to scrape queue (only if it has a website)
+  if (!website || typeof website !== 'string' || website.trim() === '') {
+    console.log(`Lead ${lead_id} has no website, skipping scrape queue`);
+    return { statusCode: 200, body: 'No website' };
   }
 
   try {
-    switch (eventType) {
-      case 'new_lead': {
-        // New lead inserted -> send to scrape queue (only if it has a website)
-        if (!website || typeof website !== 'string' || website.trim() === '') {
-          console.log(`Lead ${lead_id} has no website, skipping scrape queue`);
-          break;
-        }
-        await sqsClient.send(new SendMessageCommand({
-          QueueUrl: SCRAPE_QUEUE_URL,
-          MessageBody: JSON.stringify({ lead_id, place_id, website }),
-          MessageGroupId: undefined, // Standard queue, no group ID
-        }));
-        const db = await getDb();
-        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scrape', scrapeError: null } });
-        console.log(`Sent lead ${lead_id} to scrape queue`);
-        break;
-      }
-
-      case 'lead_scraped': {
-        // Lead has been scraped -> send to scoring queue AND contact extraction queue
-        await Promise.all([
-          sqsClient.send(new SendMessageCommand({
-            QueueUrl: SCORING_QUEUE_URL,
-            MessageBody: JSON.stringify({ lead_id, place_id }),
-          })),
-          sqsClient.send(new SendMessageCommand({
-            QueueUrl: CONTACT_EXTRACTION_QUEUE_URL,
-            MessageBody: JSON.stringify({ lead_id }),
-          })),
-        ]);
-        const db = await getDb();
-        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scoring', scoringError: null } });
-        console.log(`Sent lead ${lead_id} to scoring queue and contact extraction queue`);
-        break;
-      }
-
-      default:
-        console.warn(`Unknown event type: ${eventType}`);
-    }
-
+    await sqsClient.send(new SendMessageCommand({
+      QueueUrl: SCRAPE_QUEUE_URL,
+      MessageBody: JSON.stringify({ lead_id, place_id: event.place_id, website }),
+    }));
+    const db = await getDb();
+    await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scrape', scrapeError: null } });
+    console.log(`Sent lead ${lead_id} to scrape queue`);
     return { statusCode: 200, body: 'OK' };
   } catch (error) {
     console.error('Bridge Lambda error:', error);

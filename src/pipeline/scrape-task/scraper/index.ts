@@ -215,6 +215,8 @@ export interface ScrapeWebsiteOptions {
   failureTracker?: FailureTracker | null;
   enableEarlyExit?: boolean;
   earlyExitCriteria?: EarlyExitCriteria;
+  /** Called after each page is successfully scraped */
+  onPage?: (page: ScrapedPage) => void | Promise<void>;
 }
 
 /**
@@ -249,6 +251,7 @@ export async function scrapeWebsite(
     failureTracker = null,
     enableEarlyExit = false,
     earlyExitCriteria = {},
+    onPage = null,
   } = options;
   
   const visited = new Set<string>();
@@ -350,12 +353,17 @@ export async function scrapeWebsite(
         continue;
       }
 
-      pages.push({
+      const scrapedPage: ScrapedPage = {
         ...result.page,
         parentUrl: parentUrl ?? undefined,
         depth,
-      });
-      
+      };
+      pages.push(scrapedPage);
+
+      if (onPage) {
+        try { await onPage(scrapedPage); } catch { /* best effort */ }
+      }
+
       // Add links to queue if page has enough content
       if (result.page.text_content.length > 500) {
         const sameDomainLinks = result.page.links

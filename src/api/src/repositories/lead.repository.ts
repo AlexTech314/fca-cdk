@@ -370,8 +370,8 @@ function buildWhereClause(
   if (filters.businessTypes?.length) {
     where.businessType = { in: filters.businessTypes };
   }
-  if (filters.campaignIds?.length) {
-    where.campaignId = { in: filters.campaignIds };
+  if (filters.campaignNames?.length) {
+    where.campaign = { name: { in: filters.campaignNames } };
   }
   if (filters.searchQueryIds?.length) {
     where.searchQueryId = { in: filters.searchQueryIds };

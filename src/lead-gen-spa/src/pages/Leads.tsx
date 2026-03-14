@@ -88,7 +88,7 @@ function loadColumnSelection(): LeadListField[] {
 const STORAGE_KEY = 'leads_query';
 
 // Filter keys that are string arrays (comma-separated in URL)
-const ARRAY_KEYS = new Set(['stateIds', 'businessTypes', 'pipelineStatuses', 'sources', 'campaignIds', 'searchQueryIds']);
+const ARRAY_KEYS = new Set(['stateIds', 'businessTypes', 'pipelineStatuses', 'sources', 'campaignNames', 'searchQueryIds']);
 // Filter keys that are number arrays (comma-separated in URL)
 const NUM_ARRAY_KEYS = new Set(['tiers']);
 // Filter keys that are booleans

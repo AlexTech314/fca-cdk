@@ -1,7 +1,7 @@
 import { launch } from 'cloakbrowser';
 import type { Browser } from 'playwright-core';
 import { randomUUID } from 'crypto';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { SendMessageCommand } from '@aws-sdk/client-sqs';
 import { bootstrapDatabaseUrl } from '@fca/db';
 import { PrismaClient } from '@prisma/client';
@@ -12,9 +12,12 @@ import type { JobInput, ExtractedData } from './types.js';
 import {
   CAMPAIGN_DATA_BUCKET,
   DEEP_SCRAPE_QUEUE_URL,
+  SCORING_QUEUE_URL,
+  CONTACT_EXTRACTION_QUEUE_URL,
   TASK_MEMORY_MIB,
   TASK_CPU_UNITS,
   LIMITS,
+  PATTERNS,
   calculateOptimalConcurrency,
   s3Client,
   sqsClient,
@@ -29,7 +32,7 @@ import {
   needsPlaywright,
 } from './scraper/index.js';
 import { extractAllData } from './extractors/index.js';
-import { convertAndUploadMarkdown } from './markdown.js';
+import { convertAndUploadMarkdown, convertPageToMarkdown } from './markdown.js';
 import {
   updateLeadWithScrapeData,
   markLeadScrapeFailed,
@@ -242,6 +245,42 @@ async function main(): Promise<void> {
           return;
         }
 
+        // Per-page callback: send pages with emails to contact extraction immediately
+        const scrapeRunId = randomUUID();
+        const contactExtractionSent = new Set<string>();
+
+        const onPage = CONTACT_EXTRACTION_QUEUE_URL
+          ? async (page: import('./types.js').ScrapedPage) => {
+              const emails = page.text_content.match(PATTERNS.email);
+              if (!emails || emails.length === 0) return;
+
+              const md = convertPageToMarkdown(page);
+              if (!md) return;
+
+              const hash = randomUUID().slice(0, 12);
+              const s3Key = `scrape-markdown/${business.id}/${scrapeRunId}/${hash}.md`;
+              await s3Client.send(new PutObjectCommand({
+                Bucket: CAMPAIGN_DATA_BUCKET,
+                Key: s3Key,
+                Body: md,
+                ContentType: 'text/markdown',
+              }));
+
+              const uniqueEmails = [...new Set(emails.map(e => e.toLowerCase()))];
+              await sqsClient.send(new SendMessageCommand({
+                QueueUrl: CONTACT_EXTRACTION_QUEUE_URL,
+                MessageBody: JSON.stringify({
+                  lead_id: business.id,
+                  emails: uniqueEmails,
+                  contactPages: [{ url: page.url, s3Key }],
+                }),
+              }));
+
+              contactExtractionSent.add(page.url);
+              console.log(`  [Contact extraction] Sent ${page.url} (${uniqueEmails.length} emails) to enrichment queue`);
+            }
+          : undefined;
+
         // Scrape using mode-appropriate method
         const scrapeResult = await scrapeWebsite(business.website_uri!, {
           maxPages: maxPagesPerSite,
@@ -250,6 +289,7 @@ async function main(): Promise<void> {
           domainTracker,
           failureTracker: globalFailureTracker,
           enableEarlyExit: false,
+          onPage,
         }) as ScrapeWebsiteExtendedResult;
 
         const { pages, method } = scrapeResult;
@@ -288,7 +328,6 @@ async function main(): Promise<void> {
         const extracted = extractAllData(pages, knownPhones);
 
         // Convert scraped pages to markdown and upload to S3
-        const scrapeRunId = randomUUID();
         let scrapeMarkdownS3Key: string | null = null;
         let pageMarkdownKeys: Map<string, string> | undefined;
         try {
@@ -320,6 +359,18 @@ async function main(): Promise<void> {
           scrapeMarkdownS3Key,
           pageMarkdownKeys,
         );
+
+        // Enqueue for scoring after scrape completes
+        if (SCORING_QUEUE_URL) {
+          await sqsClient.send(new SendMessageCommand({
+            QueueUrl: SCORING_QUEUE_URL,
+            MessageBody: JSON.stringify({ lead_id: business.id, place_id: business.place_id }),
+          }));
+          await db.lead.update({
+            where: { id: business.id },
+            data: { pipelineStatus: 'queued_for_scoring' },
+          });
+        }
 
         processed++;
         totalPages += pages.length;

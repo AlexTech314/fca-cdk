@@ -141,9 +141,14 @@ export interface LeadGenApi {
   getTiers(): Promise<number[]>;
 
   /**
-   * Get distinct search queries that have associated leads
+   * Search search queries that have associated leads (paginated)
    */
-  getSearchQueries(): Promise<Array<{ id: string; textQuery: string }>>;
+  searchSearchQueries(q: string, limit?: number): Promise<Array<{ id: string; textQuery: string }>>;
+
+  /**
+   * Get search queries by IDs (for resolving labels on page load)
+   */
+  getSearchQueriesByIds(ids: string[]): Promise<Array<{ id: string; textQuery: string }>>;
 
   /**
    * Search cities by name prefix

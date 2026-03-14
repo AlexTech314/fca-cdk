@@ -181,9 +181,17 @@ router.get('/leads/tiers', async (_req, res, next) => {
   }
 });
 
-router.get('/leads/search-queries', async (_req, res, next) => {
+router.get('/leads/search-queries', async (req, res, next) => {
   try {
-    const queries = await leadService.getDistinctSearchQueries();
+    const ids = req.query.ids ? String(req.query.ids).split(',').filter(Boolean) : [];
+    if (ids.length > 0) {
+      const queries = await leadService.getSearchQueriesByIds(ids);
+      res.json(queries);
+      return;
+    }
+    const q = String(req.query.q || '').trim();
+    const limit = Math.min(Number(req.query.limit) || 20, 50);
+    const queries = await leadService.searchSearchQueries(q, limit);
     res.json(queries);
   } catch (error) {
     next(error);

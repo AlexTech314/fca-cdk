@@ -16,6 +16,8 @@ interface MultiComboboxProps {
   selected: string[];
   onChange: (values: string[]) => void;
   onOpenChange?: (open: boolean) => void;
+  /** Server-side search callback. When provided, typing triggers this instead of client-side filtering. */
+  onSearch?: (query: string) => void;
   placeholder?: string;
   searchPlaceholder?: string;
   emptyText?: string;
@@ -28,6 +30,7 @@ export function MultiCombobox({
   selected,
   onChange,
   onOpenChange,
+  onSearch,
   placeholder = "Select...",
   searchPlaceholder = "Search...",
   emptyText = "No results.",
@@ -96,8 +99,8 @@ export function MultiCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="p-0">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+        <Command shouldFilter={!onSearch}>
+          <CommandInput placeholder={searchPlaceholder} onValueChange={onSearch} />
           <CommandList>
             <CommandEmpty>{loading ? "Loading..." : emptyText}</CommandEmpty>
             <CommandGroup>

@@ -67,14 +67,27 @@ export const leadService = {
     return rows.map((r) => r.source);
   },
 
-  async getDistinctSearchQueries(): Promise<Array<{ id: string; textQuery: string }>> {
+  async searchSearchQueries(q: string, limit = 20): Promise<Array<{ id: string; textQuery: string }>> {
+    const pattern = `%${q}%`;
     const rows = await prisma.$queryRaw<Array<{ id: string; text_query: string }>>`
       SELECT DISTINCT sq.id, sq.text_query
       FROM search_queries sq
       INNER JOIN leads l ON l.search_query_id = sq.id
+      WHERE sq.text_query ILIKE ${pattern}
       ORDER BY sq.text_query
+      LIMIT ${limit}
     `;
     return rows.map((r) => ({ id: r.id, textQuery: r.text_query }));
+  },
+
+  async getSearchQueriesByIds(ids: string[]): Promise<Array<{ id: string; textQuery: string }>> {
+    if (ids.length === 0) return [];
+    const rows = await prisma.searchQuery.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, textQuery: true },
+      orderBy: { textQuery: 'asc' },
+    });
+    return rows;
   },
 
   async getDistinctTiers(): Promise<number[]> {

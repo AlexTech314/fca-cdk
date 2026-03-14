@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MultiCombobox } from '@/components/ui/multi-combobox';
+import type { ComboboxOption } from '@/components/ui/multi-combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { LeadFilters as LeadFiltersType } from '@/types';
 import { useQuery } from '@tanstack/react-query';
@@ -76,15 +77,43 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
     !!filters.campaignIds?.length,
   );
 
-  const searchQueries = useLazyQuery(
-    ['leads', 'search-queries'],
-    async () => {
-      const list = await api.getSearchQueries();
-      return list.map(q => ({ value: q.id, label: q.textQuery }));
-    },
-    [],
-    !!filters.searchQueryIds?.length,
-  );
+  // Search queries: server-side search with debounce
+  const [sqSearch, setSqSearch] = useState('');
+  const sqDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const sqSearchQuery = useQuery({
+    queryKey: ['leads', 'search-queries', 'search', sqSearch],
+    queryFn: () => api.searchSearchQueries(sqSearch, 20),
+    enabled: sqSearch.length > 0,
+  });
+  // Fetch initial results on open (empty search)
+  const sqInitialQuery = useQuery({
+    queryKey: ['leads', 'search-queries', 'search', ''],
+    queryFn: () => api.searchSearchQueries('', 20),
+    enabled: false,
+  });
+  // Resolve labels for pre-selected IDs from URL
+  const sqSelectedIds = filters.searchQueryIds || [];
+  const sqByIdsQuery = useQuery({
+    queryKey: ['leads', 'search-queries', 'byIds', sqSelectedIds.join(',')],
+    queryFn: () => api.getSearchQueriesByIds(sqSelectedIds),
+    enabled: sqSelectedIds.length > 0,
+  });
+  const handleSqSearch = useCallback((q: string) => {
+    clearTimeout(sqDebounceRef.current);
+    sqDebounceRef.current = setTimeout(() => setSqSearch(q), 200);
+  }, []);
+  const handleSqOpen = useCallback((open: boolean) => {
+    if (open && !sqInitialQuery.data) sqInitialQuery.refetch();
+  }, [sqInitialQuery]);
+  // Merge: search results + selected label lookups (deduped)
+  const sqSearchResults = (sqSearch ? sqSearchQuery.data : sqInitialQuery.data) ?? [];
+  const sqSelectedLabels = sqByIdsQuery.data ?? [];
+  const sqOptionsMap = new Map<string, ComboboxOption>();
+  for (const q of [...sqSelectedLabels, ...sqSearchResults]) {
+    if (!sqOptionsMap.has(q.id)) sqOptionsMap.set(q.id, { value: q.id, label: q.textQuery });
+  }
+  const sqOptions = [...sqOptionsMap.values()];
+  const sqLoading = sqSearch ? sqSearchQuery.isLoading : sqInitialQuery.isLoading;
 
   const pipelineStatuses = useLazyQuery(['leads', 'pipeline-statuses'], () => api.getPipelineStatuses(), [], !!filters.pipelineStatuses?.length);
   const sources = useLazyQuery(['leads', 'sources'], () => api.getSources(), [], !!filters.sources?.length);
@@ -159,11 +188,12 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
           <div className="space-y-1.5">
             <Label className="text-xs">Search Query</Label>
             <MultiCombobox
-              options={searchQueries.data}
+              options={sqOptions}
               selected={filters.searchQueryIds || []}
               onChange={(vals) => update({ searchQueryIds: vals.length > 0 ? vals : undefined })}
-              onOpenChange={searchQueries.activate}
-              loading={searchQueries.isLoading}
+              onOpenChange={handleSqOpen}
+              onSearch={handleSqSearch}
+              loading={sqLoading}
               placeholder="All search queries"
               searchPlaceholder="Search queries..."
             />

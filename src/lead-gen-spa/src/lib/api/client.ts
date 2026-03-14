@@ -339,8 +339,15 @@ export const realApi: LeadGenApi = {
     return apiClient<number[]>('/leads/tiers');
   },
 
-  async getSearchQueries(): Promise<Array<{ id: string; textQuery: string }>> {
-    return apiClient<Array<{ id: string; textQuery: string }>>('/leads/search-queries');
+  async searchSearchQueries(q: string, limit = 20): Promise<Array<{ id: string; textQuery: string }>> {
+    const qs = new URLSearchParams({ q, limit: String(limit) });
+    return apiClient<Array<{ id: string; textQuery: string }>>(`/leads/search-queries?${qs}`);
+  },
+
+  async getSearchQueriesByIds(ids: string[]): Promise<Array<{ id: string; textQuery: string }>> {
+    if (ids.length === 0) return [];
+    const qs = new URLSearchParams({ ids: ids.join(',') });
+    return apiClient<Array<{ id: string; textQuery: string }>>(`/leads/search-queries?${qs}`);
   },
 
   async searchCities(q: string): Promise<Array<{ id: number; name: string; state: { id: string; name: string } }>> {

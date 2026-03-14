@@ -45,16 +45,16 @@ function triStateToBool(val: TriStateValue): boolean | undefined {
   return undefined;
 }
 
-/** Hook: lazy query that fires on first open, then caches via react-query */
-function useLazyQuery<T>(key: string[], fn: () => Promise<T>, fallback: T) {
-  const [enabled, setEnabled] = useState(false);
+/** Hook: lazy query that fires on first open (or immediately if hasSelection), then caches via react-query */
+function useLazyQuery<T>(key: string[], fn: () => Promise<T>, fallback: T, hasSelection = false) {
+  const [enabled, setEnabled] = useState(hasSelection);
   const query = useQuery({ queryKey: key, queryFn: fn, enabled });
   const activate = useCallback((open: boolean) => { if (open && !enabled) setEnabled(true); }, [enabled]);
   return { data: query.data ?? fallback, isLoading: query.isLoading && enabled, activate };
 }
 
 export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
-  const states = useLazyQuery(['locations', 'states'], () => api.getLocationsStates(), []);
+  const states = useLazyQuery(['locations', 'states'], () => api.getLocationsStates(), [], !!filters.stateIds?.length);
 
   const businessTypes = useLazyQuery(
     ['leads', 'business-types'],
@@ -63,6 +63,7 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
       return dist.map(d => d.name).filter(Boolean).sort();
     },
     [],
+    !!filters.businessTypes?.length,
   );
 
   const campaigns = useLazyQuery(
@@ -72,6 +73,7 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
       return list.map(c => ({ value: c.id, label: c.name }));
     },
     [],
+    !!filters.campaignIds?.length,
   );
 
   const searchQueries = useLazyQuery(
@@ -81,11 +83,12 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
       return list.map(q => ({ value: q.id, label: q.textQuery }));
     },
     [],
+    !!filters.searchQueryIds?.length,
   );
 
-  const pipelineStatuses = useLazyQuery(['leads', 'pipeline-statuses'], () => api.getPipelineStatuses(), []);
-  const sources = useLazyQuery(['leads', 'sources'], () => api.getSources(), []);
-  const tiers = useLazyQuery(['leads', 'tiers'], () => api.getTiers(), []);
+  const pipelineStatuses = useLazyQuery(['leads', 'pipeline-statuses'], () => api.getPipelineStatuses(), [], !!filters.pipelineStatuses?.length);
+  const sources = useLazyQuery(['leads', 'sources'], () => api.getSources(), [], !!filters.sources?.length);
+  const tiers = useLazyQuery(['leads', 'tiers'], () => api.getTiers(), [], !!filters.tiers?.length);
 
   const update = (updates: Partial<LeadFiltersType>) => {
     onChange({ ...filters, ...updates });

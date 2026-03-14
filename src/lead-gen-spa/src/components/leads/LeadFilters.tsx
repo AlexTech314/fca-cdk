@@ -69,16 +69,12 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
 
   // Campaigns: server-side search with debounce
   const [campSearch, setCampSearch] = useState('');
+  const [campOpen, setCampOpen] = useState(false);
   const campDebounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const campSearchQuery = useQuery({
+  const campQuery = useQuery({
     queryKey: ['campaigns', 'search', campSearch],
     queryFn: () => api.searchCampaigns(campSearch, 20),
-    enabled: campSearch.length > 0,
-  });
-  const campInitialQuery = useQuery({
-    queryKey: ['campaigns', 'search', ''],
-    queryFn: () => api.searchCampaigns('', 20),
-    enabled: false,
+    enabled: campOpen,
   });
   const campSelectedIds = filters.campaignIds || [];
   const campByIdsQuery = useQuery({
@@ -90,33 +86,25 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
     clearTimeout(campDebounceRef.current);
     campDebounceRef.current = setTimeout(() => setCampSearch(q), 200);
   }, []);
-  const handleCampOpen = useCallback((open: boolean) => {
-    if (open && !campInitialQuery.data) campInitialQuery.refetch();
-  }, [campInitialQuery]);
-  const campSearchResults = (campSearch ? campSearchQuery.data : campInitialQuery.data) ?? [];
+  const handleCampOpen = useCallback((open: boolean) => { setCampOpen(open); }, []);
+  const campSearchResults = campQuery.data ?? [];
   const campSelectedLabels = campByIdsQuery.data ?? [];
   const campOptionsMap = new Map<string, ComboboxOption>();
   for (const c of [...campSelectedLabels, ...campSearchResults]) {
     if (!campOptionsMap.has(c.id)) campOptionsMap.set(c.id, { value: c.id, label: c.name });
   }
   const campOptions = [...campOptionsMap.values()];
-  const campLoading = campSearch ? campSearchQuery.isLoading : campInitialQuery.isLoading;
+  const campLoading = campQuery.isLoading && campOpen;
 
   // Search queries: server-side search with debounce
   const [sqSearch, setSqSearch] = useState('');
+  const [sqOpen, setSqOpen] = useState(false);
   const sqDebounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const sqSearchQuery = useQuery({
+  const sqQuery = useQuery({
     queryKey: ['leads', 'search-queries', 'search', sqSearch],
     queryFn: () => api.searchSearchQueries(sqSearch, 20),
-    enabled: sqSearch.length > 0,
+    enabled: sqOpen,
   });
-  // Fetch initial results on open (empty search)
-  const sqInitialQuery = useQuery({
-    queryKey: ['leads', 'search-queries', 'search', ''],
-    queryFn: () => api.searchSearchQueries('', 20),
-    enabled: false,
-  });
-  // Resolve labels for pre-selected IDs from URL
   const sqSelectedIds = filters.searchQueryIds || [];
   const sqByIdsQuery = useQuery({
     queryKey: ['leads', 'search-queries', 'byIds', sqSelectedIds.join(',')],
@@ -127,18 +115,15 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
     clearTimeout(sqDebounceRef.current);
     sqDebounceRef.current = setTimeout(() => setSqSearch(q), 200);
   }, []);
-  const handleSqOpen = useCallback((open: boolean) => {
-    if (open && !sqInitialQuery.data) sqInitialQuery.refetch();
-  }, [sqInitialQuery]);
-  // Merge: search results + selected label lookups (deduped)
-  const sqSearchResults = (sqSearch ? sqSearchQuery.data : sqInitialQuery.data) ?? [];
+  const handleSqOpen = useCallback((open: boolean) => { setSqOpen(open); }, []);
+  const sqSearchResults = sqQuery.data ?? [];
   const sqSelectedLabels = sqByIdsQuery.data ?? [];
   const sqOptionsMap = new Map<string, ComboboxOption>();
   for (const q of [...sqSelectedLabels, ...sqSearchResults]) {
     if (!sqOptionsMap.has(q.id)) sqOptionsMap.set(q.id, { value: q.id, label: q.textQuery });
   }
   const sqOptions = [...sqOptionsMap.values()];
-  const sqLoading = sqSearch ? sqSearchQuery.isLoading : sqInitialQuery.isLoading;
+  const sqLoading = sqQuery.isLoading && sqOpen;
 
   const pipelineStatuses = useLazyQuery(['leads', 'pipeline-statuses'], () => api.getPipelineStatuses(), [], !!filters.pipelineStatuses?.length);
   const sources = useLazyQuery(['leads', 'sources'], () => api.getSources(), [], !!filters.sources?.length);

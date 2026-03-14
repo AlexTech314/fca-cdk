@@ -216,7 +216,8 @@ export interface LeadFilters {
   cityId?: number;
   stateIds?: string[];
   businessTypes?: string[];
-  campaignId?: string;
+  campaignIds?: string[];
+  searchQueryIds?: string[];
   franchiseId?: string;
   ratingMin?: number;
   ratingMax?: number;

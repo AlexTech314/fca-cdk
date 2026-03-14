@@ -67,6 +67,16 @@ export const leadService = {
     return rows.map((r) => r.source);
   },
 
+  async getDistinctSearchQueries(): Promise<Array<{ id: string; textQuery: string }>> {
+    const rows = await prisma.$queryRaw<Array<{ id: string; text_query: string }>>`
+      SELECT DISTINCT sq.id, sq.text_query
+      FROM search_queries sq
+      INNER JOIN leads l ON l.search_query_id = sq.id
+      ORDER BY sq.text_query
+    `;
+    return rows.map((r) => ({ id: r.id, textQuery: r.text_query }));
+  },
+
   async getDistinctTiers(): Promise<number[]> {
     const rows = await prisma.$queryRaw<Array<{ tier: number }>>`
       WITH RECURSIVE vals AS (

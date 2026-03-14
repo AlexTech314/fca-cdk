@@ -65,6 +65,24 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
     [],
   );
 
+  const campaigns = useLazyQuery(
+    ['campaigns'],
+    async () => {
+      const list = await api.getCampaigns();
+      return list.map(c => ({ value: c.id, label: c.name }));
+    },
+    [],
+  );
+
+  const searchQueries = useLazyQuery(
+    ['leads', 'search-queries'],
+    async () => {
+      const list = await api.getSearchQueries();
+      return list.map(q => ({ value: q.id, label: q.textQuery }));
+    },
+    [],
+  );
+
   const pipelineStatuses = useLazyQuery(['leads', 'pipeline-statuses'], () => api.getPipelineStatuses(), []);
   const sources = useLazyQuery(['leads', 'sources'], () => api.getSources(), []);
   const tiers = useLazyQuery(['leads', 'tiers'], () => api.getTiers(), []);
@@ -120,7 +138,36 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
           </div>
         </div>
 
-        {/* Row 2: Pipeline Status + Source + Tier */}
+        {/* Row 2: Campaign + Search Query */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Campaign</Label>
+            <MultiCombobox
+              options={campaigns.data}
+              selected={filters.campaignIds || []}
+              onChange={(vals) => update({ campaignIds: vals.length > 0 ? vals : undefined })}
+              onOpenChange={campaigns.activate}
+              loading={campaigns.isLoading}
+              placeholder="All campaigns"
+              searchPlaceholder="Search campaigns..."
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Search Query</Label>
+            <MultiCombobox
+              options={searchQueries.data}
+              selected={filters.searchQueryIds || []}
+              onChange={(vals) => update({ searchQueryIds: vals.length > 0 ? vals : undefined })}
+              onOpenChange={searchQueries.activate}
+              loading={searchQueries.isLoading}
+              placeholder="All search queries"
+              searchPlaceholder="Search queries..."
+            />
+          </div>
+        </div>
+
+        {/* Row 3: Pipeline Status + Source + Tier */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1.5">
             <Label className="text-xs">Pipeline Status</Label>

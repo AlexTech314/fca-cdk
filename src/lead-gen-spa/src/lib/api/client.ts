@@ -339,6 +339,10 @@ export const realApi: LeadGenApi = {
     return apiClient<number[]>('/leads/tiers');
   },
 
+  async getSearchQueries(): Promise<Array<{ id: string; textQuery: string }>> {
+    return apiClient<Array<{ id: string; textQuery: string }>>('/leads/search-queries');
+  },
+
   async searchCities(q: string): Promise<Array<{ id: number; name: string; state: { id: string; name: string } }>> {
     if (!q.trim()) return [];
     const qs = new URLSearchParams({ q, type: 'city', limit: '15' });
@@ -360,19 +364,11 @@ export const realApi: LeadGenApi = {
     qs.set('order', params.order);
     if (params.fields?.length) qs.set('fields', params.fields.join(','));
 
-    const { filters } = params;
-    if (filters.name) qs.set('name', filters.name);
-    if (filters.cityId) qs.set('cityId', String(filters.cityId));
-    if (filters.stateIds?.length) qs.set('stateIds', filters.stateIds.join(','));
-    if (filters.businessTypes?.length) qs.set('businessTypes', filters.businessTypes.join(','));
-    if (filters.campaignId) qs.set('campaignId', filters.campaignId);
-    if (filters.ratingMin !== undefined) qs.set('ratingMin', String(filters.ratingMin));
-    if (filters.ratingMax !== undefined) qs.set('ratingMax', String(filters.ratingMax));
-    if (filters.hasWebsite !== undefined) qs.set('hasWebsite', String(filters.hasWebsite));
-    if (filters.hasPhone !== undefined) qs.set('hasPhone', String(filters.hasPhone));
-    if (filters.franchiseId) qs.set('franchiseId', filters.franchiseId);
-    if (filters.hasExtractedEmail !== undefined) qs.set('hasExtractedEmail', String(filters.hasExtractedEmail));
-    if (filters.hasExtractedPhone !== undefined) qs.set('hasExtractedPhone', String(filters.hasExtractedPhone));
+    for (const [k, v] of Object.entries(params.filters)) {
+      if (v === undefined || v === null || v === '') continue;
+      if (Array.isArray(v)) { if (v.length > 0) qs.set(k, v.join(',')); }
+      else qs.set(k, String(v));
+    }
 
     const result = await apiClient<{ data: any[]; total: number; page: number; limit: number; totalPages: number }>(
       `/leads?${qs}`
@@ -419,14 +415,11 @@ export const realApi: LeadGenApi = {
     qs.set('sortIndex', String(sortIndex));
     qs.set('direction', direction);
     if (filters) {
-      if (filters.name) qs.set('name', filters.name);
-      if (filters.cityId) qs.set('cityId', String(filters.cityId));
-      if (filters.stateIds?.length) qs.set('stateIds', filters.stateIds.join(','));
-      if (filters.businessTypes?.length) qs.set('businessTypes', filters.businessTypes.join(','));
-      if (filters.campaignId) qs.set('campaignId', filters.campaignId);
-      if (filters.franchiseId) qs.set('franchiseId', filters.franchiseId);
-      if (filters.hasExtractedEmail !== undefined) qs.set('hasExtractedEmail', String(filters.hasExtractedEmail));
-      if (filters.hasExtractedPhone !== undefined) qs.set('hasExtractedPhone', String(filters.hasExtractedPhone));
+      for (const [k, v] of Object.entries(filters)) {
+        if (v === undefined || v === null || v === '') continue;
+        if (Array.isArray(v)) { if (v.length > 0) qs.set(k, v.join(',')); }
+        else qs.set(k, String(v));
+      }
     }
     const result = await apiClient<{ sortIndex: number | null }>(`/leads/neighbor?${qs}`);
     return result.sortIndex;
@@ -460,15 +453,11 @@ export const realApi: LeadGenApi = {
 
   async getLeadCount(params: LeadQueryParams): Promise<number> {
     const qs = new URLSearchParams();
-    const { filters } = params;
-    if (filters.name) qs.set('name', filters.name);
-    if (filters.cityId) qs.set('cityId', String(filters.cityId));
-    if (filters.stateIds?.length) qs.set('stateIds', filters.stateIds.join(','));
-    if (filters.businessTypes?.length) qs.set('businessTypes', filters.businessTypes.join(','));
-    if (filters.campaignId) qs.set('campaignId', filters.campaignId);
-    if (filters.franchiseId) qs.set('franchiseId', filters.franchiseId);
-    if (filters.hasExtractedEmail !== undefined) qs.set('hasExtractedEmail', String(filters.hasExtractedEmail));
-    if (filters.hasExtractedPhone !== undefined) qs.set('hasExtractedPhone', String(filters.hasExtractedPhone));
+    for (const [k, v] of Object.entries(params.filters)) {
+      if (v === undefined || v === null || v === '') continue;
+      if (Array.isArray(v)) { if (v.length > 0) qs.set(k, v.join(',')); }
+      else qs.set(k, String(v));
+    }
 
     const result = await apiClient<{ count: number }>(`/leads/count?${qs}`);
     return result.count;

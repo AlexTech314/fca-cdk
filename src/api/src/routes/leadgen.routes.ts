@@ -181,6 +181,15 @@ router.get('/leads/tiers', async (_req, res, next) => {
   }
 });
 
+router.get('/leads/search-queries', async (_req, res, next) => {
+  try {
+    const queries = await leadService.getDistinctSearchQueries();
+    res.json(queries);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ============================================
 // LEADS
 // ============================================

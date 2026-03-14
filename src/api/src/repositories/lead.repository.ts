@@ -370,8 +370,11 @@ function buildWhereClause(
   if (filters.businessTypes?.length) {
     where.businessType = { in: filters.businessTypes };
   }
-  if (filters.campaignId) {
-    where.campaignId = filters.campaignId;
+  if (filters.campaignIds?.length) {
+    where.campaignId = { in: filters.campaignIds };
+  }
+  if (filters.searchQueryIds?.length) {
+    where.searchQueryId = { in: filters.searchQueryIds };
   }
   if (filters.ratingMin !== undefined) {
     where.rating = { ...((where.rating as object) || {}), gte: filters.ratingMin };

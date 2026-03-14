@@ -210,30 +210,28 @@ export class StatefulStack extends cdk.Stack {
     // ============================================================
     // Custom resource: invoke seed-db Lambda with migrate after deploy
     // ============================================================
-    const migratePayload = JSON.stringify({
-      action: 'migrate',
-      _deployTimestamp: Date.now(),
-    });
+    const migrateSalt = Date.now().toString();
+    const migratePayload = JSON.stringify({ action: 'migrate' });
     const migrateCustomResource = new cr.AwsCustomResource(this, 'SeedDbMigrate', {
       onCreate: {
         service: 'Lambda',
         action: 'invoke',
         parameters: {
           FunctionName: this.seedLambda.functionName,
-          InvocationType: 'RequestResponse',
+          InvocationType: 'Event',
           Payload: migratePayload,
         },
-        physicalResourceId: cr.PhysicalResourceId.of('SeedDbMigrate'),
+        physicalResourceId: cr.PhysicalResourceId.of(`SeedDbMigrate-${migrateSalt}`),
       },
       onUpdate: {
         service: 'Lambda',
         action: 'invoke',
         parameters: {
           FunctionName: this.seedLambda.functionName,
-          InvocationType: 'RequestResponse',
+          InvocationType: 'Event',
           Payload: migratePayload,
         },
-        physicalResourceId: cr.PhysicalResourceId.of('SeedDbMigrate'),
+        physicalResourceId: cr.PhysicalResourceId.of(`SeedDbMigrate-${migrateSalt}`),
       },
       policy: cr.AwsCustomResourcePolicy.fromStatements([
         new iam.PolicyStatement({

@@ -210,6 +210,16 @@ export interface LeadGenApi {
   // ===========================================
   
   /**
+   * Search campaigns by name (paginated)
+   */
+  searchCampaigns(q: string, limit?: number): Promise<Array<{ id: string; name: string }>>;
+
+  /**
+   * Get campaigns by IDs (for resolving labels on page load)
+   */
+  getCampaignsByIds(ids: string[]): Promise<Array<{ id: string; name: string }>>;
+
+  /**
    * Get all campaigns with stats
    */
   getCampaigns(): Promise<CampaignWithStats[]>;

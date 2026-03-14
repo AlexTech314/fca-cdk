@@ -1,3 +1,4 @@
+import { prisma } from '@fca/db';
 import { campaignRepository, campaignRunRepository } from '../repositories/campaign.repository';
 import type { CreateCampaignInput, UpdateCampaignInput, StartCampaignRunInput } from '../models/campaign.model';
 import { s3Client } from '../lib/s3';
@@ -39,6 +40,24 @@ async function fetchSearchesFromS3(s3Key: string): Promise<unknown[]> {
 export const campaignService = {
   async list() {
     return campaignRepository.findMany();
+  },
+
+  async search(q: string, limit = 20): Promise<Array<{ id: string; name: string }>> {
+    return prisma.campaign.findMany({
+      where: q ? { name: { contains: q, mode: 'insensitive' } } : undefined,
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+      take: limit,
+    });
+  },
+
+  async getByIds(ids: string[]): Promise<Array<{ id: string; name: string }>> {
+    if (ids.length === 0) return [];
+    return prisma.campaign.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
   },
 
   async getById(id: string) {

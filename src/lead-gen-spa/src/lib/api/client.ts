@@ -507,6 +507,17 @@ export const realApi: LeadGenApi = {
   // Campaigns
   // ===========================================
 
+  async searchCampaigns(q: string, limit = 20): Promise<Array<{ id: string; name: string }>> {
+    const qs = new URLSearchParams({ q, limit: String(limit) });
+    return apiClient<Array<{ id: string; name: string }>>(`/campaigns/search?${qs}`);
+  },
+
+  async getCampaignsByIds(ids: string[]): Promise<Array<{ id: string; name: string }>> {
+    if (ids.length === 0) return [];
+    const qs = new URLSearchParams({ ids: ids.join(',') });
+    return apiClient<Array<{ id: string; name: string }>>(`/campaigns/search?${qs}`);
+  },
+
   async getCampaigns(): Promise<CampaignWithStats[]> {
     const raw = await apiClient<any[]>('/campaigns');
     return raw.map(transformCampaignWithStats);

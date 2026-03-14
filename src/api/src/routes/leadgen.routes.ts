@@ -623,6 +623,23 @@ router.post('/leads/export', authorize('readwrite', 'admin'), async (req, res, n
 // CAMPAIGNS
 // ============================================
 
+router.get('/campaigns/search', async (req, res, next) => {
+  try {
+    const ids = req.query.ids ? String(req.query.ids).split(',').filter(Boolean) : [];
+    if (ids.length > 0) {
+      const campaigns = await campaignService.getByIds(ids);
+      res.json(campaigns);
+      return;
+    }
+    const q = String(req.query.q || '').trim();
+    const limit = Math.min(Number(req.query.limit) || 20, 50);
+    const campaigns = await campaignService.search(q, limit);
+    res.json(campaigns);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/campaigns', async (_req, res, next) => {
   try {
     const campaigns = await campaignService.list();

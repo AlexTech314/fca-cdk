@@ -67,15 +67,40 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
     !!filters.businessTypes?.length,
   );
 
-  const campaigns = useLazyQuery(
-    ['campaigns'],
-    async () => {
-      const list = await api.getCampaigns();
-      return list.map(c => ({ value: c.id, label: c.name }));
-    },
-    [],
-    !!filters.campaignIds?.length,
-  );
+  // Campaigns: server-side search with debounce
+  const [campSearch, setCampSearch] = useState('');
+  const campDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const campSearchQuery = useQuery({
+    queryKey: ['campaigns', 'search', campSearch],
+    queryFn: () => api.searchCampaigns(campSearch, 20),
+    enabled: campSearch.length > 0,
+  });
+  const campInitialQuery = useQuery({
+    queryKey: ['campaigns', 'search', ''],
+    queryFn: () => api.searchCampaigns('', 20),
+    enabled: false,
+  });
+  const campSelectedIds = filters.campaignIds || [];
+  const campByIdsQuery = useQuery({
+    queryKey: ['campaigns', 'byIds', campSelectedIds.join(',')],
+    queryFn: () => api.getCampaignsByIds(campSelectedIds),
+    enabled: campSelectedIds.length > 0,
+  });
+  const handleCampSearch = useCallback((q: string) => {
+    clearTimeout(campDebounceRef.current);
+    campDebounceRef.current = setTimeout(() => setCampSearch(q), 200);
+  }, []);
+  const handleCampOpen = useCallback((open: boolean) => {
+    if (open && !campInitialQuery.data) campInitialQuery.refetch();
+  }, [campInitialQuery]);
+  const campSearchResults = (campSearch ? campSearchQuery.data : campInitialQuery.data) ?? [];
+  const campSelectedLabels = campByIdsQuery.data ?? [];
+  const campOptionsMap = new Map<string, ComboboxOption>();
+  for (const c of [...campSelectedLabels, ...campSearchResults]) {
+    if (!campOptionsMap.has(c.id)) campOptionsMap.set(c.id, { value: c.id, label: c.name });
+  }
+  const campOptions = [...campOptionsMap.values()];
+  const campLoading = campSearch ? campSearchQuery.isLoading : campInitialQuery.isLoading;
 
   // Search queries: server-side search with debounce
   const [sqSearch, setSqSearch] = useState('');
@@ -175,11 +200,12 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
           <div className="space-y-1.5">
             <Label className="text-xs">Campaign</Label>
             <MultiCombobox
-              options={campaigns.data}
+              options={campOptions}
               selected={filters.campaignIds || []}
               onChange={(vals) => update({ campaignIds: vals.length > 0 ? vals : undefined })}
-              onOpenChange={campaigns.activate}
-              loading={campaigns.isLoading}
+              onOpenChange={handleCampOpen}
+              onSearch={handleCampSearch}
+              loading={campLoading}
               placeholder="All campaigns"
               searchPlaceholder="Search campaigns..."
             />

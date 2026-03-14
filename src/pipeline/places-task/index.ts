@@ -116,6 +116,42 @@ function extractAddressComponent(
   return c?.longText || c?.shortText || '';
 }
 
+/** Generic Google types that don't convey meaningful business information */
+const GENERIC_TYPES = new Set([
+  'establishment', 'point_of_interest', 'store', 'food', 'health',
+  'finance', 'general_contractor', 'political', 'locality',
+  'sublocality', 'route', 'street_address',
+]);
+
+/** Convert a snake_case Google type code to a human-readable title */
+function humanizeType(typeCode: string): string {
+  return typeCode
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/** Get the best business type string from a PlaceResult */
+function resolveBusinessType(place: PlaceResult): string | null {
+  if (place.primaryTypeDisplayName?.text) return place.primaryTypeDisplayName.text;
+  if (place.primaryType) return humanizeType(place.primaryType);
+  // Fallback: first non-generic type from the types array
+  if (place.types?.length) {
+    const meaningful = place.types.find((t) => !GENERIC_TYPES.has(t));
+    if (meaningful) return humanizeType(meaningful);
+  }
+  return null;
+}
+
+/** Get the best primary type code from a PlaceResult */
+function resolvePrimaryType(place: PlaceResult): string | null {
+  if (place.primaryType) return place.primaryType;
+  if (place.types?.length) {
+    return place.types.find((t) => !GENERIC_TYPES.has(t)) ?? null;
+  }
+  return null;
+}
+
 function normalizeName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ');
 }
@@ -449,7 +485,7 @@ async function main() {
               location_state_id, location_city_id,
               name, name_normalized, address, zip_code, phone, website,
               rating, review_count, price_level, business_type, source,
-              business_status, latitude, longitude, primary_type, opening_hours,
+              business_status, latitude, longitude, primary_type, google_types, opening_hours,
               editorial_summary, review_summary, google_maps_uri,
               sort_index,
               created_at, updated_at
@@ -462,11 +498,11 @@ async function main() {
               ${place.nationalPhoneNumber ?? null}, ${sanitizeWebsiteUrl(place.websiteUri) ?? null},
               ${place.rating ?? null}, ${place.userRatingCount ?? null},
               ${mapPriceLevel(place.priceLevel)},
-              ${place.primaryTypeDisplayName?.text ?? place.primaryType ?? null},
+              ${resolveBusinessType(place)},
               'google_places',
               ${place.businessStatus ?? null},
               ${place.location?.latitude ?? null}, ${place.location?.longitude ?? null},
-              ${place.primaryType ?? null}, ${openingHours},
+              ${resolvePrimaryType(place)}, ${place.types ?? []}, ${openingHours},
               ${editorialSummary}, ${reviewSummary}, ${googleMapsUri},
               ${leadSortIndex},
               NOW(), NOW()

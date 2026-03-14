@@ -20,6 +20,7 @@ const TASK_TYPE_LABELS: Record<FargateTaskType, string> = {
   web_scrape: 'Quick Scrape',
   deep_scrape: 'Deep Scrape',
   ai_scoring: 'AI Scoring',
+  contact_extraction: 'Contact Extraction',
 };
 
 const STATUS_COLORS: Record<FargateTaskStatus, string> = {

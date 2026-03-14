@@ -769,6 +769,7 @@ model Lead {
   latitude             Float?
   longitude            Float?
   primaryType          String?   @map("primary_type")      // Google type code
+  googleTypes          String[]  @default([]) @map("google_types") // All Google Places types
   openingHours         String?   @map("opening_hours")
   editorialSummary     String?   @map("editorial_summary")
   reviewSummary        String?   @map("review_summary")

@@ -334,5 +334,14 @@ SCRIPT`,
       value: this.campaignDataBucket.bucketName,
       description: 'S3 bucket for campaign data',
     });
+
+    // TODO: Remove after one successful deploy — keeps cross-stack exports alive
+    // while the previously-deployed LeadGenPipeline template still imports them.
+    this.exportValue(this.seedLambda.functionArn, {
+      name: 'Dev-Stateful:ExportsOutputFnGetAttSeedDbLambda011A8EC7Arn32396316',
+    });
+    this.exportValue(this.seedLambda.functionName, {
+      name: 'Dev-Stateful:ExportsOutputRefSeedDbLambda011A8EC7955F7BF6',
+    });
   }
 }

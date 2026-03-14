@@ -14,13 +14,16 @@
  */
 
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { bootstrapDatabaseUrl } from '@fca/db';
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 
 const s3Client = new S3Client({});
+const sqsClient = new SQSClient({});
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY!;
 const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
+const SCRAPE_QUEUE_URL = process.env.SCRAPE_QUEUE_URL;
 
 const RATE_LIMIT_PER_SECOND = 5;
 let lastRequestTime = 0;
@@ -329,6 +332,13 @@ async function main() {
       return;
     }
 
+    // Check campaign's enable_web_scraping flag (all leads in a run share the same campaign)
+    const campaign = await prisma.campaign.findUniqueOrThrow({
+      where: { id: campaignId },
+      select: { enableWebScraping: true },
+    });
+    const enableWebScraping = campaign.enableWebScraping && !!SCRAPE_QUEUE_URL;
+
     // Pre-load geography lookups to avoid N+1 queries per place
     const allStates = await prisma.state.findMany();
     const stateById = new Map(allStates.map((s) => [s.id.toLowerCase(), s]));
@@ -479,7 +489,8 @@ async function main() {
           const googleMapsUri =
             place.googleMapsUri ?? `https://www.google.com/maps/place/?q=place_id:${place.id}`;
           const leadSortIndex = sortCeiling + Math.random();
-          const result = await prisma.$executeRaw`
+          const website = sanitizeWebsiteUrl(place.websiteUri) ?? null;
+          const rows = await prisma.$queryRaw<{ id: string; place_id: string; website: string | null }[]>`
             INSERT INTO leads (
               id, place_id, campaign_id, campaign_run_id, search_query_id, franchise_id,
               location_state_id, location_city_id,
@@ -495,7 +506,7 @@ async function main() {
               ${locationStateId}, ${locationCityId},
               ${name}, ${nameNormalized}, ${place.formattedAddress ?? null},
               ${zipCode || null},
-              ${place.nationalPhoneNumber ?? null}, ${sanitizeWebsiteUrl(place.websiteUri) ?? null},
+              ${place.nationalPhoneNumber ?? null}, ${website},
               ${place.rating ?? null}, ${place.userRatingCount ?? null},
               ${mapPriceLevel(place.priceLevel)},
               ${resolveBusinessType(place)},
@@ -507,10 +518,31 @@ async function main() {
               ${leadSortIndex},
               NOW(), NOW()
             )
-            ON CONFLICT (place_id) DO NOTHING`;
+            ON CONFLICT (place_id) DO NOTHING
+            RETURNING id, place_id, website`;
 
-          if (result > 0) {
+          if (rows.length > 0) {
             leadsFound++;
+            const inserted = rows[0];
+            // Send to scrape queue if web scraping is enabled and lead has a website
+            if (enableWebScraping && inserted.website) {
+              try {
+                await sqsClient.send(new SendMessageCommand({
+                  QueueUrl: SCRAPE_QUEUE_URL,
+                  MessageBody: JSON.stringify({
+                    lead_id: inserted.id,
+                    place_id: inserted.place_id,
+                    website: inserted.website,
+                  }),
+                }));
+                await prisma.lead.update({
+                  where: { id: inserted.id },
+                  data: { pipelineStatus: 'queued_for_scrape' },
+                });
+              } catch (sqsErr) {
+                console.error(`Failed to enqueue lead ${inserted.id} for scrape:`, sqsErr);
+              }
+            }
           } else {
             duplicatesSkipped++;
           }

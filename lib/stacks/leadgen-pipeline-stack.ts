@@ -1,4 +1,3 @@
-import * as cr from 'aws-cdk-lib/custom-resources';
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
@@ -21,15 +20,12 @@ export interface LeadGenPipelineStackProps extends cdk.StackProps {
   readonly databaseSecret: secretsmanager.ISecret;
   readonly pipelineSecurityGroup: ec2.ISecurityGroup;
   readonly campaignDataBucket: s3.IBucket;
-  /** Seed DB Lambda (for configure-bridge after deploy) */
-  readonly seedLambda: lambda.IFunction;
 }
 
 /**
  * Lead Generation Pipeline Stack (stateless).
  *
- * Contains: SQS queues, Bridge Lambda, ECS Fargate task defs,
- * Step Functions state machine, Scoring Lambda.
+ * Contains: SQS queues, ECS Fargate task defs, trigger Lambdas.
  */
 export class LeadGenPipelineStack extends cdk.Stack {
   public readonly startPlacesLambdaArn: string;
@@ -43,7 +39,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
     super(scope, id, props);
 
-    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket, seedLambda } = props;
+    const { vpc, database, databaseSecret, pipelineSecurityGroup, campaignDataBucket } = props;
 
     // Direct RDS connection (no proxy -- saves $21.90/mo, peak ~165 connections vs ~225 limit)
     const databaseEndpoint = database.dbInstanceEndpointAddress;
@@ -122,84 +118,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
     const node20Slim = ecrNodeSlim(this.account, this.region);
 
     // ============================================================
-    // Bridge Lambda (PG trigger -> SQS)
-    // ============================================================
-    const bridgeImage = new TokenInjectableDockerBuilder(this, 'BridgeImage', {
-      path: path.join(__dirname, '../../src'),
-      file: 'lambda/bridge/Dockerfile',
-      platform: 'linux/arm64',
-      provider,
-      buildArgs: { NODE_20_SLIM: node20Slim },
-      ecrPullThroughCachePrefixes: ['docker-hub', 'ghcr'],
-      retainBuildLogs: true,
-    });
-
-    const bridgeLambdaLogGroup = new logs.LogGroup(this, 'BridgeLambdaLogs', {
-      retention: logs.RetentionDays.ONE_WEEK,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    const bridgeLambda = new lambda.DockerImageFunction(this, 'BridgeLambda', {
-      code: bridgeImage.dockerImageCode,
-      architecture: lambda.Architecture.ARM_64,
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 256,
-      logGroup: bridgeLambdaLogGroup,
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-      securityGroups: [pipelineSecurityGroup],
-      environment: {
-        SCRAPE_QUEUE_URL: scrapeQueue.queueUrl,
-        DATABASE_SECRET_ARN: databaseSecret.secretArn,
-        DATABASE_HOST: databaseEndpoint,
-      },
-    });
-
-    scrapeQueue.grantSendMessages(bridgeLambda);
-    databaseSecret.grantRead(bridgeLambda);
-
-    // ============================================================
-    // Configure Bridge Lambda ARN in RDS (for PG triggers)
-    // ============================================================
-    const configureBridgePayload = JSON.stringify({
-      action: 'configure-bridge',
-      bridgeLambdaArn: bridgeLambda.functionArn,
-      awsRegion: this.region,
-    });
-    const configureBridgeSalt = Date.now().toString();
-    const configureBridgeResource = new cr.AwsCustomResource(this, 'ConfigureBridgeLambda', {
-      onCreate: {
-        service: 'Lambda',
-        action: 'invoke',
-        parameters: {
-          FunctionName: seedLambda.functionName,
-          InvocationType: 'RequestResponse',
-          Payload: configureBridgePayload,
-        },
-        physicalResourceId: cr.PhysicalResourceId.of(`ConfigureBridgeLambda-${configureBridgeSalt}`),
-      },
-      onUpdate: {
-        service: 'Lambda',
-        action: 'invoke',
-        parameters: {
-          FunctionName: seedLambda.functionName,
-          InvocationType: 'RequestResponse',
-          Payload: configureBridgePayload,
-        },
-        physicalResourceId: cr.PhysicalResourceId.of(`CBL-${configureBridgeSalt}`),
-      },
-      policy: cr.AwsCustomResourcePolicy.fromStatements([
-        new iam.PolicyStatement({
-          actions: ['lambda:InvokeFunction'],
-          resources: [seedLambda.functionArn],
-        }),
-      ]),
-      timeout: cdk.Duration.minutes(2),
-      installLatestAwsSdk: false,
-    });
-    configureBridgeResource.node.addDependency(bridgeLambda);
-
-    // ============================================================
     // Places Ingestion Fargate Task
     // ============================================================
     const placesImage = new TokenInjectableDockerBuilder(this, 'PlacesImage', {
@@ -235,12 +153,14 @@ export class LeadGenPipelineStack extends cdk.Stack {
         DATABASE_SECRET_ARN: databaseSecret.secretArn,
         DATABASE_HOST: databaseEndpoint,
         DATABASE_CONNECTION_LIMIT: '1',
+        SCRAPE_QUEUE_URL: scrapeQueue.queueUrl,
         AWS_REGION: this.region,
       },
     });
 
     campaignDataBucket.grantRead(placesTaskDef.taskRole);
     databaseSecret.grantRead(placesTaskDef.taskRole);
+    scrapeQueue.grantSendMessages(placesTaskDef.taskRole);
 
     // ============================================================
     // Start Places Lambda (invoked by API when campaign run starts)
@@ -659,11 +579,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ScoringQueueUrl', {
       value: scoringQueue.queueUrl,
       description: 'SQS scoring queue URL',
-    });
-
-    new cdk.CfnOutput(this, 'BridgeLambdaArn', {
-      value: bridgeLambda.functionArn,
-      description: 'Bridge Lambda ARN (for RDS trigger configuration)',
     });
 
     new cdk.CfnOutput(this, 'PlacesTaskDefArn', {

@@ -13,12 +13,10 @@ import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
 import { existsSync, readdirSync } from 'fs';
 
-type SeedAction = 'seed' | 'seed-content' | 'seed-transactions' | 'wipe' | 'reset' | 'migrate' | 'cognito-seed' | 'configure-bridge' | 'cleanup';
+type SeedAction = 'seed' | 'seed-content' | 'seed-transactions' | 'wipe' | 'reset' | 'migrate' | 'cognito-seed' | 'cleanup';
 
 interface SeedEvent {
   action?: SeedAction;
-  bridgeLambdaArn?: string;
-  awsRegion?: string;
 }
 
 const COGNITO_SEED_USERS = [
@@ -126,33 +124,6 @@ export async function handler(event: SeedEvent): Promise<{ status: string; actio
     const output = runCommand('npx prisma migrate deploy', dbPkgPath);
     console.log('=== MIGRATE COMPLETE ===');
     console.log(output);
-  }
-
-  // Configure Bridge Lambda ARN for PG triggers (invoked by LeadGenPipelineStack after deploy)
-  if (action === 'configure-bridge') {
-    const bridgeLambdaArn = event.bridgeLambdaArn;
-    const awsRegion = event.awsRegion;
-    if (!bridgeLambdaArn || !awsRegion) {
-      throw new Error('configure-bridge requires bridgeLambdaArn and awsRegion in payload');
-    }
-    console.log('=== CONFIGURE BRIDGE START ===');
-    const prisma = new PrismaClient({ log: ['warn', 'error'] });
-    try {
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO _bridge_config (key, value) VALUES ('bridge_lambda_arn', $1)
-         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-        bridgeLambdaArn
-      );
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO _bridge_config (key, value) VALUES ('aws_region', $1)
-         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-        awsRegion
-      );
-      console.log(`Set bridge_lambda_arn and aws_region in _bridge_config table`);
-    } finally {
-      await prisma.$disconnect();
-    }
-    console.log('=== CONFIGURE BRIDGE COMPLETE ===');
   }
 
   // Seed/wipe operations need Prisma client + seed module

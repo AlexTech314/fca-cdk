@@ -98,8 +98,8 @@ const PASS_C_TOOL = {
             items: {
               type: 'object',
               properties: {
-                url: { type: 'string' },
-                text: { type: 'string' },
+                url: { type: 'string', description: 'The source page URL' },
+                text: { type: 'string', description: 'A verbatim sentence or passage (at least 10 words) from the page body. Never a page title or heading.' },
               },
               required: ['url', 'text'],
             },

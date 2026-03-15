@@ -59,7 +59,7 @@ CRITICAL RULES:
 6. **licensing_bonding**: State contractor licenses, license classes, surety bonds, insurance coverage, bonding capacity, licensing jurisdictions.
 7. **scale_indicators**: Fleet size, vehicles, equipment, warehouse square footage, geographic scope, employee count hints, project volume.
 8. **industry_affiliations**: NAICS/SIC codes, industry association memberships, trade affiliations, industry-specific certifications.
-9. **notable_quotes**: Up to 5 verbatim quotes from the site. Prioritize quotes revealing ownership/acquisition status, business quality/scale, and exit readiness. Copy quotes EXACTLY as written on the site.
+9. **notable_quotes**: Up to 5 verbatim sentences or passages (each at least 10 words) from the site body content. Do NOT extract page titles, headings, navigation labels, or taglines shorter than 10 words. Prioritize quotes revealing ownership/acquisition status, business history/longevity, business quality/scale, and exit readiness. Copy quotes EXACTLY as written on the site.
 
 Use false for booleans with no evidence, empty arrays [] for lists with no items.`;
 

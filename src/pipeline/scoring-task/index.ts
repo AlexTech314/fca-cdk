@@ -235,6 +235,41 @@ async function main(): Promise<void> {
         }
       }
 
+      // Also enrich the best contact if it was newly created and has a matching extraction result
+      if (result.owner_email) {
+        const bestContact = await db.leadContact.findFirst({
+          where: { leadId: lead_id, isBestContact: true },
+        });
+        if (bestContact && !bestContact.firstName) {
+          const match = contactResults.find(
+            (c) => c.email.toLowerCase() === (bestContact.email ?? '').toLowerCase()
+          );
+          if (match) {
+            await db.leadContact.update({
+              where: { id: bestContact.id },
+              data: { firstName: match.first_name, lastName: match.last_name, description: match.contact_type },
+            });
+          }
+        }
+      }
+
+      // Promote a "human" contact (has first name + last name + email) to best contact
+      // if the current best contact is missing name info
+      const currentBest = await db.leadContact.findFirst({
+        where: { leadId: lead_id, isBestContact: true },
+      });
+      if (!currentBest || !currentBest.firstName || !currentBest.lastName) {
+        const humanContact = await db.leadContact.findFirst({
+          where: { leadId: lead_id, firstName: { not: null }, lastName: { not: null }, email: { not: null } },
+        });
+        if (humanContact && humanContact.id !== currentBest?.id) {
+          if (currentBest) {
+            await db.leadContact.update({ where: { id: currentBest.id }, data: { isBestContact: null } });
+          }
+          await db.leadContact.update({ where: { id: humanContact.id }, data: { isBestContact: true } });
+        }
+      }
+
       scored++;
       completed++;
       console.log(

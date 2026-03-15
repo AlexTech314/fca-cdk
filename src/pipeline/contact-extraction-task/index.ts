@@ -155,6 +155,22 @@ async function main(): Promise<void> {
         }
       }
 
+      // Promote a "human" contact to best if current best is missing name info
+      const currentBest = await db.leadContact.findFirst({
+        where: { leadId: lead_id, isBestContact: true },
+      });
+      if (!currentBest || !currentBest.firstName || !currentBest.lastName) {
+        const humanContact = await db.leadContact.findFirst({
+          where: { leadId: lead_id, firstName: { not: null }, lastName: { not: null }, email: { not: null } },
+        });
+        if (humanContact && humanContact.id !== currentBest?.id) {
+          if (currentBest) {
+            await db.leadContact.update({ where: { id: currentBest.id }, data: { isBestContact: null } });
+          }
+          await db.leadContact.update({ where: { id: humanContact.id }, data: { isBestContact: true } });
+        }
+      }
+
       extracted++;
       completed++;
       console.log(

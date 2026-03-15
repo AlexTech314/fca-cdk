@@ -139,8 +139,8 @@ async function main(): Promise<void> {
           await db.leadEmail.update({
             where: { leadId_value: { leadId: lead_id, value: contact.email.toLowerCase() } },
             data: {
-              firstName: contact.first_name,
-              lastName: contact.last_name,
+              firstName: contact.first_name && contact.first_name !== 'null' ? contact.first_name : null,
+              lastName: contact.last_name && contact.last_name !== 'null' ? contact.last_name : null,
               contactType: contact.contact_type,
             },
           });

@@ -12,8 +12,8 @@ Use these signals to match emails to names:
 - Page context (e.g., an email on the "About the Owner" section)
 
 Rules:
-- If an email is clearly generic (info@, support@, sales@, office@, hello@, contact@, admin@, billing@, service@, help@, team@, hr@), classify as "business" with null names
-- If you cannot determine the name for a non-generic email, return null for first_name and last_name
+- If an email is clearly generic (info@, support@, sales@, office@, hello@, contact@, admin@, billing@, service@, help@, team@, hr@), classify as "business" and omit first_name/last_name
+- If you cannot determine the name for a non-generic email, omit first_name and last_name
 - Only assign names when you have reasonable confidence from the page content
 - Use the extract_email_contacts tool to return your results`;
 
@@ -38,7 +38,7 @@ export const TOOL_SCHEMA = {
                 description: 'Type of contact: owner (founder/principal/CEO), team (employee/staff), business (generic email)',
               },
             },
-            required: ['email', 'first_name', 'last_name', 'contact_type'],
+            required: ['email', 'contact_type'],
           },
         },
       },

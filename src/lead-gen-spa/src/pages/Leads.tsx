@@ -4,7 +4,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { Button } from '@/components/ui/button';
-import { useLeads, useUpdateLead, useCreateLead, useCreateLeadContact, useUpdateLeadData, useDeleteLeadData, useDeleteLead, useDeleteLeadsBulk, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
+import { useLeads, useUpdateLead, useCreateLead, useDeleteLead, useDeleteLeadsBulk, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
 import { api } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import type { LeadFilters as LeadFiltersType, LeadListField, LeadQueryParams } from '@/types';
@@ -187,9 +187,6 @@ export default function Leads() {
   const { data, isLoading } = useLeads(queryParams);
   const updateLead = useUpdateLead();
   const createLead = useCreateLead();
-  const createContact = useCreateLeadContact();
-  const updateContactData = useUpdateLeadData();
-  const deleteContactData = useDeleteLeadData();
   const scrapeBulk = useScrapeLeadsBulk();
   const qualifyBulk = useQualifyLeadsBulk();
   const deleteLead = useDeleteLead();

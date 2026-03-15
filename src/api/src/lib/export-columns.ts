@@ -52,6 +52,14 @@ export const allColumnDefs: ExportColumnDef[] = [
   { key: 'tier', header: 'Tier', accessor: (l) => l.tier != null ? String(l.tier) : '' },
   { key: 'isIntermediated', header: 'Is Intermediated', accessor: (l) => l.isIntermediated ? 'Yes' : 'No' },
   { key: 'intermediationSignals', header: 'Intermediation Signals', accessor: (l) => l.intermediationSignals ?? '' },
+  { key: 'bestContactFirstName', header: 'Best Contact First Name', accessor: (l) => {
+    const best = (l.leadContacts ?? []).find((c: any) => c.isBestContact);
+    return best?.firstName ?? '';
+  }},
+  { key: 'bestContactLastName', header: 'Best Contact Last Name', accessor: (l) => {
+    const best = (l.leadContacts ?? []).find((c: any) => c.isBestContact);
+    return best?.lastName ?? '';
+  }},
   { key: 'bestContactEmail', header: 'Best Contact Email', accessor: (l) => {
     const best = (l.leadContacts ?? []).find((c: any) => c.isBestContact);
     return best?.email ?? '';
@@ -63,6 +71,18 @@ export const allColumnDefs: ExportColumnDef[] = [
   { key: 'bestContactLinkedin', header: 'Best Contact LinkedIn', accessor: (l) => {
     const best = (l.leadContacts ?? []).find((c: any) => c.isBestContact);
     return best?.linkedin ?? '';
+  }},
+  { key: 'bestContactInstagram', header: 'Best Contact Instagram', accessor: (l) => {
+    const best = (l.leadContacts ?? []).find((c: any) => c.isBestContact);
+    return best?.instagram ?? '';
+  }},
+  { key: 'bestContactFacebook', header: 'Best Contact Facebook', accessor: (l) => {
+    const best = (l.leadContacts ?? []).find((c: any) => c.isBestContact);
+    return best?.facebook ?? '';
+  }},
+  { key: 'bestContactTwitter', header: 'Best Contact Twitter', accessor: (l) => {
+    const best = (l.leadContacts ?? []).find((c: any) => c.isBestContact);
+    return best?.twitter ?? '';
   }},
   { key: 'controllingOwner', header: 'Controlling Owner', accessor: (l) => l.controllingOwner ?? '' },
   { key: 'ownershipType', header: 'Ownership Type', accessor: (l) => l.ownershipType ?? '' },

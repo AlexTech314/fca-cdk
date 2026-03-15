@@ -34,6 +34,19 @@ const columnGroups: ColumnGroup[] = [
     ],
   },
   {
+    label: 'Outreach',
+    columns: [
+      { key: 'bestContactFirstName', label: 'Best Contact First Name', default: false },
+      { key: 'bestContactLastName', label: 'Best Contact Last Name', default: false },
+      { key: 'bestContactEmail', label: 'Best Contact Email', default: false },
+      { key: 'bestContactPhone', label: 'Best Contact Phone', default: false },
+      { key: 'bestContactLinkedin', label: 'Best Contact LinkedIn', default: false },
+      { key: 'bestContactInstagram', label: 'Best Contact Instagram', default: false },
+      { key: 'bestContactFacebook', label: 'Best Contact Facebook', default: false },
+      { key: 'bestContactTwitter', label: 'Best Contact Twitter', default: false },
+    ],
+  },
+  {
     label: 'Google Places',
     columns: [
       { key: 'rating', label: 'Rating', default: true },
@@ -57,9 +70,8 @@ const columnGroups: ColumnGroup[] = [
       { key: 'tier', label: 'Tier', default: false },
       { key: 'isIntermediated', label: 'Is Intermediated', default: false },
       { key: 'intermediationSignals', label: 'Intermediation Signals', default: false },
-      { key: 'bestContactEmail', label: 'Best Contact Email', default: false },
-      { key: 'bestContactPhone', label: 'Best Contact Phone', default: false },
-      { key: 'bestContactLinkedin', label: 'Best Contact LinkedIn', default: false },
+      { key: 'bestContactFirstName', label: 'Best Contact First Name', default: false },
+      { key: 'bestContactLastName', label: 'Best Contact Last Name', default: false },
       { key: 'controllingOwner', label: 'Controlling Owner', default: false },
       { key: 'ownershipType', label: 'Ownership Type', default: false },
       { key: 'isExcluded', label: 'Is Excluded', default: false },
@@ -74,12 +86,6 @@ const columnGroups: ColumnGroup[] = [
       { key: 'webScrapedAt', label: 'Web Scraped At', default: false },
       { key: 'contactPageUrl', label: 'Contact Page URL', default: false },
       { key: 'pipelineStatus', label: 'Pipeline Status', default: false },
-    ],
-  },
-  {
-    label: 'Extracted Data',
-    columns: [
-      { key: 'contacts', label: 'Contacts', default: false },
     ],
   },
   {

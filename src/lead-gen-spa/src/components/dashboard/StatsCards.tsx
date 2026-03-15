@@ -15,12 +15,12 @@ function StatCard({ label, value, icon }: StatCardProps) {
   return (
     <Card>
       <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
             <p className="text-label">{label}</p>
-            <p className="text-metric-large mt-1">{formatNumber(value)}</p>
+            <p className="text-metric-large mt-1 truncate">{formatNumber(value)}</p>
           </div>
-          <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          <div className="h-12 w-12 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
             {icon}
           </div>
         </div>

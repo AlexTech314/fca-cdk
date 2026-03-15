@@ -78,7 +78,7 @@
   }
 
   .text-metric-large {
-    @apply text-[2.5rem] font-bold tracking-tight font-mono;
+    @apply text-[clamp(1.75rem,2.5vw,2.5rem)] font-bold tracking-tight font-mono;
   }
 
   .text-label {

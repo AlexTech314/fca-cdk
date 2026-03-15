@@ -360,8 +360,8 @@ async function main(): Promise<void> {
           pageMarkdownKeys,
         );
 
-        // Enqueue for scoring after scrape completes
-        if (SCORING_QUEUE_URL) {
+        // Enqueue for scoring after scrape completes (only if campaign has AI scoring enabled)
+        if (SCORING_QUEUE_URL && jobInput.enableAiScoring) {
           await sqsClient.send(new SendMessageCommand({
             QueueUrl: SCORING_QUEUE_URL,
             MessageBody: JSON.stringify({ lead_id: business.id, place_id: business.place_id }),

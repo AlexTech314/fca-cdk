@@ -335,9 +335,10 @@ async function main() {
     // Check campaign's enable_web_scraping flag (all leads in a run share the same campaign)
     const campaign = await prisma.campaign.findUniqueOrThrow({
       where: { id: campaignId },
-      select: { enableWebScraping: true },
+      select: { enableWebScraping: true, enableAiScoring: true },
     });
     const enableWebScraping = campaign.enableWebScraping && !!SCRAPE_QUEUE_URL;
+    const enableAiScoring = campaign.enableAiScoring;
 
     // Pre-load geography lookups to avoid N+1 queries per place
     const allStates = await prisma.state.findMany();
@@ -533,6 +534,7 @@ async function main() {
                     lead_id: inserted.id,
                     place_id: inserted.place_id,
                     website: inserted.website,
+                    enableAiScoring,
                   }),
                 }));
                 await prisma.lead.update({

@@ -209,6 +209,7 @@ export const leadService = {
               lead_id: id,
               place_id: lead.placeId ?? '',
               website: lead.website,
+              enableAiScoring: false,
             }),
           })
         );
@@ -238,7 +239,7 @@ export const leadService = {
           QueueUrl: SCRAPE_QUEUE_URL,
           Entries: batch.map((l, idx) => ({
             Id: String(idx),
-            MessageBody: JSON.stringify({ lead_id: l.id, place_id: l.placeId ?? '', website: l.website }),
+            MessageBody: JSON.stringify({ lead_id: l.id, place_id: l.placeId ?? '', website: l.website, enableAiScoring: false }),
           })),
         })
       );

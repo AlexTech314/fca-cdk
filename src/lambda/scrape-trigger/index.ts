@@ -36,6 +36,7 @@ interface BatchLead {
   place_id: string;
   website: string;
   phone?: string | null;
+  enableAiScoring?: boolean;
 }
 
 export async function handler(event: SQSEvent): Promise<void> {
@@ -65,6 +66,7 @@ export async function handler(event: SQSEvent): Promise<void> {
         id: leadId,
         place_id: placeId,
         website: website.trim(),
+        enableAiScoring: body.enableAiScoring === true,
       });
     } catch {
       // skip malformed messages
@@ -110,10 +112,13 @@ export async function handler(event: SQSEvent): Promise<void> {
     },
   });
 
+  const enableAiScoring = batch.some((l) => l.enableAiScoring === true);
+
   const jobInput = JSON.stringify({
     batchS3Key,
     taskId: task.id,
     fastMode: FAST_MODE === 'true',
+    enableAiScoring,
   });
 
   try {

@@ -618,6 +618,9 @@ enum LeadPipelineStatus {
   scraping
   queued_for_deep_scrape
   deep_scraping
+  queued_for_contact_extraction
+  extracting_contacts
+  contact_extraction_failed
   queued_for_scoring
   scoring
   scrape_failed
@@ -809,6 +812,7 @@ model Campaign {
   skipCachedSearches   Boolean   @default(false) @map("skip_cached_searches")
   enableWebScraping    Boolean   @default(true) @map("enable_web_scraping")
   enableAiScoring      Boolean   @default(false) @map("enable_ai_scoring")
+  enableContactExtraction Boolean @default(false) @map("enable_contact_extraction")
   createdById          String?   @map("created_by_id")
 
   createdAt            DateTime  @default(now()) @map("created_at")

@@ -23,6 +23,7 @@ const campaignSchema = z.object({
   maxResultsPerSearch: z.number().int().min(1).max(60).optional(),
   maxTotalRequests: z.number().int().min(1).optional(),
   enableWebScraping: z.boolean().optional(),
+  enableContactExtraction: z.boolean().optional(),
   enableAiScoring: z.boolean().optional(),
 });
 
@@ -53,6 +54,7 @@ export default function CampaignCreate() {
       maxResultsPerSearch: 60,
       maxTotalRequests: 500,
       enableWebScraping: true,
+      enableContactExtraction: false,
       enableAiScoring: false,
     },
   });
@@ -66,6 +68,7 @@ export default function CampaignCreate() {
       setValue('maxResultsPerSearch', campaign.maxResultsPerSearch ?? 60);
       setValue('maxTotalRequests', campaign.maxTotalRequests ?? 500);
       setValue('enableWebScraping', campaign.enableWebScraping ?? true);
+      setValue('enableContactExtraction', campaign.enableContactExtraction ?? false);
       setValue('enableAiScoring', campaign.enableAiScoring ?? false);
     }
   }, [campaign, isEditing, setValue]);
@@ -83,6 +86,7 @@ export default function CampaignCreate() {
           maxResultsPerSearch: data.maxResultsPerSearch && !Number.isNaN(data.maxResultsPerSearch) ? data.maxResultsPerSearch : undefined,
           maxTotalRequests: data.maxTotalRequests && !Number.isNaN(data.maxTotalRequests) ? data.maxTotalRequests : undefined,
           enableWebScraping: data.enableWebScraping,
+          enableContactExtraction: data.enableContactExtraction,
           enableAiScoring: data.enableAiScoring,
         },
       });
@@ -95,6 +99,7 @@ export default function CampaignCreate() {
         maxResultsPerSearch: data.maxResultsPerSearch && !Number.isNaN(data.maxResultsPerSearch) ? data.maxResultsPerSearch : undefined,
         maxTotalRequests: data.maxTotalRequests && !Number.isNaN(data.maxTotalRequests) ? data.maxTotalRequests : undefined,
         enableWebScraping: data.enableWebScraping,
+        enableContactExtraction: data.enableContactExtraction,
         enableAiScoring: data.enableAiScoring,
       });
       navigate(`/campaigns/${campaign.id}`);
@@ -230,6 +235,16 @@ export default function CampaignCreate() {
                   />
                   <Label htmlFor="enableWebScraping" className="font-normal cursor-pointer">
                     Enable Web Scraping — enrich leads by scraping their websites
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="enableContactExtraction"
+                    checked={watch('enableContactExtraction') ?? false}
+                    onCheckedChange={(checked) => setValue('enableContactExtraction', !!checked)}
+                  />
+                  <Label htmlFor="enableContactExtraction" className="font-normal cursor-pointer">
+                    Enable Contact Extraction — extract contact names from scraped pages
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">

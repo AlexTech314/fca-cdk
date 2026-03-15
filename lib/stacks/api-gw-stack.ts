@@ -26,6 +26,8 @@ export interface ApiGwStackProps extends cdk.StackProps {
   readonly scoringQueue?: sqs.IQueue;
   readonly scrapeQueueUrl?: string;
   readonly scrapeQueueArn?: string;
+  readonly contactExtractionQueueUrl?: string;
+  readonly contactExtractionQueueArn?: string;
   readonly cognitoUserPoolId: string;
   readonly cognitoUserPoolArn: string;
   readonly cognitoClientId: string;
@@ -61,6 +63,8 @@ export class ApiGwStack extends cdk.Stack {
       scoringQueue,
       scrapeQueueUrl,
       scrapeQueueArn,
+      contactExtractionQueueUrl,
+      contactExtractionQueueArn,
       cognitoUserPoolId,
       cognitoUserPoolArn,
       cognitoClientId,
@@ -124,6 +128,7 @@ export class ApiGwStack extends cdk.Stack {
         PIPELINE_CLUSTER_ARN: pipelineClusterArn,
         SCORING_QUEUE_URL: scoringQueue?.queueUrl ?? '',
         SCRAPE_QUEUE_URL: scrapeQueueUrl ?? '',
+        CONTACT_EXTRACTION_QUEUE_URL: contactExtractionQueueUrl ?? '',
         COGNITO_USER_POOL_ID: cognitoUserPoolId,
         COGNITO_CLIENT_ID: cognitoClientId,
         ANALYTICS_TABLE_NAME: analyticsTable.tableName,
@@ -253,6 +258,15 @@ export class ApiGwStack extends cdk.Stack {
         new iam.PolicyStatement({
           actions: ['sqs:SendMessage'],
           resources: [scrapeQueueArn],
+        })
+      );
+    }
+
+    if (contactExtractionQueueArn) {
+      taskDef.taskRole.addToPrincipalPolicy(
+        new iam.PolicyStatement({
+          actions: ['sqs:SendMessage'],
+          resources: [contactExtractionQueueArn],
         })
       );
     }

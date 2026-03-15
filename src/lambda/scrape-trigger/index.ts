@@ -37,6 +37,7 @@ interface BatchLead {
   website: string;
   phone?: string | null;
   enableAiScoring?: boolean;
+  enableContactExtraction?: boolean;
 }
 
 export async function handler(event: SQSEvent): Promise<void> {
@@ -67,6 +68,7 @@ export async function handler(event: SQSEvent): Promise<void> {
         place_id: placeId,
         website: website.trim(),
         enableAiScoring: body.enableAiScoring === true,
+        enableContactExtraction: body.enableContactExtraction === true,
       });
     } catch {
       // skip malformed messages
@@ -113,12 +115,14 @@ export async function handler(event: SQSEvent): Promise<void> {
   });
 
   const enableAiScoring = batch.some((l) => l.enableAiScoring === true);
+  const enableContactExtraction = batch.some((l) => l.enableContactExtraction === true);
 
   const jobInput = JSON.stringify({
     batchS3Key,
     taskId: task.id,
     fastMode: FAST_MODE === 'true',
     enableAiScoring,
+    enableContactExtraction,
   });
 
   try {

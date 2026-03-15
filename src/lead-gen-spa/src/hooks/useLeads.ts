@@ -136,6 +136,28 @@ export function useQualifyAllByFilters() {
   });
 }
 
+export function useExtractContactsBulk() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ids: string[]) => api.extractContactsBulk(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
+export function useExtractContactsAllByFilters() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (filters: LeadFilters) => api.extractContactsAllByFilters(filters as Record<string, unknown>),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+}
+
 export function useDeleteScrapeRun() {
   const queryClient = useQueryClient();
 

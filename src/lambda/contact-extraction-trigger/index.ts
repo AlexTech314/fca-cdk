@@ -39,6 +39,7 @@ interface BatchItem {
   lead_id: string;
   emails: string[];
   contactPages: ContactPage[];
+  enableAiScoring?: boolean;
 }
 
 export async function handler(event: SQSEvent): Promise<void> {
@@ -53,11 +54,12 @@ export async function handler(event: SQSEvent): Promise<void> {
   for (const r of event.Records as SQSRecord[]) {
     try {
       const body = JSON.parse(r.body);
-      if (!body.lead_id || !body.emails?.length || !body.contactPages?.length) continue;
+      if (!body.lead_id) continue;
       batch.push({
         lead_id: body.lead_id,
-        emails: body.emails,
-        contactPages: body.contactPages,
+        emails: body.emails ?? [],
+        contactPages: body.contactPages ?? [],
+        enableAiScoring: body.enableAiScoring === true,
       });
     } catch {
       // skip malformed messages

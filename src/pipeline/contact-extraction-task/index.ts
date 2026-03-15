@@ -7,6 +7,7 @@
 
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { bootstrapDatabaseUrl } from '@fca/db';
 import { PrismaClient } from '@prisma/client';
 
@@ -14,10 +15,12 @@ import type { BatchItem, ContactResult, LlmToolOutput } from './types.js';
 import { SYSTEM_PROMPT, TOOL_SCHEMA, buildUserPrompt } from './prompts.js';
 
 const s3Client = new S3Client({});
+const sqsClient = new SQSClient({});
 const bedrockClient = new BedrockRuntimeClient({
   region: process.env.AWS_REGION || 'us-east-2',
 });
 const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET!;
+const SCORING_QUEUE_URL = process.env.SCORING_QUEUE_URL ?? '';
 const MODEL_ID = 'us.amazon.nova-lite-v1:0';
 const CONCURRENCY = 15;
 
@@ -110,8 +113,26 @@ async function main(): Promise<void> {
   let completed = 0;
 
   async function processLead(item: BatchItem): Promise<void> {
-    const { lead_id, emails: emailValues, contactPages } = item;
+    const { lead_id } = item;
+    let emailValues = item.emails;
+    let contactPages = [...item.contactPages];
     try {
+      await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'extracting_contacts' } });
+
+      // DB fallback for bulk actions: when contactPages/emails are empty, read from lead data
+      if (contactPages.length === 0 || emailValues.length === 0) {
+        const lead = await db.lead.findUnique({
+          where: { id: lead_id },
+          select: { scrapeMarkdownS3Key: true, leadContacts: { select: { email: true } } },
+        });
+        if (lead?.scrapeMarkdownS3Key && contactPages.length === 0) {
+          contactPages = [{ url: 'combined', s3Key: lead.scrapeMarkdownS3Key }];
+        }
+        if (emailValues.length === 0 && lead?.leadContacts) {
+          emailValues = lead.leadContacts.filter(c => c.email).map(c => c.email!);
+        }
+      }
+
       // Read markdown from S3 for each contact page
       const pageContents: { url: string; markdown: string }[] = [];
       for (const page of contactPages) {
@@ -122,10 +143,20 @@ async function main(): Promise<void> {
         }
       }
 
-      if (pageContents.length === 0) {
+      if (pageContents.length === 0 || emailValues.length === 0) {
         skipped++;
         completed++;
-        console.log(`[${completed}/${batch.length}] Lead ${lead_id}: could not read any page markdown, skipping`);
+        console.log(`[${completed}/${batch.length}] Lead ${lead_id}: no page markdown or emails, skipping extraction`);
+        // Still forward to scoring if needed
+        if (item.enableAiScoring && SCORING_QUEUE_URL) {
+          await sqsClient.send(new SendMessageCommand({
+            QueueUrl: SCORING_QUEUE_URL,
+            MessageBody: JSON.stringify({ lead_id, place_id: '' }),
+          }));
+          await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scoring' } });
+        } else {
+          await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'idle' } });
+        }
         return;
       }
 
@@ -171,6 +202,17 @@ async function main(): Promise<void> {
         }
       }
 
+      // Forward to scoring queue if AI scoring is enabled
+      if (item.enableAiScoring && SCORING_QUEUE_URL) {
+        await sqsClient.send(new SendMessageCommand({
+          QueueUrl: SCORING_QUEUE_URL,
+          MessageBody: JSON.stringify({ lead_id, place_id: '' }),
+        }));
+        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'queued_for_scoring' } });
+      } else {
+        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'idle' } });
+      }
+
       extracted++;
       completed++;
       console.log(
@@ -178,6 +220,9 @@ async function main(): Promise<void> {
       );
     } catch (err) {
       console.error(`Failed to process lead ${lead_id}:`, err);
+      try {
+        await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'contact_extraction_failed' } });
+      } catch { /* best effort */ }
       failed++;
       completed++;
     }

@@ -8,6 +8,7 @@ export const createCampaignSchema = z.object({
   maxTotalRequests: z.number().int().min(1).optional(),
   enableWebScraping: z.boolean().optional(),
   enableAiScoring: z.boolean().optional(),
+  enableContactExtraction: z.boolean().optional(),
 });
 
 // Update campaign input
@@ -18,6 +19,7 @@ export const updateCampaignSchema = z.object({
   maxTotalRequests: z.number().int().min(1).optional(),
   enableWebScraping: z.boolean().optional(),
   enableAiScoring: z.boolean().optional(),
+  enableContactExtraction: z.boolean().optional(),
   updateSearches: z.boolean().optional(), // If true, return presigned URL for new searches upload
 });
 

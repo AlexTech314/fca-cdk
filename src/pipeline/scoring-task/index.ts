@@ -16,7 +16,7 @@ import { PrismaClient } from '@prisma/client';
 import { s3Client, CAMPAIGN_DATA_BUCKET, CONCURRENCY } from './config.js';
 import type { BatchItem, ExtractionResult } from './types.js';
 import { EMPTY_EXTRACTION } from './types.js';
-import { fetchMarkdownFromS3, extractFacts, extractContacts } from './extraction.js';
+import { fetchMarkdownFromS3, extractFacts } from './extraction.js';
 import { buildFactsSummary, scoreLead } from './scoring.js';
 import { refreshMarketStats, refreshLeadRanks, buildMarketContext } from './market.js';
 
@@ -122,17 +122,10 @@ async function main(): Promise<void> {
 
       await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'scoring' } });
 
-      // Pass 1: Extract structured facts + contact names from raw markdown (parallel)
-      const emailValues = emails;
+      // Pass 1: Extract structured facts from raw markdown
       let facts: ExtractionResult;
-      let contactResults: Awaited<ReturnType<typeof extractContacts>> = [];
       if (markdown) {
-        const [factsResult, contactsResult] = await Promise.all([
-          extractFacts(leadData, markdown),
-          emailValues.length > 0 ? extractContacts(emailValues, markdown) : Promise.resolve([]),
-        ]);
-        facts = factsResult;
-        contactResults = contactsResult;
+        facts = await extractFacts(leadData, markdown);
       } else {
         facts = EMPTY_EXTRACTION;
       }
@@ -216,43 +209,6 @@ async function main(): Promise<void> {
         }
       }
 
-      // Update LeadContact records with contact extraction results
-      let contactsEnriched = 0;
-      for (const contact of contactResults) {
-        const matching = lead.leadContacts.find(
-          (c) => c.email && c.email.toLowerCase() === contact.email.toLowerCase()
-        );
-        if (matching) {
-          await db.leadContact.update({
-            where: { id: matching.id },
-            data: {
-              firstName: contact.first_name,
-              lastName: contact.last_name,
-              description: contact.contact_type,
-            },
-          });
-          contactsEnriched++;
-        }
-      }
-
-      // Also enrich the best contact if it was newly created and has a matching extraction result
-      if (result.owner_email) {
-        const bestContact = await db.leadContact.findFirst({
-          where: { leadId: lead_id, isBestContact: true },
-        });
-        if (bestContact && !bestContact.firstName) {
-          const match = contactResults.find(
-            (c) => c.email.toLowerCase() === (bestContact.email ?? '').toLowerCase()
-          );
-          if (match) {
-            await db.leadContact.update({
-              where: { id: bestContact.id },
-              data: { firstName: match.first_name, lastName: match.last_name, description: match.contact_type },
-            });
-          }
-        }
-      }
-
       // Promote a "human" contact (has first name + last name + email) to best contact
       // if the current best contact is missing name info
       const currentBest = await db.leadContact.findFirst({
@@ -273,7 +229,7 @@ async function main(): Promise<void> {
       scored++;
       completed++;
       console.log(
-        `[${completed}/${batch.length}] Scored lead ${lead_id}: BQ:${result.business_quality_score} ER:${result.exit_readiness_score}${result.is_excluded ? ' [EXCLUDED]' : ''}${contactsEnriched > 0 ? ` (${contactsEnriched} contacts enriched)` : ''}`
+        `[${completed}/${batch.length}] Scored lead ${lead_id}: BQ:${result.business_quality_score} ER:${result.exit_readiness_score}${result.is_excluded ? ' [EXCLUDED]' : ''}`
       );
     } catch (err) {
       console.error(`Failed to score lead ${lead_id}:`, err);

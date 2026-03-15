@@ -11,6 +11,7 @@ import type { LeadQuery, LeadDataType } from '../models/lead.model';
 
 const SCORING_QUEUE_URL = process.env.SCORING_QUEUE_URL || '';
 const SCRAPE_QUEUE_URL = process.env.SCRAPE_QUEUE_URL || '';
+const CONTACT_EXTRACTION_QUEUE_URL = process.env.CONTACT_EXTRACTION_QUEUE_URL || '';
 const CAMPAIGN_DATA_BUCKET = process.env.CAMPAIGN_DATA_BUCKET || '';
 const sqsClient = new SQSClient({});
 const s3Client = new S3Client({});
@@ -283,6 +284,85 @@ export const leadService = {
       await prisma.lead.updateMany({
         where: { id: { in: queuedIds.slice(i, i + 1000) } },
         data: { pipelineStatus: 'queued_for_scoring', scoringError: null },
+      });
+    }
+
+    return { queued: toQueue.length, skipped, total };
+  },
+
+  async extractContactsBulk(ids: string[]) {
+    if (!CONTACT_EXTRACTION_QUEUE_URL) {
+      throw new Error('CONTACT_EXTRACTION_QUEUE_URL is not configured');
+    }
+
+    const leads = await prisma.lead.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, placeId: true, webScrapedAt: true },
+    });
+    const leadMap = new Map(leads.map(l => [l.id, l]));
+
+    const results: Array<{ id: string; status: 'queued' | 'skipped' | 'not_found'; reason?: string }> = [];
+
+    const toQueue: Array<{ id: string }> = [];
+    for (const id of ids) {
+      const lead = leadMap.get(id);
+      if (!lead) {
+        results.push({ id, status: 'not_found' });
+        continue;
+      }
+      if (!lead.webScrapedAt) {
+        results.push({ id, status: 'skipped', reason: 'not scraped' });
+        continue;
+      }
+      toQueue.push({ id });
+    }
+
+    await Promise.all(toQueue.map(async ({ id }) => {
+      await sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: CONTACT_EXTRACTION_QUEUE_URL,
+          MessageBody: JSON.stringify({ lead_id: id, emails: [], contactPages: [], enableAiScoring: false }),
+        })
+      );
+      results.push({ id, status: 'queued' });
+    }));
+
+    if (toQueue.length > 0) {
+      await prisma.lead.updateMany({
+        where: { id: { in: toQueue.map(l => l.id) } },
+        data: { pipelineStatus: 'queued_for_contact_extraction' },
+      });
+    }
+
+    return results;
+  },
+
+  async extractContactsAllByFilters(filters: Omit<LeadQuery, 'page' | 'limit' | 'sort' | 'order' | 'fields'>) {
+    if (!CONTACT_EXTRACTION_QUEUE_URL) throw new Error('CONTACT_EXTRACTION_QUEUE_URL is not configured');
+
+    const leads = await leadRepository.findLeadsForQueue(filters);
+    const total = leads.length;
+    const toQueue = leads.filter((l) => l.webScrapedAt);
+    const skipped = total - toQueue.length;
+
+    for (let i = 0; i < toQueue.length; i += 10) {
+      const batch = toQueue.slice(i, i + 10);
+      await sqsClient.send(
+        new SendMessageBatchCommand({
+          QueueUrl: CONTACT_EXTRACTION_QUEUE_URL,
+          Entries: batch.map((l, idx) => ({
+            Id: String(idx),
+            MessageBody: JSON.stringify({ lead_id: l.id, emails: [], contactPages: [], enableAiScoring: false }),
+          })),
+        })
+      );
+    }
+
+    const queuedIds = toQueue.map((l) => l.id);
+    for (let i = 0; i < queuedIds.length; i += 1000) {
+      await prisma.lead.updateMany({
+        where: { id: { in: queuedIds.slice(i, i + 1000) } },
+        data: { pipelineStatus: 'queued_for_contact_extraction' },
       });
     }
 

@@ -4,7 +4,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { Button } from '@/components/ui/button';
-import { useLeads, useUpdateLead, useCreateLead, useDeleteLead, useDeleteLeadsBulk, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
+import { useLeads, useUpdateLead, useCreateLead, useDeleteLead, useDeleteLeadsBulk, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, useExtractContactsBulk, useExtractContactsAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
 import { api } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import type { LeadFilters as LeadFiltersType, LeadListField, LeadQueryParams } from '@/types';
@@ -30,9 +30,9 @@ import {
   LEAD_COLUMNS_STORAGE_KEY,
   LEAD_COLUMN_OPTIONS,
 } from '@/lib/leads/columns';
-import { ChevronDown, Filter, Globe, Sparkles, TableProperties, Trash2, X } from 'lucide-react';
+import { ChevronDown, Filter, Globe, Sparkles, TableProperties, Trash2, Users, X } from 'lucide-react';
 
-type BulkAction = 'scrape' | 'score' | 'delete' | 'scrape-all' | 'score-all';
+type BulkAction = 'scrape' | 'score' | 'extract-contacts' | 'delete' | 'scrape-all' | 'score-all' | 'extract-contacts-all';
 
 const BULK_ACTION_CONFIG: Record<BulkAction, { label: string; icon: typeof Globe; confirmTitle: string; confirmBody: (n: number) => string }> = {
   scrape: {
@@ -59,11 +59,23 @@ const BULK_ACTION_CONFIG: Record<BulkAction, { label: string; icon: typeof Globe
     confirmTitle: 'Confirm Scrape All',
     confirmBody: (n) => `You are about to scrape all ${n.toLocaleString()} lead${n !== 1 ? 's' : ''} matching your current filters. Leads without a website will be skipped.`,
   },
+  'extract-contacts': {
+    label: 'Extract Contacts',
+    icon: Users,
+    confirmTitle: 'Confirm Bulk Extract Contacts',
+    confirmBody: (n) => `You are about to extract contacts for ${n} lead${n !== 1 ? 's' : ''}. This will run contact extraction on the selected leads.`,
+  },
   'score-all': {
     label: 'Score All',
     icon: Sparkles,
     confirmTitle: 'Confirm Score All',
     confirmBody: (n) => `You are about to score all ${n.toLocaleString()} lead${n !== 1 ? 's' : ''} matching your current filters. Leads that haven't been scraped will be skipped.`,
+  },
+  'extract-contacts-all': {
+    label: 'Extract Contacts All',
+    icon: Users,
+    confirmTitle: 'Confirm Extract Contacts All',
+    confirmBody: (n) => `You are about to extract contacts for all ${n.toLocaleString()} lead${n !== 1 ? 's' : ''} matching your current filters. Leads that haven't been scraped will be skipped.`,
   },
 };
 
@@ -193,6 +205,8 @@ export default function Leads() {
   const deleteLeadsBulk = useDeleteLeadsBulk();
   const scrapeAll = useScrapeAllByFilters();
   const qualifyAll = useQualifyAllByFilters();
+  const extractContactsBulk = useExtractContactsBulk();
+  const extractContactsAll = useExtractContactsAllByFilters();
 
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
 
@@ -385,7 +399,7 @@ export default function Leads() {
 
   const handleStartBulkAction = useCallback((action: BulkAction) => {
     setBulkAction(action);
-    if (action === 'scrape-all' || action === 'score-all') {
+    if (action === 'scrape-all' || action === 'score-all' || action === 'extract-contacts-all') {
       setConfirmDialogOpen(true);
     } else {
       setSelectedIds(new Set());
@@ -401,12 +415,13 @@ export default function Leads() {
     if (!bulkAction) return;
     setConfirmDialogOpen(false);
 
-    if (bulkAction === 'scrape-all' || bulkAction === 'score-all') {
+    if (bulkAction === 'scrape-all' || bulkAction === 'score-all' || bulkAction === 'extract-contacts-all') {
       try {
-        const mutation = bulkAction === 'scrape-all' ? scrapeAll : qualifyAll;
+        const mutation = bulkAction === 'scrape-all' ? scrapeAll : bulkAction === 'score-all' ? qualifyAll : extractContactsAll;
+        const actionLabel = bulkAction === 'scrape-all' ? 'scraping' : bulkAction === 'score-all' ? 'scoring' : 'contact extraction';
         const result = await mutation.mutateAsync(queryParams.filters);
         toast({
-          title: `Queued ${result.queued.toLocaleString()} lead${result.queued !== 1 ? 's' : ''} for ${bulkAction === 'scrape-all' ? 'scraping' : 'scoring'}`,
+          title: `Queued ${result.queued.toLocaleString()} lead${result.queued !== 1 ? 's' : ''} for ${actionLabel}`,
           description: result.skipped > 0 ? `${result.skipped.toLocaleString()} skipped` : undefined,
         });
       } catch (err) {
@@ -437,6 +452,8 @@ export default function Leads() {
           await scrapeBulk.mutateAsync(batch);
         } else if (bulkAction === 'score') {
           await qualifyBulk.mutateAsync(batch);
+        } else if (bulkAction === 'extract-contacts') {
+          await extractContactsBulk.mutateAsync(batch);
         } else if (bulkAction === 'delete') {
           await deleteLeadsBulk.mutateAsync(batch);
         }
@@ -446,7 +463,7 @@ export default function Leads() {
       toast({
         title: bulkAction === 'delete'
           ? `Deleted ${ids.length} lead${ids.length !== 1 ? 's' : ''}`
-          : `Queued ${ids.length} lead${ids.length !== 1 ? 's' : ''} for ${bulkAction === 'scrape' ? 'scraping' : 'scoring'}`,
+          : `Queued ${ids.length} lead${ids.length !== 1 ? 's' : ''} for ${bulkAction === 'scrape' ? 'scraping' : bulkAction === 'extract-contacts' ? 'contact extraction' : 'scoring'}`,
       });
     } catch (err) {
       toast({
@@ -459,7 +476,7 @@ export default function Leads() {
       setBulkAction(null);
       setSelectedIds(new Set());
     }
-  }, [bulkAction, selectedIds, scrapeBulk, qualifyBulk, deleteLeadsBulk, scrapeAll, qualifyAll, queryParams.filters]);
+  }, [bulkAction, selectedIds, scrapeBulk, qualifyBulk, deleteLeadsBulk, scrapeAll, qualifyAll, extractContactsBulk, extractContactsAll, queryParams.filters]);
 
   const handleToggleRow = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -530,7 +547,7 @@ export default function Leads() {
 
   const hasActiveFilters = Object.keys(queryParams.filters).length > 0;
   const selectedColumnSet = useMemo(() => new Set(visibleColumns), [visibleColumns]);
-  const isAllAction = bulkAction === 'scrape-all' || bulkAction === 'score-all';
+  const isAllAction = bulkAction === 'scrape-all' || bulkAction === 'score-all' || bulkAction === 'extract-contacts-all';
   const isSelecting = bulkAction !== null && !isAllAction;
   const actionConfig = bulkAction ? BULK_ACTION_CONFIG[bulkAction] : null;
 
@@ -579,6 +596,10 @@ export default function Leads() {
                   <Sparkles className="mr-2 h-4 w-4" />
                   Score Selected
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStartBulkAction('extract-contacts')}>
+                  <Users className="mr-2 h-4 w-4" />
+                  Extract Contacts Selected
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleStartBulkAction('delete')} className="text-destructive focus:text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Selected
@@ -591,6 +612,10 @@ export default function Leads() {
                 <DropdownMenuItem onClick={() => handleStartBulkAction('score-all')}>
                   <Sparkles className="mr-2 h-4 w-4" />
                   Score All ({data?.total.toLocaleString() ?? '...'})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStartBulkAction('extract-contacts-all')}>
+                  <Users className="mr-2 h-4 w-4" />
+                  Extract Contacts All ({data?.total.toLocaleString() ?? '...'})
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -716,7 +741,7 @@ export default function Leads() {
               <Button
                 variant={bulkAction === 'delete' ? 'destructive' : 'default'}
                 onClick={handleConfirmBulkAction}
-                disabled={scrapeBulk.isPending || qualifyBulk.isPending || deleteLeadsBulk.isPending || scrapeAll.isPending || qualifyAll.isPending}
+                disabled={scrapeBulk.isPending || qualifyBulk.isPending || deleteLeadsBulk.isPending || scrapeAll.isPending || qualifyAll.isPending || extractContactsBulk.isPending || extractContactsAll.isPending}
               >
                 {bulkAction === 'delete' ? 'Delete' : 'Confirm'}
               </Button>

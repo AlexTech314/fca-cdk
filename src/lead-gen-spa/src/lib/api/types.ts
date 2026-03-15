@@ -205,6 +205,16 @@ export interface LeadGenApi {
    */
   qualifyAllByFilters(filters: Record<string, unknown>): Promise<{ queued: number; skipped: number; total: number }>;
 
+  /**
+   * Bulk extract contacts for selected leads
+   */
+  extractContactsBulk(ids: string[]): Promise<{ results: Array<{ id: string; status: string }> }>;
+
+  /**
+   * Extract contacts for all leads matching filters (server-side batching)
+   */
+  extractContactsAllByFilters(filters: Record<string, unknown>): Promise<{ queued: number; skipped: number; total: number }>;
+
   // ===========================================
   // Campaigns
   // ===========================================

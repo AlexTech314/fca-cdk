@@ -12,7 +12,6 @@ import type { JobInput, ExtractedData } from './types.js';
 import {
   CAMPAIGN_DATA_BUCKET,
   DEEP_SCRAPE_QUEUE_URL,
-  SCORING_QUEUE_URL,
   CONTACT_EXTRACTION_QUEUE_URL,
   TASK_MEMORY_MIB,
   TASK_CPU_UNITS,
@@ -245,9 +244,10 @@ async function main(): Promise<void> {
           return;
         }
 
-        // Per-page callback: send pages with emails to contact extraction immediately
+        // Per-page callback: accumulate contact pages and emails for a single post-scrape message
         const scrapeRunId = randomUUID();
-        const contactExtractionSent = new Set<string>();
+        const collectedContactPages: { url: string; s3Key: string }[] = [];
+        const collectedEmails = new Set<string>();
 
         const onPage = CONTACT_EXTRACTION_QUEUE_URL
           ? async (page: import('./types.js').ScrapedPage) => {
@@ -266,18 +266,8 @@ async function main(): Promise<void> {
                 ContentType: 'text/markdown',
               }));
 
-              const uniqueEmails = [...new Set(emails.map(e => e.toLowerCase()))];
-              await sqsClient.send(new SendMessageCommand({
-                QueueUrl: CONTACT_EXTRACTION_QUEUE_URL,
-                MessageBody: JSON.stringify({
-                  lead_id: business.id,
-                  emails: uniqueEmails,
-                  contactPages: [{ url: page.url, s3Key }],
-                }),
-              }));
-
-              contactExtractionSent.add(page.url);
-              console.log(`  [Contact extraction] Sent ${page.url} (${uniqueEmails.length} emails) to enrichment queue`);
+              for (const e of emails) collectedEmails.add(e.toLowerCase());
+              collectedContactPages.push({ url: page.url, s3Key });
             }
           : undefined;
 
@@ -360,15 +350,20 @@ async function main(): Promise<void> {
           pageMarkdownKeys,
         );
 
-        // Enqueue for scoring after scrape completes (only if campaign has AI scoring enabled)
-        if (SCORING_QUEUE_URL && jobInput.enableAiScoring) {
+        // Enqueue for contact extraction after scrape (if extraction or scoring enabled)
+        if (CONTACT_EXTRACTION_QUEUE_URL && (jobInput.enableContactExtraction || jobInput.enableAiScoring)) {
           await sqsClient.send(new SendMessageCommand({
-            QueueUrl: SCORING_QUEUE_URL,
-            MessageBody: JSON.stringify({ lead_id: business.id, place_id: business.place_id }),
+            QueueUrl: CONTACT_EXTRACTION_QUEUE_URL,
+            MessageBody: JSON.stringify({
+              lead_id: business.id,
+              emails: [...collectedEmails],
+              contactPages: collectedContactPages,
+              enableAiScoring: !!jobInput.enableAiScoring,
+            }),
           }));
           await db.lead.update({
             where: { id: business.id },
-            data: { pipelineStatus: 'queued_for_scoring' },
+            data: { pipelineStatus: 'queued_for_contact_extraction' },
           });
         }
 

@@ -35,6 +35,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
   public readonly deepScrapeQueueUrl: string;
   public readonly deepScrapeQueueArn: string;
   public readonly pipelineClusterArn: string;
+  public readonly contactExtractionQueueUrl: string;
+  public readonly contactExtractionQueueArn: string;
 
   constructor(scope: Construct, id: string, props: LeadGenPipelineStackProps) {
     super(scope, id, props);
@@ -238,7 +240,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
         DATABASE_HOST: databaseEndpoint,
         DATABASE_CONNECTION_LIMIT: '1',
         DEEP_SCRAPE_QUEUE_URL: deepScrapeQueue.queueUrl,
-        SCORING_QUEUE_URL: scoringQueue.queueUrl,
         CONTACT_EXTRACTION_QUEUE_URL: contactExtractionQueue.queueUrl,
         AWS_REGION: this.region,
       },
@@ -247,7 +248,6 @@ export class LeadGenPipelineStack extends cdk.Stack {
     campaignDataBucket.grantReadWrite(scrapeTaskDef.taskRole);
     databaseSecret.grantRead(scrapeTaskDef.taskRole);
     deepScrapeQueue.grantSendMessages(scrapeTaskDef.taskRole);
-    scoringQueue.grantSendMessages(scrapeTaskDef.taskRole);
     contactExtractionQueue.grantSendMessages(scrapeTaskDef.taskRole);
 
     // ============================================================
@@ -489,6 +489,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
         DATABASE_SECRET_ARN: databaseSecret.secretArn,
         DATABASE_HOST: databaseEndpoint,
         DATABASE_CONNECTION_LIMIT: '1',
+        SCORING_QUEUE_URL: scoringQueue.queueUrl,
         AWS_REGION: this.region,
       },
     });
@@ -506,6 +507,7 @@ export class LeadGenPipelineStack extends cdk.Stack {
 
     campaignDataBucket.grantRead(contactExtractionTaskDef.taskRole);
     databaseSecret.grantRead(contactExtractionTaskDef.taskRole);
+    scoringQueue.grantSendMessages(contactExtractionTaskDef.taskRole);
 
     // ============================================================
     // Contact Extraction Trigger Lambda
@@ -562,6 +564,8 @@ export class LeadGenPipelineStack extends cdk.Stack {
     this.scrapeQueueArn = scrapeQueue.queueArn;
     this.deepScrapeQueueUrl = deepScrapeQueue.queueUrl;
     this.deepScrapeQueueArn = deepScrapeQueue.queueArn;
+    this.contactExtractionQueueUrl = contactExtractionQueue.queueUrl;
+    this.contactExtractionQueueArn = contactExtractionQueue.queueArn;
 
     // ============================================================
     // Outputs

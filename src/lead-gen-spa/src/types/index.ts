@@ -21,7 +21,7 @@ export interface User {
 
 export type UserRole = 'readonly' | 'readwrite' | 'admin';
 
-export type LeadPipelineStatus = 'idle' | 'queued_for_scrape' | 'scraping' | 'queued_for_scoring' | 'scoring' | 'scrape_failed' | 'scoring_failed';
+export type LeadPipelineStatus = 'idle' | 'queued_for_scrape' | 'scraping' | 'queued_for_contact_extraction' | 'extracting_contacts' | 'contact_extraction_failed' | 'queued_for_scoring' | 'scoring' | 'scrape_failed' | 'scoring_failed';
 
 export interface Franchise {
   id: string;
@@ -152,6 +152,7 @@ export interface Campaign {
   maxTotalRequests?: number | null;
   enableWebScraping?: boolean;
   enableAiScoring?: boolean;
+  enableContactExtraction?: boolean;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -319,6 +320,7 @@ export interface CreateCampaignInput {
   maxTotalRequests?: number;
   enableWebScraping?: boolean;
   enableAiScoring?: boolean;
+  enableContactExtraction?: boolean;
 }
 
 export interface UpdateCampaignInput {
@@ -329,6 +331,7 @@ export interface UpdateCampaignInput {
   maxTotalRequests?: number;
   enableWebScraping?: boolean;
   enableAiScoring?: boolean;
+  enableContactExtraction?: boolean;
 }
 
 export interface InviteUserInput {

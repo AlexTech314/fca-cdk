@@ -7,6 +7,7 @@ export interface BatchItem {
   lead_id: string;
   emails: string[];
   contactPages: ContactPage[];
+  enableAiScoring?: boolean;
 }
 
 export interface ContactResult {

@@ -25,7 +25,6 @@ function requireEnv(name: string): string {
 
 export const CAMPAIGN_DATA_BUCKET = requireEnv('CAMPAIGN_DATA_BUCKET');
 export const DEEP_SCRAPE_QUEUE_URL = process.env.DEEP_SCRAPE_QUEUE_URL ?? '';
-export const SCORING_QUEUE_URL = process.env.SCORING_QUEUE_URL ?? '';
 export const CONTACT_EXTRACTION_QUEUE_URL = process.env.CONTACT_EXTRACTION_QUEUE_URL ?? '';
 
 // Task resource info for dynamic concurrency calculation

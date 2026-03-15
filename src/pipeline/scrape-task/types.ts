@@ -23,6 +23,8 @@ export interface JobInput {
   batchIndex?: number; // Batch number for logging
   // Whether to enqueue leads for AI scoring after scraping (default false)
   enableAiScoring?: boolean;
+  // Whether to enqueue leads for contact extraction after scraping (default false)
+  enableContactExtraction?: boolean;
 }
 
 // ============ Business Types ============

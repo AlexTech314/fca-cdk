@@ -76,6 +76,8 @@ export class FcaStage extends cdk.Stage {
       scoringQueue: this.pipelineStack.scoringQueue,
       scrapeQueueUrl: this.pipelineStack.scrapeQueueUrl,
       scrapeQueueArn: this.pipelineStack.scrapeQueueArn,
+      contactExtractionQueueUrl: this.pipelineStack.contactExtractionQueueUrl,
+      contactExtractionQueueArn: this.pipelineStack.contactExtractionQueueArn,
       cognitoUserPoolId: this.cognitoStack.userPool.userPoolId,
       cognitoUserPoolArn: this.cognitoStack.userPool.userPoolArn,
       cognitoClientId: this.cognitoStack.userPoolClient.userPoolClientId,

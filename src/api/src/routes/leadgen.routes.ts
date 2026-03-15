@@ -581,6 +581,33 @@ router.post('/leads/qualify-bulk', authorize('readwrite', 'admin'), async (req, 
   }
 });
 
+router.post('/leads/extract-contacts-bulk', authorize('readwrite', 'admin'), async (req, res, next) => {
+  try {
+    const { leadIds } = req.body;
+    if (!Array.isArray(leadIds) || leadIds.length === 0) {
+      res.status(400).json({ error: 'leadIds array is required and must not be empty' });
+      return;
+    }
+    if (leadIds.length > 100) {
+      res.status(400).json({ error: 'Maximum 100 leads per request' });
+      return;
+    }
+    const results = await leadService.extractContactsBulk(leadIds);
+    res.json({ results });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/leads/extract-contacts-all', authorize('readwrite', 'admin'), validate(leadFiltersSchema), async (req, res, next) => {
+  try {
+    const result = await leadService.extractContactsAllByFilters(req.body);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post('/leads/scrape-bulk', authorize('readwrite', 'admin'), async (req, res, next) => {
   try {
     const { leadIds } = req.body;

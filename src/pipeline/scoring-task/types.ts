@@ -97,13 +97,6 @@ export interface ExtractionPassC {
   notable_quotes: { url: string; text: string }[];
 }
 
-export interface ContactExtractionResult {
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  contact_type: 'owner' | 'team' | 'business';
-}
-
 export interface BatchItem {
   lead_id: string;
   place_id: string;

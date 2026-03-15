@@ -203,6 +203,7 @@ function transformCampaign(raw: any): Campaign {
     maxTotalRequests: raw.maxTotalRequests ?? raw.max_total_requests ?? null,
     enableWebScraping: raw.enableWebScraping ?? raw.enable_web_scraping ?? true,
     enableAiScoring: raw.enableAiScoring ?? raw.enable_ai_scoring ?? false,
+    enableContactExtraction: raw.enableContactExtraction ?? raw.enable_contact_extraction ?? false,
     createdById: raw.createdById || raw.created_by_id || '',
     createdAt: raw.createdAt || raw.created_at,
     updatedAt: raw.updatedAt || raw.updated_at,
@@ -496,6 +497,20 @@ export const realApi: LeadGenApi = {
     });
   },
 
+  async extractContactsBulk(ids: string[]): Promise<{ results: Array<{ id: string; status: string }> }> {
+    return apiClient<{ results: Array<{ id: string; status: string }> }>('/leads/extract-contacts-bulk', {
+      method: 'POST',
+      body: JSON.stringify({ leadIds: ids }),
+    });
+  },
+
+  async extractContactsAllByFilters(filters: Record<string, unknown>): Promise<{ queued: number; skipped: number; total: number }> {
+    return apiClient<{ queued: number; skipped: number; total: number }>('/leads/extract-contacts-all', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+  },
+
   // ===========================================
   // Campaigns
   // ===========================================
@@ -531,6 +546,7 @@ export const realApi: LeadGenApi = {
         maxTotalRequests: data.maxTotalRequests,
         enableWebScraping: data.enableWebScraping,
         enableAiScoring: data.enableAiScoring,
+        enableContactExtraction: data.enableContactExtraction,
       }),
     });
 
@@ -578,6 +594,7 @@ export const realApi: LeadGenApi = {
         maxTotalRequests: data.maxTotalRequests,
         enableWebScraping: data.enableWebScraping,
         enableAiScoring: data.enableAiScoring,
+        enableContactExtraction: data.enableContactExtraction,
         updateSearches: hasNewQueries,
       }),
     });

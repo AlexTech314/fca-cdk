@@ -23,27 +23,27 @@ const columnGroups: ColumnGroup[] = [
   {
     label: 'Core Info',
     columns: [
-      { key: 'name', label: 'Business Name', default: true },
+      { key: 'name', label: 'Company', default: true },
       { key: 'address', label: 'Address', default: true },
       { key: 'city', label: 'City', default: true },
       { key: 'state', label: 'State', default: true },
       { key: 'zipCode', label: 'Zip Code', default: true },
-      { key: 'phone', label: 'Phone', default: true },
+      { key: 'phone', label: 'Company Phone', default: true },
       { key: 'website', label: 'Website', default: true },
-      { key: 'googleMapsUri', label: 'Google Maps URL', default: false },
+      { key: 'googleMapsUri', label: 'Google Maps', default: false },
     ],
   },
   {
     label: 'Outreach',
     columns: [
-      { key: 'bestContactFirstName', label: 'Best Contact First Name', default: false },
-      { key: 'bestContactLastName', label: 'Best Contact Last Name', default: false },
-      { key: 'bestContactEmail', label: 'Best Contact Email', default: false },
-      { key: 'bestContactPhone', label: 'Best Contact Phone', default: false },
-      { key: 'bestContactLinkedin', label: 'Best Contact LinkedIn', default: false },
-      { key: 'bestContactInstagram', label: 'Best Contact Instagram', default: false },
-      { key: 'bestContactFacebook', label: 'Best Contact Facebook', default: false },
-      { key: 'bestContactTwitter', label: 'Best Contact Twitter', default: false },
+      { key: 'bestContactFirstName', label: 'Contact First Name', default: false },
+      { key: 'bestContactLastName', label: 'Contact Last Name', default: false },
+      { key: 'bestContactEmail', label: 'Contact Email', default: false },
+      { key: 'bestContactPhone', label: 'Contact Phone', default: false },
+      { key: 'bestContactLinkedin', label: 'Contact LinkedIn', default: false },
+      { key: 'bestContactInstagram', label: 'Contact Instagram', default: false },
+      { key: 'bestContactFacebook', label: 'Contact Facebook', default: false },
+      { key: 'bestContactTwitter', label: 'Contact Twitter', default: false },
     ],
   },
   {
@@ -95,7 +95,7 @@ const columnGroups: ColumnGroup[] = [
   {
     label: 'Metadata',
     columns: [
-      { key: 'createdAt', label: 'Date Added', default: false },
+      { key: 'createdAt', label: 'Date Added', default: false  },
       { key: 'updatedAt', label: 'Last Updated', default: false },
     ],
   },

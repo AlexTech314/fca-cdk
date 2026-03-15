@@ -53,7 +53,7 @@ export const leadFiltersSchema = z.object({
   sources: z.preprocess(csvPreprocess, z.array(z.string()).optional()),
   hasWebsite: z.preprocess(boolPreprocess, z.boolean().optional()),
   hasPhone: z.preprocess(boolPreprocess, z.boolean().optional()),
-  hasContact: z.preprocess(boolPreprocess, z.boolean().optional()),
+  hasHumanContact: z.preprocess(boolPreprocess, z.boolean().optional()),
   isScored: z.preprocess(boolPreprocess, z.boolean().optional()),
   isScraped: z.preprocess(boolPreprocess, z.boolean().optional()),
   isExcluded: z.preprocess(boolPreprocess, z.boolean().optional()),

@@ -377,10 +377,10 @@ function buildWhereClause(
   if (filters.franchiseId) {
     where.franchiseId = filters.franchiseId;
   }
-  if (filters.hasContact === true) {
-    where.leadContacts = { some: {} };
-  } else if (filters.hasContact === false) {
-    where.leadContacts = { none: {} };
+  if (filters.hasHumanContact === true) {
+    where.leadContacts = { ...where.leadContacts as object, some: { firstName: { not: null }, lastName: { not: null }, email: { not: null } } };
+  } else if (filters.hasHumanContact === false) {
+    where.NOT = { leadContacts: { some: { firstName: { not: null }, lastName: { not: null }, email: { not: null } } } };
   }
   if (filters.reviewCountMin !== undefined) {
     where.reviewCount = { ...((where.reviewCount as object) || {}), gte: filters.reviewCountMin };

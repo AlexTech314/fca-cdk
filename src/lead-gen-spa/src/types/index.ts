@@ -217,7 +217,7 @@ export interface LeadFilters {
   sources?: string[];
   hasWebsite?: boolean;
   hasPhone?: boolean;
-  hasContact?: boolean;
+  hasHumanContact?: boolean;
   isScored?: boolean;
   isScraped?: boolean;
   isExcluded?: boolean;

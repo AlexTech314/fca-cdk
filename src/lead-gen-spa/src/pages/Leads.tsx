@@ -92,7 +92,7 @@ const ARRAY_KEYS = new Set(['stateIds', 'businessTypes', 'pipelineStatuses', 'so
 // Filter keys that are number arrays (comma-separated in URL)
 const NUM_ARRAY_KEYS = new Set(['tiers']);
 // Filter keys that are booleans
-const BOOL_KEYS = new Set(['hasWebsite', 'hasPhone', 'hasContact', 'isScored', 'isScraped', 'isExcluded', 'isIntermediated']);
+const BOOL_KEYS = new Set(['hasWebsite', 'hasPhone', 'hasHumanContact', 'isScored', 'isScraped', 'isExcluded', 'isIntermediated']);
 // Filter keys that are numbers
 const NUMBER_KEYS = new Set(['ratingMin', 'ratingMax', 'cityId', 'reviewCountMin', 'reviewCountMax', 'compositeScoreMin', 'compositeScoreMax', 'bqScoreMin', 'bqScoreMax', 'erScoreMin', 'erScoreMax']);
 // Non-filter query params

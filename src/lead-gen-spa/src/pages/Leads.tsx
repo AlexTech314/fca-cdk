@@ -4,7 +4,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { LeadTable } from '@/components/leads/LeadTable';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { Button } from '@/components/ui/button';
-import { useLeads, useUpdateLead, useCreateLead, useCreateLeadEmail, useUpdateLeadData, useDeleteLeadData, useDeleteLead, useDeleteLeadsBulk, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
+import { useLeads, useUpdateLead, useCreateLead, useCreateLeadContact, useUpdateLeadData, useDeleteLeadData, useDeleteLead, useDeleteLeadsBulk, useScrapeLeadsBulk, useQualifyLeadsBulk, useScrapeAllByFilters, useQualifyAllByFilters, defaultLeadQueryParams } from '@/hooks/useLeads';
 import { api } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import type { LeadFilters as LeadFiltersType, LeadListField, LeadQueryParams } from '@/types';
@@ -92,7 +92,7 @@ const ARRAY_KEYS = new Set(['stateIds', 'businessTypes', 'pipelineStatuses', 'so
 // Filter keys that are number arrays (comma-separated in URL)
 const NUM_ARRAY_KEYS = new Set(['tiers']);
 // Filter keys that are booleans
-const BOOL_KEYS = new Set(['hasWebsite', 'hasPhone', 'hasExtractedEmail', 'hasExtractedPhone', 'isScored', 'isScraped', 'isExcluded', 'isIntermediated']);
+const BOOL_KEYS = new Set(['hasWebsite', 'hasPhone', 'hasContact', 'isScored', 'isScraped', 'isExcluded', 'isIntermediated']);
 // Filter keys that are numbers
 const NUMBER_KEYS = new Set(['ratingMin', 'ratingMax', 'cityId', 'reviewCountMin', 'reviewCountMax', 'compositeScoreMin', 'compositeScoreMax', 'bqScoreMin', 'bqScoreMax', 'erScoreMin', 'erScoreMax']);
 // Non-filter query params
@@ -187,9 +187,9 @@ export default function Leads() {
   const { data, isLoading } = useLeads(queryParams);
   const updateLead = useUpdateLead();
   const createLead = useCreateLead();
-  const createEmail = useCreateLeadEmail();
-  const updateEmailData = useUpdateLeadData();
-  const deleteEmailData = useDeleteLeadData();
+  const createContact = useCreateLeadContact();
+  const updateContactData = useUpdateLeadData();
+  const deleteContactData = useDeleteLeadData();
   const scrapeBulk = useScrapeLeadsBulk();
   const qualifyBulk = useQualifyLeadsBulk();
   const deleteLead = useDeleteLead();
@@ -202,10 +202,7 @@ export default function Leads() {
   // ── Undo / Redo ──────────────────────────────────────────────
   type Patch = { name?: string; locationCityId?: number | null; locationStateId?: string | null; businessType?: string | null; phone?: string | null; website?: string | null; googleMapsUri?: string | null; rating?: number | null; reviewCount?: number | null };
   type UndoEntry =
-    | { kind: 'field'; leadId: string; prev: Patch; next: Patch }
-    | { kind: 'emailUpdate'; leadId: string; emailId: string; prev: string; next: string }
-    | { kind: 'emailCreate'; leadId: string; emailId: string; value: string }
-    | { kind: 'emailDelete'; leadId: string; emailId: string; value: string };
+    | { kind: 'field'; leadId: string; prev: Patch; next: Patch };
 
   const undoStackRef = useRef<UndoEntry[]>([]);
   const redoStackRef = useRef<UndoEntry[]>([]);
@@ -225,60 +222,23 @@ export default function Leads() {
     redoStackRef.current = [];
   }, []);
 
-  const describeEntry = useCallback((entry: UndoEntry, direction: 'undo' | 'redo'): string => {
-    switch (entry.kind) {
-      case 'field': {
-        const patch = direction === 'undo' ? entry.next : entry.next;
-        if (patch.name !== undefined) return `name to "${patch.name}"`;
-        if (patch.locationCityId !== undefined) return 'city';
-        if (patch.locationStateId !== undefined) return 'state';
-        if (patch.businessType !== undefined) return `type to "${patch.businessType}"`;
-        if (patch.phone !== undefined) return `phone to "${patch.phone}"`;
-        if (patch.website !== undefined) return 'website';
-        if (patch.googleMapsUri !== undefined) return 'maps URL';
-        if (patch.rating !== undefined) return `rating to ${patch.rating}`;
-        if (patch.reviewCount !== undefined) return `reviews to ${patch.reviewCount}`;
-        return 'field';
-      }
-      case 'emailUpdate': return `email to "${direction === 'undo' ? entry.prev : entry.next}"`;
-      case 'emailCreate': return `email "${entry.value}"`;
-      case 'emailDelete': return `email "${entry.value}"`;
-    }
+  const describeEntry = useCallback((entry: UndoEntry, _direction: 'undo' | 'redo'): string => {
+    const patch = entry.next;
+    if (patch.name !== undefined) return `name to "${patch.name}"`;
+    if (patch.locationCityId !== undefined) return 'city';
+    if (patch.locationStateId !== undefined) return 'state';
+    if (patch.businessType !== undefined) return `type to "${patch.businessType}"`;
+    if (patch.phone !== undefined) return `phone to "${patch.phone}"`;
+    if (patch.website !== undefined) return 'website';
+    if (patch.googleMapsUri !== undefined) return 'maps URL';
+    if (patch.rating !== undefined) return `rating to ${patch.rating}`;
+    if (patch.reviewCount !== undefined) return `reviews to ${patch.reviewCount}`;
+    return 'field';
   }, []);
 
   const applyEntry = useCallback((entry: UndoEntry, direction: 'undo' | 'redo') => {
-    switch (entry.kind) {
-      case 'field':
-        applyPatch(entry.leadId, direction === 'undo' ? entry.prev : entry.next);
-        break;
-      case 'emailUpdate':
-        updateEmailData.mutate(
-          { type: 'email', id: entry.emailId, data: { value: direction === 'undo' ? entry.prev : entry.next } },
-          { onError: mutateError('Failed to update email') },
-        );
-        break;
-      case 'emailCreate':
-        if (direction === 'undo') {
-          deleteEmailData.mutate({ type: 'email', id: entry.emailId }, { onError: mutateError('Failed to delete email') });
-        } else {
-          createEmail.mutate({ leadId: entry.leadId, value: entry.value }, {
-            onSuccess: (result) => { entry.emailId = result.id; },
-            onError: mutateError('Failed to create email'),
-          });
-        }
-        break;
-      case 'emailDelete':
-        if (direction === 'undo') {
-          createEmail.mutate({ leadId: entry.leadId, value: entry.value }, {
-            onSuccess: (result) => { entry.emailId = result.id; },
-            onError: mutateError('Failed to create email'),
-          });
-        } else {
-          deleteEmailData.mutate({ type: 'email', id: entry.emailId }, { onError: mutateError('Failed to delete email') });
-        }
-        break;
-    }
-  }, [applyPatch, updateEmailData, deleteEmailData, createEmail, mutateError]);
+    applyPatch(entry.leadId, direction === 'undo' ? entry.prev : entry.next);
+  }, [applyPatch]);
 
   const handleUndo = useCallback(() => {
     const stack = undoStackRef.current;
@@ -341,12 +301,6 @@ export default function Leads() {
     updateLead.mutate({ id, data: { businessType: type } }, { onError: (err) => { onError(); mutateError('Failed to update type')(err as Error); } });
   }, [updateLead, findLead, pushUndo, mutateError]);
 
-  const handleChangePhone = useCallback((id: string, phone: string, onError: () => void) => {
-    const lead = findLead(id);
-    pushUndo({ kind: 'field', leadId: id, prev: { phone: lead?.phone ?? null }, next: { phone } });
-    updateLead.mutate({ id, data: { phone } }, { onError: (err) => { onError(); mutateError('Failed to update phone')(err as Error); } });
-  }, [updateLead, findLead, pushUndo, mutateError]);
-
   const handleChangeWebsite = useCallback((id: string, value: string | null, onError: () => void) => {
     const lead = findLead(id);
     pushUndo({ kind: 'field', leadId: id, prev: { website: lead?.website ?? null }, next: { website: value } });
@@ -370,39 +324,6 @@ export default function Leads() {
     pushUndo({ kind: 'field', leadId: id, prev: { reviewCount: lead?.reviewCount ?? null }, next: { reviewCount: value } });
     updateLead.mutate({ id, data: { reviewCount: value } }, { onError: (err) => { onError(); mutateError('Failed to update reviews')(err as Error); } });
   }, [updateLead, findLead, pushUndo, mutateError]);
-
-  // ── Email cell handlers ─────────────────────────────────
-  const handleUpdateEmail = useCallback((leadId: string, emailId: string, value: string, onError: () => void) => {
-    const lead = findLead(leadId);
-    const prevValue = lead?.leadEmails?.find((e) => e.id === emailId)?.value ?? '';
-    pushUndo({ kind: 'emailUpdate', leadId, emailId, prev: prevValue, next: value });
-    updateEmailData.mutate(
-      { type: 'email', id: emailId, data: { value } },
-      { onError: (err) => { onError(); mutateError('Failed to update email')(err as Error); } },
-    );
-  }, [updateEmailData, findLead, pushUndo, mutateError]);
-
-  const handleCreateEmail = useCallback((leadId: string, value: string, onError: () => void) => {
-    const entry: UndoEntry = { kind: 'emailCreate', leadId, emailId: '', value };
-    pushUndo(entry);
-    createEmail.mutate(
-      { leadId, value },
-      {
-        onSuccess: (result) => { entry.emailId = result.id; },
-        onError: (err) => { onError(); mutateError('Failed to create email')(err as Error); },
-      },
-    );
-  }, [createEmail, pushUndo, mutateError]);
-
-  const handleDeleteEmail = useCallback((leadId: string, emailId: string, onError: () => void) => {
-    const lead = findLead(leadId);
-    const prevValue = lead?.leadEmails?.find((e) => e.id === emailId)?.value ?? '';
-    pushUndo({ kind: 'emailDelete', leadId, emailId, value: prevValue });
-    deleteEmailData.mutate(
-      { type: 'email', id: emailId },
-      { onError: (err) => { onError(); mutateError('Failed to delete email')(err as Error); } },
-    );
-  }, [deleteEmailData, findLead, pushUndo, mutateError]);
 
   // ── Insert row handlers ─────────────────────────────────
   const computeSortIndex = useCallback(async (
@@ -763,14 +684,10 @@ export default function Leads() {
         onChangeCity={handleChangeCity}
         onChangeState={handleChangeState}
         onChangeType={handleChangeType}
-        onChangePhone={handleChangePhone}
         onChangeWebsite={handleChangeWebsite}
         onChangeMaps={handleChangeMaps}
         onChangeRating={handleChangeRating}
         onChangeReviews={handleChangeReviews}
-        onUpdateEmail={handleUpdateEmail}
-        onCreateEmail={handleCreateEmail}
-        onDeleteEmail={handleDeleteEmail}
         onInsertRowAbove={handleInsertRowAbove}
         onInsertRowBelow={handleInsertRowBelow}
         onDeleteLead={handleDeleteLead}

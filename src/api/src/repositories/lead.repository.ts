@@ -3,9 +3,7 @@ import type { LeadListField, LeadQuery, LeadDataType } from '../models/lead.mode
 
 /** Maps the generic type param to the corresponding Prisma delegate name */
 const leadDataModelMap: Record<LeadDataType, string> = {
-  email: 'leadEmail',
-  phone: 'leadPhone',
-  social: 'leadSocialProfile',
+  contact: 'leadContact',
 };
 
 // Map sort field names from camelCase frontend to Prisma field names
@@ -28,8 +26,7 @@ const defaultLeadFields: LeadListField[] = [
   'name',
   'city',
   'state',
-  'phone',
-  'emails',
+  'contacts',
   'website',
   'rating',
   'businessType',
@@ -101,9 +98,7 @@ export const leadRepository = {
         searchQuery: { select: { id: true, textQuery: true } },
         locationCity: { select: { id: true, name: true } },
         locationState: { select: { id: true, name: true } },
-        leadEmails: { include: { sourcePage: { select: { id: true, url: true } } } },
-        leadPhones: { include: { sourcePage: { select: { id: true, url: true } } } },
-        leadSocialProfiles: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadContacts: { include: { scrapedPage: { select: { id: true, url: true } } } },
         scrapeRuns: {
           orderBy: { startedAt: 'desc' },
           take: 5,
@@ -145,9 +140,7 @@ export const leadRepository = {
       include: {
         locationCity: { select: { id: true, name: true } },
         locationState: { select: { id: true, name: true } },
-        leadEmails: { select: { value: true } },
-        leadPhones: { select: { value: true } },
-        leadSocialProfiles: { select: { platform: true, url: true } },
+        leadContacts: { select: { email: true, phone: true, firstName: true, lastName: true, linkedin: true, facebook: true, instagram: true, twitter: true, isBestContact: true } },
         franchise: { select: { id: true, name: true, displayName: true } },
         campaign: { select: { id: true, name: true } },
       },
@@ -279,40 +272,33 @@ export const leadRepository = {
     return (prisma as any)[model].update({ where: { id }, data });
   },
 
-  async createLeadEmail(leadId: string, value: string) {
-    return prisma.leadEmail.create({ data: { leadId, value } });
+  async createLeadContact(leadId: string, data: { email?: string; phone?: string; firstName?: string; lastName?: string }) {
+    return prisma.leadContact.create({ data: { leadId, ...data } });
   },
 
-  /** Field-level provenance: value-to-source mappings for audit */
+  /** Field-level provenance: contact-to-source mappings for audit */
   async getLeadProvenance(leadId: string) {
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: {
-        leadEmails: { include: { sourcePage: { select: { id: true, url: true } } } },
-        leadPhones: { include: { sourcePage: { select: { id: true, url: true } } } },
-        leadSocialProfiles: { include: { sourcePage: { select: { id: true, url: true } } } },
+        leadContacts: { include: { scrapedPage: { select: { id: true, url: true } } } },
       },
     });
     if (!lead) return null;
     return {
-      emails: lead.leadEmails.map((e) => ({
-        value: e.value,
-        sourcePageId: e.sourcePageId,
-        sourceRunId: e.sourceRunId,
-        sourcePage: e.sourcePage ? { id: e.sourcePage.id, url: e.sourcePage.url } : null,
-      })),
-      phones: lead.leadPhones.map((p) => ({
-        value: p.value,
-        sourcePageId: p.sourcePageId,
-        sourceRunId: p.sourceRunId,
-        sourcePage: p.sourcePage ? { id: p.sourcePage.id, url: p.sourcePage.url } : null,
-      })),
-      socialProfiles: lead.leadSocialProfiles.map((s) => ({
-        platform: s.platform,
-        url: s.url,
-        sourcePageId: s.sourcePageId,
-        sourceRunId: s.sourceRunId,
-        sourcePage: s.sourcePage ? { id: s.sourcePage.id, url: s.sourcePage.url } : null,
+      contacts: lead.leadContacts.map((c) => ({
+        id: c.id,
+        email: c.email,
+        phone: c.phone,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        linkedin: c.linkedin,
+        facebook: c.facebook,
+        instagram: c.instagram,
+        twitter: c.twitter,
+        isBestContact: c.isBestContact,
+        scrapedPageId: c.scrapedPageId,
+        scrapedPage: c.scrapedPage ? { id: c.scrapedPage.id, url: c.scrapedPage.url } : null,
       })),
     };
   },
@@ -391,15 +377,10 @@ function buildWhereClause(
   if (filters.franchiseId) {
     where.franchiseId = filters.franchiseId;
   }
-  if (filters.hasExtractedEmail === true) {
-    where.leadEmails = { some: {} };
-  } else if (filters.hasExtractedEmail === false) {
-    where.leadEmails = { none: {} };
-  }
-  if (filters.hasExtractedPhone === true) {
-    where.leadPhones = { some: {} };
-  } else if (filters.hasExtractedPhone === false) {
-    where.leadPhones = { none: {} };
+  if (filters.hasContact === true) {
+    where.leadContacts = { some: {} };
+  } else if (filters.hasContact === false) {
+    where.leadContacts = { none: {} };
   }
   if (filters.reviewCountMin !== undefined) {
     where.reviewCount = { ...((where.reviewCount as object) || {}), gte: filters.reviewCountMin };
@@ -476,11 +457,8 @@ function buildLeadSelect(fields: Set<LeadListField>) {
   if (fields.has('state')) {
     select.locationState = { select: { id: true, name: true } };
   }
-  if (fields.has('phone')) {
-    select.phone = true;
-  }
-  if (fields.has('emails')) {
-    select.leadEmails = { select: { id: true, value: true } };
+  if (fields.has('contacts')) {
+    select.leadContacts = { select: { id: true, email: true, phone: true, firstName: true, lastName: true, linkedin: true, isBestContact: true } };
   }
   if (fields.has('website')) {
     select.website = true;

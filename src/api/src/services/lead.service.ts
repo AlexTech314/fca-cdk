@@ -435,8 +435,8 @@ export const leadService = {
     }
   },
 
-  async createLeadEmail(leadId: string, value: string) {
-    return leadRepository.createLeadEmail(leadId, value);
+  async createLeadContact(leadId: string, data: { email?: string; phone?: string; firstName?: string; lastName?: string }) {
+    return leadRepository.createLeadContact(leadId, data);
   },
 
   async deleteLead(id: string) {

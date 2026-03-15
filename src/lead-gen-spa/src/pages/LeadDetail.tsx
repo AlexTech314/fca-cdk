@@ -12,7 +12,6 @@ import { useLead, useQualifyLead, useDeleteScrapeRun, useDeleteScrapedPage, useD
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate, formatNumber } from '@/lib/utils';
-import type { LeadDataType } from '@/lib/api/types';
 import {
   MapPin,
   Phone,
@@ -21,7 +20,6 @@ import {
   Target,
   Sparkles,
   ExternalLink,
-  Mail,
   FileSearch,
   FileText,
   ChevronRight,
@@ -30,36 +28,22 @@ import {
   Pencil,
   X,
 } from 'lucide-react';
-import type { LeadWithCampaign } from '@/types';
+import type { LeadWithCampaign, LeadContact } from '@/types';
 
-interface PageExtraction {
-  emails: { id: string; value: string; firstName?: string | null; lastName?: string | null; contactType?: string | null }[];
-  phones: { id: string; value: string }[];
-  social: { id: string; platform: string; url: string }[];
-}
-
-/** Build per-page extraction summary for a scrape run (nested event log) */
-function getExtractedByPage(lead: LeadWithCampaign, runId: string): Map<string, PageExtraction> {
-  const byPage = new Map<string, PageExtraction>();
-  const add = (pageId: string) => {
-    if (!byPage.has(pageId)) byPage.set(pageId, { emails: [], phones: [], social: [] });
-    return byPage.get(pageId)!;
-  };
-  for (const e of lead.leadEmails ?? []) {
-    if (e.sourceRunId === runId) add(e.sourcePageId).emails.push({ id: e.id, value: e.value, firstName: e.firstName, lastName: e.lastName, contactType: e.contactType });
-  }
-  for (const p of lead.leadPhones ?? []) {
-    if (p.sourceRunId === runId) add(p.sourcePageId).phones.push({ id: p.id, value: p.value });
-  }
-  for (const s of lead.leadSocialProfiles ?? []) {
-    if (s.sourceRunId === runId) add(s.sourcePageId).social.push({ id: s.id, platform: s.platform, url: s.url });
+/** Build per-page contact summary keyed by scrapedPageId */
+function getContactsByPage(lead: LeadWithCampaign): Map<string, LeadContact[]> {
+  const byPage = new Map<string, LeadContact[]>();
+  for (const c of lead.leadContacts ?? []) {
+    if (!c.scrapedPageId) continue;
+    const arr = byPage.get(c.scrapedPageId) ?? [];
+    arr.push(c);
+    byPage.set(c.scrapedPageId, arr);
   }
   return byPage;
 }
 
-/** Inline edit form for a single extracted data item */
-function InlineEditForm({ type, initial, onSave, onCancel }: {
-  type: LeadDataType;
+/** Inline edit form for a contact */
+function InlineEditForm({ initial, onSave, onCancel }: {
   initial: Record<string, string>;
   onSave: (data: Record<string, string>) => void;
   onCancel: () => void;
@@ -71,13 +55,10 @@ function InlineEditForm({ type, initial, onSave, onCancel }: {
     onSave(values);
   };
 
-  const fields: { key: string; placeholder: string }[] = (() => {
-    switch (type) {
-      case 'email': return [{ key: 'value', placeholder: 'Email' }];
-      case 'phone': return [{ key: 'value', placeholder: 'Phone' }];
-      case 'social': return [{ key: 'platform', placeholder: 'Platform' }, { key: 'url', placeholder: 'URL' }];
-    }
-  })();
+  const fields = Object.keys(initial).map((key) => ({
+    key,
+    placeholder: key.charAt(0).toUpperCase() + key.slice(1),
+  }));
 
   return (
     <form onSubmit={handleSubmit} className="flex items-center gap-1 flex-1">
@@ -174,17 +155,17 @@ export default function LeadDetail() {
     }
   };
 
-  const handleDeleteData = (type: LeadDataType, dataId: string) => {
-    deleteDataMutation.mutateAsync({ type, id: dataId }).then(
-      () => toast({ title: `Deleted ${type}` }),
-      () => toast({ title: `Failed to delete ${type}`, variant: 'destructive' })
+  const handleDeleteContact = (contactId: string) => {
+    deleteDataMutation.mutateAsync({ type: 'contact', id: contactId }).then(
+      () => toast({ title: 'Deleted contact' }),
+      () => toast({ title: 'Failed to delete contact', variant: 'destructive' })
     );
   };
 
-  const handleUpdateData = (type: LeadDataType, dataId: string, data: Record<string, unknown>) => {
-    updateDataMutation.mutateAsync({ type, id: dataId, data }).then(
-      () => { setEditingId(null); toast({ title: `Updated ${type}` }); },
-      () => toast({ title: `Failed to update ${type}`, variant: 'destructive' })
+  const handleUpdateContact = (contactId: string, data: Record<string, unknown>) => {
+    updateDataMutation.mutateAsync({ type: 'contact', id: contactId, data }).then(
+      () => { setEditingId(null); toast({ title: 'Updated contact' }); },
+      () => toast({ title: 'Failed to update contact', variant: 'destructive' })
     );
   };
 
@@ -333,95 +314,49 @@ export default function LeadDetail() {
           </Card>
         </div>
 
-        {/* Extracted Data (emails, phones, social) */}
-        {(lead.leadEmails?.length || lead.leadPhones?.length || lead.leadSocialProfiles?.length) ? (
+        {/* Contacts (extracted from scrape) */}
+        {(lead.leadContacts?.length) ? (
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle className="text-base">Extracted Data (from scrape)</CardTitle>
+              <CardTitle className="text-base">Contacts</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {lead.leadEmails?.length ? (
-                <div>
-                  <h4 className="text-sm font-medium flex items-center gap-1 mb-2"><Mail className="h-3 w-3" /> Emails</h4>
-                  <ul className="space-y-1 text-sm">
-                    {lead.leadEmails.map((e) => {
-                      const contactName = [e.firstName, e.lastName].filter(Boolean).join(' ');
-                      return (
-                        <li key={e.id} className="group flex items-center gap-1">
-                          {editingId === e.id ? (
-                            <InlineEditForm
-                              type="email"
-                              initial={{ value: e.value }}
-                              onSave={(data) => handleUpdateData('email', e.id, data)}
-                              onCancel={() => setEditingId(null)}
-                            />
-                          ) : (
-                            <>
-                              {contactName && <span className="font-medium">{contactName}</span>}
-                              {contactName && <span className="text-muted-foreground">—</span>}
-                              <a href={`mailto:${e.value}`} className="text-primary hover:underline">{e.value}</a>
-                              {e.contactType && (
-                                <Badge variant="outline" className="text-[10px] px-1 py-0 ml-1">{e.contactType}</Badge>
-                              )}
-                              {e.sourcePage?.url && <span className="text-muted-foreground text-xs ml-1">(from {e.sourcePage.url})</span>}
-                              <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(e.id)} onDelete={() => handleDeleteData('email', e.id)} isPending={isMutating} />
-                            </>
+            <CardContent className="space-y-2">
+              <ul className="space-y-2 text-sm">
+                {lead.leadContacts.map((c) => {
+                  const contactName = [c.firstName, c.lastName].filter(Boolean).join(' ');
+                  return (
+                    <li key={c.id} className="group flex items-center gap-2 flex-wrap">
+                      {editingId === c.id ? (
+                        <InlineEditForm
+                          initial={{
+                            ...(c.email ? { email: c.email } : {}),
+                            ...(c.phone ? { phone: c.phone } : {}),
+                            ...(c.firstName ? { firstName: c.firstName } : {}),
+                            ...(c.lastName ? { lastName: c.lastName } : {}),
+                          }}
+                          onSave={(data) => handleUpdateContact(c.id, data)}
+                          onCancel={() => setEditingId(null)}
+                        />
+                      ) : (
+                        <>
+                          {c.isBestContact && (
+                            <Badge variant="default" className="text-[10px] px-1 py-0">best</Badge>
                           )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ) : null}
-              {lead.leadPhones?.length ? (
-                <div>
-                  <h4 className="text-sm font-medium flex items-center gap-1 mb-2"><Phone className="h-3 w-3" /> Phones</h4>
-                  <ul className="space-y-1 text-sm">
-                    {lead.leadPhones.map((p) => (
-                      <li key={p.id} className="group flex items-center gap-1">
-                        {editingId === p.id ? (
-                          <InlineEditForm
-                            type="phone"
-                            initial={{ value: p.value }}
-                            onSave={(data) => handleUpdateData('phone', p.id, data)}
-                            onCancel={() => setEditingId(null)}
-                          />
-                        ) : (
-                          <>
-                            <a href={`tel:${p.value}`} className="text-primary hover:underline">{p.value}</a>
-                            {p.sourcePage?.url && <span className="text-muted-foreground text-xs ml-1">(from {p.sourcePage.url})</span>}
-                            <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(p.id)} onDelete={() => handleDeleteData('phone', p.id)} isPending={isMutating} />
-                          </>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {lead.leadSocialProfiles?.length ? (
-                <div>
-                  <h4 className="text-sm font-medium mb-2">Social Profiles</h4>
-                  <ul className="space-y-1 text-sm">
-                    {lead.leadSocialProfiles.map((s) => (
-                      <li key={s.id} className="group flex items-center gap-1">
-                        {editingId === s.id ? (
-                          <InlineEditForm
-                            type="social"
-                            initial={{ platform: s.platform, url: s.url }}
-                            onSave={(data) => handleUpdateData('social', s.id, data)}
-                            onCancel={() => setEditingId(null)}
-                          />
-                        ) : (
-                          <>
-                            <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{s.platform}: {s.url}</a>
-                            <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(s.id)} onDelete={() => handleDeleteData('social', s.id)} isPending={isMutating} />
-                          </>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+                          {contactName && <span className="font-medium">{contactName}</span>}
+                          {c.email && <a href={`mailto:${c.email}`} className="text-primary hover:underline">{c.email}</a>}
+                          {c.phone && <a href={`tel:${c.phone}`} className="text-primary hover:underline">{c.phone}</a>}
+                          {c.linkedin && <a href={c.linkedin} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">LinkedIn</a>}
+                          {c.instagram && <a href={c.instagram} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">Instagram</a>}
+                          {c.facebook && <a href={c.facebook} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">Facebook</a>}
+                          {c.twitter && <a href={c.twitter} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">Twitter</a>}
+                          {c.scrapedPage?.url && <span className="text-muted-foreground text-xs">(from {c.scrapedPage.url})</span>}
+                          <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(c.id)} onDelete={() => handleDeleteContact(c.id)} isPending={isMutating} />
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             </CardContent>
           </Card>
         ) : null}
@@ -437,7 +372,7 @@ export default function LeadDetail() {
             </CardHeader>
             <CardContent className="space-y-4">
               {lead.scrapeRuns.map((run) => {
-                const extractedByPage = getExtractedByPage(lead, run.id);
+                const contactsByPage = getContactsByPage(lead);
                 return (
                   <div key={run.id} className="rounded-lg border p-4">
                     <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
@@ -472,8 +407,8 @@ export default function LeadDetail() {
                     {run.scrapedPages?.length ? (
                       <ul className="mt-2 space-y-2 text-sm">
                         {run.scrapedPages.map((p) => {
-                          const ex = extractedByPage.get(p.id);
-                          const hasExtracted = ex && (ex.emails.length || ex.phones.length || ex.social.length);
+                          const pageContacts = contactsByPage.get(p.id);
+                          const hasExtracted = pageContacts && pageContacts.length > 0;
                           return (
                             <li key={p.id} className="space-y-1" style={{ paddingLeft: (p.depth ?? 0) * 12 }}>
                               <div className="group flex items-center gap-1">
@@ -504,68 +439,41 @@ export default function LeadDetail() {
                               </div>
                               {hasExtracted && (
                                 <ul className="ml-4 space-y-0.5 text-xs text-muted-foreground border-l border-muted pl-2">
-                                  {ex!.emails.map((v) => {
-                                    const name = [v.firstName, v.lastName].filter(Boolean).join(' ');
+                                  {pageContacts!.map((c) => {
+                                    const name = [c.firstName, c.lastName].filter(Boolean).join(' ');
+                                    const parts: string[] = [];
+                                    if (c.email) parts.push(c.email);
+                                    if (c.phone) parts.push(c.phone);
+                                    if (c.linkedin) parts.push('LinkedIn');
+                                    if (c.facebook) parts.push('Facebook');
+                                    if (c.instagram) parts.push('Instagram');
+                                    if (c.twitter) parts.push('Twitter');
                                     return (
-                                      <li key={v.id} className="group flex items-center gap-1">
-                                        {editingId === v.id ? (
+                                      <li key={c.id} className="group flex items-center gap-1">
+                                        {editingId === c.id ? (
                                           <InlineEditForm
-                                            type="email"
-                                            initial={{ value: v.value }}
-                                            onSave={(data) => handleUpdateData('email', v.id, data)}
+                                            initial={{
+                                              ...(c.email ? { email: c.email } : {}),
+                                              ...(c.phone ? { phone: c.phone } : {}),
+                                            }}
+                                            onSave={(data) => handleUpdateContact(c.id, data)}
                                             onCancel={() => setEditingId(null)}
                                           />
                                         ) : (
                                           <>
                                             <CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" />
-                                            {name ? <><span className="font-medium">{name}</span> — {v.value}</> : <>email: {v.value}</>}
-                                            {v.contactType && (
-                                              <span className={`text-[10px] px-1 rounded ${
-                                                v.contactType === 'owner' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' :
-                                                v.contactType === 'team' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
-                                                'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                                              }`}>{v.contactType}</span>
+                                            {name && <span className="font-medium">{name}</span>}
+                                            {name && parts.length > 0 && <span>—</span>}
+                                            {parts.join(', ')}
+                                            {c.isBestContact && (
+                                              <span className="text-[10px] px-1 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">best</span>
                                             )}
-                                            <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(v.id)} onDelete={() => handleDeleteData('email', v.id)} isPending={isMutating} />
+                                            <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(c.id)} onDelete={() => handleDeleteContact(c.id)} isPending={isMutating} />
                                           </>
                                         )}
                                       </li>
                                     );
                                   })}
-                                  {ex!.phones.map((v) => (
-                                    <li key={v.id} className="group flex items-center gap-1">
-                                      {editingId === v.id ? (
-                                        <InlineEditForm
-                                          type="phone"
-                                          initial={{ value: v.value }}
-                                          onSave={(data) => handleUpdateData('phone', v.id, data)}
-                                          onCancel={() => setEditingId(null)}
-                                        />
-                                      ) : (
-                                        <>
-                                          <CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> phone: {v.value}
-                                          <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(v.id)} onDelete={() => handleDeleteData('phone', v.id)} isPending={isMutating} />
-                                        </>
-                                      )}
-                                    </li>
-                                  ))}
-                                  {ex!.social.map((s) => (
-                                    <li key={s.id} className="group flex items-center gap-1">
-                                      {editingId === s.id ? (
-                                        <InlineEditForm
-                                          type="social"
-                                          initial={{ platform: s.platform, url: s.url }}
-                                          onSave={(data) => handleUpdateData('social', s.id, data)}
-                                          onCancel={() => setEditingId(null)}
-                                        />
-                                      ) : (
-                                        <>
-                                          <CheckCircle2 className="h-3 w-3 text-green-600 shrink-0" /> {s.platform}: {s.url}
-                                          <DataRowActions canWrite={canWrite} onEdit={() => setEditingId(s.id)} onDelete={() => handleDeleteData('social', s.id)} isPending={isMutating} />
-                                        </>
-                                      )}
-                                    </li>
-                                  ))}
                                 </ul>
                               )}
                             </li>
@@ -689,40 +597,39 @@ export default function LeadDetail() {
                     </div>
                   )}
 
-                  {(lead.ownerEmail || lead.ownerPhone || lead.ownerLinkedin) && (
-                    <div className="rounded-lg border p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">Owner Contact</p>
-                        {lead.contactConfidence && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            lead.contactConfidence === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
-                            lead.contactConfidence === 'likely' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' :
-                            'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                          }`}>
-                            {lead.contactConfidence}
-                          </span>
+                  {(() => {
+                    const bestContact = lead.leadContacts?.find((c) => c.isBestContact);
+                    if (!bestContact) return null;
+                    return (
+                      <div className="rounded-lg border p-4 space-y-2">
+                        <p className="text-sm font-medium">Best Contact</p>
+                        {(bestContact.firstName || bestContact.lastName) && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Name</span>
+                            <span>{[bestContact.firstName, bestContact.lastName].filter(Boolean).join(' ')}</span>
+                          </div>
+                        )}
+                        {bestContact.email && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Email</span>
+                            <a href={`mailto:${bestContact.email}`} className="text-blue-600 hover:underline dark:text-blue-400">{bestContact.email}</a>
+                          </div>
+                        )}
+                        {bestContact.phone && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Phone</span>
+                            <a href={`tel:${bestContact.phone}`} className="text-blue-600 hover:underline dark:text-blue-400">{bestContact.phone}</a>
+                          </div>
+                        )}
+                        {bestContact.linkedin && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">LinkedIn</span>
+                            <a href={bestContact.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline dark:text-blue-400 truncate max-w-[200px]">{bestContact.linkedin}</a>
+                          </div>
                         )}
                       </div>
-                      {lead.ownerEmail && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Email</span>
-                          <a href={`mailto:${lead.ownerEmail}`} className="text-blue-600 hover:underline dark:text-blue-400">{lead.ownerEmail}</a>
-                        </div>
-                      )}
-                      {lead.ownerPhone && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Phone</span>
-                          <a href={`tel:${lead.ownerPhone}`} className="text-blue-600 hover:underline dark:text-blue-400">{lead.ownerPhone}</a>
-                        </div>
-                      )}
-                      {lead.ownerLinkedin && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">LinkedIn</span>
-                          <a href={lead.ownerLinkedin} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline dark:text-blue-400 truncate max-w-[200px]">{lead.ownerLinkedin}</a>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {lead.scoringRationale && (
                     <div className="rounded-lg bg-muted p-4">

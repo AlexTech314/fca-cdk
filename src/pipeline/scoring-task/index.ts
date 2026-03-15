@@ -79,9 +79,7 @@ async function main(): Promise<void> {
         include: {
           locationCity: { select: { name: true } },
           locationState: { select: { name: true } },
-          leadEmails: { select: { id: true, value: true } },
-          leadPhones: { select: { value: true } },
-          leadSocialProfiles: { select: { platform: true, url: true } },
+          leadContacts: { select: { id: true, email: true, phone: true, linkedin: true, facebook: true, instagram: true, twitter: true } },
         },
       });
       if (!lead) {
@@ -89,9 +87,15 @@ async function main(): Promise<void> {
         skipped++;
         return;
       }
-      const social = Object.fromEntries(
-        lead.leadSocialProfiles.map((p) => [p.platform, p.url])
-      );
+      const emails = lead.leadContacts.filter((c) => c.email).map((c) => c.email!);
+      const phones = lead.leadContacts.filter((c) => c.phone).map((c) => c.phone!);
+      const social: Record<string, string> = {};
+      for (const c of lead.leadContacts) {
+        if (c.linkedin) social.linkedin = c.linkedin;
+        if (c.facebook) social.facebook = c.facebook;
+        if (c.instagram) social.instagram = c.instagram;
+        if (c.twitter) social.twitter = c.twitter;
+      }
 
       const leadData = {
         name: lead.name,
@@ -105,8 +109,8 @@ async function main(): Promise<void> {
         price_level: lead.priceLevel,
         editorial_summary: lead.editorialSummary,
         review_summary: lead.reviewSummary,
-        emails: lead.leadEmails.map((e) => e.value),
-        phones: lead.leadPhones.map((p) => p.value),
+        emails,
+        phones,
         social,
         contact_page_url: lead.contactPageUrl,
       };
@@ -119,7 +123,7 @@ async function main(): Promise<void> {
       await db.lead.update({ where: { id: lead_id }, data: { pipelineStatus: 'scoring' } });
 
       // Pass 1: Extract structured facts + contact names from raw markdown (parallel)
-      const emailValues = lead.leadEmails.map((e) => e.value);
+      const emailValues = emails;
       let facts: ExtractionResult;
       let contactResults: Awaited<ReturnType<typeof extractContacts>> = [];
       if (markdown) {
@@ -170,29 +174,61 @@ async function main(): Promise<void> {
           supportingEvidence: result.supporting_evidence,
           isIntermediated: result.is_intermediated,
           intermediationSignals: result.intermediation_signals_summary,
-          ownerEmail: result.owner_email,
-          ownerPhone: result.owner_phone,
-          ownerLinkedin: result.owner_linkedin,
-          contactConfidence: result.contact_confidence,
           extractedFactsS3Key,
           scoredAt: new Date(),
           pipelineStatus: 'idle',
           scoringError: null,
         },
       });
-      // Update LeadEmail records with contact extraction results
+
+      // Upsert best contact from scoring results
+      if (result.owner_email || result.owner_phone || result.owner_linkedin) {
+        // Clear any existing best contact
+        await db.leadContact.updateMany({
+          where: { leadId: lead_id, isBestContact: true },
+          data: { isBestContact: null },
+        });
+        // Try to find an existing contact by email match
+        const existingContact = result.owner_email
+          ? await db.leadContact.findFirst({
+              where: { leadId: lead_id, email: result.owner_email.toLowerCase() },
+            })
+          : null;
+        if (existingContact) {
+          await db.leadContact.update({
+            where: { id: existingContact.id },
+            data: {
+              isBestContact: true,
+              phone: result.owner_phone ?? existingContact.phone,
+              linkedin: result.owner_linkedin ?? existingContact.linkedin,
+            },
+          });
+        } else {
+          await db.leadContact.create({
+            data: {
+              leadId: lead_id,
+              email: result.owner_email ?? undefined,
+              phone: result.owner_phone ?? undefined,
+              linkedin: result.owner_linkedin ?? undefined,
+              isBestContact: true,
+            },
+          });
+        }
+      }
+
+      // Update LeadContact records with contact extraction results
       let contactsEnriched = 0;
       for (const contact of contactResults) {
-        const matching = lead.leadEmails.find(
-          (e) => e.value.toLowerCase() === contact.email.toLowerCase()
+        const matching = lead.leadContacts.find(
+          (c) => c.email && c.email.toLowerCase() === contact.email.toLowerCase()
         );
         if (matching) {
-          await db.leadEmail.update({
+          await db.leadContact.update({
             where: { id: matching.id },
             data: {
               firstName: contact.first_name,
               lastName: contact.last_name,
-              contactType: contact.contact_type,
+              description: contact.contact_type,
             },
           });
           contactsEnriched++;

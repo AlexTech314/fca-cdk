@@ -172,10 +172,6 @@ function transformLead(raw: any): Lead {
     tier: raw.tier ?? null,
     isIntermediated: raw.isIntermediated ?? raw.is_intermediated ?? false,
     intermediationSignals: raw.intermediationSignals ?? raw.intermediation_signals ?? null,
-    ownerEmail: raw.ownerEmail ?? raw.owner_email ?? null,
-    ownerPhone: raw.ownerPhone ?? raw.owner_phone ?? null,
-    ownerLinkedin: raw.ownerLinkedin ?? raw.owner_linkedin ?? null,
-    contactConfidence: raw.contactConfidence ?? raw.contact_confidence ?? null,
     isExcluded: raw.isExcluded ?? raw.is_excluded ?? false,
     exclusionReason: raw.exclusionReason ?? raw.exclusion_reason ?? null,
     source: raw.source || null,
@@ -191,8 +187,7 @@ function transformLead(raw: any): Lead {
     scoringError: raw.scoringError ?? raw.scoring_error ?? null,
     webScrapedAt: raw.webScrapedAt ?? raw.web_scraped_at ?? null,
     lastScrapePagesCount: raw.scrapeRuns?.[0]?.pagesCount ?? null,
-    emails: (raw.leadEmails ?? []).map((e: { value: string }) => e.value),
-    leadEmails: (raw.leadEmails ?? []).map((e: { id: string; value: string }) => ({ id: e.id, value: e.value })),
+    leadContacts: raw.leadContacts ?? [],
     createdAt: raw.createdAt || raw.created_at,
     updatedAt: raw.updatedAt || raw.updated_at,
   };
@@ -435,9 +430,7 @@ export const realApi: LeadGenApi = {
   async getLead(id: string): Promise<LeadWithCampaign> {
     const raw = await apiClient<any>(`/leads/${id}`);
     const lead = transformLead(raw) as LeadWithCampaign;
-    lead.leadEmails = raw.leadEmails ?? [];
-    lead.leadPhones = raw.leadPhones ?? [];
-    lead.leadSocialProfiles = raw.leadSocialProfiles ?? [];
+    lead.leadContacts = raw.leadContacts ?? [];
     lead.scrapeRuns = raw.scrapeRuns ?? [];
     return lead;
   },
@@ -777,10 +770,10 @@ export const realApi: LeadGenApi = {
     await apiClient(`/scraped-pages/${pageId}`, { method: 'DELETE' });
   },
 
-  async createLeadEmail(leadId: string, value: string): Promise<{ id: string; value: string }> {
-    return apiClient<{ id: string; value: string }>(`/leads/${leadId}/emails`, {
+  async createLeadContact(leadId: string, data: { email?: string; phone?: string; firstName?: string; lastName?: string }): Promise<{ id: string }> {
+    return apiClient<{ id: string }>(`/leads/${leadId}/contacts`, {
       method: 'POST',
-      body: JSON.stringify({ value }),
+      body: JSON.stringify(data),
     });
   },
 

@@ -9,8 +9,7 @@ export const DEFAULT_LEAD_COLUMNS: LeadListField[] = [
   'name',
   'city',
   'state',
-  'phone',
-  'emails',
+  'contacts',
   'rating',
   'reviewCount',
   'businessType',
@@ -21,8 +20,7 @@ export const LEAD_COLUMN_OPTIONS: LeadColumnOption[] = [
   { key: 'name', label: 'Name' },
   { key: 'city', label: 'City' },
   { key: 'state', label: 'State' },
-  { key: 'phone', label: 'Phone' },
-  { key: 'emails', label: 'Emails' },
+  { key: 'contacts', label: 'Contacts' },
   { key: 'website', label: 'Website' },
   { key: 'googleMaps', label: 'Maps' },
   { key: 'rating', label: 'Rating' },
@@ -38,4 +36,4 @@ export const LEAD_COLUMN_OPTIONS: LeadColumnOption[] = [
   { key: 'createdAt', label: 'Added' },
 ];
 
-export const LEAD_COLUMNS_STORAGE_KEY = 'lead-table-columns-v11';
+export const LEAD_COLUMNS_STORAGE_KEY = 'lead-table-columns-v12';

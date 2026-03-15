@@ -14,8 +14,7 @@ import { NameCell } from './NameCell';
 import { CityCell } from './CityCell';
 import { StateCell } from './StateCell';
 import { TypeCell } from './TypeCell';
-import { PhoneCell } from './PhoneCell';
-import { MultiEmailCell } from './MultiEmailCell';
+import { ContactsCell } from './ContactsCell';
 import { UrlCell } from './UrlCell';
 import { NumericCell } from './NumericCell';
 import { ScoreBadge } from './QualificationBadge';
@@ -55,10 +54,6 @@ interface LeadTableProps {
   onChangeCity: (id: string, cityId: number, cityName: string, onError: () => void) => void;
   onChangeState: (id: string, stateId: string, onError: () => void) => void;
   onChangeType: (id: string, type: string, onError: () => void) => void;
-  onChangePhone: (id: string, phone: string, onError: () => void) => void;
-  onUpdateEmail: (leadId: string, emailId: string, value: string, onError: () => void) => void;
-  onCreateEmail: (leadId: string, value: string, onError: () => void) => void;
-  onDeleteEmail: (leadId: string, emailId: string, onError: () => void) => void;
   onChangeWebsite: (id: string, value: string | null, onError: () => void) => void;
   onChangeMaps: (id: string, value: string | null, onError: () => void) => void;
   onChangeRating: (id: string, value: number | null, onError: () => void) => void;
@@ -119,10 +114,6 @@ export function LeadTable({
   onChangeCity,
   onChangeState,
   onChangeType,
-  onChangePhone,
-  onUpdateEmail,
-  onCreateEmail,
-  onDeleteEmail,
   onChangeWebsite,
   onChangeMaps,
   onChangeRating,
@@ -166,25 +157,12 @@ export function LeadTable({
         <StateCell lead={lead} onChangeState={onChangeState} />
       ),
     },
-    phone: {
-      label: 'Phone',
-      headClassName: 'min-w-[150px]',
-      cellClassName: 'min-w-[150px]',
+    contacts: {
+      label: 'Contacts',
+      headClassName: 'min-w-[120px]',
+      cellClassName: 'min-w-[120px]',
       renderCell: (lead) => (
-        <PhoneCell lead={lead} onChangePhone={onChangePhone} />
-      ),
-    },
-    emails: {
-      label: 'Emails',
-      headClassName: 'min-w-[200px]',
-      cellClassName: 'text-sm min-w-[200px]',
-      renderCell: (lead) => (
-        <MultiEmailCell
-          lead={lead}
-          onUpdateEmail={onUpdateEmail}
-          onCreateEmail={onCreateEmail}
-          onDeleteEmail={onDeleteEmail}
-        />
+        <ContactsCell lead={lead} />
       ),
     },
     website: {

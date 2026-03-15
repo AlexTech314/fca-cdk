@@ -502,6 +502,7 @@ model SearchQuery {
   createdAt    DateTime  @default(now()) @map("created_at")
 
   leads        Lead[]
+  leadContacts         LeadContact[]
 
   @@index([campaignId])
   @@index([campaignRunId])
@@ -569,9 +570,7 @@ model ScrapedPage {
   markdownS3Key        String?       @map("markdown_s3_key")
 
   franchises           FranchiseScrapedPage[]
-  leadEmails           LeadEmail[]
-  leadPhones           LeadPhone[]
-  leadSocialProfiles   LeadSocialProfile[]
+  leadContacts         LeadContact[]
 
   createdAt            DateTime      @default(now()) @map("created_at")
 
@@ -593,61 +592,6 @@ model FranchiseScrapedPage {
   @@index([scrapedPageId])
   @@map("franchise_scraped_pages")
 }
-
-model LeadEmail {
-  id             String      @id @default(uuid())
-  leadId         String      @map("lead_id")
-  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  value          String
-  firstName      String?     @map("first_name")
-  lastName       String?     @map("last_name")
-  contactType    String?     @map("contact_type")  // 'owner', 'team', 'business'
-  sourcePageId   String?     @map("source_page_id")
-  sourcePage     ScrapedPage? @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
-  sourceRunId    String?     @map("source_run_id")
-  createdAt      DateTime    @default(now()) @map("created_at")
-
-  @@unique([leadId, value], name: "leadId_value")
-  @@index([leadId])
-  @@index([sourcePageId])
-  @@index([sourceRunId])
-  @@map("lead_emails")
-}
-
-model LeadPhone {
-  id             String      @id @default(uuid())
-  leadId         String      @map("lead_id")
-  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  value          String
-  sourcePageId   String      @map("source_page_id")
-  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
-  sourceRunId    String      @map("source_run_id")
-  createdAt      DateTime    @default(now()) @map("created_at")
-
-  @@unique([leadId, value], name: "leadId_value")
-  @@index([leadId])
-  @@index([sourcePageId])
-  @@index([sourceRunId])
-  @@map("lead_phones")
-}
-
-model LeadSocialProfile {
-  id             String      @id @default(uuid())
-  leadId         String      @map("lead_id")
-  lead           Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  platform       String      // linkedin, facebook, instagram, twitter
-  url            String
-  sourcePageId   String      @map("source_page_id")
-  sourcePage     ScrapedPage @relation(fields: [sourcePageId], references: [id], onDelete: Cascade)
-  sourceRunId    String      @map("source_run_id")
-  createdAt      DateTime    @default(now()) @map("created_at")
-
-  @@index([leadId])
-  @@index([sourcePageId])
-  @@index([sourceRunId])
-  @@map("lead_social_profiles")
-}
-
 
 enum UserRole {
   readonly
@@ -741,9 +685,7 @@ model Lead {
 
   scrapeRuns           ScrapeRun[]
   scrapedPages         ScrapedPage[]
-  leadEmails           LeadEmail[]
-  leadPhones           LeadPhone[]
-  leadSocialProfiles   LeadSocialProfile[]
+  leadContacts         LeadContact[]
 
   // Normalized location FKs
   locationCityId       Int?      @map("location_city_id")
@@ -793,10 +735,6 @@ model Lead {
   tier                     Int?     @map("tier")
   isIntermediated          Boolean  @default(false) @map("is_intermediated")
   intermediationSignals    String?  @map("intermediation_signals")
-  ownerEmail               String?  @map("owner_email")
-  ownerPhone               String?  @map("owner_phone")
-  ownerLinkedin            String?  @map("owner_linkedin")
-  contactConfidence        String?  @map("contact_confidence")
 
   // Web Scraping
   webScrapedAt         DateTime? @map("web_scraped_at")
@@ -831,6 +769,35 @@ model Lead {
   @@map("leads")
 }
 
+model LeadContact {
+  id              String       @id @default(uuid())
+  firstName       String?      @map("first_name")
+  lastName        String?      @map("last_name")
+  email           String?
+  phone           String?
+  linkedin        String?
+  instagram       String?
+  facebook        String?
+  twitter         String?
+  isBestContact   Boolean?     @map("is_best_contact")
+  scrapedPageId   String?      @map("scraped_page_id")
+  scrapedPage     ScrapedPage? @relation(fields: [scrapedPageId], references: [id], onDelete: SetNull)
+  leadId          String       @map("lead_id")
+  lead            Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  campaignId      String?      @map("campaign_id")
+  campaign        Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  searchQueryId   String?      @map("search_query_id")
+  searchQuery     SearchQuery? @relation(fields: [searchQueryId], references: [id], onDelete: SetNull)
+  description     String?
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@index([leadId])
+  @@index([scrapedPageId])
+  @@index([campaignId])
+  @@index([searchQueryId])
+  @@map("lead_contacts")
+}
+
 model Campaign {
   id                   String    @id @default(uuid())
   name                 String
@@ -852,6 +819,7 @@ model Campaign {
   searchQueries        SearchQuery[]
   locationCities       CampaignCity[]
   locationStates       CampaignState[]
+  leadContacts         LeadContact[]
 
   @@index([createdAt])
   @@map("campaigns")

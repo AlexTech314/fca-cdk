@@ -354,8 +354,7 @@ export function LeadFilters({ filters, onChange }: LeadFiltersProps) {
           {([
             ['hasWebsite', 'Website'],
             ['hasPhone', 'Phone'],
-            ['hasExtractedEmail', 'Email'],
-            ['hasExtractedPhone', 'Ext. Phone'],
+            ['hasContact', 'Contact'],
             ['isScored', 'Scored'],
             ['isScraped', 'Scraped'],
             ['isExcluded', 'Excluded'],

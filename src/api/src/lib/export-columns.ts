@@ -52,10 +52,18 @@ export const allColumnDefs: ExportColumnDef[] = [
   { key: 'tier', header: 'Tier', accessor: (l) => l.tier != null ? String(l.tier) : '' },
   { key: 'isIntermediated', header: 'Is Intermediated', accessor: (l) => l.isIntermediated ? 'Yes' : 'No' },
   { key: 'intermediationSignals', header: 'Intermediation Signals', accessor: (l) => l.intermediationSignals ?? '' },
-  { key: 'ownerEmail', header: 'Owner Email', accessor: (l) => l.ownerEmail ?? '' },
-  { key: 'ownerPhone', header: 'Owner Phone', accessor: (l) => l.ownerPhone ?? '' },
-  { key: 'ownerLinkedin', header: 'Owner LinkedIn', accessor: (l) => l.ownerLinkedin ?? '' },
-  { key: 'contactConfidence', header: 'Contact Confidence', accessor: (l) => l.contactConfidence ?? '' },
+  { key: 'bestContactEmail', header: 'Best Contact Email', accessor: (l) => {
+    const best = (l.leadContacts ?? []).find((c: any) => c.isBestContact);
+    return best?.email ?? '';
+  }},
+  { key: 'bestContactPhone', header: 'Best Contact Phone', accessor: (l) => {
+    const best = (l.leadContacts ?? []).find((c: any) => c.isBestContact);
+    return best?.phone ?? '';
+  }},
+  { key: 'bestContactLinkedin', header: 'Best Contact LinkedIn', accessor: (l) => {
+    const best = (l.leadContacts ?? []).find((c: any) => c.isBestContact);
+    return best?.linkedin ?? '';
+  }},
   { key: 'controllingOwner', header: 'Controlling Owner', accessor: (l) => l.controllingOwner ?? '' },
   { key: 'ownershipType', header: 'Ownership Type', accessor: (l) => l.ownershipType ?? '' },
   { key: 'isExcluded', header: 'Is Excluded', accessor: (l) => l.isExcluded ? 'Yes' : 'No' },
@@ -69,12 +77,14 @@ export const allColumnDefs: ExportColumnDef[] = [
   { key: 'pipelineStatus', header: 'Pipeline Status', accessor: (l) => l.pipelineStatus ?? '' },
 
   // Extracted data (multi-value joined with semicolons)
-  { key: 'emails', header: 'Emails', accessor: (l) => (l.leadEmails ?? []).map((e: any) => {
-    const name = [e.firstName, e.lastName].filter(Boolean).join(' ');
-    return name ? `${name} <${e.value}>` : e.value;
+  { key: 'contacts', header: 'Contacts', accessor: (l) => (l.leadContacts ?? []).map((c: any) => {
+    const name = [c.firstName, c.lastName].filter(Boolean).join(' ');
+    const parts: string[] = [];
+    if (name) parts.push(name);
+    if (c.email) parts.push(c.email);
+    if (c.phone) parts.push(c.phone);
+    return parts.join(' ');
   }).join('; ') },
-  { key: 'phones', header: 'Phones', accessor: (l) => (l.leadPhones ?? []).map((p: any) => p.value).join('; ') },
-  { key: 'socialProfiles', header: 'Social Profiles', accessor: (l) => (l.leadSocialProfiles ?? []).map((s: any) => s.url).join('; ') },
 
   // Relations
   { key: 'campaignName', header: 'Campaign', accessor: (l) => l.campaign?.name ?? '' },

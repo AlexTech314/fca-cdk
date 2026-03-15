@@ -132,21 +132,26 @@ async function main(): Promise<void> {
       // Call LLM
       const contacts = await callLlm(emailValues, pageContents);
 
-      // Update LeadEmail records with extracted names
+      // Update LeadContact records with extracted names
       let updatedCount = 0;
       for (const contact of contacts) {
         try {
-          await db.leadEmail.update({
-            where: { leadId_value: { leadId: lead_id, value: contact.email.toLowerCase() } },
-            data: {
-              firstName: contact.first_name && contact.first_name !== 'null' ? contact.first_name : null,
-              lastName: contact.last_name && contact.last_name !== 'null' ? contact.last_name : null,
-              contactType: contact.contact_type,
-            },
+          const existing = await db.leadContact.findFirst({
+            where: { leadId: lead_id, email: contact.email.toLowerCase() },
           });
-          updatedCount++;
+          if (existing) {
+            await db.leadContact.update({
+              where: { id: existing.id },
+              data: {
+                firstName: contact.first_name && contact.first_name !== 'null' ? contact.first_name : null,
+                lastName: contact.last_name && contact.last_name !== 'null' ? contact.last_name : null,
+                description: contact.contact_type,
+              },
+            });
+            updatedCount++;
+          }
         } catch {
-          // email may not exist in DB (race condition), skip
+          // contact may not exist in DB (race condition), skip
         }
       }
 

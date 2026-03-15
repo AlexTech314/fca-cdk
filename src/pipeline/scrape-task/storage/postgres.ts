@@ -103,37 +103,33 @@ export async function updateLeadWithScrapeData(
       (sourceUrl ? urlToPageId.get(sourceUrl) : null) ?? firstPageId;
 
     // 3. Delete old extracted contact data, then insert fresh
-    await tx.leadSocialProfile.deleteMany({ where: { leadId } });
+    await tx.leadContact.deleteMany({ where: { leadId } });
 
-    // 3a. Upsert emails (dedupe by value)
+    // 3a. Create contacts for emails
     for (const email of extracted.emails) {
       const normalizedEmail = email.toLowerCase().trim();
       const sourcePageId = resolvePageId(extracted.emailSources?.[email]);
-      await tx.leadEmail.upsert({
-        where: { leadId_value: { leadId, value: normalizedEmail } },
-        update: { sourcePageId, sourceRunId: runId },
-        create: { leadId, value: normalizedEmail, sourcePageId, sourceRunId: runId },
+      await tx.leadContact.create({
+        data: { leadId, email: normalizedEmail, scrapedPageId: sourcePageId },
       });
     }
 
-    // 3b. Upsert phones (dedupe by value)
+    // 3b. Create contacts for phones
     for (const phone of extracted.phones) {
       const sourcePageId = resolvePageId(extracted.phoneSources?.[phone]);
-      await tx.leadPhone.upsert({
-        where: { leadId_value: { leadId, value: phone } },
-        update: { sourcePageId, sourceRunId: runId },
-        create: { leadId, value: phone, sourcePageId, sourceRunId: runId },
+      await tx.leadContact.create({
+        data: { leadId, phone, scrapedPageId: sourcePageId },
       });
     }
 
-    // 3c. Insert social profiles (fresh per run)
+    // 3c. Create contacts for social profiles
     const socialPlatforms = ['linkedin', 'facebook', 'instagram', 'twitter'] as const;
     for (const platform of socialPlatforms) {
       const url = extracted.social[platform];
       if (url) {
         const sourcePageId = resolvePageId(extracted.socialSources?.[platform]);
-        await tx.leadSocialProfile.create({
-          data: { leadId, platform, url, sourcePageId, sourceRunId: runId },
+        await tx.leadContact.create({
+          data: { leadId, [platform]: url, scrapedPageId: sourcePageId },
         });
       }
     }

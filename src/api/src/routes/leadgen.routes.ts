@@ -499,20 +499,21 @@ router.patch('/lead-data/:type/:id', authorize('readwrite', 'admin'), async (req
   }
 });
 
-router.post('/leads/:id/emails', authorize('readwrite', 'admin'), async (req, res, next) => {
+router.post('/leads/:id/contacts', authorize('readwrite', 'admin'), async (req, res, next) => {
   try {
-    const { value } = req.body;
-    if (!value || typeof value !== 'string' || !value.trim()) {
-      res.status(400).json({ error: 'Email value is required' });
+    const { email, phone, firstName, lastName } = req.body;
+    if (!email && !phone) {
+      res.status(400).json({ error: 'At least email or phone is required' });
       return;
     }
-    const email = await leadService.createLeadEmail(String(req.params.id), value.trim());
-    res.status(201).json(email);
-  } catch (error: any) {
-    if (error?.code === 'P2002') {
-      res.status(409).json({ error: 'Email already exists for this lead' });
-      return;
-    }
+    const contact = await leadService.createLeadContact(String(req.params.id), {
+      email: email?.trim() || undefined,
+      phone: phone?.trim() || undefined,
+      firstName: firstName?.trim() || undefined,
+      lastName: lastName?.trim() || undefined,
+    });
+    res.status(201).json(contact);
+  } catch (error) {
     next(error);
   }
 });

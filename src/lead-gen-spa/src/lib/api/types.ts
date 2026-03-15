@@ -29,7 +29,7 @@ import type {
   CostOverTime,
 } from '@/types';
 
-export type LeadDataType = 'email' | 'phone' | 'social';
+export type LeadDataType = 'contact';
 
 /**
  * LeadGenApi Interface
@@ -361,7 +361,7 @@ export interface LeadGenApi {
   /**
    * Create a new email for a lead
    */
-  createLeadEmail(leadId: string, value: string): Promise<{ id: string; value: string }>;
+  createLeadContact(leadId: string, data: { email?: string; phone?: string; firstName?: string; lastName?: string }): Promise<{ id: string }>;
 
   /**
    * Delete an individual extracted data item

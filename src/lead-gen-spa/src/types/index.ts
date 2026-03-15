@@ -78,20 +78,13 @@ export interface Lead {
   tier: number | null;
   isIntermediated: boolean;
   intermediationSignals: string | null;
-  ownerEmail: string | null;
-  ownerPhone: string | null;
-  ownerLinkedin: string | null;
-  contactConfidence: string | null;
   isExcluded: boolean;
   exclusionReason: string | null;
   source: 'google_places' | 'manual' | 'import' | null;
   franchiseId: string | null;
   franchise?: Franchise | null;
   campaign?: { id: string; name: string } | null;
-  /** Emails from leadEmails (for list display) */
-  emails?: string[];
-  /** Email objects with IDs (for inline editing) */
-  leadEmails?: Array<{ id: string; value: string }>;
+  leadContacts?: LeadContact[];
   contactPageUrl?: string | null;
   sortIndex: number | null;
   pipelineStatus: LeadPipelineStatus;
@@ -104,33 +97,22 @@ export interface Lead {
   updatedAt: string;
 }
 
-/** Extracted value with provenance */
-export interface LeadEmail {
+/** Unified contact with provenance */
+export interface LeadContact {
   id: string;
-  value: string;
   firstName?: string | null;
   lastName?: string | null;
-  contactType?: string | null;  // 'owner' | 'team' | 'business'
-  sourcePageId: string;
-  sourceRunId: string;
-  sourcePage?: { id: string; url: string } | null;
-}
-
-export interface LeadPhone {
-  id: string;
-  value: string;
-  sourcePageId: string;
-  sourceRunId: string;
-  sourcePage?: { id: string; url: string } | null;
-}
-
-export interface LeadSocialProfile {
-  id: string;
-  platform: string;
-  url: string;
-  sourcePageId: string;
-  sourceRunId: string;
-  sourcePage?: { id: string; url: string } | null;
+  email?: string | null;
+  phone?: string | null;
+  linkedin?: string | null;
+  instagram?: string | null;
+  facebook?: string | null;
+  twitter?: string | null;
+  isBestContact?: boolean | null;
+  scrapedPageId?: string | null;
+  scrapedPage?: { id: string; url: string } | null;
+  description?: string | null;
+  createdAt?: string;
 }
 
 export interface ScrapedPageRef {
@@ -158,9 +140,7 @@ export interface ScrapeRun {
 }
 
 export interface LeadProvenance {
-  emails: Array<{ value: string; sourcePageId: string; sourceRunId: string; sourcePage: { id: string; url: string } | null }>;
-  phones: Array<{ value: string; sourcePageId: string; sourceRunId: string; sourcePage: { id: string; url: string } | null }>;
-  socialProfiles: Array<{ platform: string; url: string; sourcePageId: string; sourceRunId: string; sourcePage: { id: string; url: string } | null }>;
+  contacts: LeadContact[];
 }
 
 export interface Campaign {
@@ -237,8 +217,7 @@ export interface LeadFilters {
   sources?: string[];
   hasWebsite?: boolean;
   hasPhone?: boolean;
-  hasExtractedEmail?: boolean;
-  hasExtractedPhone?: boolean;
+  hasContact?: boolean;
   isScored?: boolean;
   isScraped?: boolean;
   isExcluded?: boolean;
@@ -258,8 +237,7 @@ export type LeadListField =
   | 'name'
   | 'city'
   | 'state'
-  | 'phone'
-  | 'emails'
+  | 'contacts'
   | 'website'
   | 'googleMaps'
   | 'rating'
@@ -370,9 +348,7 @@ export interface CampaignWithStats extends Campaign {
 
 export interface LeadWithCampaign extends Lead {
   campaign?: Campaign;
-  leadEmails?: LeadEmail[];
-  leadPhones?: LeadPhone[];
-  leadSocialProfiles?: LeadSocialProfile[];
+  leadContacts?: LeadContact[];
   scrapeRuns?: ScrapeRun[];
 }
 

@@ -57,10 +57,9 @@ const columnGroups: ColumnGroup[] = [
       { key: 'tier', label: 'Tier', default: false },
       { key: 'isIntermediated', label: 'Is Intermediated', default: false },
       { key: 'intermediationSignals', label: 'Intermediation Signals', default: false },
-      { key: 'ownerEmail', label: 'Owner Email', default: false },
-      { key: 'ownerPhone', label: 'Owner Phone', default: false },
-      { key: 'ownerLinkedin', label: 'Owner LinkedIn', default: false },
-      { key: 'contactConfidence', label: 'Contact Confidence', default: false },
+      { key: 'bestContactEmail', label: 'Best Contact Email', default: false },
+      { key: 'bestContactPhone', label: 'Best Contact Phone', default: false },
+      { key: 'bestContactLinkedin', label: 'Best Contact LinkedIn', default: false },
       { key: 'controllingOwner', label: 'Controlling Owner', default: false },
       { key: 'ownershipType', label: 'Ownership Type', default: false },
       { key: 'isExcluded', label: 'Is Excluded', default: false },
@@ -80,9 +79,7 @@ const columnGroups: ColumnGroup[] = [
   {
     label: 'Extracted Data',
     columns: [
-      { key: 'emails', label: 'Emails', default: false },
-      { key: 'phones', label: 'Phones', default: false },
-      { key: 'socialProfiles', label: 'Social Profiles', default: false },
+      { key: 'contacts', label: 'Contacts', default: false },
     ],
   },
   {

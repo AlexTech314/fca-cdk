@@ -4,8 +4,7 @@ const leadListFields = [
   'name',
   'city',
   'state',
-  'phone',
-  'emails',
+  'contacts',
   'website',
   'googleMaps',
   'rating',
@@ -54,8 +53,7 @@ export const leadFiltersSchema = z.object({
   sources: z.preprocess(csvPreprocess, z.array(z.string()).optional()),
   hasWebsite: z.preprocess(boolPreprocess, z.boolean().optional()),
   hasPhone: z.preprocess(boolPreprocess, z.boolean().optional()),
-  hasExtractedEmail: z.preprocess(boolPreprocess, z.boolean().optional()),
-  hasExtractedPhone: z.preprocess(boolPreprocess, z.boolean().optional()),
+  hasContact: z.preprocess(boolPreprocess, z.boolean().optional()),
   isScored: z.preprocess(boolPreprocess, z.boolean().optional()),
   isScraped: z.preprocess(boolPreprocess, z.boolean().optional()),
   isExcluded: z.preprocess(boolPreprocess, z.boolean().optional()),
@@ -72,15 +70,24 @@ export const leadQuerySchema = leadFiltersSchema.extend({
 });
 
 // Lead data type enum (for generic CRUD on extracted data)
-export const leadDataTypes = ['email', 'phone', 'social'] as const;
+export const leadDataTypes = ['contact'] as const;
 export const leadDataTypeSchema = z.enum(leadDataTypes);
 export type LeadDataType = z.infer<typeof leadDataTypeSchema>;
 
 // Update schemas per data type
 export const leadDataUpdateSchemas = {
-  email: z.object({ value: z.string().min(1) }),
-  phone: z.object({ value: z.string().min(1) }),
-  social: z.object({ platform: z.string().min(1), url: z.string().min(1) }),
+  contact: z.object({
+    email: z.string().optional(),
+    phone: z.string().optional(),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    linkedin: z.string().optional(),
+    instagram: z.string().optional(),
+    facebook: z.string().optional(),
+    twitter: z.string().optional(),
+    isBestContact: z.boolean().optional(),
+    description: z.string().optional(),
+  }),
 } as const;
 
 // Types

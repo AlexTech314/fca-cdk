@@ -158,12 +158,12 @@ export function useDeleteScrapedPage() {
   });
 }
 
-export function useCreateLeadEmail() {
+export function useCreateLeadContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ leadId, value }: { leadId: string; value: string }) =>
-      api.createLeadEmail(leadId, value),
+    mutationFn: ({ leadId, data }: { leadId: string; data: { email?: string; phone?: string; firstName?: string; lastName?: string } }) =>
+      api.createLeadContact(leadId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     },
